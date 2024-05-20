@@ -2,14 +2,25 @@ cmake_minimum_required(VERSION 3.10)
 project(geompp_tests)
 
 # Specify the C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+#include_directories(${PROJECT_NAME}/include geompp/include)
+
+# Add the executable for tests
+add_executable(${PROJECT_NAME}
+    main.cpp
+    src/test_point2d.cpp
+    src/test_vector2d.cpp
+    src/test_line2d.cpp
+)
+
+#target_include_directories(${PROJECT_NAME} include geompp/include)
 
 
 # Link the library to the test executable
 target_link_libraries(${PROJECT_NAME} geompp)
 
-include_directories(${PROJECT_NAME}/include geompp/include)
 
 
 # Enable testing
@@ -29,7 +40,7 @@ FetchContent_MakeAvailable(googletest)
 target_link_libraries(${PROJECT_NAME} gtest gtest_main geompp)
 
 # Add test cases
-add_test(NAME ${PROJECT_NAME} COMMAND geompp_test)
+add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 
 # Print the summary of tests
 include(CTest)

@@ -1,0 +1,16 @@
+---
+BasedOnStyle: Google
+
+IndentWidth:     2
+TabWidth:        2
+UseTab:          Never
+ColumnLimit:     120
+
+---
+Language: Cpp
+
+DerivePointerAlignment: false
+# Order headers in alphabetical order only within block
+# It is default under Google style, but CLion does not pick it up
+IncludeBlocks: Preserve
+
