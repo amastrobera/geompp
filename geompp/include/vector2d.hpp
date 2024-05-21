@@ -7,10 +7,10 @@ namespace geompp {
 class Point2D;
 
 class Vector2D {
-public:
+ public:
   Vector2D(double x, double y);
-  Vector2D(Vector2D const &) = default;
-  Vector2D(Vector2D &&) = default;
+  Vector2D(Vector2D const&) = default;
+  Vector2D(Vector2D&&) = default;
   ~Vector2D() = default;
 
   double inline const x() const { return X; }
@@ -19,10 +19,10 @@ public:
   double Length() const;
   bool AlmostEquals(Vector2D const& other, int decimal_precision = DP_THREE) const;
 
-  double Dot(Vector2D const &v);
-  double Cross(Vector2D const &v);
+  double Dot(Vector2D const& v);
+  double Cross(Vector2D const& v);
 
-private:
+ private:
   double X, Y;
 };
 
@@ -40,5 +40,4 @@ Vector2D operator*(Vector2D const& lhs, Vector2D const& vec) = delete;
 
 Vector2D operator/(Vector2D const& lhs, Vector2D const& vec) = delete;
 
-
-} // namespace geompp
+}  // namespace geompp
