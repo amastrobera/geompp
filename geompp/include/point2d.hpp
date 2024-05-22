@@ -11,15 +11,16 @@ class Vector2D;
 
 class Point2D {
  public:
-  Point2D(double x, double y);
+  Point2D(double x = 0.0, double y = 0.0);
   Point2D(Point2D const&);
   Point2D(Point2D&&) = default;
   ~Point2D() = default;
 
-  double inline const x() const { return X; }
-  double inline const y() const { return Y; }
+  inline double x() const { return X; }
+  inline double y() const { return Y; }
 
   Vector2D ToVector();
+
   bool AlmostEquals(Point2D const& other, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
@@ -28,7 +29,9 @@ class Point2D {
   double X, Y;
 };
 
-// operators
+#pragma region Operators Overloading
+
+
 bool operator==(Point2D const& lhs, Point2D const& rhs);
 
 Point2D operator+(Point2D const& lhs, Vector2D const& rhs);
@@ -43,7 +46,11 @@ Point2D operator+(Point2D const& lhs, Point2D const& rhs) = delete;
 
 Point2D operator/(Point2D const& lhs, Point2D const& rhs) = delete;
 
-//// formatter
+#pragma endregion
+
+#pragma region Formatter
+
+
 // template <>
 // struct std::formatter<Point2D> {
 //   constexpr auto parse(std::format_parse_context& ctx) {
@@ -56,3 +63,5 @@ Point2D operator/(Point2D const& lhs, Point2D const& rhs) = delete;
 // };
 
 }  // namespace geompp
+
+#pragma endregion

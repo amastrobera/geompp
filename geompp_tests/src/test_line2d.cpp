@@ -22,3 +22,32 @@ TEST(Line2D, Constructor) {
   EXPECT_EQ(l2.Direction(), v);
   EXPECT_EQ(l2.Last(), p0 + v);
 }
+
+
+TEST(Line2D, Contains) {
+	int prec = 3;
+	auto l1 = Line2D::Make(Point2D(0, -1), Point2D(0, 1), prec);
+	auto p0 = Point2D();
+	auto p1 = Point2D(0, 10);
+	auto p2 = Point2D(-10, 0);
+
+	ASSERT_TRUE(l1.Contains(p0, prec));
+	ASSERT_TRUE(l1.Contains(p1, prec));
+	ASSERT_TRUE(!l1.Contains(p2, prec));
+
+}
+
+TEST(Line2D, Intersection) {
+	int prec = 3;
+	auto l1 = Line2D::Make(Point2D(0, -1), Point2D(0, 1), prec);
+	auto l2 = Line2D::Make(Point2D(-1, 0), Point2D(1, 0), prec);
+
+	EXPECT_TRUE(l1.Intersects(l2, prec));
+	auto inter = l1.Intersection(l2, prec);
+
+	ASSERT_TRUE(inter.has_value());
+	ASSERT_TRUE(std::holds_alternative<Point2D>(*inter));
+
+	EXPECT_EQ(Point2D(0, 0), std::get<Point2D>(*inter));
+
+}
