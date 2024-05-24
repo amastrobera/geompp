@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
+#include "constants.hpp"
 #include "point2d.hpp"
 #include "vector2d.hpp"
+#include "utils.hpp"
 
 using namespace geompp;
 
@@ -34,4 +36,13 @@ TEST(Vector2D, AddVector) {
   EXPECT_EQ(3.77, v3.y());
 
   EXPECT_EQ(Vector2D(3.05, 3.77), v3);
+}
+
+TEST(Vector2D, PerpDotCross) {
+  int prec = 3;
+  auto v1 = Vector2D(1, 0);
+  auto v2 = v1.Perp();
+  ASSERT_EQ(0.0, round_to(v1.Dot(v2), prec)); // perp is perpendicular
+  EXPECT_EQ(1.0, round_to(v1.Cross(v2), prec));
+  EXPECT_EQ(-1.0, round_to(v2.Cross(v1), prec));
 }

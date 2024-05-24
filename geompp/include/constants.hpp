@@ -8,7 +8,6 @@ namespace geompp {
 
 #pragma region Fwd Declarations
 class Point2D;
-class Line2D;
 #pragma endregion
 
 
@@ -24,7 +23,7 @@ const int DP_NINE = 9;
 
 #pragma region ReturnTypes
 
-using Shape2D = std::variant<Point2D, Line2D>;
+using Shape2D = std::variant<Point2D>;
 
 #pragma endregion
 

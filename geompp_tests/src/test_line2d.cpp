@@ -12,6 +12,8 @@ TEST(Line2D, Constructor) {
   auto p1 = Point2D(3, 5);
   auto l1 = Line2D::Make(p0, p1, prec);
 
+  EXPECT_ANY_THROW(Line2D::Make(p0, p0, prec)); // cannot make a line that starts and finishes at the same point
+
   EXPECT_EQ(l1.First(), p0);
   EXPECT_EQ(l1.Last(), p1);
   EXPECT_EQ(l1.Direction(), p1 - p0);
