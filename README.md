@@ -1,11 +1,11 @@
 # Geom++ 
 ### Geometry library for 2D and 3D calculations
 
-The library offers a set of primitive classes to store geometrical data (Point, Ray, LineSegment, Polygon, ... etc), and functions with with those interact with each other (+/-/*, Intersection, Overlap, ... etc). 
+The library offers a set of primitive classes to store geometrical data (Point, Ray, LineSegment, Polygon, ... etc). It also contains functionalities for those primities to interact with each other (+/-/*, Intersection, Overlap, ... etc). 
 
 The aim of the library is to be fast, mathematically-correct, well-tested, easy to use and helpful in a variety of languages other than C++, such as Python or C#. 
 
-It is based on C++20 standards.
+It is based on C++20 standard.
 
 This geometry library was born to improve the previous [GeomSharp](https://github.com/amastrobera/geom_sharp) libraray, by creating 
 (1) better algorithsm, 
