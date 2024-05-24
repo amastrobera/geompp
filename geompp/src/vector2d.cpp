@@ -21,8 +21,8 @@ double Vector2D::Cross(Vector2D const& v) const { return (-Y * v.X + X * v.Y); }
 Vector2D Vector2D::Perp() const { return Vector2D(-Y, X); }
 
 Vector2D Vector2D::Normalize() const {
-    double len = Length();
-    return Vector2D(X / len, Y / len);
+  double len = Length();
+  return Vector2D(X / len, Y / len);
 }
 
 // operators
