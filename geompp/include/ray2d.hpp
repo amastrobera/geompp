@@ -24,9 +24,9 @@ class Ray2D {
   bool IsAhead(Point2D const& point, int decimal_precision = DP_THREE) const;
   bool IsBehind(Point2D const& point, int decimal_precision = DP_THREE) const;
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
-  bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
+  // bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
   bool Intersects(Ray2D const& other, int decimal_precision = DP_THREE) const;
-  std::optional<Shape2D> Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
+  // std::optional<Shape2D> Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
   std::optional<Shape2D> Intersection(Ray2D const& other, int decimal_precision = DP_THREE) const;
 #pragma endregion
 

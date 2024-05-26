@@ -14,17 +14,17 @@ bool Point2D::AlmostEquals(Point2D const& other, int decimal_precision) const {
          round((Y - other.Y) * pow(10, decimal_precision)) == 0.0;
 }
 
-Vector2D Point2D::ToVector() { return Vector2D(X, Y); }
+Vector2D Point2D::ToVector() { return {X, Y}; }
 
 #pragma region Operator Overloading
 bool operator==(Point2D const& lhs, Point2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Point2D operator+(Point2D const& lhs, Vector2D const& rhs) { return Point2D(lhs.x() + rhs.x(), lhs.y() + rhs.y()); }
+Point2D operator+(Point2D const& lhs, Vector2D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y()}; }
 
-Vector2D operator-(Point2D const& lhs, Point2D const& rhs) { return Vector2D(lhs.x() - rhs.x(), lhs.y() - rhs.y()); }
-Point2D operator-(Point2D const& lhs, Vector2D const& rhs) { return Point2D(lhs.x() - rhs.x(), lhs.y() - rhs.y()); }
+Vector2D operator-(Point2D const& lhs, Point2D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y()}; }
+Point2D operator-(Point2D const& lhs, Vector2D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y()}; }
 
-Point2D operator*(Point2D const& lhs, double a) { return Point2D(lhs.x() * a, lhs.y() * a); }
+Point2D operator*(Point2D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a}; }
 Point2D operator*(double a, Point2D const& rhs) { return rhs * a; }
 
 #pragma endregion

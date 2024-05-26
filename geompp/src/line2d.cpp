@@ -14,14 +14,14 @@ Line2D Line2D::Make(Point2D const& p0, Point2D const& p1, int decimal_precision)
     throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision",
                                          p0.ToWkt(decimal_precision), p1.ToWkt(decimal_precision), decimal_precision));
   }
-  return Line2D(p0, p1);
+  return {p0, p1};
 }
 
 Line2D Line2D::Make(Point2D const& p0, Vector2D const& dir, int decimal_precision) {
   if (round_to(dir.Length(), decimal_precision) == 0) {
     throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", decimal_precision));
   }
-  return Line2D(p0, dir);
+  return {p0, dir};
 }
 
 Line2D::Line2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
@@ -41,9 +41,9 @@ bool Line2D::Intersects(Line2D const& other, int decimal_precision) const {
   return round_to(DIR.Cross(other.DIR), decimal_precision) != 0.0;
 }
 
-bool Line2D::Intersects(Ray2D const& ray, int decimal_precision) const {
-  return ray.Intersects(*this, decimal_precision);
-}
+//bool Line2D::Intersects(Ray2D const& ray, int decimal_precision) const {
+//  return ray.Intersects(*this, decimal_precision);
+//}
 
 
 std::optional<Shape2D> Line2D::Intersection(Line2D const& other, int decimal_precision) const {
@@ -60,9 +60,9 @@ std::optional<Shape2D> Line2D::Intersection(Line2D const& other, int decimal_pre
   return P0 + t * u;
 }
 
-std::optional<Shape2D> Line2D::Intersection(Ray2D const& ray, int decimal_precision) const {
-  return ray.Intersection(*this, decimal_precision);
-}
+//std::optional<Shape2D> Line2D::Intersection(Ray2D const& ray, int decimal_precision) const {
+//  return ray.Intersection(*this, decimal_precision);
+//}
 
 
 #pragma endregion
