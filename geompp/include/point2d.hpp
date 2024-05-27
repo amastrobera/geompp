@@ -31,7 +31,6 @@ class Point2D {
 
 #pragma region Operators Overloading
 
-
 bool operator==(Point2D const& lhs, Point2D const& rhs);
 
 Point2D operator+(Point2D const& lhs, Vector2D const& rhs);
@@ -49,7 +48,6 @@ Point2D operator/(Point2D const& lhs, Point2D const& rhs) = delete;
 #pragma endregion
 
 #pragma region Formatter
-
 
 // template <>
 // struct std::formatter<Point2D> {

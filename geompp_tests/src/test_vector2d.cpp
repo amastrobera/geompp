@@ -5,7 +5,6 @@
 #include "utils.hpp"
 #include "vector2d.hpp"
 
-
 namespace g = geompp;
 
 TEST(Vector2D, Equality) {

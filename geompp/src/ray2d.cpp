@@ -1,4 +1,6 @@
 #include "ray2d.hpp"
+
+#include "constants.hpp"
 #include "line2d.hpp"
 #include "utils.hpp"
 
@@ -34,34 +36,33 @@ bool Ray2D::Contains(Point2D const& point, int decimal_precision) const {
   return round_to((point - ORIGIN).Cross(DIR), decimal_precision) == 0.0 && IsAhead(point, decimal_precision);
 }
 
-//bool Ray2D::Intersects(Line2D const& line, int decimal_precision) const {
-//  return Intersection(line, decimal_precision).has_value();
-//}
+bool Ray2D::Intersects(Line2D const& line, int decimal_precision) const {
+  return Intersection(line, decimal_precision).has_value();
+}
 
 bool Ray2D::Intersects(Ray2D const& other, int decimal_precision) const {
-  // very easy to verify in 2D plane
   return Intersection(other, decimal_precision).has_value();
 }
 
-//std::optional<Shape2D> Ray2D::Intersection(Line2D const& line, int decimal_precision) const {
-//  auto u = DIR;
-//  auto v = line.Direction();
-//  auto vp = v.Perp();
-//    auto w = (ORIGIN - line.First());
-//
-//    if (round_to(u * vp, decimal_precision) == 0.0) {
-//    return std::nullopt;
-//    }
-//    double t = (-w * vp) / (u * vp);
-//
-//    // verify that the intersection is ahead of the ray
-//    auto inter_p = ORIGIN + t*u;
-//    if (!IsAhead(inter_p, decimal_precision)) {
-//    return std::nullopt;
-//    }
-//
-//    return inter_p;
-//}
+std::optional<Shape2D> Ray2D::Intersection(Line2D const& line, int decimal_precision) const {
+  auto u = DIR;
+  auto v = line.Direction();
+  auto vp = v.Perp();
+  auto w = (ORIGIN - line.First());
+
+  if (round_to(u * vp, decimal_precision) == 0.0) {
+    return std::nullopt;
+  }
+  double t = (-w * vp) / (u * vp);
+
+  // verify that the intersection is ahead of the ray
+  auto inter_p = ORIGIN + t * u;
+  if (!IsAhead(inter_p, decimal_precision)) {
+    return std::nullopt;
+  }
+
+  return inter_p;
+}
 
 std::optional<Shape2D> Ray2D::Intersection(Ray2D const& other, int decimal_precision) const {
   auto u = DIR;

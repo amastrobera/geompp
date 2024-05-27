@@ -57,10 +57,10 @@ TEST(Ray2D, AheadBehind) {
 
 TEST(Ray2D, Intersection) {
   int prec = 4;
-  auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
-  auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
-  auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1));  // intersects r2 in (-0.5,-0.5)
-  auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D(0, 1));   // intersects r2 in (1,1)
+  auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1), prec);
+  auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1), prec);    // intersects r1 in (0,0)
+  auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1), prec);  // intersects r2 in (-0.5,-0.5)
+  auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D(0, 1), prec);   // intersects r2 in (1,1)
 
   ASSERT_TRUE(r1.Intersects(r2, prec));
   {
@@ -90,4 +90,39 @@ TEST(Ray2D, Intersection) {
     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
     EXPECT_EQ(g::Point2D(1, 1), std::get<g::Point2D>(*inter));
   }
+}
+
+TEST(Ray2D, IntersectionWLine) {
+  int prec = 4;
+  auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1), prec);
+  auto r2 = g::Ray2D::Make(g::Point2D(1, -1), g::Vector2D(1, 1), prec);  // intersects r1 in (0,0)
+
+  auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0), prec);
+  auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1), prec);
+
+  ASSERT_TRUE(r1.Intersects(x, prec));
+  {
+    auto inter = r1.Intersection(x, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+  }
+
+  ASSERT_TRUE(r1.Intersects(y, prec));
+  {
+    auto inter = r1.Intersection(y, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+  }
+
+  ASSERT_TRUE(r2.Intersects(x, prec));
+  {
+    auto inter = r2.Intersection(x, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(2, 0), std::get<g::Point2D>(*inter));
+  }
+
+  ASSERT_FALSE(r2.Intersects(y, prec));
 }

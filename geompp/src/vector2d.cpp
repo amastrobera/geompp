@@ -1,4 +1,5 @@
 #include "vector2d.hpp"
+
 #include "utils.hpp"
 
 #include <cmath>
@@ -18,7 +19,7 @@ double Vector2D::Dot(Vector2D const& v) const { return (X * v.X + Y * v.Y); }
 
 double Vector2D::Cross(Vector2D const& v) const { return (-Y * v.X + X * v.Y); }
 
-Vector2D Vector2D::Perp() const { return {- Y, X}; }
+Vector2D Vector2D::Perp() const { return {-Y, X}; }
 
 Vector2D Vector2D::Normalize() const {
   double len = Length();
@@ -27,7 +28,7 @@ Vector2D Vector2D::Normalize() const {
 
 // operators
 
-Vector2D Vector2D::operator-() { return {- X, -Y}; }
+Vector2D Vector2D::operator-() { return {-X, -Y}; }
 
 bool operator==(Vector2D const& lhs, Vector2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
