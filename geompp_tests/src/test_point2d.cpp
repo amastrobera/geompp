@@ -1,7 +1,8 @@
-#include <gtest/gtest.h>
-
 #include "point2d.hpp"
+
 #include "vector2d.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace geompp;
 

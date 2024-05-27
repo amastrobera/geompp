@@ -5,10 +5,13 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <variant>
 
 namespace geompp {
 
 class Line2D;
+class LineSegment2D;
+class Shape2D;
 
 class Ray2D {
  public:
@@ -19,15 +22,18 @@ class Ray2D {
 
   inline Point2D const& Origin() const { return ORIGIN; }
   inline Vector2D const& Direction() const { return DIR; }
-
-#pragma region Geometrical Operations
   bool IsAhead(Point2D const& point, int decimal_precision = DP_THREE) const;
   bool IsBehind(Point2D const& point, int decimal_precision = DP_THREE) const;
+
+#pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
+  using ReturnSet = std::optional<std::variant<Point2D>>;
   bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
   bool Intersects(Ray2D const& other, int decimal_precision = DP_THREE) const;
-  std::optional<Shape2D> Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
-  std::optional<Shape2D> Intersection(Ray2D const& other, int decimal_precision = DP_THREE) const;
+  bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(Ray2D const& other, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
 #pragma endregion
 
  private:

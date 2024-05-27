@@ -1,9 +1,10 @@
-#include <gtest/gtest.h>
-
-#include "Point2D.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
 #include "vector2d.hpp"
+
+#include "constants.hpp"
+#include "point2d.hpp"
+#include "utils.hpp"
+
+#include <gtest/gtest.h>
 
 namespace g = geompp;
 

@@ -62,19 +62,19 @@ You should see something like this
 - set up a lib folder and a test folder
 - Point2D, Vector2D, Line2D, Shape2D for return type of geometrical operations, tests
 - Line2D::contains(p), Line2D::intersects(line), Line2D::intersection(line), tests
-
-#### Next
 - Ray2D, Ray2D::contains(p), Ray2D::intersection(line), Ray2D::intersection(ray), tests
 - LineSegment2D, LineSegment2D::contains(p), LineSegment2D:intersection(line), LineSegment2D:intersection(ray), LineSegment2D:intersection(line_seg), tests
 
-
-#### Backlog to do
+#### Next
 --- break from 2D geometry to continue on test and build infrastructure ---
+- github actions: run tests on merge 
 - ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
 - ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
 - test cases in `.wkt` files
 - On Visual Studio, use the test runner to run specific tests
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
+
+#### Backlog to do
 
 --- carry on 2D geometry ---
 - Line2D::distance(p), Ray2D::distance(p), LineSegment2D::distance(p), tests

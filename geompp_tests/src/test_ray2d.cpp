@@ -1,11 +1,11 @@
+#include "ray2d.hpp"
+
 #include "line2d.hpp"
 #include "point2d.hpp"
-#include "ray2d.hpp"
 #include "vector2d.hpp"
 
 #include <gtest/gtest.h>
 #include <optional>
-#include <variant>
 
 namespace g = geompp;
 
