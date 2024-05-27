@@ -14,6 +14,7 @@ add_executable(${PROJECT_NAME}
     src/test_point2d.cpp
     src/test_vector2d.cpp
     src/test_line2d.cpp
+    src/test_ray2d.cpp
 )
 
 #target_include_directories(${PROJECT_NAME} include geompp/include)

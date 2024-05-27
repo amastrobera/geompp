@@ -8,6 +8,8 @@
 
 namespace geompp {
 
+class Ray2D;
+
 class Line2D {
  public:
   static Line2D Make(Point2D const& p0, Point2D const& p1, int decimal_precision = DP_THREE);
@@ -23,18 +25,18 @@ class Line2D {
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
-  std::optional<Shape2D> Intersection(Line2D const& other, int decimal_precision = DP_THREE);
-  bool Intersects(Line2D const& other, int decimal_precision = DP_THREE);
+  bool Intersects(Line2D const& other, int decimal_precision = DP_THREE) const;
+  bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
+  std::optional<Shape2D> Intersection(Line2D const& other, int decimal_precision = DP_THREE) const;
+  std::optional<Shape2D> Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
 #pragma endregion
 
  private:
   Point2D P0, P1;
-  Vector2D DIR;
+  Vector2D DIR;  // unit
 
   Line2D(Point2D const& p0, Point2D const& p1);
   Line2D(Point2D const& orig, Vector2D const& dir);
 };
-
-
 
 }  // namespace geompp

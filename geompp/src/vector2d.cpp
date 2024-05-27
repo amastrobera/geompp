@@ -1,4 +1,5 @@
 #include "vector2d.hpp"
+
 #include "utils.hpp"
 
 #include <cmath>
@@ -18,26 +19,26 @@ double Vector2D::Dot(Vector2D const& v) const { return (X * v.X + Y * v.Y); }
 
 double Vector2D::Cross(Vector2D const& v) const { return (-Y * v.X + X * v.Y); }
 
-Vector2D Vector2D::Perp() const { return Vector2D(-Y, X); }
+Vector2D Vector2D::Perp() const { return {-Y, X}; }
 
 Vector2D Vector2D::Normalize() const {
   double len = Length();
-  return Vector2D(X / len, Y / len);
+  return {X / len, Y / len};
 }
 
 // operators
 
-Vector2D Vector2D::operator-() { return Vector2D(-X, -Y); }
+Vector2D Vector2D::operator-() { return {-X, -Y}; }
 
 bool operator==(Vector2D const& lhs, Vector2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Vector2D operator+(Vector2D const& lhs, Vector2D const& rhs) { return Vector2D(lhs.x() + rhs.x(), lhs.y() + rhs.y()); }
+Vector2D operator+(Vector2D const& lhs, Vector2D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y()}; }
 
-Vector2D operator-(Vector2D const& lhs, Vector2D const& rhs) { return Vector2D(lhs.x() - rhs.x(), lhs.y() - rhs.y()); }
+Vector2D operator-(Vector2D const& lhs, Vector2D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y()}; }
 
-Point2D operator+(Vector2D const& lhs, Point2D const& rhs) { return Point2D(lhs.x() + rhs.x(), lhs.y() + rhs.y()); }
+Point2D operator+(Vector2D const& lhs, Point2D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y()}; }
 
-Vector2D operator*(Vector2D const& lhs, double a) { return Vector2D(lhs.x() * a, lhs.y() * a); }
+Vector2D operator*(Vector2D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a}; }
 
 Vector2D operator*(double a, Vector2D const& rhs) { return rhs * a; }
 

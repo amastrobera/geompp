@@ -16,6 +16,8 @@ add_library(${PROJECT_NAME}
     src/point2d.cpp
     src/vector2d.cpp
     src/line2d.cpp
+    src/ray2d.cpp
+    src/utils.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
