@@ -5,10 +5,13 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <variant>
 
 namespace geompp {
 
 class Ray2D;
+class LineSegment2D;
+class Shape2D;
 
 class Line2D {
  public:
@@ -25,10 +28,13 @@ class Line2D {
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
+  using ReturnSet = std::optional<std::variant<Point2D>>;
   bool Intersects(Line2D const& other, int decimal_precision = DP_THREE) const;
   bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
-  std::optional<Shape2D> Intersection(Line2D const& other, int decimal_precision = DP_THREE) const;
-  std::optional<Shape2D> Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
+  bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(Line2D const& other, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
 #pragma endregion
 
  private:

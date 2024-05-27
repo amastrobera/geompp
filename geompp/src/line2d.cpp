@@ -1,5 +1,6 @@
 #include "line2d.hpp"
 
+#include "line_segment2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
@@ -46,7 +47,11 @@ bool Line2D::Intersects(Ray2D const& ray, int decimal_precision) const {
   return ray.Intersects(*this, decimal_precision);
 }
 
-std::optional<Shape2D> Line2D::Intersection(Line2D const& other, int decimal_precision) const {
+bool Line2D::Intersects(LineSegment2D const& segment, int decimal_precision) const {
+  return segment.Intersects(*this, decimal_precision);
+}
+
+Line2D::ReturnSet Line2D::Intersection(Line2D const& other, int decimal_precision) const {
   auto u = DIR;
   auto v = other.DIR;
   auto vp = v.Perp();
@@ -60,8 +65,12 @@ std::optional<Shape2D> Line2D::Intersection(Line2D const& other, int decimal_pre
   return P0 + t * u;
 }
 
-std::optional<Shape2D> Line2D::Intersection(Ray2D const& ray, int decimal_precision) const {
+Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray, int decimal_precision) const {
   return ray.Intersection(*this, decimal_precision);
+}
+
+Line2D::ReturnSet Line2D::Intersection(LineSegment2D const& segment, int decimal_precision) const {
+  return segment.Intersection(*this, decimal_precision);
 }
 
 #pragma endregion

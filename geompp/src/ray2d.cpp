@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 #include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "utils.hpp"
 
 #include <format>
@@ -20,10 +21,6 @@ Ray2D Ray2D::Make(Point2D const& p0, Vector2D const& dir, int decimal_precision)
 
 Ray2D::Ray2D(Point2D const& orig, Vector2D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
-#pragma endregion
-
-#pragma region Geometrical Operations
-
 bool Ray2D::IsAhead(Point2D const& point, int decimal_precision) const {
   return round_to(DIR.Dot(point - ORIGIN), decimal_precision) >= 0.0;
 }
@@ -31,6 +28,10 @@ bool Ray2D::IsAhead(Point2D const& point, int decimal_precision) const {
 bool Ray2D::IsBehind(Point2D const& point, int decimal_precision) const {
   return round_to(DIR.Dot(point - ORIGIN), decimal_precision) < 0.0;
 }
+
+#pragma endregion
+
+#pragma region Geometrical Operations
 
 bool Ray2D::Contains(Point2D const& point, int decimal_precision) const {
   return round_to((point - ORIGIN).Cross(DIR), decimal_precision) == 0.0 && IsAhead(point, decimal_precision);
@@ -44,7 +45,11 @@ bool Ray2D::Intersects(Ray2D const& other, int decimal_precision) const {
   return Intersection(other, decimal_precision).has_value();
 }
 
-std::optional<Shape2D> Ray2D::Intersection(Line2D const& line, int decimal_precision) const {
+bool Ray2D::Intersects(LineSegment2D const& segment, int decimal_precision) const {
+  return segment.Intersects(*this, decimal_precision);
+}
+
+Ray2D::ReturnSet Ray2D::Intersection(Line2D const& line, int decimal_precision) const {
   auto u = DIR;
   auto v = line.Direction();
   auto vp = v.Perp();
@@ -64,7 +69,7 @@ std::optional<Shape2D> Ray2D::Intersection(Line2D const& line, int decimal_preci
   return inter_p;
 }
 
-std::optional<Shape2D> Ray2D::Intersection(Ray2D const& other, int decimal_precision) const {
+Ray2D::ReturnSet Ray2D::Intersection(Ray2D const& other, int decimal_precision) const {
   auto u = DIR;
   auto up = u.Perp();  // equivalent (calc, on the other side)
   auto v = other.DIR;
@@ -92,6 +97,10 @@ std::optional<Shape2D> Ray2D::Intersection(Ray2D const& other, int decimal_preci
   }
 
   return inter_t;
+}
+
+Ray2D::ReturnSet Ray2D::Intersection(LineSegment2D const& segment, int decimal_precision) const {
+  return segment.Intersection(*this, decimal_precision);
 }
 
 #pragma endregion
