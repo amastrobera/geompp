@@ -1,7 +1,7 @@
-name: Build on Windows (Before Merge)
+name: Build and Test on Windows (Before Merge)
 
 on:
-  pull_request:  # Trigger on pull request events
+  pull_request:
 
 jobs:
   build:
