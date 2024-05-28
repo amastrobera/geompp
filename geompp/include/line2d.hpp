@@ -5,6 +5,7 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <string>
 #include <variant>
 
 namespace geompp {
@@ -25,6 +26,10 @@ class Line2D {
   inline Point2D const& Last() const { return P1; }
   inline Point2D const& Origin() const { return P0; }
   inline Vector2D const& Direction() const { return DIR; }
+  bool AlmostEquals(Line2D const& other, int decimal_precision = DP_THREE) const;
+
+  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  static Line2D FromWkt(std::string wkt);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
@@ -44,5 +49,11 @@ class Line2D {
   Line2D(Point2D const& p0, Point2D const& p1);
   Line2D(Point2D const& orig, Vector2D const& dir);
 };
+
+#pragma region Operator Overloading
+
+bool operator==(Line2D const& lhs, Line2D const& rhs);
+
+#pragma endregion
 
 }  // namespace geompp

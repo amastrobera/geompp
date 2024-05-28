@@ -47,3 +47,20 @@ TEST(Vector2D, PerpDotCross) {
   EXPECT_EQ(1.0, g::round_to(v1.Cross(v2), prec));
   EXPECT_EQ(-1.0, g::round_to(v2.Cross(v1), prec));
 }
+
+TEST(Vector2D, Wkt) {
+  ASSERT_EQ("VECTOR (0 0)", g::Vector2D().ToWkt());
+  ASSERT_EQ("VECTOR (56491.62 -795.97)", g::Vector2D(56491.6164, -795.97416).ToWkt(2));
+
+  EXPECT_EQ(g::Vector2D(256.1343, -684.64971), g::Vector2D::FromWkt("VECTOR (256.1343 -684.64971)"));
+  EXPECT_EQ(g::Vector2D(-7.5, -60.7), g::Vector2D::FromWkt("  vector( -7.5    -60.7)"));
+  EXPECT_EQ(g::Vector2D(0.645, -1.689741), g::Vector2D::FromWkt("VecTOR   ( 0.645  -1.689741  )"));
+
+  EXPECT_ANY_THROW(g::Vector2D::FromWkt("angelo"));
+  EXPECT_ANY_THROW(g::Vector2D::FromWkt("vecto ( -7.5 -60.7)"));
+  EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector -7.5 -64.4)"));
+  EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector (-7.5 -64.4"));
+  EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector ( -7.5 )"));
+  EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector ( )"));
+  EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector ( -7.5 -64.4 15.5)"));
+}

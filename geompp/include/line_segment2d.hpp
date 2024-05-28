@@ -5,6 +5,7 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <string>
 #include <variant>
 
 namespace geompp {
@@ -21,9 +22,13 @@ class LineSegment2D {
 
   inline Point2D const& First() const { return P0; }
   inline Point2D const& Last() const { return P1; }
+  bool AlmostEquals(LineSegment2D const& other, int decimal_precision = DP_THREE) const;
   Line2D ToLine(int decimal_precision = DP_THREE) const;
   double Length() const;
   double Location(Point2D const& point, int decimal_precision = DP_THREE) const;
+
+  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  static LineSegment2D FromWkt(std::string wkt);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
@@ -41,5 +46,11 @@ class LineSegment2D {
 
   LineSegment2D(Point2D const& p0, Point2D const& p1);
 };
+
+#pragma region Operator Overloading
+
+bool operator==(LineSegment2D const& lhs, LineSegment2D const& rhs);
+
+#pragma endregion
 
 }  // namespace geompp

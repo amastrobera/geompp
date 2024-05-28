@@ -51,3 +51,27 @@ TEST(Line2D, Intersection) {
 
   EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
 }
+
+TEST(Line2D, Wkt) {
+  ASSERT_EQ("LINE (0 0, 1 1)", g::Line2D::Make(g::Point2D(), g::Point2D(1, 1)).ToWkt());
+  ASSERT_EQ("LINE (56491.62 -795.97, -9137.37 10.36)",
+            g::Line2D::Make(g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678)).ToWkt(2));
+
+  EXPECT_EQ(g::Line2D::Make(g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)),
+            g::Line2D::FromWkt("LINE (256.1343 -684.64971, -601.674503 7.361975)"));
+  EXPECT_EQ(g::Line2D::Make(g::Point2D(-7.5, -60.7), g::Point2D()),
+            g::Line2D::FromWkt("  LINE( -7.5    -60.7, 0   0)"));
+  EXPECT_EQ(g::Line2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
+            g::Line2D::FromWkt("LINE   ( 0.645  -1.689741  , 1 0  )"));
+
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("angelo"));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("lin ( -7.5 -60.7, 0 0)"));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE -7.5 -64.4, 0 0)"));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE (-7.5 -64.4, 0 0"));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE (-7.5 -64.4, 0 "));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE (-7.5 -64.4, "));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE ( -7.5 )"));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE ( )"));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE ( -7.5 -64.4 15.5)"));
+  EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE ( -7.5 -64.4 15.5, 0 0 0)"));
+}

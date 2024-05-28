@@ -1,6 +1,9 @@
 #include "utils.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <ranges>
 #include <sstream>
 
 namespace geompp {
@@ -15,6 +18,37 @@ int sign(double x, int decimal_precision) {
     return 1;
   }
   return -1;
+}
+
+std::string trim(std::string s) {
+  auto not_space = [](unsigned char c) { return !std::isspace(c); };
+
+  // erase the the spaces at the back first
+  // so we don't have to do extra work
+  s.erase(std::ranges::find_if(s | std::views::reverse, not_space).base(), s.end());
+
+  // erase the spaces at the front
+  s.erase(s.begin(), std::ranges::find_if(s, not_space));
+
+  return s;
+}
+
+std::string to_upper(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+  return s;
+}
+
+std::vector<double> tokenize_space_separated_string_to_doubles(const std::string& str) {
+  std::istringstream iss(str);
+  std::vector<double> tokens;
+  double token;
+
+  // Extract numbers using stream iterators
+  while (iss >> token) {
+    tokens.push_back(token);
+  }
+
+  return tokens;
 }
 
 }  // namespace geompp

@@ -2,6 +2,8 @@
 
 #include "point2d.hpp"
 
+#include <string>
+
 namespace geompp {
 
 class Point2D;
@@ -18,6 +20,8 @@ class Vector2D {
 
   double Length() const;
   bool AlmostEquals(Vector2D const& other, int decimal_precision = DP_THREE) const;
+  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  static Vector2D FromWkt(std::string wkt);
 
   double Dot(Vector2D const& v) const;
   double Cross(Vector2D const& v) const;
@@ -30,7 +34,8 @@ class Vector2D {
   double X, Y;
 };
 
-// operators
+#pragma region Operator Overloading
+
 bool operator==(Vector2D const& lhs, Vector2D const& rhs);
 
 Point2D operator+(Vector2D const& lhs, Point2D const& point);
@@ -43,5 +48,7 @@ Vector2D operator*(double a, Vector2D const& rhs);
 double operator*(Vector2D const& lhs, Vector2D const& vec);
 
 Vector2D operator/(Vector2D const& lhs, Vector2D const& vec) = delete;
+
+#pragma endregion
 
 }  // namespace geompp
