@@ -1,0 +1,42 @@
+name: Build and Test on Windows (Before Merge)
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Create build directory
+        run: mkdir build
+
+      - name: Configure CMake (replace with your options)
+        working-directory: build
+        run: cmake -S .. -B . -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build lib
+        working-directory: build
+        run: msbuild /m:Build.sln /p:Configuration=Release
+        
+      - name: Build successful annotation
+        if: success()  # This step only runs if the previous step succeeds
+        run: |
+          echo "::set-annotation name=Win_Build_Status::success"
+
+  test:  # New job for running tests
+    runs-on: windows-latest
+    needs: build  # This job depends on the successful completion of "build" job
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run Google Tests
+        working-directory: build\x64-Debug\geompp_tests  # Change directory to test location
+        run: ./geompp_tests.exe  # Assuming the executable is directly in the folder
+        
+      - name: Test successful annotation
+        if: success()  # This step only runs if the previous step succeeds
+        run: |
+          echo "::set-annotation name=Win_Tests_Status::success"

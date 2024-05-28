@@ -1,4 +1,10 @@
 # Geom++ 
+
+[![Build / Test (Windows)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml)
+
+[![Build / Test (Linux)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml)
+
+
 ### Geometry library for 2D and 3D calculations
 
 The library offers a set of primitive classes to store geometrical data (Point, Ray, LineSegment, Polygon, ... etc). It also contains functionalities for those primities to interact with each other (+/-/*, Intersection, Overlap, ... etc). 
@@ -65,10 +71,12 @@ You should see something like this
 - Ray2D, Ray2D::contains(p), Ray2D::intersection(line), Ray2D::intersection(ray), tests
 - LineSegment2D, LineSegment2D::contains(p), LineSegment2D:intersection(line), LineSegment2D:intersection(ray), LineSegment2D:intersection(line_seg), tests
 
-#### Next
---- break from 2D geometry to continue on test and build infrastructure ---
+--- test and build infrastructure ---
 - github actions: run tests on merge 
 - ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
+
+#### Next
+--- test and build infrastructure ---
 - ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
 - test cases in `.wkt` files
 - On Visual Studio, use the test runner to run specific tests
