@@ -20,6 +20,7 @@ bool Point2D::AlmostEquals(Point2D const& other, int decimal_precision) const {
 Vector2D Point2D::ToVector() { return {X, Y}; }
 
 #pragma region Operator Overloading
+
 bool operator==(Point2D const& lhs, Point2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
 Point2D operator+(Point2D const& lhs, Vector2D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y()}; }
@@ -52,7 +53,7 @@ Point2D Point2D::FromWkt(std::string wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_nums = wkt.substr(end_gtype).find(')');
+    end_nums = wkt.substr(end_gtype + 1).find(')');
     if (end_nums == std::string::npos) {
       throw std::runtime_error("brakets");
     }

@@ -27,7 +27,7 @@ Vector2D Vector2D::Normalize() const {
   return {X / len, Y / len};
 }
 
-// operators
+#pragma region Operator Overloading
 
 Vector2D Vector2D::operator-() { return {-X, -Y}; }
 
@@ -44,6 +44,8 @@ Vector2D operator*(Vector2D const& lhs, double a) { return {lhs.x() * a, lhs.y()
 Vector2D operator*(double a, Vector2D const& rhs) { return rhs * a; }
 
 double operator*(Vector2D const& lhs, Vector2D const& rhs) { return lhs.Dot(rhs); }
+
+#pragma endregion
 
 #pragma region Formatting
 
@@ -65,7 +67,7 @@ Vector2D Vector2D::FromWkt(std::string wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_nums = wkt.substr(end_gtype).find(')');
+    end_nums = wkt.substr(end_gtype + 1).find(')');
     if (end_nums == std::string::npos) {
       throw std::runtime_error("brakets");
     }

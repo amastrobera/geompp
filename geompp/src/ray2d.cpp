@@ -6,6 +6,7 @@
 #include "utils.hpp"
 
 #include <format>
+#include <iostream>  // TODO: replace with logger lib
 #include <stdexcept>
 
 namespace geompp {
@@ -28,6 +29,16 @@ bool Ray2D::IsAhead(Point2D const& point, int decimal_precision) const {
 bool Ray2D::IsBehind(Point2D const& point, int decimal_precision) const {
   return round_to(DIR.Dot(point - ORIGIN), decimal_precision) < 0.0;
 }
+
+bool Ray2D::AlmostEquals(Ray2D const& other, int decimal_precision) const {
+  return ORIGIN.AlmostEquals(other.ORIGIN, decimal_precision) && DIR.AlmostEquals(other.DIR, decimal_precision);
+}
+
+#pragma endregion
+
+#pragma region Operator Overloading
+
+bool operator==(Ray2D const& lhs, Ray2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
 #pragma endregion
 
@@ -108,10 +119,55 @@ Ray2D::ReturnSet Ray2D::Intersection(LineSegment2D const& segment, int decimal_p
 #pragma region Formatting
 
 std::string Ray2D::ToWkt(int decimal_precision) const {
-  return std::format("RAY ({}, {})", ORIGIN.ToWkt(decimal_precision), DIR.ToWkt(decimal_precision));
+  return std::format("RAY ({} {}, {} {})", round_to(ORIGIN.x(), decimal_precision),
+                     round_to(ORIGIN.y(), decimal_precision), round_to(DIR.x(), decimal_precision),
+                     round_to(DIR.y(), decimal_precision));
 }
 
-Ray2D Ray2D::FromWkt(std::string wkt) { throw; }
+Ray2D Ray2D::FromWkt(std::string wkt) {
+  try {
+    std::size_t end_gtype, end_p1, end_p2;
+
+    end_gtype = wkt.find('(');
+    if (end_gtype == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
+
+    std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
+    if (g_type != "RAY") {
+      throw std::runtime_error("geometry name");
+    }
+
+    end_p1 = wkt.substr(end_gtype + 1).find(',');
+    if (end_p1 == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
+    std::string s_nums_p1 = wkt.substr(end_gtype + 1, end_p1);
+
+    auto nums_p1 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p1);
+    if (nums_p1.size() != 2) {
+      throw std::runtime_error("numbers p1");
+    }
+
+    end_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1).find(')');
+    if (end_p2 == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
+    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2);
+
+    auto nums_p2 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p2);
+    if (nums_p2.size() != 2) {
+      throw std::runtime_error("numbers p2");
+    }
+
+    return Make(Point2D{nums_p1[0], nums_p1[1]}, Vector2D{nums_p2[0], nums_p2[1]});
+
+  } catch (...) {
+    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+  }
+
+  throw std::runtime_error("failed to parse WKT");
+}
 
 #pragma endregion
 

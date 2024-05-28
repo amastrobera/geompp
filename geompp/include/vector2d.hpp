@@ -34,7 +34,8 @@ class Vector2D {
   double X, Y;
 };
 
-// operators
+#pragma region Operator Overloading
+
 bool operator==(Vector2D const& lhs, Vector2D const& rhs);
 
 Point2D operator+(Vector2D const& lhs, Point2D const& point);
@@ -47,5 +48,7 @@ Vector2D operator*(double a, Vector2D const& rhs);
 double operator*(Vector2D const& lhs, Vector2D const& vec);
 
 Vector2D operator/(Vector2D const& lhs, Vector2D const& vec) = delete;
+
+#pragma endregion
 
 }  // namespace geompp

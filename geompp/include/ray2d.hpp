@@ -23,6 +23,7 @@ class Ray2D {
 
   inline Point2D const& Origin() const { return ORIGIN; }
   inline Vector2D const& Direction() const { return DIR; }
+  bool AlmostEquals(Ray2D const& other, int decimal_precision = DP_THREE) const;
   bool IsAhead(Point2D const& point, int decimal_precision = DP_THREE) const;
   bool IsBehind(Point2D const& point, int decimal_precision = DP_THREE) const;
 
@@ -46,5 +47,12 @@ class Ray2D {
 
   Ray2D(Point2D const& orig, Vector2D const& dir);
 };
+
+
+#pragma region Operator Overloading
+
+bool operator==(Ray2D const& lhs, Ray2D const& rhs);
+
+#pragma endregion
 
 }  // namespace geompp

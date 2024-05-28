@@ -126,3 +126,27 @@ TEST(Ray2D, IntersectionWLine) {
 
   ASSERT_FALSE(r2.Intersects(y, prec));
 }
+
+TEST(Ray2D, Wkt) {
+  ASSERT_EQ("RAY (0 0, 0.707 0.707)", g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 1)).ToWkt());  // normalized vector!
+  ASSERT_EQ("RAY (56491.62 -795.97, -1 0)",
+            g::Ray2D::Make(g::Point2D(56491.6164, -795.97416), g::Vector2D(-9137.3679, 10.35678))
+                .ToWkt(2));  // normalized vector!
+
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(256.1343, -684.64971), g::Vector2D(-601.674503, 7.361975)),
+            g::Ray2D::FromWkt("RAY (256.1343 -684.64971, -601.674503 7.361975)"));
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(-7.5, -60.7), g::Vector2D(1, 0)), g::Ray2D::FromWkt("  ray( -7.5    -60.7, 1   0)"));
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(0.645, -1.689741), g::Vector2D(1, 0)),
+            g::Ray2D::FromWkt("ray   ( 0.645  -1.689741  , 1 0  )"));
+
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("angelo"));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ra ( -7.5 -60.7, 0 0)"));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray -7.5 -64.4, 0 0)"));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray (-7.5 -64.4, 0 0"));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray (-7.5 -64.4, 0 "));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray (-7.5 -64.4, "));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray ( -7.5 )"));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray ( )"));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray ( -7.5 -64.4 15.5)"));
+  EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray ( -7.5 -64.4 15.5, 0 0 0)"));
+}
