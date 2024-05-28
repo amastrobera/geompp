@@ -5,8 +5,6 @@
 #include <cmath>
 #include <ranges>
 #include <sstream>
-#include <string>
-
 
 namespace geompp {
 
@@ -38,6 +36,19 @@ std::string trim(std::string s) {
 std::string to_upper(std::string s) {
   std::transform(s.begin(), s.end(), s.begin(), ::toupper);
   return s;
+}
+
+std::vector<double> tokenize_space_separated_string_to_doubles(const std::string& str) {
+  std::istringstream iss(str);
+  std::vector<double> tokens;
+  double token;
+
+  // Extract numbers using stream iterators
+  while (iss >> token) {
+    tokens.push_back(token);
+  }
+
+  return tokens;
 }
 
 }  // namespace geompp

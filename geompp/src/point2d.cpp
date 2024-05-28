@@ -3,12 +3,9 @@
 #include "utils.hpp"
 #include "vector2d.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <format>
 #include <iostream>  // TODO: replace with logger lib
-#include <sstream>
-#include <vector>
 
 namespace geompp {
 
@@ -41,21 +38,6 @@ std::string Point2D::ToWkt(int decimal_precision) const {
   return std::format("POINT ({} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision));
 }
 
-namespace {
-std::vector<double> tokenize_string_to_doubles(const std::string& str) {
-  std::istringstream iss(str);
-  std::vector<double> tokens;
-  double token;
-
-  // Extract numbers using stream iterators
-  while (iss >> token) {
-    tokens.push_back(token);
-  }
-
-  return tokens;
-}
-}  // namespace
-
 Point2D Point2D::FromWkt(std::string wkt) {
   try {
     std::size_t end_gtype, end_nums;
@@ -76,7 +58,7 @@ Point2D Point2D::FromWkt(std::string wkt) {
     }
     std::string s_nums = wkt.substr(end_gtype + 1, end_nums);
 
-    auto nums = tokenize_string_to_doubles(s_nums);
+    auto nums = geompp::tokenize_space_separated_string_to_doubles(s_nums);
     if (nums.size() != 2) {
       throw std::runtime_error("numbers");
     }

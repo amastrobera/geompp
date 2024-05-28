@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <format>
+#include <iostream>  // TODO: replace with logger lib
 
 namespace geompp {
 
@@ -50,7 +51,39 @@ std::string Vector2D::ToWkt(int decimal_precision) const {
   return std::format("VECTOR ({} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision));
 }
 
-Vector2D Vector2D::FromWkt(std::string wkt) { throw; }
+Vector2D Vector2D::FromWkt(std::string wkt) {
+  try {
+    std::size_t end_gtype, end_nums;
+
+    end_gtype = wkt.find('(');
+    if (end_gtype == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
+
+    std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
+    if (g_type != "VECTOR") {
+      throw std::runtime_error("geometry name");
+    }
+
+    end_nums = wkt.substr(end_gtype).find(')');
+    if (end_nums == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
+    std::string s_nums = wkt.substr(end_gtype + 1, end_nums);
+
+    auto nums = geompp::tokenize_space_separated_string_to_doubles(s_nums);
+    if (nums.size() != 2) {
+      throw std::runtime_error("numbers");
+    }
+
+    return {nums[0], nums[1]};
+
+  } catch (...) {
+    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+  }
+
+  throw std::runtime_error("failed to parse WKT");
+}
 
 #pragma endregion
 

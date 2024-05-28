@@ -3,6 +3,7 @@
 #include "constants.hpp"
 
 #include <string>
+#include <vector>
 
 namespace geompp {
 
@@ -14,5 +15,6 @@ std::string trim(std::string s);
 
 std::string to_upper(std::string s);
 
+std::vector<double> tokenize_space_separated_string_to_doubles(std::string const& str);
 
 }  // namespace geompp
