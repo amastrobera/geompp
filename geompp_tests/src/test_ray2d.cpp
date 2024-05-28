@@ -150,3 +150,15 @@ TEST(Ray2D, Wkt) {
   EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray ( -7.5 -64.4 15.5)"));
   EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray ( -7.5 -64.4 15.5, 0 0 0)"));
 }
+
+TEST(Ray2D, ToFile) {
+    int prec = 4;
+    std::string path = "ray.wkt";
+    auto v = g::Ray2D::Make(g::Point2D(12.32, -61.6164), g::Vector2D(1, 1));
+
+    ASSERT_NO_THROW(v.ToFile(path, prec));
+
+    g::Ray2D v_file = g::Ray2D::FromFile(path);  // TODO make assert no throw for the whole call
+
+    EXPECT_EQ(v, v_file, result);
+}

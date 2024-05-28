@@ -210,3 +210,15 @@ TEST(LineSegment2D, Wkt) {
   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 -64.4 15.5)"));
   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
 }
+
+TEST(LineSegment2D, ToFile) {
+  int prec = 4;
+  std::string path = "line_segment.wkt";
+  auto s = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+
+  ASSERT_NO_THROW(s.ToFile(path, prec));
+
+  g::LineSegment2D s_file = g::LineSegment2D::FromFile(path);  // TODO make assert no throw for the whole call
+
+  EXPECT_EQ(s, s_file, result);
+}

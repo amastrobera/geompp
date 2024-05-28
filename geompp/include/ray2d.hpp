@@ -29,6 +29,10 @@ class Ray2D {
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Ray2D FromWkt(std::string const& wkt);
+  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  static Ray2D FromFile(std::string const& path);
+
+  Ray2D& operator=(Ray2D const& other);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
@@ -47,7 +51,6 @@ class Ray2D {
 
   Ray2D(Point2D const& orig, Vector2D const& dir);
 };
-
 
 #pragma region Operator Overloading
 

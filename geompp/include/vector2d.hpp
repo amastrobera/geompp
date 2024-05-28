@@ -22,6 +22,10 @@ class Vector2D {
   bool AlmostEquals(Vector2D const& other, int decimal_precision = DP_THREE) const;
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Vector2D FromWkt(std::string const& wkt);
+  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  static Vector2D FromFile(std::string const& path);
+
+  Vector2D& operator=(Vector2D const& other);
 
   double Dot(Vector2D const& v) const;
   double Cross(Vector2D const& v) const;
