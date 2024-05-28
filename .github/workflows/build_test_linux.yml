@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -32,7 +32,7 @@ jobs:
           echo "::set-annotation name=Lin_Build_Status::success"
 
   test:  # New job for running tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: build  # This job depends on the successful completion of "build" job
 
     steps:
