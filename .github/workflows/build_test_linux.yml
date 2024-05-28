@@ -1,0 +1,48 @@
+name: Build and Test on Linux (Before Merge)
+
+on:
+  pull_request:  # Trigger on pull request events
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Create build directory
+        run: mkdir build
+
+      - name: Install dependencies (replace with your specific commands)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake  # Adjust dependencies as needed
+
+      - name: Configure CMake (replace with your options)
+        working-directory: build
+        run: cmake -S .. -B . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: build
+        run: make
+
+      - name: Build successful annotation
+        if: success()  # This step only runs if the previous step succeeds
+        run: |
+          echo "::set-annotation name=Lin_Build_Status::success"
+
+  test:  # New job for running tests
+    runs-on: ubuntu-22.04
+    needs: build  # This job depends on the successful completion of "build" job
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run Google Tests (replace with your actual test command)
+        working-directory: build/geompp_tests  # Change directory to test location
+        run: ./geompp_tests  # Assuming the executable is directly in the folder
+
+      - name: Build successful annotation
+        if: success()  # This step only runs if the previous step succeeds
+        run: |
+          echo "::set-annotation name=Lin_Test_Status::success"
