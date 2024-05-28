@@ -1,4 +1,4 @@
-name: Build and Test on Linux (Before Merge)
+name: Build / Test (Linux)
 
 on:
   pull_request:  # Trigger on pull request events

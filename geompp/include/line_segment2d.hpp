@@ -28,7 +28,7 @@ class LineSegment2D {
   double Location(Point2D const& point, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
-  static LineSegment2D FromWkt(std::string wkt);
+  static LineSegment2D FromWkt(std::string const& wkt);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;

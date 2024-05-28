@@ -22,7 +22,11 @@ class Point2D {
   Vector2D ToVector();
   bool AlmostEquals(Point2D const& other, int decimal_precision = DP_THREE) const;
   std::string ToWkt(int decimal_precision = DP_THREE) const;
-  static Point2D FromWkt(std::string wkt);
+  static Point2D FromWkt(std::string const& wkt);
+  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  static Point2D FromFile(std::string const& path);
+
+  Point2D& operator=(Point2D const& other);
 
  private:
   double X, Y;

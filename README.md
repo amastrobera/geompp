@@ -43,6 +43,10 @@ make -j6
 
 # try run test
 ./geompp_tests/geompp_tests
+
+# or a specific class / test
+./geompp_tests/geompp_tests --gtest_filter="Point2D*"
+./geompp_tests/geompp_tests --gtest_filter="Point2D.ToFile"
 ```
 
 You should see something like this 
@@ -74,10 +78,10 @@ You should see something like this
 --- test and build infrastructure ---
 - github actions: run tests on merge 
 - ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
+- ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
 
 #### Next
 --- test and build infrastructure ---
-- ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
 - test cases in `.wkt` files
 - On Visual Studio, use the test runner to run specific tests
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)

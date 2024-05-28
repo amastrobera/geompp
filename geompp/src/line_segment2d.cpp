@@ -155,7 +155,7 @@ std::string LineSegment2D::ToWkt(int decimal_precision) const {
                      round_to(P1.y(), decimal_precision));
 }
 
-LineSegment2D LineSegment2D::FromWkt(std::string wkt) {
+LineSegment2D LineSegment2D::FromWkt(std::string const& wkt) {
   try {
     std::size_t end_gtype, end_p1, end_p2;
 

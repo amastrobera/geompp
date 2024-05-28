@@ -53,7 +53,7 @@ std::string Vector2D::ToWkt(int decimal_precision) const {
   return std::format("VECTOR ({} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision));
 }
 
-Vector2D Vector2D::FromWkt(std::string wkt) {
+Vector2D Vector2D::FromWkt(std::string const& wkt) {
   try {
     std::size_t end_gtype, end_nums;
 

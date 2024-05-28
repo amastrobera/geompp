@@ -124,7 +124,7 @@ std::string Ray2D::ToWkt(int decimal_precision) const {
                      round_to(DIR.y(), decimal_precision));
 }
 
-Ray2D Ray2D::FromWkt(std::string wkt) {
+Ray2D Ray2D::FromWkt(std::string const& wkt) {
   try {
     std::size_t end_gtype, end_p1, end_p2;
 

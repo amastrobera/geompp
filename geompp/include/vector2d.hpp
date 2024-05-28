@@ -21,7 +21,7 @@ class Vector2D {
   double Length() const;
   bool AlmostEquals(Vector2D const& other, int decimal_precision = DP_THREE) const;
   std::string ToWkt(int decimal_precision = DP_THREE) const;
-  static Vector2D FromWkt(std::string wkt);
+  static Vector2D FromWkt(std::string const& wkt);
 
   double Dot(Vector2D const& v) const;
   double Cross(Vector2D const& v) const;

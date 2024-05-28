@@ -28,7 +28,7 @@ class Ray2D {
   bool IsBehind(Point2D const& point, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
-  static Ray2D FromWkt(std::string wkt);
+  static Ray2D FromWkt(std::string const& wkt);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;

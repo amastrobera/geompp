@@ -93,7 +93,7 @@ std::string Line2D::ToWkt(int decimal_precision) const {
                      round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision));
 }
 
-Line2D Line2D::FromWkt(std::string wkt) {
+Line2D Line2D::FromWkt(std::string const& wkt) {
   try {
     std::size_t end_gtype, end_p1, end_p2;
 
