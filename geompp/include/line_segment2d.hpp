@@ -5,6 +5,7 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <string>
 #include <variant>
 
 namespace geompp {
@@ -24,6 +25,9 @@ class LineSegment2D {
   Line2D ToLine(int decimal_precision = DP_THREE) const;
   double Length() const;
   double Location(Point2D const& point, int decimal_precision = DP_THREE) const;
+
+  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  static LineSegment2D FromWkt(std::string wkt);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;

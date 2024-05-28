@@ -3,7 +3,7 @@
 #include "constants.hpp"
 #include "vector2d.hpp"
 
-#include <format>
+#include <string>
 
 namespace geompp {
 
@@ -20,10 +20,9 @@ class Point2D {
   inline double y() const { return Y; }
 
   Vector2D ToVector();
-
   bool AlmostEquals(Point2D const& other, int decimal_precision = DP_THREE) const;
-
   std::string ToWkt(int decimal_precision = DP_THREE) const;
+  static Point2D FromWkt(std::string wkt);
 
  private:
   double X, Y;
@@ -49,6 +48,7 @@ Point2D operator/(Point2D const& lhs, Point2D const& rhs) = delete;
 
 #pragma region Formatter
 
+//#include <format>
 // template <>
 // struct std::formatter<Point2D> {
 //   constexpr auto parse(std::format_parse_context& ctx) {

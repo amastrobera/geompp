@@ -5,6 +5,7 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <string>
 #include <variant>
 
 namespace geompp {
@@ -24,6 +25,9 @@ class Ray2D {
   inline Vector2D const& Direction() const { return DIR; }
   bool IsAhead(Point2D const& point, int decimal_precision = DP_THREE) const;
   bool IsBehind(Point2D const& point, int decimal_precision = DP_THREE) const;
+
+  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  static Ray2D FromWkt(std::string wkt);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;

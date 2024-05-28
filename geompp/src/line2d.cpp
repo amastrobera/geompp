@@ -75,4 +75,14 @@ Line2D::ReturnSet Line2D::Intersection(LineSegment2D const& segment, int decimal
 
 #pragma endregion
 
+#pragma region Formatting
+
+std::string Line2D::ToWkt(int decimal_precision) const {
+  return std::format("LINE ({}, {})", P0.ToWkt(decimal_precision), P1.ToWkt(decimal_precision));
+}
+
+Line2D Line2D::FromWkt(std::string wkt) { throw; }
+
+#pragma endregion
+
 }  // namespace geompp

@@ -105,4 +105,14 @@ Ray2D::ReturnSet Ray2D::Intersection(LineSegment2D const& segment, int decimal_p
 
 #pragma endregion
 
+#pragma region Formatting
+
+std::string Ray2D::ToWkt(int decimal_precision) const {
+  return std::format("RAY ({}, {})", ORIGIN.ToWkt(decimal_precision), DIR.ToWkt(decimal_precision));
+}
+
+Ray2D Ray2D::FromWkt(std::string wkt) { throw; }
+
+#pragma endregion
+
 }  // namespace geompp

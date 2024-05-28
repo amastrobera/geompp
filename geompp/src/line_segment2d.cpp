@@ -136,4 +136,16 @@ LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other,
 
 #pragma endregion
 
+#pragma region Formatting
+
+std::string LineSegment2D::ToWkt(int decimal_precision) const {
+  return std::format("LINESTRING ({} {}, {} {})", round_to(P0.x(), decimal_precision),
+                     round_to(P0.y(), decimal_precision), round_to(P1.x(), decimal_precision),
+                     round_to(P1.y(), decimal_precision));
+}
+
+LineSegment2D LineSegment2D::FromWkt(std::string wkt) { throw; }
+
+#pragma endregion
+
 }  // namespace geompp
