@@ -16,6 +16,8 @@ namespace fs = std::filesystem;
 namespace geompp_tests {
 
 extern fs::path test_res_path;
+
+
 TEST(LineSegment2D, Constructor) {
   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
 

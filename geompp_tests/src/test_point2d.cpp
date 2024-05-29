@@ -73,7 +73,7 @@ TEST(Point2D, ToFile) {
 }
 
 TEST(Point2D, TestFromFile) {
-  test_res_path = "/home/angelo/development/geompp/geompp_tests/res";
+
   std::string path = (test_res_path / "point2d" / "point.wkt").string();
 
   std::cout << "path = " << path << std::endl;
