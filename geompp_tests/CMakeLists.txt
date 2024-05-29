@@ -34,7 +34,7 @@ enable_testing()
 #include_directories(${GTEST_INCLUDE_DIRS})
 
 # copy resources
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Include directories for library and GoogleTest
 include_directories(${CMAKE_SOURCE_DIR}/../geompp/include)
