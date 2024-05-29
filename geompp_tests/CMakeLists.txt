@@ -4,9 +4,7 @@ project(geompp_tests)
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
-
-
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
 
 
 #################
@@ -53,8 +51,7 @@ FetchContent_MakeAvailable(googletest)
 
 
 # Link the library to the test executable
-#target_link_libraries(${PROJECT_NAME} gtest gtest_main geompp) # pthread
-target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} gmock gmock_main pthread geompp)
+target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} gmock gmock_main geompp) # pthread
 
 # Add test cases
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
