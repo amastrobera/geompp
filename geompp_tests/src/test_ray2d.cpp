@@ -5,9 +5,14 @@
 #include "vector2d.hpp"
 
 #include <gtest/gtest.h>
-#include <optional>
+#include <filesystem>
 
 namespace g = geompp;
+namespace fs = std::filesystem;
+
+namespace geompp_tests {
+
+extern fs::path test_res_path;
 
 TEST(Ray2D, Constructor) {
   auto r1 = g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 0));
@@ -135,7 +140,8 @@ TEST(Ray2D, Wkt) {
 
   EXPECT_EQ(g::Ray2D::Make(g::Point2D(256.1343, -684.64971), g::Vector2D(-601.674503, 7.361975)),
             g::Ray2D::FromWkt("RAY (256.1343 -684.64971, -601.674503 7.361975)"));
-  EXPECT_EQ(g::Ray2D::Make(g::Point2D(-7.5, -60.7), g::Vector2D(1, 0)), g::Ray2D::FromWkt("  ray( -7.5    -60.7, 1   0)"));
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(-7.5, -60.7), g::Vector2D(1, 0)),
+            g::Ray2D::FromWkt("  ray( -7.5    -60.7, 1   0)"));
   EXPECT_EQ(g::Ray2D::Make(g::Point2D(0.645, -1.689741), g::Vector2D(1, 0)),
             g::Ray2D::FromWkt("ray   ( 0.645  -1.689741  , 1 0  )"));
 
@@ -152,13 +158,29 @@ TEST(Ray2D, Wkt) {
 }
 
 TEST(Ray2D, ToFile) {
-    int prec = 4;
-    std::string path = "ray.wkt";
-    auto v = g::Ray2D::Make(g::Point2D(12.32, -61.6164), g::Vector2D(1, 1));
+  int prec = 4;
+  std::string path = "ray.wkt";
+  auto v = g::Ray2D::Make(g::Point2D(12.32, -61.6164), g::Vector2D(1, 1));
 
-    ASSERT_NO_THROW(v.ToFile(path, prec));
+  ASSERT_NO_THROW(v.ToFile(path, prec));
 
-    g::Ray2D v_file = g::Ray2D::FromFile(path);  // TODO make assert no throw for the whole call
+  g::Ray2D v_file = g::Ray2D::FromFile(path);  // TODO make assert no throw for the whole call
 
-    EXPECT_EQ(v, v_file, result);
+  EXPECT_EQ(v, v_file);
 }
+
+TEST(Ray2D, TestFromFile) {
+  std::string path = (test_res_path / "ray2d" / "ray.wkt").string();
+
+  std::cout << "path = " << path << std::endl;
+
+  ASSERT_TRUE(fs::exists(path));
+
+  ASSERT_NO_THROW(g::Ray2D::FromFile(path));
+
+  auto p = g::Ray2D::FromFile(path);
+
+  std::cout << "form file = " << p.ToWkt() << std::endl;
+}
+
+}  // namespace geompp_tests

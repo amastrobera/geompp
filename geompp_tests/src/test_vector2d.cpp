@@ -5,8 +5,14 @@
 #include "utils.hpp"
 
 #include <gtest/gtest.h>
+#include <filesystem>
 
 namespace g = geompp;
+namespace fs = std::filesystem;
+
+namespace geompp_tests {
+
+extern fs::path test_res_path;
 
 TEST(Vector2D, Equality) {
   EXPECT_EQ(g::Vector2D(2.56, 748.1203), g::Vector2D(2.56, 748.1203));
@@ -66,13 +72,29 @@ TEST(Vector2D, Wkt) {
 }
 
 TEST(Vector2D, ToFile) {
-	int prec = 4;
-	std::string path = "vector.wkt";
-	auto v = g::Vector2D(12.32, -61.6164);
+  int prec = 4;
+  std::string path = "vector.wkt";
+  auto v = g::Vector2D(12.32, -61.6164);
 
-	ASSERT_NO_THROW(v.ToFile(path, prec));
+  ASSERT_NO_THROW(v.ToFile(path, prec));
 
-	g::Vector2D v_file = g::Vector2D::FromFile(path);  // TODO make assert no throw for the whole call
+  g::Vector2D v_file = g::Vector2D::FromFile(path);  // TODO make assert no throw for the whole call
 
-	EXPECT_EQ(v, v_file, result);
+  EXPECT_EQ(v, v_file);
 }
+
+TEST(Vector2D, TestFromFile) {
+  std::string path = (test_res_path / "vector2d" / "vector.wkt").string();
+
+  std::cout << "path = " << path << std::endl;
+
+  ASSERT_TRUE(fs::exists(path));
+
+  ASSERT_NO_THROW(g::Vector2D::FromFile(path));
+
+  auto p = g::Vector2D::FromFile(path);
+
+  std::cout << "form file = " << p.ToWkt() << std::endl;
+}
+
+}  // namespace geompp_tests

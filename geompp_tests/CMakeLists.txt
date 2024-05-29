@@ -4,27 +4,39 @@ project(geompp_tests)
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+
+
+
+
+#################
+## Build Tests ##
+#################
+
+# copy resources
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res)
+
+#find_package(GTest REQUIRED)
+#include_directories(${GTEST_INCLUDE_DIRS})
 
 #include_directories(${PROJECT_NAME}/include geompp/include)
 
 # Add the executable for tests
 add_executable(${PROJECT_NAME}
-    main.cpp
     src/test_point2d.cpp
     src/test_vector2d.cpp
     src/test_line2d.cpp
     src/test_ray2d.cpp
     src/test_line_segment2d
+    main.cpp
 )
 
 #target_include_directories(${PROJECT_NAME} include geompp/include)
 
 
-# Link the library to the test executable
-target_link_libraries(${PROJECT_NAME} geompp)
-
-
+###################
+## Prepare GTEST ##
+###################
 
 # Enable testing
 enable_testing()
@@ -39,8 +51,10 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# Link GoogleTest to the test executable
-target_link_libraries(${PROJECT_NAME} gtest gtest_main geompp)
+
+# Link the library to the test executable
+#target_link_libraries(${PROJECT_NAME} gtest gtest_main geompp) # pthread
+target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} gmock gmock_main pthread geompp)
 
 # Add test cases
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
