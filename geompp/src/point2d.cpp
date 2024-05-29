@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <format>
+#include <fstream>
 #include <iostream>  // TODO: replace with logger lib
 
 namespace geompp {
@@ -18,6 +19,13 @@ bool Point2D::AlmostEquals(Point2D const& other, int decimal_precision) const {
 }
 
 Vector2D Point2D::ToVector() { return {X, Y}; }
+
+Point2D& Point2D::operator=(Point2D const& other) {
+  if (this != &other) {
+    *this = other;
+  }
+  return *this;
+}
 
 #pragma region Operator Overloading
 
@@ -39,7 +47,7 @@ std::string Point2D::ToWkt(int decimal_precision) const {
   return std::format("POINT ({} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision));
 }
 
-Point2D Point2D::FromWkt(std::string wkt) {
+Point2D Point2D::FromWkt(std::string const& wkt) {
   try {
     std::size_t end_gtype, end_nums;
 
@@ -68,6 +76,58 @@ Point2D Point2D::FromWkt(std::string wkt) {
 
   } catch (...) {
     std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+  }
+
+  throw std::runtime_error("failed to parse WKT");
+}
+
+void Point2D::ToFile(std::string const& path, int decimal_precision) const {
+  try {
+    std::string content = ToWkt(decimal_precision);
+
+    // Open the file in write mode (truncates existing content)
+    std::ofstream outfile(path);
+
+    if (!outfile.is_open()) {
+      throw std::runtime_error("Could not open file");
+    }
+
+    // Write the text to the file
+    outfile << content;
+
+    outfile.close();
+
+  } catch (...) {
+    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+  }
+}
+
+Point2D Point2D::FromFile(std::string const& path) {
+  try {
+    std::string content;
+
+    // Open the file in read mode
+    std::ifstream in_file(path);
+
+    if (!in_file.is_open()) {
+      throw std::runtime_error("could not open file");
+    }
+
+    // Get the file size (optional, for efficiency)
+    in_file.seekg(0, std::ios::end);
+    std::streamsize fileSize = in_file.tellg();
+    in_file.seekg(0, std::ios::beg);  // Reset the file pointer
+
+    // Resize the string to the file size (optional, for efficiency)
+    content.resize(static_cast<size_t>(fileSize));
+
+    // Read the entire file into the string
+    in_file.read(&content[0], fileSize);
+
+    return FromWkt(content);
+
+  } catch (...) {
+    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
   }
 
   throw std::runtime_error("failed to parse WKT");

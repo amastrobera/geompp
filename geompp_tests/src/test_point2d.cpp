@@ -53,3 +53,15 @@ TEST(Point2D, Wkt) {
   EXPECT_ANY_THROW(g::Point2D::FromWkt("point ( )"));
   EXPECT_ANY_THROW(g::Point2D::FromWkt("point ( -7.5 -64.4 15.5)"));
 }
+
+TEST(Point2D, ToFile) {
+  int prec = 4;
+  std::string path = "point.wkt";
+  auto p = g::Point2D(15.341, -781.684);
+
+  ASSERT_NO_THROW(p.ToFile(path, prec));
+
+  g::Point2D p_file = g::Point2D::FromFile(path); // TODO make assert no throw for the whole call
+
+  EXPECT_EQ(p, p_file, result);
+}

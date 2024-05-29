@@ -75,3 +75,15 @@ TEST(Line2D, Wkt) {
   EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE ( -7.5 -64.4 15.5)"));
   EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE ( -7.5 -64.4 15.5, 0 0 0)"));
 }
+
+TEST(Line2D, ToFile) {
+    int prec = 4;
+    std::string path = "line.wkt";
+    auto v = g::Line2D::Make(g::Point2D(12.32, -61.6164), g::Point2D(-14.64661, -9.1641));
+
+    ASSERT_NO_THROW(v.ToFile(path, prec));
+
+    g::Line2D v_file = g::Line2D::FromFile(path);  // TODO make assert no throw for the whole call
+
+    EXPECT_EQ(v, v_file, result);
+}

@@ -64,3 +64,15 @@ TEST(Vector2D, Wkt) {
   EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector ( )"));
   EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector ( -7.5 -64.4 15.5)"));
 }
+
+TEST(Vector2D, ToFile) {
+	int prec = 4;
+	std::string path = "vector.wkt";
+	auto v = g::Vector2D(12.32, -61.6164);
+
+	ASSERT_NO_THROW(v.ToFile(path, prec));
+
+	g::Vector2D v_file = g::Vector2D::FromFile(path);  // TODO make assert no throw for the whole call
+
+	EXPECT_EQ(v, v_file, result);
+}

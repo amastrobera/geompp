@@ -29,7 +29,11 @@ class Line2D {
   bool AlmostEquals(Line2D const& other, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
-  static Line2D FromWkt(std::string wkt);
+  static Line2D FromWkt(std::string const& wkt);
+  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  static Line2D FromFile(std::string const& path);
+
+  Line2D& operator=(Line2D const& other);
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
