@@ -3,8 +3,14 @@
 #include "vector2d.hpp"
 
 #include <gtest/gtest.h>
+#include <filesystem>
 
 namespace g = geompp;
+namespace fs = std::filesystem;
+
+namespace geompp_tests {
+
+extern fs::path test_res_path;
 
 TEST(Point2D, Equality) {
   ASSERT_EQ(g::Point2D(2.56, 748.1203), g::Point2D(2.56, 748.1203));
@@ -13,7 +19,7 @@ TEST(Point2D, Equality) {
   ASSERT_EQ(g::Point2D(-672.6456, -153.516), g::Point2D(-672.6456, -153.516));
 
   ASSERT_EQ(g::Point2D(672.64560944, -153.5166067079), g::Point2D(672.64560944, -153.5166067079));
-}
+}  // namespace std::filesystem
 
 TEST(Point2D, SubtractPoint) {
   auto p1 = g::Point2D(1, 2);
@@ -56,12 +62,28 @@ TEST(Point2D, Wkt) {
 
 TEST(Point2D, ToFile) {
   int prec = 4;
-  std::string path = "point.wkt";
+  std::string path = (test_res_path / "temp" / "point.wkt").string();
   auto p = g::Point2D(15.341, -781.684);
 
-  ASSERT_NO_THROW(p.ToFile(path, prec));
+  p.ToFile(path, prec);
+  ASSERT_TRUE(fs::exists(path));
 
-  g::Point2D p_file = g::Point2D::FromFile(path); // TODO make assert no throw for the whole call
+  g::Point2D p_file = g::Point2D::FromFile(path);  // TODO make assert no throw for the whole call
 
-  EXPECT_EQ(p, p_file, result);
+  EXPECT_EQ(p, p_file);
+  EXPECT_NO_THROW(fs::remove(path));
 }
+
+TEST(Point2D, TestFromFile) {
+  std::string path = (test_res_path / "point2d" / "point.wkt").string();
+
+  ASSERT_TRUE(fs::exists(path));
+
+  ASSERT_NO_THROW(g::Point2D::FromFile(path));
+
+  auto p = g::Point2D::FromFile(path);
+
+  std::cout << "form file = " << p.ToWkt() << std::endl;
+}
+
+}  // namespace geompp_tests

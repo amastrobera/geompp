@@ -79,10 +79,10 @@ You should see something like this
 - github actions: run tests on merge 
 - ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
 - ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
+- test cases possible in `.wkt` files formats in `geompp_tests/res` folder
 
 #### Next
 --- test and build infrastructure ---
-- test cases in `.wkt` files
 - On Visual Studio, use the test runner to run specific tests
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
 
