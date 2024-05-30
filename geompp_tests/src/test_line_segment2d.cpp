@@ -17,7 +17,6 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-
 TEST(LineSegment2D, Constructor) {
   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
 
@@ -219,20 +218,21 @@ TEST(LineSegment2D, Wkt) {
 
 TEST(LineSegment2D, ToFile) {
   int prec = 4;
-  std::string path = "line_segment.wkt";
+  std::string path = (test_res_path / "temp" / "line_segment.wkt").string();
   auto s = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
 
-  ASSERT_NO_THROW(s.ToFile(path, prec));
+  s.ToFile(path, prec);
+  ASSERT_TRUE(fs::exists(path));
 
   g::LineSegment2D s_file = g::LineSegment2D::FromFile(path);  // TODO make assert no throw for the whole call
 
   EXPECT_EQ(s, s_file);
+
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 TEST(LineSegment2D, TestFromFile) {
   std::string path = (test_res_path / "line_segment2d" / "line_segment.wkt").string();
-
-  std::cout << "path = " << path << std::endl;
 
   ASSERT_TRUE(fs::exists(path));
 

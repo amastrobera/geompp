@@ -84,20 +84,21 @@ TEST(Line2D, Wkt) {
 
 TEST(Line2D, ToFile) {
   int prec = 4;
-  std::string path = "line.wkt";
+  std::string path = (test_res_path / "temp" / "line.wkt").string();
   auto v = g::Line2D::Make(g::Point2D(12.32, -61.6164), g::Point2D(-14.64661, -9.1641));
 
-  ASSERT_NO_THROW(v.ToFile(path, prec));
+  v.ToFile(path, prec);
+  ASSERT_TRUE(fs::exists(path));
 
   g::Line2D v_file = g::Line2D::FromFile(path);  // TODO make assert no throw for the whole call
 
   EXPECT_EQ(v, v_file);
+
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 TEST(Line2D, TestFromFile) {
   std::string path = (test_res_path / "line2d" / "line.wkt").string();
-
-  std::cout << "path = " << path << std::endl;
 
   ASSERT_TRUE(fs::exists(path));
 

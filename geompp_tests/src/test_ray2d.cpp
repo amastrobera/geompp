@@ -159,20 +159,21 @@ TEST(Ray2D, Wkt) {
 
 TEST(Ray2D, ToFile) {
   int prec = 4;
-  std::string path = "ray.wkt";
+  std::string path = (test_res_path / "temp" / "ray.wkt").string();
   auto v = g::Ray2D::Make(g::Point2D(12.32, -61.6164), g::Vector2D(1, 1));
 
-  ASSERT_NO_THROW(v.ToFile(path, prec));
+  v.ToFile(path, prec);
+  ASSERT_TRUE(fs::exists(path));
 
   g::Ray2D v_file = g::Ray2D::FromFile(path);  // TODO make assert no throw for the whole call
 
   EXPECT_EQ(v, v_file);
+
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 TEST(Ray2D, TestFromFile) {
   std::string path = (test_res_path / "ray2d" / "ray.wkt").string();
-
-  std::cout << "path = " << path << std::endl;
 
   ASSERT_TRUE(fs::exists(path));
 

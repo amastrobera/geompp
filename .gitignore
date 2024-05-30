@@ -2,5 +2,4 @@ build
 out
 .vs
 CMakeSettings.json
-*.wkt
 Testing

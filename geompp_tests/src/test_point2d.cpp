@@ -62,21 +62,20 @@ TEST(Point2D, Wkt) {
 
 TEST(Point2D, ToFile) {
   int prec = 4;
-  std::string path = "point.wkt";
+  std::string path = (test_res_path / "temp" / "point.wkt").string();
   auto p = g::Point2D(15.341, -781.684);
 
-  ASSERT_NO_THROW(p.ToFile(path, prec));
+  p.ToFile(path, prec);
+  ASSERT_TRUE(fs::exists(path));
 
   g::Point2D p_file = g::Point2D::FromFile(path);  // TODO make assert no throw for the whole call
 
   EXPECT_EQ(p, p_file);
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 TEST(Point2D, TestFromFile) {
-
   std::string path = (test_res_path / "point2d" / "point.wkt").string();
-
-  std::cout << "path = " << path << std::endl;
 
   ASSERT_TRUE(fs::exists(path));
 
