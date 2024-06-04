@@ -17,8 +17,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake
-          add-apt-repository -y ppa:ubuntu-toolchain-r/test
-          apt install -y g++-13
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt install -y g++-13
           sudo rm -f /usr/bin/g++
           sudo rm -f /usr/bin/c++ 
           sudo ln -s /usr/bin/g++-13 /usr/bin/g++
