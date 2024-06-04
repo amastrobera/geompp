@@ -21,6 +21,26 @@ This geometry library was born to improve the previous [GeomSharp](https://githu
 
 ### Build it 
 
+### Docker
+
+A Docker image is buildable for development and testing environment, both on linux and windows
+
+To build and work with it 
+
+```
+cd docker
+.\build.bat -image Linux    # if you are on windows and want to build a linux image
+                            # or .\build.bat -image Windows
+                            # or ./build.sh -image Windows
+                            # or ./build.sh -image Linux
+
+.\run.bat -image Linux      # same possibilities 
+```
+
+### Download 
+
+To download and use the library
+
 #### Linux
 On linux, I have used the `g++13`, you can get it with 
 ```
@@ -80,6 +100,7 @@ You should see something like this
 - ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
 - ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
 - test cases possible in `.wkt` files formats in `geompp_tests/res` folder
+- Docker based working environment: a linux and a windows image with all things installed
 
 #### Next
 --- test and build infrastructure ---

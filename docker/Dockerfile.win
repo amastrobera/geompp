@@ -1,0 +1,24 @@
+# Use a Windows Server Core as the base image
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+# Set the working directory
+WORKDIR /geompp
+
+# Install Chocolatey package manager
+RUN @powershell -NoProfile -ExecutionPolicy Bypass -Command " \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
+
+# Install CMake and Visual Studio 2022 Build Tools using Chocolatey
+RUN choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' \
+    && choco install -y visualstudio2022buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --quiet --norestart'
+
+# Verify installations
+RUN cmake --version
+RUN cl
+
+# Set the PATH to include Visual Studio Build Tools
+RUN setx /M PATH "%PATH%;C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin"
+
+# Command to run when the container starts
+CMD ["powershell"]
