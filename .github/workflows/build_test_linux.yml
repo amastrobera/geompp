@@ -19,10 +19,10 @@ jobs:
           sudo apt-get install -y build-essential cmake
           add-apt-repository -y ppa:ubuntu-toolchain-r/test
           apt install -y g++-13
-          rm -f /usr/bin/g++
-          rm -f /usr/bin/c++ 
-          ln -s /usr/bin/g++-13 /usr/bin/g++
-          ln -s /usr/bin/c++-13 /usr/bin/c++ 
+          sudo rm -f /usr/bin/g++
+          sudo rm -f /usr/bin/c++ 
+          sudo ln -s /usr/bin/g++-13 /usr/bin/g++
+          sudo ln -s /usr/bin/c++-13 /usr/bin/c++ 
 
       - name: Configure CMake (replace with your options)
         working-directory: build
