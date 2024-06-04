@@ -185,39 +185,38 @@ TEST(Ray2D, TestFromFile) {
 }
 
 TEST(Ray2D, DistanceTo) {
+  int prec = 4;
+  auto ray = g::Ray2D::FromWkt("RAY (0 0, 1 0)");
 
-    int prec = 4;
-    auto ray = g::Ray2D::FromWkt("RAY (0 0, 1 0)");
+  // on segment
+  auto p1 = g::Point2D();
+  EXPECT_EQ(0, ray.DistanceTo(p1, prec));
 
-    // on segment
-    auto p1 = g::Point2D();
-    EXPECT_EQ(0, ray.DistanceTo(p1, prec));
+  auto p2 = g::Point2D(3, 0);
+  EXPECT_EQ(0, ray.DistanceTo(p2, prec));
 
-    auto p2 = g::Point2D(3, 0);
-    EXPECT_EQ(0, ray.DistanceTo(p2, prec));
+  // on line
+  auto p3 = g::Point2D(-20, 0);
+  EXPECT_EQ(20, ray.DistanceTo(p3, prec));
 
-    // on line
-    auto p3 = g::Point2D(-20, 0);
-    EXPECT_EQ(20, ray.DistanceTo(p3, prec));
+  auto p4 = g::Point2D(12, 0);
+  EXPECT_EQ(0, ray.DistanceTo(p4, prec));
 
-    auto p4 = g::Point2D(12, 0);
-    EXPECT_EQ(0, ray.DistanceTo(p4, prec));
+  // Q1
+  auto p5 = g::Point2D(12, 12);
+  EXPECT_EQ(12, ray.DistanceTo(p5, prec));
 
-    // Q1 
-    auto p5 = g::Point2D(12, 12);
-    EXPECT_EQ(12, ray.DistanceTo(p5, prec));
+  // Q2
+  auto p6 = g::Point2D(-5, 10);
+  EXPECT_EQ(p6.DistanceTo(ray.Origin(), prec), ray.DistanceTo(p6, prec));
 
-    // Q2
-    auto p6 = g::Point2D(-5, 10);
-    EXPECT_EQ(p6.DistanceTo(ray.Origin(), prec), ray.DistanceTo(p6, prec));
+  // Q3
+  auto p7 = g::Point2D(-2, -4);
+  EXPECT_EQ(p7.DistanceTo(ray.Origin(), prec), ray.DistanceTo(p7, prec));
 
-    // Q3
-    auto p7 = g::Point2D(-2, -4);
-    EXPECT_EQ(p7.DistanceTo(ray.Origin(), prec), ray.DistanceTo(p7, prec));
-
-    // Q4
-    auto p8 = g::Point2D(3, -7);
-    EXPECT_EQ(7, ray.DistanceTo(p8, prec));
+  // Q4
+  auto p8 = g::Point2D(3, -7);
+  EXPECT_EQ(7, ray.DistanceTo(p8, prec));
 }
 
 }  // namespace geompp_tests

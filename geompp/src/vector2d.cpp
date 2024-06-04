@@ -7,7 +7,6 @@
 #include <fstream>
 #include <iostream>  // TODO: replace with logger lib
 
-
 namespace geompp {
 
 Vector2D::Vector2D(double x, double y) : X(x), Y(y) {}

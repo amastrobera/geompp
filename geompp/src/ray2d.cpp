@@ -38,14 +38,11 @@ bool Ray2D::IsBehind(Point2D const& point, int decimal_precision) const {
   return round_to(DIR.Dot(point - ORIGIN), decimal_precision) < 0.0;
 }
 
-Line2D Ray2D::ToLine(int decimal_precision) const {
-    return Line2D::Make(ORIGIN, DIR, decimal_precision);
-}
+Line2D Ray2D::ToLine(int decimal_precision) const { return Line2D::Make(ORIGIN, DIR, decimal_precision); }
 
 double Ray2D::DistanceTo(Point2D const& point, int decimal_precision) const {
-    return IsAhead(point, decimal_precision) ? 
-                ToLine(decimal_precision).DistanceTo(point, decimal_precision):
-                ORIGIN.DistanceTo(point, decimal_precision);
+  return IsAhead(point, decimal_precision) ? ToLine(decimal_precision).DistanceTo(point, decimal_precision)
+                                           : ORIGIN.DistanceTo(point, decimal_precision);
 }
 
 bool Ray2D::AlmostEquals(Ray2D const& other, int decimal_precision) const {
