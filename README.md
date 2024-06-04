@@ -100,14 +100,27 @@ You should see something like this
 - ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
 - ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
 - test cases possible in `.wkt` files formats in `geompp_tests/res` folder
-- Docker based working environment: a linux and a windows image with all things installed
+- Docker based dev environment: Linux image
+
+--- carry on 2D geometry ---
+- Line2D::distance(p), Ray2D::distance(p), LineSegment2D::distance(p), tests
 
 #### Next
+
+- Docker based dev enviroment: Windows image
+
+--- graphic demos ---
+- Set up a window to display some line segments in OpenGL
+- add keys to move around with the camera
+- add an input box to type in a new geometry
+- add a key to delete a geometry 
+
+
+#### Backlog to do
+
 --- test and build infrastructure ---
 - On Visual Studio, use the test runner to run specific tests
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
-
-#### Backlog to do
 
 --- carry on 2D geometry ---
 - Line2D::distance(p), Ray2D::distance(p), LineSegment2D::distance(p), tests

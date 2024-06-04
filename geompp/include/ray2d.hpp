@@ -26,6 +26,8 @@ class Ray2D {
   bool AlmostEquals(Ray2D const& other, int decimal_precision = DP_THREE) const;
   bool IsAhead(Point2D const& point, int decimal_precision = DP_THREE) const;
   bool IsBehind(Point2D const& point, int decimal_precision = DP_THREE) const;
+  Line2D ToLine(int decimal_precision = DP_THREE) const;
+  double DistanceTo(Point2D const& point, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Ray2D FromWkt(std::string const& wkt);

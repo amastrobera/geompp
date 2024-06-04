@@ -1,7 +1,6 @@
 #pragma once
 
 #include "constants.hpp"
-#include "vector2d.hpp"
 
 #include <string>
 
@@ -21,6 +20,8 @@ class Point2D {
 
   Vector2D ToVector();
   bool AlmostEquals(Point2D const& other, int decimal_precision = DP_THREE) const;
+  double DistanceTo(Point2D const& other, int decimal_precision = DP_THREE) const;
+
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Point2D FromWkt(std::string const& wkt);
   void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;

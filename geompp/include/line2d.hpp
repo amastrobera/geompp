@@ -27,6 +27,8 @@ class Line2D {
   inline Point2D const& Origin() const { return P0; }
   inline Vector2D const& Direction() const { return DIR; }
   bool AlmostEquals(Line2D const& other, int decimal_precision = DP_THREE) const;
+  double DistanceTo(Point2D const& point, int decimal_precision = DP_THREE) const;
+  Point2D ProjectOnto(Point2D const& point, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Line2D FromWkt(std::string const& wkt);

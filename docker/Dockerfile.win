@@ -1,24 +1,60 @@
 # Use a Windows Server Core as the base image
 FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
-# Set the working directory
-WORKDIR /geompp
+# Set the DNS servers
+RUN netsh interface ip set dns name="Ethernet" source=static addr=8.8.8.8 register=primary
+RUN netsh interface ip add dns name="Ethernet" addr=8.8.4.4 index=2
+
+# Debugging DNS and network issues
+RUN @powershell -NoProfile -ExecutionPolicy Bypass -Command " \
+    Write-Output 'Testing DNS Resolution...'; \
+    Resolve-DnsName chocolatey.org; \
+    Write-Output 'Testing Network Connectivity...'; \
+    Test-Connection -ComputerName chocolatey.org -Count 1 -Verbose; \
+    Write-Output 'Network Tests Complete.'"
 
 # Install Chocolatey package manager
 RUN @powershell -NoProfile -ExecutionPolicy Bypass -Command " \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
+    if (Test-Connection -ComputerName chocolatey.org -Count 1 -Quiet) { \
+        Invoke-WebRequest -Uri https://chocolatey.org/install.ps1 -UseBasicParsing -OutFile install.ps1; \
+        iex .\install.ps1 \
+    } else { \
+        Write-Error 'Could not resolve chocolatey.org'; exit 1 \
+    }"
 
-# Install CMake and Visual Studio 2022 Build Tools using Chocolatey
-RUN choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' \
-    && choco install -y visualstudio2022buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --quiet --norestart'
+# Install CMake, Visual Studio 2022 Build Tools, and Git using Chocolatey
+RUN choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' 
+RUN choco install -y visualstudio2022buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --quiet --norestart' 
+RUN choco install -y git
 
-# Verify installations
-RUN cmake --version
-RUN cl
+
+# Install Google Test
+RUN mkdir C:\gtest \
+    && cd C:\gtest \
+    && git clone https://github.com/google/googletest.git \
+    && mkdir C:\gtest\googletest\build \
+    && cd C:\gtest\googletest\build \
+    && cmake .. \
+    && cmake --build . --config Release \
+    && cmake --build . --target install
+
+
+# Create a new user 'developer'
+RUN net user developer /add /passwordreq:no
+
+# Grant 'developer' user permissions for 'C:\Users\developer'
+RUN mkdir C:\Users\developer \
+    && icacls C:\Users\developer /grant developer:(OI)(CI)F /T
+
+# Set the working directory to 'C:\Users\developer\app'
+WORKDIR C:\Users\developer\workspace
+
+# Set the user to 'developer'
+USER developer
 
 # Set the PATH to include Visual Studio Build Tools
-RUN setx /M PATH "%PATH%;C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin"
+#RUN setx /M PATH "%PATH%;C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin"
 
 # Command to run when the container starts
 CMD ["powershell"]

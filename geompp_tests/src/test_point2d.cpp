@@ -1,8 +1,10 @@
 #include "point2d.hpp"
 
+#include "utils.hpp"
 #include "vector2d.hpp"
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <filesystem>
 
 namespace g = geompp;
@@ -85,5 +87,22 @@ TEST(Point2D, TestFromFile) {
 
   std::cout << "form file = " << p.ToWkt() << std::endl;
 }
+
+
+TEST(Point2D, DistanceTo) {
+
+    int prec = 4;
+    auto p1 = g::Point2D();
+    auto p2 = g::Point2D(1,0);
+
+    ASSERT_EQ(1, p1.DistanceTo(p2));
+
+    auto p3 = g::Point2D(-1, -1);
+
+    EXPECT_EQ(g::round_to(sqrt(2), prec), p1.DistanceTo(p3, prec));
+}
+
+
+
 
 }  // namespace geompp_tests
