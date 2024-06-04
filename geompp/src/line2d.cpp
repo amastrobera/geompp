@@ -4,11 +4,11 @@
 #include "ray2d.hpp"
 #include "utils.hpp"
 
+#include <cmath>
 #include <format>
 #include <fstream>
 #include <iostream>  // TODO: replace with logger lib
 #include <stdexcept>
-
 
 namespace geompp {
 
@@ -42,6 +42,14 @@ Line2D& Line2D::operator=(Line2D const& other) {
 
 bool Line2D::AlmostEquals(Line2D const& other, int decimal_precision) const {
   return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+}
+
+double Line2D::DistanceTo(Point2D const& point, int decimal_precision) const {
+  return round_to(abs((point - P0).Perp().Dot(DIR)), decimal_precision);
+}
+
+Point2D Line2D::ProjectOnto(Point2D const& point, int decimal_precision) const {
+  return P0 + (point - P0).Dot(DIR) * DIR;
 }
 
 #pragma endregion

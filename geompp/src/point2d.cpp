@@ -20,6 +20,10 @@ bool Point2D::AlmostEquals(Point2D const& other, int decimal_precision) const {
 
 Vector2D Point2D::ToVector() { return {X, Y}; }
 
+double Point2D::DistanceTo(Point2D const& other, int decimal_precision) const {
+  return round_to((other - *this).Length(), decimal_precision);
+}
+
 Point2D& Point2D::operator=(Point2D const& other) {
   if (this != &other) {
     *this = other;

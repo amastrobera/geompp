@@ -16,7 +16,13 @@ jobs:
       - name: Install dependencies (replace with your specific commands)
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake  # Adjust dependencies as needed
+          sudo apt-get install -y build-essential cmake
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt install -y g++-13
+          sudo rm -f /usr/bin/g++
+          sudo rm -f /usr/bin/c++ 
+          sudo ln -s /usr/bin/g++-13 /usr/bin/g++
+          sudo ln -s /usr/bin/c++-13 /usr/bin/c++ 
 
       - name: Configure CMake (replace with your options)
         working-directory: build
@@ -24,7 +30,7 @@ jobs:
 
       - name: Build
         working-directory: build
-        run: make
+        run: make -j8
 
       - name: Build successful annotation
         if: success()  # This step only runs if the previous step succeeds

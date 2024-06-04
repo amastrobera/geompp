@@ -46,6 +46,20 @@ double LineSegment2D::Location(Point2D const& point, int decimal_precision) cons
   return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length() / Length();
 }
 
+double LineSegment2D::DistanceTo(Point2D const& point, int decimal_precision) const {
+  auto line_eqv = ToLine(decimal_precision);
+  auto proj = line_eqv.ProjectOnto(point, decimal_precision);
+  double loc = Location(proj, decimal_precision);
+  if (round_to(loc, decimal_precision) < 0) {
+    return P0.DistanceTo(point, decimal_precision);
+
+  } else if (round_to(loc, decimal_precision) > 1) {
+    return P1.DistanceTo(point, decimal_precision);
+  }
+
+  return line_eqv.DistanceTo(point, decimal_precision);
+}
+
 #pragma endregion
 
 #pragma region Operator Overloading
