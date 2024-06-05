@@ -1,8 +1,8 @@
-### Work in Progress ...
+# Work in Progress 
 
-#### Done
+## Done
 
---- init the repo ---
+#### Init the repo
 - build on linux
 - build on windows
 - set up a lib folder and a test folder
@@ -11,35 +11,36 @@
 - Ray2D, Ray2D::contains(p), Ray2D::intersection(line), Ray2D::intersection(ray), tests
 - LineSegment2D, LineSegment2D::contains(p), LineSegment2D:intersection(line), LineSegment2D:intersection(ray), LineSegment2D:intersection(line_seg), tests
 
---- test and build infrastructure ---
+#### test and build infrastructure
 - github actions: run tests on merge 
 - ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
 - ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
 - test cases possible in `.wkt` files formats in `geompp_tests/res` folder
 - Docker based dev environment: Linux image
 
---- carry on 2D geometry ---
+#### carry on 2D geometry
 - Line2D::distance(p), Ray2D::distance(p), LineSegment2D::distance(p), tests
 - LineSegment2D::interpolate(%)->p, LineSegment2D::location(p)->%, tests
 
-#### Next
+
+## Next
 
 - Docker based dev enviroment: Windows image
 
---- graphic demos ---
+#### graphic demos
 - Set up a window to display some line segments in OpenGL
 - add keys to move around with the camera
 - add an input box to type in a new geometry
 - add a key to delete a geometry 
 
 
-#### Backlog to do
+## Backlog to do
 
---- test and build infrastructure ---
+#### test and build infrastructure 
 - On Visual Studio, use the test runner to run specific tests
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
 
---- carry on 2D geometry ---
+#### carry on 2D geometry
 - Polyline2D, Polyline2D::contains(p), Polyline2D::distance(p), tests
 - Polyline2D::interpolate(%)->p, Polyline2D::locartion(p)->%, tests
 - Polyline2D::intersects(line, ray, line_seg, polyline), tests
@@ -49,13 +50,13 @@
 - Polygon2D::intersects(line, ray, line_seg, triangle, polygon), tests
 - List<Point2D>::convex_hull()->polygon, tests
 
---- more build infrastructure ---
+#### more build infrastructure 
 - python bindings 
 - write interface for python
 - write some sample code
 - write some python tests
 
---- add some 3D classes ----
+#### add some 3D classes 
 - Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
 - Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
 - Ray3D, Ray3D::contains(p), Ray3D::intersection(line, ray), tests
@@ -72,12 +73,12 @@
 - Polygon3D::intersects(line, ray, line_seg, triangle, polygon), tests
 - List<Point3D>::convex_hull()->polygon, tests
 
---- more build infrastructure ---
+#### more build infrastructure 
 - C#interface for python
 - write some sample code
 - write some c# tests
 
---- add overlaps/adjacent (bool) ---
+#### more geometrical operations 2D, 3D
 - Line2D::overlaps(line), Line2D::overlap(line), tests
 - Ray2D::overlaps(line, ray), tests
 - LineSegment2D::overlaps(line, ray, line_seg), tests
@@ -96,17 +97,17 @@
 - Triangle3D::adjacent(line, ray, line_seg, polyline, triangle), tests (one side in common, no intersection)
 - Polygon3D::adjacent(line, ray, line_seg, polyline, triangle, polygon), tests (one or more sides in common, no intersection)
 
---- add 2D meshing ---
+#### add 2D meshing
 - Mesh2D class (set of triangles), tests
 - Polygon2D::triangulate()->mesh, tests
 - Mesh2D::polygonize()->polygon, tests
 
---- add 3D meshing ---
+#### add 3D meshing 
 - Mesh3D class (set of triangles), tests
 - Polygon3D::triangulate()->mesh, tests
 - Mesh3D::polygonize()->polygon, tests
 
---- add polygon clipping ---
+#### add polygon clipping 
 - Triangle2D::intersection(triangle), test
 - Polygon2D::intersection(triangle, polygon), test
 - Triangle3D::intersection(triangle), test

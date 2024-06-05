@@ -87,4 +87,4 @@ You should see something like this
 
 ## WIP schedule
 
-follow what's being developed in [/WIP.md](work in progress todo list)
+follow what's being developed in [work in progress todo list](./WIP.md)
