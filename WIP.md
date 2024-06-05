@@ -22,16 +22,23 @@
 - Line2D::distance(p), Ray2D::distance(p), LineSegment2D::distance(p), tests
 - LineSegment2D::interpolate(%)->p, LineSegment2D::location(p)->%, tests
 
+#### graphic demos
+- Set up a window to display some line segments in OpenGL
+
+
 
 ## Next
 
+#### test and build infrastructure
 - Docker based dev enviroment: Windows image
 
 #### graphic demos
-- Set up a window to display some line segments in OpenGL
 - add keys to move around with the camera
 - add an input box to type in a new geometry
 - add a key to delete a geometry 
+
+
+
 
 
 ## Backlog to do
