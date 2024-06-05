@@ -1,0 +1,6 @@
+# line separated values
+# parse with getline(input_stream)
+# comments with hash
+LINESTRING(0 0, 1 1)
+POINT(5 2)
+LINESTRING(-1 -2, 4 3)
