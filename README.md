@@ -37,6 +37,11 @@ cd docker
 .\run.bat -image Linux      # same possibilities 
 ```
 
+For running the graphics app from within docker you may need this additional like, on your host computer. 
+```
+xhost -local:root 
+```
+
 ### Download and Install
 
 To download and use the library

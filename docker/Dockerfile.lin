@@ -3,18 +3,18 @@ FROM ubuntu:23.04
 RUN echo "Getting build dependencies" \
     && apt-get update \
     && apt-get install -y \
-    sudo \
-    vim \
-    nano \
-    wget \
-    make \
-    cmake \
-    build-essential \
-    gdb \
-    valgrind \
-    software-properties-common \
-    net-tools \
-    libgtest-dev \
+                        sudo \
+                        vim \
+                        nano \
+                        wget \
+                        make \
+                        cmake \
+                        build-essential \
+                        gdb \
+                        valgrind \
+                        software-properties-common \
+                        net-tools \
+                        libgtest-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
     && apt install -y g++-13 \
@@ -23,15 +23,23 @@ RUN echo "Getting build dependencies" \
     && ln -s /usr/bin/g++-13 /usr/bin/g++ \
     && ln -s /usr/bin/c++-13 /usr/bin/c++ 
 
+RUN echo "Graphics libs" \
+    && apt-get update \
+    && apt-get install -y \
+                        xorg-dev \
+                        libglu1-mesa-dev \
+                        libglfw3-dev \
+                        libglm-dev \
+                        libglew-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* 
+
+
 RUN echo "Developer User setup" \
     && useradd --create-home --groups sudo --shell /bin/bash developer \
     && mkdir -p /etc/sudoers.d \
     && echo "developer ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/developer \
     && chmod 0440 /etc/sudoers.d/developer 
 
-RUN echo "Python debugging support" \
-    && apt-get update \
-    && apt-get install -y python3-dev python3-pip 
 
 # environment, dependencies and entry points
 USER developer
