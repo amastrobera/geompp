@@ -7,6 +7,7 @@
 #include "vector2d.hpp"
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <filesystem>
 #include <limits>
 
@@ -56,6 +57,25 @@ TEST(LineSegment2D, Location) {
   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, 1), prec)));
   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(0, -1), prec)));
   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(-1, -1), prec)));
+  ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, -1), prec)));
+}
+
+TEST(LineSegment2D, Interpolate) {
+  int prec = 4;
+  auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
+
+  // on segment
+  ASSERT_EQ(seg.First(), seg.Interpolate(0));
+
+  ASSERT_EQ(seg.Last(), seg.Interpolate(1));
+
+  // on segment
+  ASSERT_EQ(0.223, g::round_to(seg.Location(seg.Interpolate(0.223), prec), 3));
+
+  // on line
+  ASSERT_EQ(1.2, g::round_to(seg.Location(seg.Interpolate(1.2), prec), 1));
+
+  ASSERT_EQ(-0.2, g::round_to(seg.Location(seg.Interpolate(-0.2), prec), 1));
 }
 
 TEST(LineSegment2D, Intersection) {
@@ -243,42 +263,39 @@ TEST(LineSegment2D, TestFromFile) {
   std::cout << "form file = " << p.ToWkt() << std::endl;
 }
 
-
 TEST(LineSegment2D, DistanceTo) {
+  int prec = 4;
+  auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
 
-    int prec = 4;
-    auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
+  // on segment
+  auto p1 = g::Point2D();
+  EXPECT_EQ(0, seg.DistanceTo(p1, prec));
 
-    // on segment
-    auto p1 = g::Point2D();
-    EXPECT_EQ(0, seg.DistanceTo(p1, prec));
+  auto p2 = g::Point2D(3, 0);
+  EXPECT_EQ(0, seg.DistanceTo(p2, prec));
 
-    auto p2 = g::Point2D(3, 0);
-    EXPECT_EQ(0, seg.DistanceTo(p2, prec));
+  // on line
+  auto p3 = g::Point2D(-20, 0);
+  EXPECT_EQ(20, seg.DistanceTo(p3, prec));
 
-    // on line
-    auto p3 = g::Point2D(-20, 0);
-    EXPECT_EQ(20, seg.DistanceTo(p3, prec));
+  auto p4 = g::Point2D(12, 0);
+  EXPECT_EQ(9, seg.DistanceTo(p4, prec));
 
-    auto p4 = g::Point2D(12, 0);
-    EXPECT_EQ(9, seg.DistanceTo(p4, prec));
+  // Q1
+  auto p5 = g::Point2D(1.5, 12);
+  EXPECT_EQ(12, seg.DistanceTo(p5, prec));
 
-    // Q1 
-    auto p5 = g::Point2D(1.5, 12);
-    EXPECT_EQ(12, seg.DistanceTo(p5, prec));
+  // Q2
+  auto p6 = g::Point2D(-5, 10);
+  EXPECT_EQ(p6.DistanceTo(seg.First(), prec), seg.DistanceTo(p6, prec));
 
-    // Q2
-    auto p6 = g::Point2D(-5, 10);
-    EXPECT_EQ(p6.DistanceTo(seg.First(), prec), seg.DistanceTo(p6, prec));
+  // Q3
+  auto p7 = g::Point2D(-2, -4);
+  EXPECT_EQ(p7.DistanceTo(seg.First(), prec), seg.DistanceTo(p7, prec));
 
-    // Q3
-    auto p7 = g::Point2D(-2, -4);
-    EXPECT_EQ(p7.DistanceTo(seg.First(), prec), seg.DistanceTo(p7, prec));
-
-    // Q4
-    auto p8 = g::Point2D(3, -7);
-    EXPECT_EQ(7, seg.DistanceTo(p8, prec));
+  // Q4
+  auto p8 = g::Point2D(3, -7);
+  EXPECT_EQ(7, seg.DistanceTo(p8, prec));
 }
-
 
 }  // namespace geompp_tests

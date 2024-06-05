@@ -27,8 +27,8 @@ fi
 
 
 # Get the absolute path to the directory containing the script
-script_dir=$(dirname "$(readlink -f "$0")")
-local_vol="${scirpt_dir}/.."
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+local_vol="$script_dir/../"    
 image_vol="/home/developer/workspace/geompp"
 
 # Run the docker command with the appropriate Dockerfile
