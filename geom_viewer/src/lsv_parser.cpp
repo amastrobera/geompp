@@ -14,7 +14,7 @@ namespace geom_viewer {
 
 LVSParser LVSParser::Open(std::string const& file_path) {
   if (!fs::exists(file_path)) {
-    throw std::runtime_error("files does not exist " + file_path);
+    throw std::runtime_error("file does not exist " + file_path);
   }
 
   std::ifstream file(file_path);
