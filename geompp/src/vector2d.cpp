@@ -18,6 +18,8 @@ Vector2D& Vector2D::operator=(Vector2D const& other) {
   return *this;
 }
 
+Point2D Vector2D::ToPoint() { return Point2D(X, Y); }
+
 double Vector2D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2)); }
 
 bool Vector2D::AlmostEquals(Vector2D const& other, int decimal_precision) const {
@@ -52,6 +54,8 @@ Vector2D operator*(Vector2D const& lhs, double a) { return {lhs.x() * a, lhs.y()
 Vector2D operator*(double a, Vector2D const& rhs) { return rhs * a; }
 
 double operator*(Vector2D const& lhs, Vector2D const& rhs) { return lhs.Dot(rhs); }
+
+Vector2D operator/(Vector2D const& lhs, double a) { return Vector2D(lhs.x() / a, lhs.y() / a); }
 
 #pragma endregion
 

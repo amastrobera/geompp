@@ -19,6 +19,7 @@ add_library(${PROJECT_NAME}
     src/ray2d.cpp
     src/utils.cpp
     src/line_segment2d.cpp
+    src/polyline2d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

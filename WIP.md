@@ -6,10 +6,16 @@
 - build on linux
 - build on windows
 - set up a lib folder and a test folder
+
+
+#### 2D geometry
 - Point2D, Vector2D, Line2D, Shape2D for return type of geometrical operations, tests
-- Line2D::contains(p), Line2D::intersects(line), Line2D::intersection(line), tests
-- Ray2D, Ray2D::contains(p), Ray2D::intersection(line), Ray2D::intersection(ray), tests
-- LineSegment2D, LineSegment2D::contains(p), LineSegment2D:intersection(line), LineSegment2D:intersection(ray), LineSegment2D:intersection(line_seg), tests
+- Line2D::contains(p), intersects(line), intersection(line), tests
+- Ray2D, contains(p), intersection(line), intersection(ray), tests
+- LineSegment2D, contains(p), intersection(line), intersection(ray), intersection(line_seg), tests
+- Line2D,Ray2D,LineSegment2D::distance(p), tests
+- LineSegment2D::interpolate(%)->p, location(p)->%, tests
+- Polyline2D, contains(p), distance(p), tests
 
 #### test and build infrastructure
 - github actions: run tests on merge 
@@ -18,9 +24,6 @@
 - test cases possible in `.wkt` files formats in `geompp_tests/res` folder
 - Docker based dev environment: Linux image
 
-#### carry on 2D geometry
-- Line2D::distance(p), Ray2D::distance(p), LineSegment2D::distance(p), tests
-- LineSegment2D::interpolate(%)->p, LineSegment2D::location(p)->%, tests
 
 #### graphic demos
 - Set up a window to display some line segments in OpenGL
@@ -40,14 +43,13 @@
 
 
 
-
 ## Backlog to do
 
 #### test and build infrastructure 
 - On Visual Studio, use the test runner to run specific tests
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
 
-#### carry on 2D geometry
+#### 2D geometry
 - Polyline2D, Polyline2D::contains(p), Polyline2D::distance(p), tests
 - Polyline2D::interpolate(%)->p, Polyline2D::locartion(p)->%, tests
 - Polyline2D::intersects(line, ray, line_seg, polyline), tests
@@ -63,7 +65,7 @@
 - write some sample code
 - write some python tests
 
-#### add some 3D classes 
+#### 3D geometry 
 - Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
 - Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
 - Ray3D, Ray3D::contains(p), Ray3D::intersection(line, ray), tests
@@ -81,7 +83,7 @@
 - List<Point3D>::convex_hull()->polygon, tests
 
 #### more build infrastructure 
-- C#interface for python
+- C# interface for python
 - write some sample code
 - write some c# tests
 

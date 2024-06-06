@@ -18,6 +18,8 @@ class Vector2D {
   double inline const x() const { return X; }
   double inline const y() const { return Y; }
 
+  Point2D ToPoint();
+
   double Length() const;
   bool AlmostEquals(Vector2D const& other, int decimal_precision = DP_THREE) const;
   std::string ToWkt(int decimal_precision = DP_THREE) const;
@@ -52,6 +54,7 @@ Vector2D operator*(double a, Vector2D const& rhs);
 double operator*(Vector2D const& lhs, Vector2D const& vec);
 
 Vector2D operator/(Vector2D const& lhs, Vector2D const& vec) = delete;
+Vector2D operator/(Vector2D const& lhs, double a);
 
 #pragma endregion
 
