@@ -16,6 +16,7 @@
 - Line2D,Ray2D,LineSegment2D::distance(p), tests
 - LineSegment2D::interpolate(%)->p, location(p)->%, tests
 - Polyline2D, contains(p), distance(p), tests
+- Polyline2D::Wkt, tests
 
 #### test and build infrastructure
 - github actions: run tests on merge 
@@ -50,12 +51,12 @@
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
 
 #### 2D geometry
-- Polyline2D, Polyline2D::contains(p), Polyline2D::distance(p), tests
-- Polyline2D::interpolate(%)->p, Polyline2D::locartion(p)->%, tests
+- Polyline2D::interpolate(%)->p, location(p)->%, tests
 - Polyline2D::intersects(line, ray, line_seg, polyline), tests
 - Triangle2D, Triangle2D::contains(p), tests
+- Triangle2D::Wkt, tests
 - Triangle2D::intersects(line, ray, line_seg), tests
-- Polygon2D, Polygon2D::contains(p), tests
+- Polygon2D, contains(p), tests
 - Polygon2D::intersects(line, ray, line_seg, triangle, polygon), tests
 - List<Point2D>::convex_hull()->polygon, tests
 
@@ -68,9 +69,9 @@
 #### 3D geometry 
 - Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
 - Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
-- Ray3D, Ray3D::contains(p), Ray3D::intersection(line, ray), tests
-- LineSegment3D, LineSegment3D::contains(p), LineSegment3D:intersection(line, ray, line_seg), tests
-- Line3D::distance(p), Ray3D::distance(p), LineSegment3D::distance(p), tests
+- Ray3D, contains(p), intersection(line, ray), tests
+- LineSegment3D, contains(p), ntersection(line, ray, line_seg), tests
+- Line3D, Ray3D, LineSegment3D::distance(p), tests
 - LineSegment3D::interpolate(%)->p, LineSegment3D::location(p)->%, tests
 - Polyline3D, Polyline3D::contains(p), Polyline3D::distance(p), tests
 - Polyline3D::interpolate(%)->p, Polyline3D::locartion(p)->%, tests

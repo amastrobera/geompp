@@ -13,11 +13,11 @@ include_directories(include)
 
 # Add the library
 add_library(${PROJECT_NAME}
+    src/utils.cpp
     src/point2d.cpp
     src/vector2d.cpp
     src/line2d.cpp
     src/ray2d.cpp
-    src/utils.cpp
     src/line_segment2d.cpp
     src/polyline2d.cpp
 )

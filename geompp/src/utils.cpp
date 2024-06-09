@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <iostream>  // debug only
 #include <ranges>
 #include <sstream>
 
@@ -38,17 +39,60 @@ std::string to_upper(std::string s) {
   return s;
 }
 
-std::vector<double> tokenize_space_separated_string_to_doubles(const std::string& str) {
-  std::istringstream iss(str);
+std::vector<double> tokenize_to_doubles(std::string const& str, char delimiter) {
   std::vector<double> tokens;
-  double token;
+  std::istringstream iss(str);
 
-  // Extract numbers using stream iterators
-  while (iss >> token) {
-    tokens.push_back(token);
+  std::cout << "str=" << str << std::endl;
+
+  if (delimiter == ' ') {
+    double dtoken;
+    iss.precision(10);
+    while (iss >> dtoken) {
+      std::cout << "dtoken=" << dtoken << std::endl;
+      tokens.push_back(dtoken);
+    }
+
+  } else {
+    std::string stoken;
+    while (std::getline(iss, stoken, delimiter)) {
+      try {
+        tokens.push_back(std::stod(stoken));
+
+      } catch (const std::invalid_argument& e) {
+        throw std::runtime_error("Invalid token encountered: " + stoken);
+      } catch (const std::out_of_range& e) {
+        throw std::runtime_error("Token out of range: " + stoken);
+      }
+    }
   }
 
   return tokens;
+}
+
+std::vector<std::string> tokenize_string(std::string const& str, char delimiter) {
+  auto split_view = str | std::views::split(delimiter);
+  std::vector<std::string> tokens;
+
+  for (const auto& part : split_view) {
+    tokens.emplace_back(part.begin(), part.end());
+  }
+
+  return tokens;
+}
+
+int count_decimal_places(double number) {
+  std::string number_str = std::to_string(number);
+  size_t decimal_pos = number_str.find('.');
+  if (decimal_pos == std::string::npos) {
+    return 0;
+  }
+  // Remove trailing zeros after the decimal point
+  size_t last_non_zero = number_str.find_last_not_of('0');
+  if (last_non_zero != std::string::npos && last_non_zero > decimal_pos) {
+    return static_cast<int>(last_non_zero - decimal_pos);
+  }
+  return 0;
 }
 
 }  // namespace geompp

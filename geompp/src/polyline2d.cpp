@@ -12,6 +12,7 @@
 #include <limits>
 #include <numeric>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <unordered_set>
@@ -20,9 +21,9 @@ namespace geompp {
 
 #pragma region Constructors
 
-Polyline2D::Polyline2D(std::vector<Point2D> points) : KNOTS{points} {}
+Polyline2D::Polyline2D(std::vector<Point2D>&& points) : KNOTS{std::move(points)} {}
 
-Polyline2D Polyline2D::Make(std::vector<Point2D> points, int decimal_precision) {
+Polyline2D Polyline2D::Make(std::vector<Point2D> const& points, int decimal_precision) {
   if (points.size() < 2) {
     throw std::runtime_error("cannot built polyline with less than 2 points");
   }
@@ -51,7 +52,7 @@ Polyline2D Polyline2D::Make(std::vector<Point2D> points, int decimal_precision) 
     }
   }
 
-  return Polyline2D(unique_points);
+  return Polyline2D(std::move(unique_points));
 }
 
 Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
@@ -227,110 +228,137 @@ bool Polyline2D::Contains(Point2D const& point, int decimal_precision) const {
 
 // #pragma endregion
 
-// #pragma region Formatting
+#pragma region Formatting
 
-// std::string Polyline2D::ToWkt(int decimal_precision) const {
-//   return std::format("LINESTRING ({} {}, {} {})", round_to(P0.x(), decimal_precision),
-//                      round_to(P0.y(), decimal_precision), round_to(P1.x(), decimal_precision),
-//                      round_to(P1.y(), decimal_precision));
-// }
+std::string Polyline2D::ToWkt(int decimal_precision) const {
+  std::ostringstream buf;
+  buf << "LINESTRING ";
 
-// Polyline2D Polyline2D::FromWkt(std::string const& wkt) {
-//   try {
-//     std::size_t end_gtype, end_p1, end_p2;
+  if (KNOTS.size() > 0) {
+    buf << "(";
+    for (int i = 0; i < KNOTS.size(); ++i) {
+      buf << std::format("{} {}", round_to(KNOTS[i].x(), decimal_precision), round_to(KNOTS[i].y(), decimal_precision));
 
-//     end_gtype = wkt.find('(');
-//     if (end_gtype == std::string::npos) {
-//       throw std::runtime_error("brakets");
-//     }
+      if (i < KNOTS.size() - 1) {
+        buf << ", ";
+      }
+    }
+    buf << ")";
 
-//     std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
-//     if (g_type != "LINESTRING") {
-//       throw std::runtime_error("geometry name");
-//     }
+  } else {
+    buf << "EMPTY";
+  }
 
-//     end_p1 = wkt.substr(end_gtype + 1).find(',');
-//     if (end_p1 == std::string::npos) {
-//       throw std::runtime_error("brakets");
-//     }
-//     std::string s_nums_p1 = wkt.substr(end_gtype + 1, end_p1);
+  return buf.str();
+}
 
-//     auto nums_p1 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p1);
-//     if (nums_p1.size() != 2) {
-//       throw std::runtime_error("numbers p1");
-//     }
+Polyline2D Polyline2D::FromWkt(std::string const& wkt) {
+  try {
+    std::size_t end_gtype, end_pi, end_pn;
 
-//     end_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1).find(')');
-//     if (end_p2 == std::string::npos) {
-//       throw std::runtime_error("brakets");
-//     }
-//     std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2);
+    end_gtype = wkt.find('(');
+    if (end_gtype == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
 
-//     auto nums_p2 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p2);
-//     if (nums_p2.size() != 2) {
-//       throw std::runtime_error("numbers p2");
-//     }
+    std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
+    if (g_type != "LINESTRING") {
+      throw std::runtime_error("geometry name");
+    }
 
-//     return Make({nums_p1[0], nums_p1[1]}, {nums_p2[0], nums_p2[1]});
+    end_pn = wkt.substr(end_gtype + 1).find(')');
+    if (end_pn == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
 
-//   } catch (...) {
-//     std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
-//   }
+    std::string mid_part = wkt.substr(end_gtype + 1, wkt.size() - (end_gtype + 1 + 1));
 
-//   throw std::runtime_error("failed to parse WKT");
-// }
+    std::cout << "mid_part=" << mid_part << std::endl;
 
-// void Polyline2D::ToFile(std::string const& path, int decimal_precision) const {
-//   try {
-//     std::string content = ToWkt(decimal_precision);
+    std::vector<Point2D> pt_vec;
+    int decimal_precision = 0;
+    int num_dec = 0;
+    std::string pt_trimmed;
+    for (std::string const& p_str : geompp::tokenize_string(mid_part, ',')) {
+      pt_trimmed = geompp::trim(p_str);
 
-//     // Open the file in write mode (truncates existing content)
-//     std::ofstream outfile(path);
+      auto nums = geompp::tokenize_to_doubles(pt_trimmed, ' ');
+      if (nums.size() != 2) {
+        throw std::runtime_error("numbers");
+      }
 
-//     if (!outfile.is_open()) {
-//       throw std::runtime_error("Could not open file");
-//     }
+      num_dec = count_decimal_places(nums[0]);
+      if (num_dec > decimal_precision) {
+        decimal_precision = num_dec;
+      }
+      num_dec = count_decimal_places(nums[1]);
+      if (num_dec > decimal_precision) {
+        decimal_precision = num_dec;
+      }
 
-//     // Write the text to the file
-//     outfile << content;
+      pt_vec.push_back({nums[0], nums[1]});
+    }
 
-//     outfile.close();
+    return Make(pt_vec, decimal_precision);
 
-//   } catch (...) {
-//     std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
-//   }
-// }
+  } catch (...) {
+    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+  }
 
-// Polyline2D Polyline2D::FromFile(std::string const& path) {
-//   try {
-//     std::string content;
+  throw std::runtime_error("failed to parse WKT");
+}
 
-//     // Open the file in read mode
-//     std::ifstream in_file(path);
+void Polyline2D::ToFile(std::string const& path, int decimal_precision) const {
+  try {
+    std::string content = ToWkt(decimal_precision);
 
-//     if (!in_file.is_open()) {
-//       throw std::runtime_error("could not open file");
-//     }
+    // Open the file in write mode (truncates existing content)
+    std::ofstream outfile(path);
 
-//     // Get the file size (optional, for efficiency)
-//     in_file.seekg(0, std::ios::end);
-//     std::streamsize fileSize = in_file.tellg();
-//     in_file.seekg(0, std::ios::beg);  // Reset the file pointer
+    if (!outfile.is_open()) {
+      throw std::runtime_error("Could not open file");
+    }
 
-//     // Resize the string to the file size (optional, for efficiency)
-//     content.resize(static_cast<size_t>(fileSize));
+    // Write the text to the file
+    outfile << content;
 
-//     // Read the entire file into the string
-//     in_file.read(&content[0], fileSize);
+    outfile.close();
 
-//     return FromWkt(content);
+  } catch (...) {
+    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+  }
+}
 
-//   } catch (...) {
-//     std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
-//   }
+Polyline2D Polyline2D::FromFile(std::string const& path) {
+  try {
+    std::string content;
 
-//   throw std::runtime_error("failed to parse WKT");
-// }
+    // Open the file in read mode
+    std::ifstream in_file(path);
+
+    if (!in_file.is_open()) {
+      throw std::runtime_error("could not open file");
+    }
+
+    // Get the file size (optional, for efficiency)
+    in_file.seekg(0, std::ios::end);
+    std::streamsize fileSize = in_file.tellg();
+    in_file.seekg(0, std::ios::beg);  // Reset the file pointer
+
+    // Resize the string to the file size (optional, for efficiency)
+    content.resize(static_cast<size_t>(fileSize));
+
+    // Read the entire file into the string
+    in_file.read(&content[0], fileSize);
+
+    return FromWkt(content);
+
+  } catch (...) {
+    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+  }
+
+  throw std::runtime_error("failed to parse WKT");
+}
 
 #pragma endregion
 

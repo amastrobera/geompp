@@ -228,30 +228,34 @@ TEST(Polyline2D, Contains) {
 //   ASSERT_FALSE(s3.Intersects(r2_rev, prec));
 // }
 
-// TEST(LineSegment2D, Wkt) {
-//   ASSERT_EQ("LINESTRING (0 0, 1 1)", g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 1)).ToWkt());
-//   ASSERT_EQ("LINESTRING (56491.62 -795.97, -9137.37 10.36)",
-//             g::LineSegment2D::Make(g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678)).ToWkt(2));
+TEST(Polyline2D, Wkt) {
+  ASSERT_EQ("LINESTRING (0 0, 1 1)", g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 1)}).ToWkt());
+  ASSERT_EQ("LINESTRING (56491.62 -795.97, -9137.37 10.36, -10351.52 7.61)",
+            g::Polyline2D::Make(
+                {g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678), g::Point2D(-10351.516, 7.61)})
+                .ToWkt(2));
 
-//   EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)),
-//             g::LineSegment2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)"));
-//   EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(-7.5, -60.7), g::Point2D()),
-//             g::LineSegment2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
-//   EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
-//             g::LineSegment2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0  )"));
+  auto p = g::Polyline2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)");
 
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("angelo"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestrin ( -7.5 -60.7, 0 0)"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("line string ( -7.5 -60.7, 0 0)"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring -7.5 -64.4, 0 0)"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring (-7.5 -64.4, 0 0"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring (-7.5 -64.4, 0 "));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring (-7.5 -64.4, "));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 )"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( )"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 -64.4 15.5)"));
-//   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
-// }
+  // EXPECT_EQ(g::Polyline2D::Make({g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)}, 6),
+  //           g::Polyline2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)"));
+  // EXPECT_EQ(g::Polyline2D::Make({g::Point2D(-7.5, -60.7), g::Point2D()}),
+  //           g::Polyline2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
+  // EXPECT_EQ(g::Polyline2D::Make({g::Point2D(0.645, -1.689741), g::Point2D(1, 0)}),
+  //           g::Polyline2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0 , 7 41 )"));
+
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("angelo"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestrin ( -7.5 -60.7, 0 0)"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("line string ( -7.5 -60.7, 0 0)"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring -7.5 -64.4, 0 0)"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, 0 0"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, 0 "));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, "));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 )"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( )"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 -64.4 15.5)"));
+  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
+}
 
 // TEST(LineSegment2D, ToFile) {
 //   int prec = 4;
