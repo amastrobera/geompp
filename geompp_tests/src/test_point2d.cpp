@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
+#include <vector>
 
 namespace g = geompp;
 namespace fs = std::filesystem;
@@ -88,21 +89,71 @@ TEST(Point2D, TestFromFile) {
   std::cout << "form file = " << p.ToWkt() << std::endl;
 }
 
-
 TEST(Point2D, DistanceTo) {
+  int prec = 4;
+  auto p1 = g::Point2D();
+  auto p2 = g::Point2D(1, 0);
 
-    int prec = 4;
-    auto p1 = g::Point2D();
-    auto p2 = g::Point2D(1,0);
+  ASSERT_EQ(1, p1.DistanceTo(p2));
 
-    ASSERT_EQ(1, p1.DistanceTo(p2));
+  auto p3 = g::Point2D(-1, -1);
 
-    auto p3 = g::Point2D(-1, -1);
-
-    EXPECT_EQ(g::round_to(sqrt(2), prec), p1.DistanceTo(p3, prec));
+  EXPECT_EQ(g::round_to(sqrt(2), prec), p1.DistanceTo(p3, prec));
 }
 
+TEST(Point2D, RemoveDuplicates) {
+  // clang-format off
+  std::vector<g::Point2D> pts{g::Point2D(0, 0), 
+                              g::Point2D(0, 0), // duplicate
+                              g::Point2D(0, 0), // duplicate
+                              g::Point2D(1, 0),
+                              g::Point2D(2, 0), 
+                              g::Point2D(2, 2), 
+                              g::Point2D(2, 2), // duplicate
+                              g::Point2D(3, 2), 
+                              g::Point2D(3, 2) // duplicate
+                              };
+  // clang-format on
+  ASSERT_EQ(9, pts.size());
 
+  auto unique_pts = g::Point2D::remove_duplicates(pts);
 
+  ASSERT_EQ(5, unique_pts.size());
+  ASSERT_EQ(g::Point2D(0, 0), unique_pts[0]);
+  ASSERT_EQ(g::Point2D(1, 0), unique_pts[1]);
+  ASSERT_EQ(g::Point2D(2, 0), unique_pts[2]);
+  ASSERT_EQ(g::Point2D(2, 2), unique_pts[3]);
+  ASSERT_EQ(g::Point2D(3, 2), unique_pts[4]);
+}
+
+TEST(Point2D, RemoveCollinear) {
+  // clang-format off
+  std::vector<g::Point2D> pts{g::Point2D(0, 0), 
+                              g::Point2D(1, 0),  
+                              g::Point2D(2, 0), // collinear
+                              g::Point2D(2, 2), 
+                              g::Point2D(2, 3), // collinear
+                              g::Point2D(2, 4), // collinear
+                              g::Point2D(2, 5), // collinear
+                              g::Point2D(3, 6), 
+                              g::Point2D(4, 5), 
+                              g::Point2D(5, 4), // collinear 
+                              g::Point2D(6, 0), 
+                              g::Point2D(7, 0)
+                              };
+  // clang-format on
+
+  ASSERT_EQ(12, pts.size());
+
+  auto unique_pts = g::Point2D::remove_collinear(pts);
+
+  ASSERT_EQ(g::Point2D(0, 0), unique_pts[0]);
+  ASSERT_EQ(g::Point2D(2, 0), unique_pts[1]);
+  ASSERT_EQ(g::Point2D(2, 5), unique_pts[2]);
+  ASSERT_EQ(g::Point2D(3, 6), unique_pts[3]) << "value=" << unique_pts[3].ToWkt();
+  ASSERT_EQ(g::Point2D(5, 4), unique_pts[4]);
+  ASSERT_EQ(g::Point2D(6, 0), unique_pts[5]);
+  ASSERT_EQ(g::Point2D(7, 0), unique_pts[6]);
+}
 
 }  // namespace geompp_tests

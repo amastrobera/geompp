@@ -39,8 +39,8 @@ class Polyline2D {
   std::vector<LineSegment2D> ToSegments() const;
   double Length() const;
   double DistanceTo(Point2D const& point, int decimal_precision = DP_THREE) const;
-  // double Location(Point2D const& point, int decimal_precision = DP_THREE) const;
-  // Point2D Interpolate(double pct) const;
+  double Location(Point2D const& point, int decimal_precision = DP_THREE) const;
+  Point2D Interpolate(double pct) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Polyline2D FromWkt(std::string const& wkt);

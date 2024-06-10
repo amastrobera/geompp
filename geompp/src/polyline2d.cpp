@@ -2,6 +2,7 @@
 
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
+#include "point2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
@@ -15,7 +16,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
-#include <unordered_set>
 
 namespace geompp {
 
@@ -24,32 +24,11 @@ namespace geompp {
 Polyline2D::Polyline2D(std::vector<Point2D>&& points) : KNOTS{std::move(points)} {}
 
 Polyline2D Polyline2D::Make(std::vector<Point2D> const& points, int decimal_precision) {
-  if (points.size() < 2) {
-    throw std::runtime_error("cannot built polyline with less than 2 points");
-  }
+  auto unique_points =
+      Point2D::remove_collinear(Point2D::remove_duplicates(points, decimal_precision), decimal_precision);
 
-  std::unordered_set<int> duplicates;
-  for (int i = 0; i < points.size() - 1; ++i) {
-    if (duplicates.count(i)) {
-      continue;
-    }
-    for (int j = i + 1; j < points.size(); ++j) {
-      if (!points[i].AlmostEquals(points[j], decimal_precision)) {
-        break;
-      }
-      duplicates.insert(j);
-    }
-  }
-
-  if (duplicates.size() == points.size() - 1) {
-    throw std::runtime_error("cannot built polyline with less than 2 unique consecutive points");
-  }
-
-  std::vector<Point2D> unique_points;
-  for (int i = 0; i < points.size(); ++i) {
-    if (duplicates.count(i) == 0) {
-      unique_points.push_back(points[i]);
-    }
+  if (unique_points.size() < 2) {
+    throw std::runtime_error("cannot built polyline with less than 2 unique non-collinear consecutive points");
   }
 
   return Polyline2D(std::move(unique_points));
@@ -89,14 +68,67 @@ bool Polyline2D::AlmostEquals(Polyline2D const& other, int decimal_precision) co
   return true;
 }
 
-// double Polyline2D::Location(Point2D const& point, int decimal_precision) const {
-//   if (!ToLine().Contains(point, decimal_precision)) {
-//     return std::numeric_limits<double>::infinity();
-//   }
-//   return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length() / Length();
-// }
+double Polyline2D::Location(Point2D const& point, int decimal_precision) const {
+  auto segs = ToSegments();
 
-// Point2D Polyline2D::Interpolate(double pct) const { return P0 + pct * (P1 - P0); }
+  // check if the point is in the middle of the polyline
+  double tot_len = 0;
+  for (int i = 0; i < segs.size(); ++i) {
+    if (segs[i].Contains(point, decimal_precision)) {
+      tot_len += segs[i].Location(point, decimal_precision);
+      return tot_len;
+    }
+    tot_len += segs[i].Length();
+  }
+  // at this point tot_len == Lenght(), no need to call that loop again
+
+  // check if the point is behind the polyline (on the first "line")
+  if (round_to((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First()), decimal_precision) ==
+      0) {  // collinearity check
+    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First()), decimal_precision) *
+           segs[0].First().DistanceTo(point) / tot_len;
+  }
+
+  // check if the point is is beyond the polyline (on the last "line")
+  int n = segs.size();
+  if (round_to((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First()),
+               decimal_precision) == 0) {  // collinearity check
+    return (tot_len + segs[n - 1].Last().DistanceTo(point)) / tot_len;
+  }
+
+  // the point is not located along the polyline or its first/last "line"
+  return std::numeric_limits<double>::infinity();
+}
+
+Point2D Polyline2D::Interpolate(double pct) const {
+  double tot_len = Length();
+
+  // the point is behind the polyline
+  if (round_to(pct, DP_NINE) < 0.0) {
+    return KNOTS[0] - pct * tot_len * (KNOTS[1] - KNOTS[0]);
+  }
+
+  // the point is beyond the polyline
+  if (round_to(pct, DP_NINE) > 1.0) {
+    return KNOTS[KNOTS.size() - 1] + pct * tot_len * (KNOTS[KNOTS.size() - 1] - KNOTS[KNOTS.size() - 2]);
+  }
+
+  // pct is within [0, 1]
+  double len_to_i = 0;
+  double len_i = 0;
+  for (int i = 0; i < KNOTS.size() - 1; ++i) {
+    len_i = KNOTS[i].DistanceTo(KNOTS[i + 1], DP_NINE);
+
+    if (round_to(pct - (len_to_i + len_i), DP_NINE) <= 0) {
+      double pct_i = pct - len_to_i;
+      return KNOTS[i] + pct_i * (KNOTS[i + 1] - KNOTS[i]);
+    }
+
+    len_to_i += len_i;
+  }
+
+  throw std::runtime_error("error in interpolation");
+}
 
 double Polyline2D::DistanceTo(Point2D const& point, int decimal_precision) const {
   std::vector<double> distances;
@@ -272,8 +304,6 @@ Polyline2D Polyline2D::FromWkt(std::string const& wkt) {
     }
 
     std::string mid_part = wkt.substr(end_gtype + 1, wkt.size() - (end_gtype + 1 + 1));
-
-    std::cout << "mid_part=" << mid_part << std::endl;
 
     std::vector<Point2D> pt_vec;
     int decimal_precision = 0;

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <iomanip>   // For setting precision in debug output
 #include <iostream>  // debug only
 #include <ranges>
 #include <sstream>
@@ -42,19 +43,15 @@ std::string to_upper(std::string s) {
 std::vector<double> tokenize_to_doubles(std::string const& str, char delimiter) {
   std::vector<double> tokens;
   std::istringstream iss(str);
-
-  std::cout << "str=" << str << std::endl;
+  std::string stoken;
 
   if (delimiter == ' ') {
-    double dtoken;
-    iss.precision(10);
-    while (iss >> dtoken) {
-      std::cout << "dtoken=" << dtoken << std::endl;
-      tokens.push_back(dtoken);
+    while (iss >> stoken) {
+      tokens.push_back(std::stod(stoken));
+      iss.precision(10);
     }
 
   } else {
-    std::string stoken;
     while (std::getline(iss, stoken, delimiter)) {
       try {
         tokens.push_back(std::stod(stoken));

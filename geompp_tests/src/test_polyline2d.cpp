@@ -1,6 +1,7 @@
 #include "polyline2d.hpp"
 
 #include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "point2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
@@ -22,7 +23,6 @@ extern fs::path test_res_path;
 TEST(Polyline2D, Constructor) {
   int prec = 4;
   auto polyline = g::Polyline2D::Make({g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)});
-
   ASSERT_EQ(4, polyline.Size());
   ASSERT_EQ(11, polyline.Length());
 
@@ -30,10 +30,14 @@ TEST(Polyline2D, Constructor) {
   EXPECT_ANY_THROW(g::Polyline2D::Make({}));                            // cannot make a segment in 0 points
   EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D()}));                // cannot make a segment in 1 sole point
   EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D(), g::Point2D()}));  // cannot make a segment in 1 sole unique point
+
   EXPECT_NO_THROW(g::Polyline2D::Make(
       {g::Point2D(), g::Point2D(1, 0), g::Point2D(1, 0)}));  // cannot make a segment in 1 sole unique point
   EXPECT_EQ(
       2, g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0), g::Point2D(1, 0)}).Size());  // removed non-unique point
+
+  EXPECT_EQ(2,
+            g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0), g::Point2D(3, 0)}).Size());  // removed collinear point
 }
 
 TEST(Polyline2D, Contains) {
@@ -59,41 +63,47 @@ TEST(Polyline2D, Contains) {
       polyline.Contains(points[points.size() - 1] + (points[points.size() - 1] - points[points.size() - 2]), prec));
 }
 
-// TEST(LineSegment2D, Location) {
-//   int prec = 3;
-//   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+TEST(Polyline2D, Location) {
+  int prec = 3;
+  auto s1 = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)});
 
-//   ASSERT_EQ(0.2, g::round_to(s1.Location(g::Point2D(0.2, 0), prec), prec));
-//   ASSERT_EQ(0.5, g::round_to(s1.Location(g::Point2D(0.5, 0), prec), prec));
-//   ASSERT_EQ(0.75, g::round_to(s1.Location(g::Point2D(0.75, 0), prec), prec));
+  ASSERT_EQ(0.2, g::round_to(s1.Location(g::Point2D(0.2, 0), prec), prec));
+  ASSERT_EQ(0.5, g::round_to(s1.Location(g::Point2D(0.5, 0), prec), prec));
+  ASSERT_EQ(0.75, g::round_to(s1.Location(g::Point2D(0.75, 0), prec), prec));
 
-//   ASSERT_EQ(-1, g::round_to(s1.Location(g::Point2D(-1, 0), prec), prec));
-//   ASSERT_EQ(-0.1, g::round_to(s1.Location(g::Point2D(-0.1, 0), prec), prec));
-//   ASSERT_EQ(1.1, g::round_to(s1.Location(g::Point2D(1.1, 0), prec), prec));
+  ASSERT_EQ(-1, g::round_to(s1.Location(g::Point2D(-1, 0), prec), prec));
+  ASSERT_EQ(-0.1, g::round_to(s1.Location(g::Point2D(-0.1, 0), prec), prec));
+  ASSERT_EQ(1.1, g::round_to(s1.Location(g::Point2D(1.1, 0), prec), prec));
 
-//   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, 1), prec)));
-//   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(0, -1), prec)));
-//   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(-1, -1), prec)));
-//   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, -1), prec)));
-// }
+  ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, 1), prec)));
+  ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(0, -1), prec)));
+  ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(-1, -1), prec)));
+  ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, -1), prec)));
+}
 
-// TEST(LineSegment2D, Interpolate) {
-//   int prec = 4;
-//   auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
+TEST(Polyline2D, Interpolate) {
+  int prec = 4;
+  auto poly = g::Polyline2D::FromWkt("LINESTRING (0 0, 3 0)");
 
-//   // on segment
-//   ASSERT_EQ(seg.First(), seg.Interpolate(0));
+  // on segment
+  ASSERT_EQ(g::Point2D(0, 0), poly.Interpolate(0));
 
-//   ASSERT_EQ(seg.Last(), seg.Interpolate(1));
+  ASSERT_EQ(g::Point2D(3, 0), poly.Interpolate(1));
 
-//   // on segment
-//   ASSERT_EQ(0.223, g::round_to(seg.Location(seg.Interpolate(0.223), prec), 3));
+  // on segment
+  ASSERT_EQ(0.223, g::round_to(poly.Location(poly.Interpolate(0.223), prec), 3));
 
-//   // on line
-//   ASSERT_EQ(1.2, g::round_to(seg.Location(seg.Interpolate(1.2), prec), 1));
+  // on line
+  auto lseg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
+  std::cout << "poly.Interpolate(1.2)=" << poly.Interpolate(1.2).ToWkt() << std::endl;
+  std::cout << "lseg.Interpolate(1.2)=" << lseg.Interpolate(1.2).ToWkt() << std::endl;
 
-//   ASSERT_EQ(-0.2, g::round_to(seg.Location(seg.Interpolate(-0.2), prec), 1));
-// }
+  std::cout << "poly.Location(1.2)=" << poly.Location(poly.Interpolate(1.2), prec) << std::endl;
+  std::cout << "lseg.Location(1.2)=" << lseg.Location(lseg.Interpolate(1.2), prec) << std::endl;
+  ASSERT_EQ(1.2, g::round_to(poly.Location(poly.Interpolate(1.2), prec), 1));
+
+  ASSERT_EQ(-0.2, g::round_to(poly.Location(poly.Interpolate(-0.2), prec), 1));
+}
 
 // TEST(LineSegment2D, Intersection) {
 //   int prec = 4;
@@ -235,54 +245,52 @@ TEST(Polyline2D, Wkt) {
                 {g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678), g::Point2D(-10351.516, 7.61)})
                 .ToWkt(2));
 
-  auto p = g::Polyline2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)");
+  EXPECT_EQ(g::Polyline2D::Make({g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)}, 6),
+            g::Polyline2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)"));
+  EXPECT_EQ(g::Polyline2D::Make({g::Point2D(-7.5, -60.7), g::Point2D()}),
+            g::Polyline2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
+  EXPECT_EQ(g::Polyline2D::Make({g::Point2D(0.645, -1.689741), g::Point2D(1, 0), g::Point2D(7, 41.365197)}, 6),
+            g::Polyline2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0 , 7 41.365197 )"));
 
-  // EXPECT_EQ(g::Polyline2D::Make({g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)}, 6),
-  //           g::Polyline2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)"));
-  // EXPECT_EQ(g::Polyline2D::Make({g::Point2D(-7.5, -60.7), g::Point2D()}),
-  //           g::Polyline2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
-  // EXPECT_EQ(g::Polyline2D::Make({g::Point2D(0.645, -1.689741), g::Point2D(1, 0)}),
-  //           g::Polyline2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0 , 7 41 )"));
-
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("angelo"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestrin ( -7.5 -60.7, 0 0)"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("line string ( -7.5 -60.7, 0 0)"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring -7.5 -64.4, 0 0)"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, 0 0"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, 0 "));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, "));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 )"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( )"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 -64.4 15.5)"));
-  // EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("angelo"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestrin ( -7.5 -60.7, 0 0)"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("line string ( -7.5 -60.7, 0 0)"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring -7.5 -64.4, 0 0)"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, 0 0"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, 0 "));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring (-7.5 -64.4, "));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 )"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( )"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 -64.4 15.5)"));
+  EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
 }
 
-// TEST(LineSegment2D, ToFile) {
-//   int prec = 4;
-//   std::string path = (test_res_path / "temp" / "line_segment.wkt").string();
-//   auto s = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+TEST(Polyline2D, ToFile) {
+  int prec = 4;
+  std::string path = (test_res_path / "temp" / "polyline.wkt").string();
+  auto s = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)}, prec);
 
-//   s.ToFile(path, prec);
-//   ASSERT_TRUE(fs::exists(path));
+  s.ToFile(path, prec);
+  ASSERT_TRUE(fs::exists(path));
 
-//   g::LineSegment2D s_file = g::LineSegment2D::FromFile(path);  // TODO make assert no throw for the whole call
+  g::Polyline2D s_file = g::Polyline2D::FromFile(path);  // TODO make assert no throw for the whole call
 
-//   EXPECT_EQ(s, s_file);
+  EXPECT_EQ(s, s_file);
 
-//   EXPECT_NO_THROW(fs::remove(path));
-// }
+  EXPECT_NO_THROW(fs::remove(path));
+}
 
-// TEST(LineSegment2D, TestFromFile) {
-// std::string path = (test_res_path / "line_segment2d" / "line_segment.wkt").string();
+TEST(Polyline2D, TestFromFile) {
+  std::string path = (test_res_path / "polyline2d" / "polyline.wkt").string();
 
-// ASSERT_TRUE(fs::exists(path));
+  ASSERT_TRUE(fs::exists(path));
 
-// ASSERT_NO_THROW(g::LineSegment2D::FromFile(path));
+  ASSERT_NO_THROW(g::Polyline2D::FromFile(path));
 
-// auto p = g::LineSegment2D::FromFile(path);
+  auto p = g::Polyline2D::FromFile(path);
 
-// std::cout << "form file = " << p.ToWkt() << std::endl;
-// }
+  std::cout << "form file = " << p.ToWkt() << std::endl;
+}
 
 TEST(Polyline2D, DistanceTo) {
   int prec = 4;

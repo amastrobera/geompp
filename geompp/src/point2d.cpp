@@ -7,6 +7,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>  // TODO: replace with logger lib
+#include <unordered_set>
 
 namespace geompp {
 
@@ -30,6 +31,96 @@ Point2D& Point2D::operator=(Point2D const& other) {
   }
   return *this;
 }
+
+#pragma region Collection Operations
+
+std::vector<Point2D> Point2D::remove_duplicates(std::vector<Point2D> const& points, int decimal_precision) {
+  if (points.size() == 0) {
+    return points;
+  }
+
+  std::unordered_set<int> duplicates;
+  for (int i = 0; i < points.size() - 1; ++i) {
+    if (duplicates.count(i)) {
+      continue;
+    }
+    for (int j = i + 1; j < points.size(); ++j) {
+      if (!points[i].AlmostEquals(points[j], decimal_precision)) {
+        break;
+      }
+      duplicates.insert(j);
+    }
+  }
+
+  std::vector<Point2D> unique_points;
+  for (int i = 0; i < points.size(); ++i) {
+    if (duplicates.count(i) == 0) {
+      unique_points.push_back(points[i]);
+    }
+  }
+
+  return unique_points;
+}
+
+std::vector<Point2D> Point2D::remove_collinear(std::vector<Point2D> const& points, int decimal_precision) {
+  if (points.size() < 3) {
+    return points;
+  }
+
+  std::unordered_set<int> duplicates;
+  int i1 = 0;
+  int i2 = i1 + 1;
+  int i3 = i1 + 2;
+  int max_iter = points.size();
+  while (i1 < points.size() - 2 && i2 < points.size() - 1 && i3 < points.size() && max_iter > 0) {
+    if (duplicates.count(i1)) {
+      ++i1;
+      ++i2;
+      ++i3;
+      continue;
+    }
+
+    auto u = (points[i2] - points[i1]);
+    auto v = (points[i3] - points[i1]);
+
+    if (round_to(u.Perp().Dot(v), decimal_precision) == 0) {  // test of collinearity
+      if (round_to(u.Dot(v), decimal_precision) >=
+          0) {  // same direction, pick the farthest point in the U-vector's direction
+        if (round_to(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2]), decimal_precision) >= 0) {
+          duplicates.insert(i2);
+          ++i2;
+          ++i3;
+
+        } else {
+          duplicates.insert(i3);
+          ++i3;
+        }
+
+      } else {  // not in the same direction, remove the point opposite to U-vector
+        duplicates.insert(i3);
+        ++i3;
+      }
+
+    } else {
+      ++i1;  // increment loop
+      i2 = i1 + 1;
+      i3 = i1 + 2;
+    }
+
+    --max_iter;
+  }
+
+  std::vector<Point2D> unique_points;
+  for (int i = 0; i < points.size(); ++i) {
+    if (duplicates.count(i) == 0) {
+      unique_points.push_back(points[i]);
+    }
+  }
+
+  return unique_points;
+}
+
+#pragma endregion
 
 #pragma region Operator Overloading
 
