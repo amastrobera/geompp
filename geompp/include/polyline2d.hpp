@@ -56,11 +56,14 @@ class Polyline2D {
   bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
   bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
   bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
-  // bool Intersects(Polyline2D const& other, int decimal_precision = DP_THREE) const;
+  bool Intersects(Polyline2D const& other, int decimal_precision = DP_THREE) const;
   ReturnSet Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
   ReturnSet Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
   ReturnSet Intersection(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
-  // ReturnSet Intersection(Polyline2D const& other, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(
+      Polyline2D const& other,
+      int decimal_precision = DP_THREE) const;  // TODO: this is the brute force O(N2), replace with the proper
+                                                // algorithm for intersection of a set of segments O(N*LogN)
 #pragma endregion
 
  private:

@@ -30,6 +30,8 @@ class Point2D {
 
   Point2D& operator=(Point2D const& other);
 
+  static inline Point2D Origin() { return Point2D(); }
+
 #pragma region Collection Operations
 
   static std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);

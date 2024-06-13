@@ -36,6 +36,9 @@ class Vector2D {
 
   Vector2D operator-();
 
+  static inline Vector2D BasisX() { return Vector2D(1, 0); }
+  static inline Vector2D BasisY() { return Vector2D(0, 1); }
+
  private:
   double X, Y;
 };

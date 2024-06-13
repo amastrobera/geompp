@@ -172,6 +172,10 @@ bool Polyline2D::Intersects(Ray2D const& ray, int decimal_precision) const {
   return Intersection(ray, decimal_precision).has_value();
 }
 
+bool Polyline2D::Intersects(Polyline2D const& other, int decimal_precision) const {
+  return Intersection(other, decimal_precision).has_value();
+}
+
 bool Polyline2D::Intersects(LineSegment2D const& other, int decimal_precision) const {
   return Intersection(other, decimal_precision).has_value();
 }
@@ -209,8 +213,12 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray, int decimal_pre
     }
   }
 
-  if (intersections.size()) {
+  if (intersections.size() == 0) {
     return std::nullopt;
+  }
+
+  if (intersections.size() == 1) {
+    return intersections[0];
   }
 
   return intersections;
@@ -227,8 +235,36 @@ Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment, int
     }
   }
 
-  if (intersections.size()) {
+  if (intersections.size() == 0) {
     return std::nullopt;
+  }
+
+  if (intersections.size() == 1) {
+    return intersections[0];
+  }
+
+  return intersections;
+}
+
+Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other, int decimal_precision) const {
+  MultiPoint intersections;
+
+  for (auto const& seg : ToSegments()) {
+    for (auto const& other_seg : other.ToSegments()) {
+      auto inter = seg.Intersection(other_seg, decimal_precision);
+
+      if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
+        intersections.push_back(std::get<Point2D>(*inter));
+      }
+    }
+  }
+
+  if (intersections.size() == 0) {
+    return std::nullopt;
+  }
+
+  if (intersections.size() == 1) {
+    return intersections[0];
   }
 
   return intersections;
