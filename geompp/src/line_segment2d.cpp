@@ -46,7 +46,19 @@ double LineSegment2D::Location(Point2D const& point, int decimal_precision) cons
   return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length() / Length();
 }
 
-Point2D LineSegment2D::Interpolate(double pct) const { return P0 + pct * (P1 - P0); }
+Point2D LineSegment2D::Interpolate(double pct) const {
+  // the point is behind the polyline
+  if (round_to(pct, DP_NINE) < 0.0) {
+    return P0;
+  }
+
+  // the point is beyond the polyline
+  if (round_to(pct, DP_NINE) > 1.0) {
+    return P1;
+  }
+
+  return P0 + pct * (P1 - P0);
+}
 
 double LineSegment2D::DistanceTo(Point2D const& point, int decimal_precision) const {
   auto line_eqv = ToLine(decimal_precision);
@@ -199,7 +211,7 @@ LineSegment2D LineSegment2D::FromWkt(std::string const& wkt) {
     }
     std::string s_nums_p1 = wkt.substr(end_gtype + 1, end_p1);
 
-    auto nums_p1 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p1);
+    auto nums_p1 = geompp::tokenize_to_doubles(s_nums_p1);
     if (nums_p1.size() != 2) {
       throw std::runtime_error("numbers p1");
     }
@@ -210,7 +222,7 @@ LineSegment2D LineSegment2D::FromWkt(std::string const& wkt) {
     }
     std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2);
 
-    auto nums_p2 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p2);
+    auto nums_p2 = geompp::tokenize_to_doubles(s_nums_p2);
     if (nums_p2.size() != 2) {
       throw std::runtime_error("numbers p2");
     }

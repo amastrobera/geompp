@@ -3,6 +3,7 @@
 #include "constants.hpp"
 
 #include <string>
+#include <vector>
 
 namespace geompp {
 
@@ -28,6 +29,16 @@ class Point2D {
   static Point2D FromFile(std::string const& path);
 
   Point2D& operator=(Point2D const& other);
+
+  static inline Point2D Origin() { return Point2D(); }
+
+#pragma region Collection Operations
+
+  static std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
+
+  static std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
+
+#pragma endregion
 
  private:
   double X, Y;
@@ -65,6 +76,6 @@ Point2D operator/(Point2D const& lhs, Point2D const& rhs) = delete;
 //   }
 // };
 
-}  // namespace geompp
-
 #pragma endregion
+
+}  // namespace geompp

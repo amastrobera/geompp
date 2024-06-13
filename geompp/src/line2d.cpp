@@ -130,7 +130,7 @@ Line2D Line2D::FromWkt(std::string const& wkt) {
     }
     std::string s_nums_p1 = wkt.substr(end_gtype + 1, end_p1);
 
-    auto nums_p1 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p1);
+    auto nums_p1 = geompp::tokenize_to_doubles(s_nums_p1);
     if (nums_p1.size() != 2) {
       throw std::runtime_error("numbers p1");
     }
@@ -141,7 +141,7 @@ Line2D Line2D::FromWkt(std::string const& wkt) {
     }
     std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2);
 
-    auto nums_p2 = geompp::tokenize_space_separated_string_to_doubles(s_nums_p2);
+    auto nums_p2 = geompp::tokenize_to_doubles(s_nums_p2);
     if (nums_p2.size() != 2) {
       throw std::runtime_error("numbers p2");
     }

@@ -73,9 +73,9 @@ TEST(LineSegment2D, Interpolate) {
   ASSERT_EQ(0.223, g::round_to(seg.Location(seg.Interpolate(0.223), prec), 3));
 
   // on line
-  ASSERT_EQ(1.2, g::round_to(seg.Location(seg.Interpolate(1.2), prec), 1));
+  ASSERT_EQ(1.0, g::round_to(seg.Location(seg.Interpolate(1.2), prec), 1));
 
-  ASSERT_EQ(-0.2, g::round_to(seg.Location(seg.Interpolate(-0.2), prec), 1));
+  ASSERT_EQ(0.0, g::round_to(seg.Location(seg.Interpolate(-0.2), prec), 1));
 }
 
 TEST(LineSegment2D, Intersection) {

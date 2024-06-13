@@ -18,6 +18,8 @@ Vector2D& Vector2D::operator=(Vector2D const& other) {
   return *this;
 }
 
+Point2D Vector2D::ToPoint() { return Point2D(X, Y); }
+
 double Vector2D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2)); }
 
 bool Vector2D::AlmostEquals(Vector2D const& other, int decimal_precision) const {
@@ -53,6 +55,8 @@ Vector2D operator*(double a, Vector2D const& rhs) { return rhs * a; }
 
 double operator*(Vector2D const& lhs, Vector2D const& rhs) { return lhs.Dot(rhs); }
 
+Vector2D operator/(Vector2D const& lhs, double a) { return Vector2D(lhs.x() / a, lhs.y() / a); }
+
 #pragma endregion
 
 #pragma region Formatting
@@ -81,7 +85,7 @@ Vector2D Vector2D::FromWkt(std::string const& wkt) {
     }
     std::string s_nums = wkt.substr(end_gtype + 1, end_nums);
 
-    auto nums = geompp::tokenize_space_separated_string_to_doubles(s_nums);
+    auto nums = geompp::tokenize_to_doubles(s_nums);
     if (nums.size() != 2) {
       throw std::runtime_error("numbers");
     }
