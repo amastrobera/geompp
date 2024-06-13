@@ -51,16 +51,16 @@ class Polyline2D {
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
-  // using MultiPoint = std::vector<Point2D>;
-  // using ReturnSet = std::optional<std::variant<Point2D, MultiPoint>>;
-  // bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
-  // bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
-  // bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
-  // bool Intersects(Polyline2D const& segment, int decimal_precision = DP_THREE) const;
-  // ReturnSet Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
-  // ReturnSet Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
-  // ReturnSet Intersection(LineSegment2D const& other, int decimal_precision = DP_THREE) const;
-  // ReturnSet Intersection(Polyline2D const& line, int decimal_precision = DP_THREE) const;
+  using MultiPoint = std::vector<Point2D>;
+  using ReturnSet = std::optional<std::variant<Point2D, MultiPoint>>;
+  bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
+  bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
+  bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
+  // bool Intersects(Polyline2D const& other, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
+  // ReturnSet Intersection(Polyline2D const& other, int decimal_precision = DP_THREE) const;
 #pragma endregion
 
  private:

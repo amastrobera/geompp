@@ -101,16 +101,14 @@ double Polyline2D::Location(Point2D const& point, int decimal_precision) const {
 }
 
 Point2D Polyline2D::Interpolate(double pct) const {
-  double tot_len = Length();
-
   // the point is behind the polyline
   if (round_to(pct, DP_NINE) < 0.0) {
-    return KNOTS[0] - pct * tot_len * (KNOTS[1] - KNOTS[0]);
+    return KNOTS[0];
   }
 
   // the point is beyond the polyline
   if (round_to(pct, DP_NINE) > 1.0) {
-    return KNOTS[KNOTS.size() - 1] + pct * tot_len * (KNOTS[KNOTS.size() - 1] - KNOTS[KNOTS.size() - 2]);
+    return KNOTS[KNOTS.size() - 1];
   }
 
   // pct is within [0, 1]
@@ -127,7 +125,7 @@ Point2D Polyline2D::Interpolate(double pct) const {
     len_to_i += len_i;
   }
 
-  throw std::runtime_error("error in interpolation");
+  return KNOTS[KNOTS.size() - 1];
 }
 
 double Polyline2D::DistanceTo(Point2D const& point, int decimal_precision) const {
@@ -166,97 +164,75 @@ bool Polyline2D::Contains(Point2D const& point, int decimal_precision) const {
   //                            }));
 }
 
-// bool Polyline2D::Intersects(Line2D const& line, int decimal_precision) const {
-//   return Intersection(line, decimal_precision).has_value();
-// }
+bool Polyline2D::Intersects(Line2D const& line, int decimal_precision) const {
+  return Intersection(line, decimal_precision).has_value();
+}
 
-// bool Polyline2D::Intersects(Ray2D const& ray, int decimal_precision) const {
-//   return Intersection(ray, decimal_precision).has_value();
-// }
+bool Polyline2D::Intersects(Ray2D const& ray, int decimal_precision) const {
+  return Intersection(ray, decimal_precision).has_value();
+}
 
-// bool Polyline2D::Intersects(LineSegment2D const& other, int decimal_precision) const {
-//   return Intersection(other, decimal_precision).has_value();
-// }
+bool Polyline2D::Intersects(LineSegment2D const& other, int decimal_precision) const {
+  return Intersection(other, decimal_precision).has_value();
+}
 
-// Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line, int decimal_precision) const {
-//   auto u = P1 - P0;
-//   auto v = line.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - line.First());
+Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line, int decimal_precision) const {
+  MultiPoint intersections;
 
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
+  for (auto const& seg : ToSegments()) {
+    auto inter = line.Intersection(seg, decimal_precision);
 
-//   // verify that the intersection is ahead of the ray
-//   auto inter_p = P0 + t * u;
-//   if (!Contains(inter_p, decimal_precision)) {
-//     return std::nullopt;
-//   }
+    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
+      intersections.push_back(std::get<Point2D>(*inter));
+    }
+  }
 
-//   return inter_p;
-// }
+  if (intersections.size() == 0) {
+    return std::nullopt;
+  }
 
-// Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray, int decimal_precision) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = ray.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - ray.Origin());
+  if (intersections.size() == 1) {
+    return intersections[0];
+  }
 
-//   // testing on this ray
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t, decimal_precision)) {
-//     return std::nullopt;
-//   }
+  return intersections;
+}
 
-//   // testing on the other ray
-//   if (round_to(v * up, decimal_precision) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s, decimal_precision)) {
-//     return std::nullopt;
-//   }
+Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray, int decimal_precision) const {
+  MultiPoint intersections;
 
-//   return inter_t;
-// }
+  for (auto const& seg : ToSegments()) {
+    auto inter = ray.Intersection(seg, decimal_precision);
 
-// Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& other, int decimal_precision) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = (other.P1 - other.P0);
-//   auto vp = v.Perp();
-//   auto w = (P0 - other.P0);
+    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
+      intersections.push_back(std::get<Point2D>(*inter));
+    }
+  }
 
-//   // testing on this ray
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t, decimal_precision)) {
-//     return std::nullopt;
-//   }
+  if (intersections.size()) {
+    return std::nullopt;
+  }
 
-//   // testing on the other ray
-//   if (round_to(v * up, decimal_precision) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s, decimal_precision)) {
-//     return std::nullopt;
-//   }
+  return intersections;
+}
 
-//   return inter_t;
-// }
+Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment, int decimal_precision) const {
+  MultiPoint intersections;
+
+  for (auto const& seg : ToSegments()) {
+    auto inter = segment.Intersection(seg, decimal_precision);
+
+    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
+      intersections.push_back(std::get<Point2D>(*inter));
+    }
+  }
+
+  if (intersections.size()) {
+    return std::nullopt;
+  }
+
+  return intersections;
+}
 
 // #pragma endregion
 

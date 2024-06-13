@@ -94,97 +94,56 @@ TEST(Polyline2D, Interpolate) {
   ASSERT_EQ(0.223, g::round_to(poly.Location(poly.Interpolate(0.223), prec), 3));
 
   // on line
-  auto lseg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
-  std::cout << "poly.Interpolate(1.2)=" << poly.Interpolate(1.2).ToWkt() << std::endl;
-  std::cout << "lseg.Interpolate(1.2)=" << lseg.Interpolate(1.2).ToWkt() << std::endl;
+  ASSERT_EQ(1.0, g::round_to(poly.Location(poly.Interpolate(1.2), prec), 1));
 
-  std::cout << "poly.Location(1.2)=" << poly.Location(poly.Interpolate(1.2), prec) << std::endl;
-  std::cout << "lseg.Location(1.2)=" << lseg.Location(lseg.Interpolate(1.2), prec) << std::endl;
-  ASSERT_EQ(1.2, g::round_to(poly.Location(poly.Interpolate(1.2), prec), 1));
-
-  ASSERT_EQ(-0.2, g::round_to(poly.Location(poly.Interpolate(-0.2), prec), 1));
+  ASSERT_EQ(0.0, g::round_to(poly.Location(poly.Interpolate(-0.2), prec), 1));
 }
 
-// TEST(LineSegment2D, Intersection) {
-//   int prec = 4;
-//   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1), prec);
-//   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1), prec);    // intersects r1 in (0,0)
-//   auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1), prec);  // intersects r2 in (-0.5,-0.5)
-//   auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D(0, 1), prec);   // intersects r2 in (1,1)
+TEST(Polyline2D, IntersectionWLine) {
+  int prec = 4;
+  auto poly1 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");  // intersects x (-1 0, 1 0) and y (0 -2)
+  auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");  // intersects y (0 2)
+  auto poly3 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -1, -2 -2, -1 -3)");  // intersects x (-1 0)
 
-//   ASSERT_TRUE(r1.Intersects(r2, prec));
-//   {
-//     auto inter = r1.Intersection(r2, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
-//   }
+  auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0), prec);
+  auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1), prec);
 
-//   ASSERT_FALSE(r1.Intersects(r3, prec));
-//   ASSERT_FALSE(r1.Intersection(r3, prec).has_value());
-//   ASSERT_FALSE(r1.Intersects(r4, prec));
-//   ASSERT_FALSE(r1.Intersection(r4, prec).has_value());
+  ASSERT_TRUE(poly1.Intersects(x, prec));
+  {
+    auto inter = poly1.Intersection(x, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Polyline2D::MultiPoint>(*inter));
+    auto multi_point = std::get<g::Polyline2D::MultiPoint>(*inter);
+    ASSERT_EQ(g::Point2D(-1, 0), multi_point[0]);
+    ASSERT_EQ(g::Point2D(1, 0), multi_point[1]);
+  }
 
-//   ASSERT_TRUE(r2.Intersects(r3, prec));
-//   {
-//     auto inter = r2.Intersection(r3, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(-0.5, -0.5), std::get<g::Point2D>(*inter));
-//   }
+  ASSERT_TRUE(poly1.Intersects(y, prec));
+  {
+    auto inter = poly1.Intersection(y, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0, -2), std::get<g::Point2D>(*inter));
+  }
 
-//   ASSERT_TRUE(r2.Intersects(r4, prec));
-//   {
-//     auto inter = r2.Intersection(r4, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(1, 1), std::get<g::Point2D>(*inter));
-//   }
-// }
+  ASSERT_TRUE(poly2.Intersects(y, prec));
+  {
+    auto inter = poly2.Intersection(y, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0, 2), std::get<g::Point2D>(*inter));
+  }
+  ASSERT_FALSE(poly2.Intersects(x, prec));
 
-// TEST(LineSegment2D, IntersectionWLine) {
-//   int prec = 4;
-//   auto s1 = g::LineSegment2D::Make(g::Point2D(-1, -2), g::Point2D(2, 1), prec);   // intersects x, y
-//   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1), prec);     // intersects y
-//   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1), prec);  // intersects x
-
-//   auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0), prec);
-//   auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1), prec);
-
-//   ASSERT_TRUE(s1.Intersects(x, prec));
-//   {
-//     auto inter = s1.Intersection(x, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(1, 0), std::get<g::Point2D>(*inter));
-//   }
-
-//   ASSERT_TRUE(s1.Intersects(y, prec));
-//   {
-//     auto inter = s1.Intersection(y, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0, -1), std::get<g::Point2D>(*inter));
-//   }
-
-//   ASSERT_TRUE(s2.Intersects(y, prec));
-//   {
-//     auto inter = s2.Intersection(y, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0, 1), std::get<g::Point2D>(*inter));
-//   }
-//   ASSERT_FALSE(s2.Intersects(x, prec));
-
-//   ASSERT_TRUE(s3.Intersects(x, prec));
-//   {
-//     auto inter = s3.Intersection(x, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(-1, 0), std::get<g::Point2D>(*inter));
-//   }
-//   ASSERT_FALSE(s3.Intersects(y, prec));
-// }
+  ASSERT_TRUE(poly3.Intersects(x, prec));
+  {
+    auto inter = poly3.Intersection(x, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(-1, 0), std::get<g::Point2D>(*inter));
+  }
+  ASSERT_FALSE(poly3.Intersects(y, prec));
+}
 
 // TEST(LineSegment2D, IntersectionWRay) {
 //   int prec = 4;

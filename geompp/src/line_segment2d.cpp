@@ -46,7 +46,19 @@ double LineSegment2D::Location(Point2D const& point, int decimal_precision) cons
   return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length() / Length();
 }
 
-Point2D LineSegment2D::Interpolate(double pct) const { return P0 + pct * (P1 - P0); }
+Point2D LineSegment2D::Interpolate(double pct) const {
+  // the point is behind the polyline
+  if (round_to(pct, DP_NINE) < 0.0) {
+    return P0;
+  }
+
+  // the point is beyond the polyline
+  if (round_to(pct, DP_NINE) > 1.0) {
+    return P1;
+  }
+
+  return P0 + pct * (P1 - P0);
+}
 
 double LineSegment2D::DistanceTo(Point2D const& point, int decimal_precision) const {
   auto line_eqv = ToLine(decimal_precision);

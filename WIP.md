@@ -20,6 +20,7 @@
 - RemoveDuplicate points 
 - Polyline2D::Wkt, tests
 - Polyline2D::interpolate(%)->p, location(p)->%, tests
+- Polyline2D::intersects(line, ray, line_seg, polyline), tests
 
 #### test and build infrastructure
 - github actions: run tests on merge 
@@ -54,7 +55,6 @@
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
 
 #### 2D geometry
-- Polyline2D::intersects(line, ray, line_seg, polyline), tests
 - Triangle2D, Triangle2D::contains(p), tests
 - Triangle2D::Wkt, tests
 - Triangle2D::intersects(line, ray, line_seg), tests
