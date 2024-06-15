@@ -49,6 +49,7 @@ add_executable(${PROJECT_NAME}
     src/test_ray2d.cpp
     src/test_line_segment2d.cpp
     src/test_polyline2d.cpp
+    src/test_triangle2d.cpp
     main.cpp
 )
 
