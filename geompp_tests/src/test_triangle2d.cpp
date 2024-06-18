@@ -10,6 +10,7 @@
 #include <cmath>
 #include <filesystem>
 #include <limits>
+#include <tuple>
 
 namespace g = geompp;
 namespace fs = std::filesystem;
@@ -19,28 +20,44 @@ namespace geompp_tests {
 extern fs::path test_res_path;
 
 TEST(Triangle2D, Constructor) {
-  // auto s1 = g::Triangle2D::Make(g::Point2D(), g::Point2D(1, 0));
+  auto t = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
 
-  // ASSERT_EQ(g::Point2D(), s1.First());
-  // ASSERT_EQ(g::Point2D(1, 0), s1.Last());
+  ASSERT_EQ(g::Point2D(0, 0.333), t.Centroid());
 
-  // EXPECT_ANY_THROW(g::LineSegment2D::Make(g::Point2D(), g::Point2D()));  // cannot make a segment in 1 sole point
+  EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(0, -1)));
+  EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(-1, 1), g::Point2D(0, -1)));
+  EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D(), g::Point2D(), g::Point2D()));
 }
 
-// TEST(Triangle2D, Contains) {
-//   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
-//   ASSERT_TRUE(s1.Contains(g::Point2D(0, 0)));
-//   ASSERT_TRUE(s1.Contains(g::Point2D(0.5, 0)));
-//   ASSERT_TRUE(s1.Contains(g::Point2D(1, 0)));
+TEST(Triangle2D, Contains) {
+  std::tuple<g::Point2D, g::Point2D, g::Point2D> points = {g::Point2D(-1, 0), g::Point2D(1, 1), g::Point2D(-1, 1)};
 
-//   ASSERT_FALSE(s1.Contains(g::Point2D(1.1, 0)));
-//   ASSERT_FALSE(s1.Contains(g::Point2D(1, 1)));
-//   ASSERT_FALSE(s1.Contains(g::Point2D(1, -1)));
-//   ASSERT_FALSE(s1.Contains(g::Point2D(-1, 0)));
-//   ASSERT_FALSE(s1.Contains(g::Point2D(-1, 1)));
-//   ASSERT_FALSE(s1.Contains(g::Point2D(-1, -1)));
-//   ASSERT_FALSE(s1.Contains(g::Point2D(-0.1, 0)));
-// }
+  auto t = g::Triangle2D::Make(std::get<0>(points), std::get<1>(points), std::get<2>(points));
+
+  // contains its corner points
+  ASSERT_TRUE(t.Contains(std::get<0>(points)));
+  ASSERT_TRUE(t.Contains(std::get<1>(points)));
+  ASSERT_TRUE(t.Contains(std::get<2>(points)));
+
+  // contains the centroid
+  auto c = t.Centroid();
+  ASSERT_TRUE(t.Contains(c));
+
+  // contains points between the centroid and the corners
+  ASSERT_TRUE(t.Contains(c + 0.5 * (std::get<0>(points) - c)));
+  ASSERT_TRUE(t.Contains(c + 0.5 * (std::get<1>(points) - c)));
+  ASSERT_TRUE(t.Contains(c + 0.5 * (std::get<2>(points) - c)));
+
+  // contains the points along the borders
+  ASSERT_TRUE(t.Contains(((std::get<0>(points).ToVector() + std::get<1>(points).ToVector()) / 2.0).ToPoint()));
+  ASSERT_TRUE(t.Contains(((std::get<1>(points).ToVector() + std::get<2>(points).ToVector()) / 2.0).ToPoint()));
+  ASSERT_TRUE(t.Contains(((std::get<2>(points).ToVector() + std::get<0>(points).ToVector()) / 2.0).ToPoint()));
+
+  // does not contain external points (extension of the corner points along the centroid->corner line)
+  ASSERT_FALSE(t.Contains(c + 2 * (std::get<0>(points) - c)));
+  ASSERT_FALSE(t.Contains(c + 2 * (std::get<1>(points) - c)));
+  ASSERT_FALSE(t.Contains(c + 2 * (std::get<2>(points) - c)));
+}
 
 // TEST(Triangle2D, Location) {
 //   int prec = 3;
@@ -212,55 +229,58 @@ TEST(Triangle2D, Constructor) {
 // }
 
 TEST(Triangle2D, Wkt) {
-  // ASSERT_EQ("LINESTRING (0 0, 1 1)", g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 1)).ToWkt());
-  // ASSERT_EQ("LINESTRING (56491.62 -795.97, -9137.37 10.36)",
-  //           g::LineSegment2D::Make(g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678)).ToWkt(2));
+  ASSERT_EQ("TRIANGLE (0 0, 1 1, 0 2)",
+            g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)).ToWkt());
+  ASSERT_EQ("TRIANGLE (56491.62 -795.97, -9137.37 10.36, 321.13 206.62)",
+            g::Triangle2D::Make(g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678),
+                                g::Point2D(321.1302, 206.619749))
+                .ToWkt(2));
 
-  // EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)),
-  //           g::LineSegment2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)"));
-  // EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(-7.5, -60.7), g::Point2D()),
-  //           g::LineSegment2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
-  // EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
-  //           g::LineSegment2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0  )"));
+  EXPECT_EQ(g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)),
+            g::Triangle2D::FromWkt("TRIANGLE (0 0, 1 1, 0 2)"));
+  EXPECT_EQ(g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)),
+            g::Triangle2D::FromWkt("  triangle( 0     0 , 1   1  , 0 2   )"));
+  EXPECT_EQ(g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)),
+            g::Triangle2D::FromWkt("triANGle   ( 0 0  , 1 1 , 0   2    )"));
 
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("angelo"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestrin ( -7.5 -60.7, 0 0)"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("line string ( -7.5 -60.7, 0 0)"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring -7.5 -64.4, 0 0)"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring (-7.5 -64.4, 0 0"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring (-7.5 -64.4, 0 "));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring (-7.5 -64.4, "));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 )"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( )"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 -64.4 15.5)"));
-  // EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("angelo"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangl ( -7.5 -60.7, 0 0, 1 1)"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("tri angle ( -7.5 -60.7, 0 0, 1 1)"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle -7.5 -64.4, 0 0, 1 1)"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle (-7.5 -64.4, 0 0, 1 1"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle (-7.5 -64.4, 0 0, 1 "));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle (-7.5 -64.4, 0 0"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( -7.5 )"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( )"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( -7.5 -64.4 15.5)"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( -7.5 -64.4 15.5, 0 0 0, 1 1 1)"));
 }
 
 TEST(Triangle2D, ToFile) {
   int prec = 4;
   std::string path = (test_res_path / "temp" / "triangle.wkt").string();
-  // auto s = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+  auto s = g::Triangle2D::Make(g::Point2D(), g::Point2D(1, 0), g::Point2D(0, 2));
 
-  // s.ToFile(path, prec);
-  // ASSERT_TRUE(fs::exists(path));
+  s.ToFile(path, prec);
+  ASSERT_TRUE(fs::exists(path));
 
-  // g::LineSegment2D s_file = g::LineSegment2D::FromFile(path);  // TODO make assert no throw for the whole call
+  g::Triangle2D s_file = g::Triangle2D::FromFile(path);  // TODO make assert no throw for the whole call
 
-  // EXPECT_EQ(s, s_file);
+  EXPECT_EQ(s, s_file);
 
-  // EXPECT_NO_THROW(fs::remove(path));
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 TEST(Triangle2D, TestFromFile) {
   std::string path = (test_res_path / "triangle2d" / "triangle.wkt").string();
 
-  // ASSERT_TRUE(fs::exists(path));
+  ASSERT_TRUE(fs::exists(path));
 
-  // ASSERT_NO_THROW(g::LineSegment2D::FromFile(path));
+  ASSERT_NO_THROW(g::Triangle2D::FromFile(path));
 
-  // auto p = g::LineSegment2D::FromFile(path);
+  auto p = g::Triangle2D::FromFile(path);
 
-  // std::cout << "form file = " << p.ToWkt() << std::endl;
+  std::cout << "form file = " << p.ToWkt() << std::endl;
 }
 
 // TEST(Triangle2D, DistanceTo) {

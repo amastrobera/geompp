@@ -36,6 +36,13 @@ Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
 
 // double LineSegment2D::Length() const { return (P1 - P0).Length(); }
 
+Point2D Triangle2D::Centroid() const {
+  return {
+      (P0.x() + P1.x() + P2.x()) / 3.0,
+      (P0.y() + P1.y() + P2.y()) / 3.0,
+  };
+}
+
 bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) const {
   return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
          P2.AlmostEquals(other.P2, decimal_precision);
@@ -82,16 +89,23 @@ bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) co
 
 // #pragma region Operator Overloading
 
-// bool operator==(LineSegment2D const& lhs, LineSegment2D const& rhs) { return lhs.AlmostEquals(rhs); }
+bool operator==(Triangle2D const& lhs, Triangle2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
 // #pragma endregion
 
 // #pragma region Geometrical Operations
 
-// bool LineSegment2D::Contains(Point2D const& point, int decimal_precision) const {
-//   double t = Location(point, decimal_precision);
-//   return round_to(t, decimal_precision) >= 0 && round_to(t - 1, decimal_precision) <= 0;
-// }
+bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
+  auto u = (P1 - P0);
+  auto v = (P2 - P0);
+  auto w = (point - P0);
+
+  double wu = w.Dot(u) / u.Dot(u);
+  double wv = w.Dot(v) / v.Dot(v);
+
+  return (round_to(wu, decimal_precision) >= 0 && round_to(wu - 1, decimal_precision) <= 0) &&
+         (round_to(wv, decimal_precision) >= 0 && round_to(wv - 1, decimal_precision) <= 0);
+}
 
 // bool LineSegment2D::Intersects(Line2D const& line, int decimal_precision) const {
 //   return Intersection(line, decimal_precision).has_value();
@@ -190,9 +204,13 @@ bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) co
 // #pragma region Formatting
 
 std::string Triangle2D::ToWkt(int decimal_precision) const {
-  return std::format("TRIANGLE ({} {}, {} {})", round_to(P0.x(), decimal_precision),
-                     round_to(P0.y(), decimal_precision), round_to(P1.x(), decimal_precision),
-                     round_to(P1.y(), decimal_precision));
+  // clang-format off
+  return std::format("TRIANGLE ({} {}, {} {}, {} {})", 
+                     round_to(P0.x(), decimal_precision), round_to(P0.y(), decimal_precision), 
+                     round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision),
+                     round_to(P2.x(), decimal_precision), round_to(P2.y(), decimal_precision)
+                     );
+  // clang-format on
 }
 
 Triangle2D Triangle2D::FromWkt(std::string const& wkt) {

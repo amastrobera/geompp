@@ -22,10 +22,8 @@ class Triangle2D {
   Triangle2D(Triangle2D&&) = default;
   ~Triangle2D() = default;
 
-  // inline Point2D const& First() const { return P0; }
-  // inline Point2D const& Last() const { return P1; }
-
   bool AlmostEquals(Triangle2D const& other, int decimal_precision = DP_THREE) const;
+  Point2D Centroid() const;
   // Line2D ToLine(int decimal_precision = DP_THREE) const;
   // double Length() const;
   // double DistanceTo(Point2D const& point, int decimal_precision = DP_THREE) const;
@@ -40,7 +38,7 @@ class Triangle2D {
   Triangle2D& operator=(Triangle2D const& other);
 
 #pragma region Geometrical Operations
-  // bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
+  bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
   // using ReturnSet = std::optional<std::variant<Point2D>>;
   // bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
   // bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
