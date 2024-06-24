@@ -59,6 +59,31 @@ TEST(Triangle2D, Contains) {
   ASSERT_FALSE(t.Contains(c + 2 * (std::get<2>(points) - c)));
 }
 
+TEST(Triangle2D, Areas) {
+  int prec = 4;
+  auto t_ccw = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1), prec);
+
+  ASSERT_EQ(6.4721, g::round_to(t_ccw.Perimeter(), prec));
+  double sa_ccw = t_ccw.SignedArea();
+  ASSERT_TRUE(sa_ccw > 0);
+  double a_ccw = t_ccw.Area();
+  ASSERT_EQ(2.0, g::round_to(a_ccw, prec));
+  ASSERT_EQ(a_ccw, sa_ccw);
+
+  auto verts_ccw = t_ccw.Vertices();
+  auto t_cw = g::Triangle2D::Make(std::get<0>(verts_ccw), std::get<2>(verts_ccw), std::get<1>(verts_ccw), prec);
+
+  ASSERT_EQ(6.4721, g::round_to(t_cw.Perimeter(), prec));
+  double sa_cw = t_cw.SignedArea();
+  ASSERT_TRUE(sa_cw < 0);
+  double a_cw = t_cw.Area();
+  ASSERT_EQ(2.0, g::round_to(a_cw, prec));
+  ASSERT_EQ(-a_cw, sa_cw);
+
+  ASSERT_EQ(a_ccw, a_cw);
+  ASSERT_EQ(-sa_ccw, sa_cw);
+}
+
 // TEST(Triangle2D, Location) {
 //   int prec = 3;
 //   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));

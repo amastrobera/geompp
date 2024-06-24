@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <string>
+#include <tuple>
 #include <variant>
 
 namespace geompp {
@@ -22,10 +23,14 @@ class Triangle2D {
   Triangle2D(Triangle2D&&) = default;
   ~Triangle2D() = default;
 
+  inline std::tuple<Point2D, Point2D, Point2D> const Vertices() const { return {P0, P1, P2}; }
+
   bool AlmostEquals(Triangle2D const& other, int decimal_precision = DP_THREE) const;
   Point2D Centroid() const;
-  // Line2D ToLine(int decimal_precision = DP_THREE) const;
-  // double Length() const;
+  // Polygon2D ToPolygon (int decimal_precision = DP_THREE) const; // useful for ToWkt() polygon
+  double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
+  double Area() const;
+  double Perimeter() const;
   // double DistanceTo(Point2D const& point, int decimal_precision = DP_THREE) const;
   // double Location(Point2D const& point, int decimal_precision = DP_THREE) const;
   // Point2D Interpolate(double pct) const;

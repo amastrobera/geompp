@@ -4,6 +4,7 @@
 #include "ray2d.hpp"
 #include "utils.hpp"
 
+#include <cmath>
 #include <format>
 #include <fstream>
 #include <iostream>  // TODO: replace with logger lib
@@ -34,7 +35,10 @@ Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
   return *this;
 }
 
-// double LineSegment2D::Length() const { return (P1 - P0).Length(); }
+bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) const {
+  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
+         P2.AlmostEquals(other.P2, decimal_precision);
+}
 
 Point2D Triangle2D::Centroid() const {
   return {
@@ -43,12 +47,15 @@ Point2D Triangle2D::Centroid() const {
   };
 }
 
-bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
-         P2.AlmostEquals(other.P2, decimal_precision);
-}
+// Polygon2D Triangle2D::ToPolygon(int decimal_precision) const {
+// TODO
+// }
 
-// Line2D LineSegment2D::ToLine(int decimal_precision) const { return Line2D::Make(P0, P1, decimal_precision); }
+double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
+
+double Triangle2D::Area() const { return abs(SignedArea()); }
+
+double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
 // double LineSegment2D::Location(Point2D const& point, int decimal_precision) const {
 //   if (!ToLine().Contains(point, decimal_precision)) {
