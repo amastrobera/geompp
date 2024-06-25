@@ -23,6 +23,7 @@
 - Polyline2D::intersects(line, ray, line_seg, polyline), tests
 - Triangle2D, Triangle2D::contains(p), tests
 - Triangle2D::Wkt, tests
+- Triangle2D::vertices, area, perimeter
 
 
 #### test and build infrastructure

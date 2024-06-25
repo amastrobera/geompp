@@ -1,7 +1,6 @@
-#include "triangle2d.hpp"
+#include "polygon2d.hpp"
 
 #include "line2d.hpp"
-#include "polygon2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
@@ -10,53 +9,59 @@
 #include <fstream>
 #include <iostream>  // TODO: replace with logger lib
 #include <limits>
+#include <sstream>
 #include <stdexcept>
 
 namespace geompp {
 
 #pragma region Constructors
 
-Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const& p2, int decimal_precision) {
-  auto unique_points = Point2D::remove_duplicates({p0, p1, p2}, decimal_precision);
+Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, int decimal_precision) {
+  auto unique_points = Point2D::remove_duplicates(points, decimal_precision);
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
-                                         p0.ToWkt(decimal_precision), p1.ToWkt(decimal_precision),
-                                         p2.ToWkt(decimal_precision), decimal_precision));
+    throw std::runtime_error(std::format("points  are too close with {} decimals precision", decimal_precision));
   }
-  return {p0, p1, p2};
+  return {unique_points};
 }
 
-Triangle2D::Triangle2D(Point2D const& p0, Point2D const& p1, Point2D const& p2) : P0(p0), P1(p1), P2(p2) {}
+Polygon2D::Polygon2D(std::vector<Point2D> const& points) : VERTICES(points) {}
 
-Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
+Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   if (this != &other) {
     *this = other;
   }
   return *this;
 }
 
-bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
-         P2.AlmostEquals(other.P2, decimal_precision);
+bool Polygon2D::AlmostEquals(Polygon2D const& other, int decimal_precision) const {
+  if (Size() != other.Size()) {
+    return false;
+  }
+  for (int i = 0; i << VERTICES.size(); ++i) {
+    if (!VERTICES[i].AlmostEquals(other[i], decimal_precision)) {
+      return false;
+    }
+  }
+  return true;
 }
 
-Point2D Triangle2D::Centroid() const {
-  return {
-      (P0.x() + P1.x() + P2.x()) / 3.0,
-      (P0.y() + P1.y() + P2.y()) / 3.0,
-  };
-}
+// Point2D Triangle2D::Centroid() const {
+//   return {
+//       (P0.x() + P1.x() + P2.x()) / 3.0,
+//       (P0.y() + P1.y() + P2.y()) / 3.0,
+//   };
+// }
 
-Polygon2D Triangle2D::ToPolygon(int decimal_precision) const {
-  return Polygon2D::Make({P0, P1, P2}, decimal_precision);
-}
+// Polygon2D Triangle2D::ToPolygon(int decimal_precision) const {
+// TODO
+// }
 
-double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
+// double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
 
-double Triangle2D::Area() const { return abs(SignedArea()); }
+// double Triangle2D::Area() const { return abs(SignedArea()); }
 
-double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
+// double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
 // double LineSegment2D::Location(Point2D const& point, int decimal_precision) const {
 //   if (!ToLine().Contains(point, decimal_precision)) {
@@ -97,23 +102,23 @@ double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Len
 
 // #pragma region Operator Overloading
 
-bool operator==(Triangle2D const& lhs, Triangle2D const& rhs) { return lhs.AlmostEquals(rhs); }
+bool operator==(Polygon2D const& lhs, Polygon2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
 // #pragma endregion
 
 // #pragma region Geometrical Operations
 
-bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
-  auto u = (P1 - P0);
-  auto v = (P2 - P0);
-  auto w = (point - P0);
+// bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
+//   auto u = (P1 - P0);
+//   auto v = (P2 - P0);
+//   auto w = (point - P0);
 
-  double wu = w.Dot(u) / u.Dot(u);
-  double wv = w.Dot(v) / v.Dot(v);
+//   double wu = w.Dot(u) / u.Dot(u);
+//   double wv = w.Dot(v) / v.Dot(v);
 
-  return (round_to(wu, decimal_precision) >= 0 && round_to(wu - 1, decimal_precision) <= 0) &&
-         (round_to(wv, decimal_precision) >= 0 && round_to(wv - 1, decimal_precision) <= 0);
-}
+//   return (round_to(wu, decimal_precision) >= 0 && round_to(wu - 1, decimal_precision) <= 0) &&
+//          (round_to(wv, decimal_precision) >= 0 && round_to(wv - 1, decimal_precision) <= 0);
+// }
 
 // bool LineSegment2D::Intersects(Line2D const& line, int decimal_precision) const {
 //   return Intersection(line, decimal_precision).has_value();
@@ -211,75 +216,88 @@ bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
 
 // #pragma region Formatting
 
-std::string Triangle2D::ToWkt(int decimal_precision) const {
-  // clang-format off
-  return std::format("TRIANGLE ({} {}, {} {}, {} {})", 
-                     round_to(P0.x(), decimal_precision), round_to(P0.y(), decimal_precision), 
-                     round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision),
-                     round_to(P2.x(), decimal_precision), round_to(P2.y(), decimal_precision)
-                     );
-  // clang-format on
+std::string Polygon2D::ToWkt(int decimal_precision) const {
+  std::ostringstream buf;
+  buf << "POLYGON ";
+  int num_verts = VERTICES.size();
+  if (!num_verts) {
+    buf << "EMPTY";
+    return buf.str();
+  }
+
+  buf << "((";
+  for (int i = 0; i << num_verts; ++i) {
+    buf << std::format("{} {}", round_to(VERTICES[i].x(), decimal_precision),
+                       round_to(VERTICES[i].y(), decimal_precision));
+    if (i < num_verts - 1) {
+      buf << ", ";
+    }
+  }
+
+  buf << "))";
+
+  return buf.str();
 }
 
-Triangle2D Triangle2D::FromWkt(std::string const& wkt) {
-  try {
-    std::size_t end_gtype, end_pi, end_pn;
+Polygon2D Polygon2D::FromWkt(std::string const& wkt) {
+  // try {
+  //   std::size_t end_gtype, end_pi, end_pn;
 
-    end_gtype = wkt.find('(');
-    if (end_gtype == std::string::npos) {
-      throw std::runtime_error("brakets");
-    }
+  //   end_gtype = wkt.find('(');
+  //   if (end_gtype == std::string::npos) {
+  //     throw std::runtime_error("brakets");
+  //   }
 
-    std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
-    if (g_type != "TRIANGLE") {
-      throw std::runtime_error("geometry name");
-    }
+  //   std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
+  //   if (g_type != "POLYGON") {
+  //     throw std::runtime_error("geometry name");
+  //   }
 
-    end_pn = wkt.substr(end_gtype + 1).find(')');
-    if (end_pn == std::string::npos) {
-      throw std::runtime_error("brakets");
-    }
+  //   end_pn = wkt.substr(end_gtype + 1).find(')');
+  //   if (end_pn == std::string::npos) {
+  //     throw std::runtime_error("brakets");
+  //   }
 
-    std::string mid_part = wkt.substr(end_gtype + 1, wkt.size() - (end_gtype + 1 + 1));
+  //   std::string mid_part = wkt.substr(end_gtype + 1, wkt.size() - (end_gtype + 1 + 1));
 
-    std::vector<Point2D> pt_vec;
-    int decimal_precision = 0;
-    int num_dec = 0;
-    std::string pt_trimmed;
-    for (std::string const& p_str : geompp::tokenize_string(mid_part, ',')) {
-      pt_trimmed = geompp::trim(p_str);
+  //   std::vector<Point2D> pt_vec;
+  //   int decimal_precision = 0;
+  //   int num_dec = 0;
+  //   std::string pt_trimmed;
+  //   for (std::string const& p_str : geompp::tokenize_string(mid_part, ',')) {
+  //     pt_trimmed = geompp::trim(p_str);
 
-      auto nums = geompp::tokenize_to_doubles(pt_trimmed, ' ');
-      if (nums.size() != 2) {
-        throw std::runtime_error("numbers");
-      }
+  //     auto nums = geompp::tokenize_to_doubles(pt_trimmed, ' ');
+  //     if (nums.size() != 2) {
+  //       throw std::runtime_error("numbers");
+  //     }
 
-      num_dec = count_decimal_places(nums[0]);
-      if (num_dec > decimal_precision) {
-        decimal_precision = num_dec;
-      }
-      num_dec = count_decimal_places(nums[1]);
-      if (num_dec > decimal_precision) {
-        decimal_precision = num_dec;
-      }
+  //     num_dec = count_decimal_places(nums[0]);
+  //     if (num_dec > decimal_precision) {
+  //       decimal_precision = num_dec;
+  //     }
+  //     num_dec = count_decimal_places(nums[1]);
+  //     if (num_dec > decimal_precision) {
+  //       decimal_precision = num_dec;
+  //     }
 
-      pt_vec.push_back({nums[0], nums[1]});
-    }
+  //     pt_vec.push_back({nums[0], nums[1]});
+  //   }
 
-    if (pt_vec.size() != 3) {
-      throw std::runtime_error("initialized with n != 3 points");
-    }
+  //   if (pt_vec.size() != 3) {
+  //     throw std::runtime_error("initialized with n != 3 points");
+  //   }
 
-    return Make(pt_vec[0], pt_vec[1], pt_vec[2], decimal_precision);
+  //   return Make(pt_vec[0], pt_vec[1], pt_vec[2], decimal_precision);
 
-  } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
-  }
+  // } catch (...) {
+  //   std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+  // }
 
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Triangle2D::ToFile(std::string const& path, int decimal_precision) const {
+void Polygon2D::ToFile(std::string const& path, int decimal_precision) const {
   try {
     std::string content = ToWkt(decimal_precision);
 
@@ -300,7 +318,7 @@ void Triangle2D::ToFile(std::string const& path, int decimal_precision) const {
   }
 }
 
-Triangle2D Triangle2D::FromFile(std::string const& path) {
+Polygon2D Polygon2D::FromFile(std::string const& path) {
   try {
     std::string content;
 

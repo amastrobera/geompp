@@ -2,6 +2,7 @@
 
 #include "line2d.hpp"
 #include "point2d.hpp"
+#include "polygon2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 #include "vector2d.hpp"
@@ -82,6 +83,17 @@ TEST(Triangle2D, Areas) {
 
   ASSERT_EQ(a_ccw, a_cw);
   ASSERT_EQ(-sa_ccw, sa_cw);
+}
+
+TEST(Triangle2D, ToPolygon) {
+  int prec = 4;
+  auto t = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1), prec);
+
+  auto verts = t.Vertices();
+  auto poly = g::Polygon2D::Make({std::get<0>(verts), std::get<1>(verts), std::get<2>(verts)}, prec);
+  ASSERT_EQ(poly, t.ToPolygon(prec));
+
+  ASSERT_EQ(poly.ToWkt(prec), t.ToPolygon(prec).ToWkt(prec));
 }
 
 // TEST(Triangle2D, Location) {
@@ -277,6 +289,7 @@ TEST(Triangle2D, Wkt) {
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle (-7.5 -64.4, 0 0"));
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( -7.5 )"));
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( )"));
+  EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle -7.5 -64.4 15.5)"));
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( -7.5 -64.4 15.5)"));
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( -7.5 -64.4 15.5, 0 0 0, 1 1 1)"));
 }

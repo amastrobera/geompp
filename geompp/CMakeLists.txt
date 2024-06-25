@@ -21,6 +21,7 @@ add_library(${PROJECT_NAME}
     src/line_segment2d.cpp
     src/polyline2d.cpp
     src/triangle2d.cpp
+    src/polygon2d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
