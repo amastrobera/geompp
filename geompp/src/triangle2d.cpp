@@ -1,10 +1,12 @@
 #include "triangle2d.hpp"
 
 #include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "polygon2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <fstream>
@@ -58,40 +60,33 @@ double Triangle2D::Area() const { return abs(SignedArea()); }
 
 double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
-// double LineSegment2D::Location(Point2D const& point, int decimal_precision) const {
-//   if (!ToLine().Contains(point, decimal_precision)) {
-//     return std::numeric_limits<double>::infinity();
-//   }
-//   return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length() / Length();
-// }
+double Triangle2D::DistanceTo(Point2D const& point, int decimal_precision) const {
+  if (Contains(point, decimal_precision)) {
+    return 0;
+  }
+  return std::min(std::min(LineSegment2D::Make(P0, P1, decimal_precision).DistanceTo(point, decimal_precision),
+                           LineSegment2D::Make(P1, P2, decimal_precision).DistanceTo(point, decimal_precision)),
+                  LineSegment2D::Make(P2, P0, decimal_precision).DistanceTo(point, decimal_precision));
+}
 
-// Point2D LineSegment2D::Interpolate(double pct) const {
-//   // the point is behind the polyline
-//   if (round_to(pct, DP_NINE) < 0.0) {
-//     return P0;
-//   }
+std::tuple<Vector2D, Vector2D> Triangle2D::ToAxis() const { return {P1 - P0, P2 - P0}; }
 
-//   // the point is beyond the polyline
-//   if (round_to(pct, DP_NINE) > 1.0) {
-//     return P1;
-//   }
+std::tuple<double, double> Triangle2D::Location(Point2D const& point, int decimal_precision) const {
+  if (!Contains(point, decimal_precision)) {
+    return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
+  }
 
-//   return P0 + pct * (P1 - P0);
-// }
+  auto w = point - P0;
+  auto u = P1 - P0;
+  auto v = P2 - P0;
 
-// double LineSegment2D::DistanceTo(Point2D const& point, int decimal_precision) const {
-//   auto line_eqv = ToLine(decimal_precision);
-//   auto proj = line_eqv.ProjectOnto(point, decimal_precision);
-//   double loc = Location(proj, decimal_precision);
-//   if (round_to(loc, decimal_precision) < 0) {
-//     return P0.DistanceTo(point, decimal_precision);
+  return {sign((w).Dot(u), decimal_precision) * (w).Length() / u.Length(),
+          sign((w).Dot(v), decimal_precision) * (w).Length() / v.Length()};
+}
 
-//   } else if (round_to(loc, decimal_precision) > 1) {
-//     return P1.DistanceTo(point, decimal_precision);
-//   }
-
-//   return line_eqv.DistanceTo(point, decimal_precision);
-// }
+Point2D Triangle2D::Interpolate(double pct_axis_u, double pct_axis_v) const {
+  return P0 + pct_axis_u * (P1 - P0) + pct_axis_v * (P2 - P0);
+}
 
 // #pragma endregion
 
