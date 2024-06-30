@@ -5,8 +5,10 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <ostream>
 #include <string>
 #include <variant>
+
 
 namespace geompp {
 
@@ -59,6 +61,8 @@ class Line2D {
 #pragma region Operator Overloading
 
 bool operator==(Line2D const& lhs, Line2D const& rhs);
+
+std::ostream& operator<<(std::ostream& os, Line2D const& g);
 
 #pragma endregion
 

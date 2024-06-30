@@ -45,7 +45,7 @@ bool Line2D::AlmostEquals(Line2D const& other, int decimal_precision) const {
 }
 
 double Line2D::DistanceTo(Point2D const& point, int decimal_precision) const {
-  return round_to(abs((point - P0).Perp().Dot(DIR)), decimal_precision);
+  return round_to(std::abs(DIR.Cross(point - P0)), decimal_precision);
 }
 
 Point2D Line2D::ProjectOnto(Point2D const& point, int decimal_precision) const {
@@ -57,6 +57,11 @@ Point2D Line2D::ProjectOnto(Point2D const& point, int decimal_precision) const {
 #pragma region Operator Overloading
 
 bool operator==(Line2D const& lhs, Line2D const& rhs) { return lhs.AlmostEquals(rhs); }
+
+std::ostream& operator<<(std::ostream& os, Line2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
 
 #pragma endregion
 

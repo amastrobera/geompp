@@ -149,6 +149,11 @@ Point2D operator-(Point2D const& lhs, Vector2D const& rhs) { return {lhs.x() - r
 Point2D operator*(Point2D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a}; }
 Point2D operator*(double a, Point2D const& rhs) { return rhs * a; }
 
+std::ostream& operator<<(std::ostream& os, Point2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Formatting

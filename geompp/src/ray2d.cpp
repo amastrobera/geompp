@@ -55,6 +55,11 @@ bool Ray2D::AlmostEquals(Ray2D const& other, int decimal_precision) const {
 
 bool operator==(Ray2D const& lhs, Ray2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
+std::ostream& operator<<(std::ostream& os, Ray2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Geometrical Operations

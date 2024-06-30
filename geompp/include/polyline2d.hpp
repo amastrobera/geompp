@@ -5,6 +5,7 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <ostream>
 #include <string>
 #include <variant>
 #include <vector>
@@ -14,13 +15,6 @@ namespace geompp {
 class Line2D;
 class Ray2D;
 class LineSegment2D;
-
-namespace {
-int default_prec() {
-  static int d = DP_THREE;
-  return 0;
-}
-}  // namespace
 
 class Polyline2D {
  public:
@@ -75,6 +69,8 @@ class Polyline2D {
 #pragma region Operator Overloading
 
 bool operator==(Polyline2D const& lhs, Polyline2D const& rhs);
+
+std::ostream& operator<<(std::ostream& os, Polyline2D const& g);
 
 #pragma endregion
 

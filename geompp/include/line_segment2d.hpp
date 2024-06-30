@@ -58,6 +58,8 @@ class LineSegment2D {
 
 bool operator==(LineSegment2D const& lhs, LineSegment2D const& rhs);
 
+std::ostream& operator<<(std::ostream& os, LineSegment2D const& g);
+
 #pragma endregion
 
 }  // namespace geompp

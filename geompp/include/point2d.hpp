@@ -2,8 +2,10 @@
 
 #include "constants.hpp"
 
+#include <ostream>
 #include <string>
 #include <vector>
+
 
 namespace geompp {
 
@@ -61,6 +63,8 @@ Point2D operator*(Point2D const& lhs, Point2D const& rhs) = delete;
 Point2D operator+(Point2D const& lhs, Point2D const& rhs) = delete;
 
 Point2D operator/(Point2D const& lhs, Point2D const& rhs) = delete;
+
+std::ostream& operator<<(std::ostream& os, Point2D const& g);
 
 #pragma endregion
 

@@ -51,7 +51,7 @@ Polygon2D Triangle2D::ToPolygon(int decimal_precision) const {
 
 double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
 
-double Triangle2D::Area() const { return abs(SignedArea()); }
+double Triangle2D::Area() const { return std::abs(SignedArea()); }
 
 double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
@@ -85,11 +85,16 @@ Point2D Triangle2D::Interpolate(double pct_axis_u, double pct_axis_v) const {
 
 // #pragma endregion
 
-// #pragma region Operator Overloading
+#pragma region Operator Overloading
 
 bool operator==(Triangle2D const& lhs, Triangle2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-// #pragma endregion
+std::ostream& operator<<(std::ostream& os, Triangle2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
+#pragma endregion
 
 // #pragma region Geometrical Operations
 
@@ -101,8 +106,8 @@ bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
   double wu = w.Dot(u) / u.Dot(u);
   double wv = w.Dot(v) / v.Dot(v);
 
-  return (round_to(wu, decimal_precision) >= 0 && round_to(wu - 1, decimal_precision) <= 0) &&
-         (round_to(wv, decimal_precision) >= 0 && round_to(wv - 1, decimal_precision) <= 0);
+  return (round_to(wu, decimal_precision) >= 0.0 && round_to(wu - 1.0, decimal_precision) <= 0.0) &&
+         (round_to(wv, decimal_precision) >= 0.0 && round_to(wv - 1.0, decimal_precision) <= 0.0);
 }
 
 // bool LineSegment2D::Intersects(Line2D const& line, int decimal_precision) const {

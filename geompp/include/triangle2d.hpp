@@ -5,6 +5,7 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <ostream>
 #include <string>
 #include <tuple>
 #include <variant>
@@ -68,6 +69,8 @@ class Triangle2D {
 #pragma region Operator Overloading
 
 bool operator==(Triangle2D const& lhs, Triangle2D const& rhs);
+
+std::ostream& operator<<(std::ostream& os, Triangle2D const& g);
 
 #pragma endregion
 

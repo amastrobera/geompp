@@ -147,6 +147,11 @@ double Polyline2D::DistanceTo(Point2D const& point, int decimal_precision) const
 
 bool operator==(Polyline2D const& lhs, Polyline2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
+std::ostream& operator<<(std::ostream& os, Polyline2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Geometrical Operations

@@ -5,6 +5,7 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <ostream>
 #include <string>
 #include <variant>
 
@@ -57,6 +58,8 @@ class Ray2D {
 #pragma region Operator Overloading
 
 bool operator==(Ray2D const& lhs, Ray2D const& rhs);
+
+std::ostream& operator<<(std::ostream& os, Ray2D const& g);
 
 #pragma endregion
 

@@ -5,9 +5,11 @@
 #include "vector2d.hpp"
 
 #include <optional>
+#include <ostream>
 #include <string>
 #include <tuple>
 #include <variant>
+
 
 namespace geompp {
 
@@ -64,6 +66,8 @@ class Polygon2D {
 #pragma region Operator Overloading
 
 bool operator==(Polygon2D const& lhs, Polygon2D const& rhs);
+
+std::ostream& operator<<(std::ostream& os, Polygon2D const& g);
 
 #pragma endregion
 

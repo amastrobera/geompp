@@ -1,6 +1,7 @@
 #include "triangle2d.hpp"
 
 #include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
 #include "ray2d.hpp"
@@ -58,6 +59,14 @@ TEST(Triangle2D, Contains) {
   ASSERT_FALSE(t.Contains(c + 2 * (std::get<0>(points) - c)));
   ASSERT_FALSE(t.Contains(c + 2 * (std::get<1>(points) - c)));
   ASSERT_FALSE(t.Contains(c + 2 * (std::get<2>(points) - c)));
+
+  // outside (ahead of segments)
+  ASSERT_FALSE(t.Contains(g::Point2D::average({std::get<0>(points), std::get<1>(points)}) -
+                          (std::get<1>(points) - std::get<0>(points)).Perp().Normalize()));
+  ASSERT_FALSE(t.Contains(g::Point2D::average({std::get<1>(points), std::get<2>(points)}) -
+                          (std::get<2>(points) - std::get<1>(points)).Perp().Normalize()));
+  ASSERT_FALSE(t.Contains(g::Point2D::average({std::get<2>(points), std::get<0>(points)}) -
+                          (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
 }
 
 TEST(Triangle2D, Areas) {
@@ -121,21 +130,47 @@ TEST(Triangle2D, DistanceTo) {
   ASSERT_EQ(0, t.DistanceTo(g::Point2D::average({std::get<2>(points), std::get<0>(points)}), prec));
 
   // outside (ahead of segments)
-  auto p_out = g::Point2D::average({std::get<0>(points), std::get<1>(points)}) -
-               (std::get<1>(points) - std::get<0>(points)).Perp().Normalize();
+  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D::average({std::get<0>(points), std::get<1>(points)}) -
+                                  (std::get<1>(points) - std::get<0>(points)).Perp().Normalize(),
+                              prec));
 
-  ASSERT_EQ(1, t.DistanceTo(p_out, prec)) << p_out.ToWkt();
-  ASSERT_EQ(1, t.DistanceTo(g::Point2D::average({std::get<1>(points), std::get<2>(points)}) -
-                                (std::get<2>(points) - std::get<1>(points)).Perp().Normalize(),
-                            prec));
-  ASSERT_EQ(1, t.DistanceTo(g::Point2D::average({std::get<2>(points), std::get<0>(points)}) -
-                                (std::get<0>(points) - std::get<2>(points)).Perp().Normalize(),
-                            prec));
+  auto p = g::Point2D::average({std::get<1>(points), std::get<2>(points)}) -
+           (std::get<2>(points) - std::get<1>(points)).Perp().Normalize();
+  auto l1 = g::LineSegment2D::Make(std::get<0>(points), std::get<1>(points), prec);
+  auto l2 = g::LineSegment2D::Make(std::get<1>(points), std::get<2>(points), prec);
+  auto l3 = g::LineSegment2D::Make(std::get<2>(points), std::get<0>(points), prec);
+  std::cout << p << " vs " << l1 << ", " << l2 << ", " << l3 << std::endl;
+  std::cout << "distances " << l1.DistanceTo(p, prec) << ", " << l2.DistanceTo(p, prec) << ", "
+            << l3.DistanceTo(p, prec) << std::endl;
+  std::cout << "contains " << (t.Contains(p, prec) ? "true" : "false") << std::endl;
+  std::cout << "final " << t.DistanceTo(p, prec) << std::endl;
+
+  auto u = (std::get<1>(points) - std::get<0>(points));
+  auto v = (std::get<2>(points) - std::get<0>(points));
+  auto w = (p - std::get<0>(points));
+
+  double wu = w.Dot(u) / u.Dot(u);
+  double wv = w.Dot(v) / v.Dot(v);
+
+  std::cout << "g::round_to(wu, prec) >= 0.0 " << (g::round_to(wu, prec) >= 0.0 ? "true" : "false") << std::endl;
+  std::cout << "g::round_to(wu - 1.0, prec) <= 0.0) " << (g::round_to(wu - 1.0, prec) <= 0.0 ? "true" : "false")
+            << std::endl;
+
+  std::cout << "g::round_to(wv, prec) >= 0.0 " << (g::round_to(wv, prec) >= 0.0 ? "true" : "false") << std::endl;
+  std::cout << "g::round_to(wv - 1.0, prec) <= 0.0) " << (g::round_to(wv - 1.0, prec) <= 0.0 ? "true" : "false")
+            << std::endl;
+
+  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D::average({std::get<1>(points), std::get<2>(points)}) -
+                                  (std::get<2>(points) - std::get<1>(points)).Perp().Normalize(),
+                              prec));
+  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D::average({std::get<2>(points), std::get<0>(points)}) -
+                                  (std::get<0>(points) - std::get<2>(points)).Perp().Normalize(),
+                              prec));
 
   // outside (ahead of vertices)
-  ASSERT_EQ(1, t.DistanceTo(g::Point2D(0, -2), prec));
-  ASSERT_EQ(1, t.DistanceTo(g::Point2D(2, 0), prec));
-  ASSERT_EQ(1, t.DistanceTo(g::Point2D(-2, 0), prec));
+  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(0, -2), prec));
+  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(2, 0), prec));
+  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(-2, 0), prec));
 }
 
 // TEST(Triangle2D, Location) {

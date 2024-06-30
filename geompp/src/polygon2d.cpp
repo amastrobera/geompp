@@ -59,7 +59,7 @@ bool Polygon2D::AlmostEquals(Polygon2D const& other, int decimal_precision) cons
 
 // double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
 
-// double Triangle2D::Area() const { return abs(SignedArea()); }
+// double Triangle2D::Area() const { return std::abs(SignedArea()); }
 
 // double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
@@ -100,11 +100,16 @@ bool Polygon2D::AlmostEquals(Polygon2D const& other, int decimal_precision) cons
 
 // #pragma endregion
 
-// #pragma region Operator Overloading
+#pragma region Operator Overloading
 
 bool operator==(Polygon2D const& lhs, Polygon2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-// #pragma endregion
+std::ostream& operator<<(std::ostream& os, Polygon2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
+#pragma endregion
 
 // #pragma region Geometrical Operations
 

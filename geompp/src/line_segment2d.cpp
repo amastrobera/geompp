@@ -64,10 +64,11 @@ double LineSegment2D::DistanceTo(Point2D const& point, int decimal_precision) co
   auto line_eqv = ToLine(decimal_precision);
   auto proj = line_eqv.ProjectOnto(point, decimal_precision);
   double loc = Location(proj, decimal_precision);
-  if (round_to(loc, decimal_precision) < 0) {
+
+  if (round_to(loc, decimal_precision) < 0.0) {
     return P0.DistanceTo(point, decimal_precision);
 
-  } else if (round_to(loc, decimal_precision) > 1) {
+  } else if (round_to(loc - 1.0, decimal_precision) > 0.0) {
     return P1.DistanceTo(point, decimal_precision);
   }
 
@@ -79,6 +80,11 @@ double LineSegment2D::DistanceTo(Point2D const& point, int decimal_precision) co
 #pragma region Operator Overloading
 
 bool operator==(LineSegment2D const& lhs, LineSegment2D const& rhs) { return lhs.AlmostEquals(rhs); }
+
+std::ostream& operator<<(std::ostream& os, LineSegment2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
 
 #pragma endregion
 

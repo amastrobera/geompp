@@ -57,6 +57,11 @@ double operator*(Vector2D const& lhs, Vector2D const& rhs) { return lhs.Dot(rhs)
 
 Vector2D operator/(Vector2D const& lhs, double a) { return Vector2D(lhs.x() / a, lhs.y() / a); }
 
+std::ostream& operator<<(std::ostream& os, Vector2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Formatting
