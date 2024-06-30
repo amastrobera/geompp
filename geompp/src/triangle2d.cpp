@@ -43,12 +43,7 @@ bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) co
          P2.AlmostEquals(other.P2, decimal_precision);
 }
 
-Point2D Triangle2D::Centroid() const {
-  return {
-      (P0.x() + P1.x() + P2.x()) / 3.0,
-      (P0.y() + P1.y() + P2.y()) / 3.0,
-  };
-}
+Point2D Triangle2D::Centroid() const { return Point2D::average({P0, P1, P2}); }
 
 Polygon2D Triangle2D::ToPolygon(int decimal_precision) const {
   return Polygon2D::Make({P0, P1, P2}, decimal_precision);

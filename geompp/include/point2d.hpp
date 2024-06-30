@@ -38,6 +38,8 @@ class Point2D {
 
   static std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
 
+  static Point2D average(std::vector<Point2D> const& points);
+
 #pragma endregion
 
  private:

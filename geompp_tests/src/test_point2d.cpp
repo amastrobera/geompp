@@ -156,4 +156,18 @@ TEST(Point2D, RemoveCollinear) {
   ASSERT_EQ(g::Point2D(7, 0), unique_pts[6]);
 }
 
+TEST(Point2D, Average) {
+  // clang-format off
+  std::vector<g::Point2D> pts{g::Point2D(0, 0),
+                              g::Point2D(1, 0),
+                              g::Point2D(2, -3),
+                              g::Point2D(-5, 6),
+                              g::Point2D(7, -1),
+                              g::Point2D(-2, -8),
+                              g::Point2D(0, 1)
+                              };
+  // clang-format on
+  ASSERT_EQ(g::Point2D(3.0 / pts.size(), -5.0 / pts.size()), g::Point2D::average(pts));
+}
+
 }  // namespace geompp_tests

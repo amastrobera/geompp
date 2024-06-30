@@ -110,33 +110,32 @@ TEST(Triangle2D, DistanceTo) {
 
   // points
   auto points = t.Vertices();
-  EXPECT_EQ(0, t.DistanceTo(std::get<0>(points), prec));
-  EXPECT_EQ(0, t.DistanceTo(std::get<1>(points), prec));
-  EXPECT_EQ(0, t.DistanceTo(std::get<2>(points), prec));
-  EXPECT_EQ(0, t.DistanceTo(t.Centroid(), prec));
+  ASSERT_EQ(0, t.DistanceTo(std::get<0>(points), prec));
+  ASSERT_EQ(0, t.DistanceTo(std::get<1>(points), prec));
+  ASSERT_EQ(0, t.DistanceTo(std::get<2>(points), prec));
+  ASSERT_EQ(0, t.DistanceTo(t.Centroid(), prec));
 
-  // // on line
-  // auto p3 = g::Point2D(-20, 0);
-  // EXPECT_EQ(20, t.DistanceTo(p3, prec));
+  // on line
+  ASSERT_EQ(0, t.DistanceTo(g::Point2D::average({std::get<0>(points), std::get<1>(points)}), prec));
+  ASSERT_EQ(0, t.DistanceTo(g::Point2D::average({std::get<1>(points), std::get<2>(points)}), prec));
+  ASSERT_EQ(0, t.DistanceTo(g::Point2D::average({std::get<2>(points), std::get<0>(points)}), prec));
 
-  // auto p4 = g::Point2D(12, 0);
-  // EXPECT_EQ(9, t.DistanceTo(p4, prec));
+  // outside (ahead of segments)
+  auto p_out = g::Point2D::average({std::get<0>(points), std::get<1>(points)}) -
+               (std::get<1>(points) - std::get<0>(points)).Perp().Normalize();
 
-  // // Q1
-  // auto p5 = g::Point2D(1.5, 12);
-  // EXPECT_EQ(12, t.DistanceTo(p5, prec));
+  ASSERT_EQ(1, t.DistanceTo(p_out, prec)) << p_out.ToWkt();
+  ASSERT_EQ(1, t.DistanceTo(g::Point2D::average({std::get<1>(points), std::get<2>(points)}) -
+                                (std::get<2>(points) - std::get<1>(points)).Perp().Normalize(),
+                            prec));
+  ASSERT_EQ(1, t.DistanceTo(g::Point2D::average({std::get<2>(points), std::get<0>(points)}) -
+                                (std::get<0>(points) - std::get<2>(points)).Perp().Normalize(),
+                            prec));
 
-  // // Q2
-  // auto p6 = g::Point2D(-5, 10);
-  // EXPECT_EQ(p6.DistanceTo(seg.First(), prec), seg.DistanceTo(p6, prec));
-
-  // // Q3
-  // auto p7 = g::Point2D(-2, -4);
-  // EXPECT_EQ(p7.DistanceTo(seg.First(), prec), seg.DistanceTo(p7, prec));
-
-  // // Q4
-  // auto p8 = g::Point2D(3, -7);
-  // EXPECT_EQ(7, t.DistanceTo(p8, prec));
+  // outside (ahead of vertices)
+  ASSERT_EQ(1, t.DistanceTo(g::Point2D(0, -2), prec));
+  ASSERT_EQ(1, t.DistanceTo(g::Point2D(2, 0), prec));
+  ASSERT_EQ(1, t.DistanceTo(g::Point2D(-2, 0), prec));
 }
 
 // TEST(Triangle2D, Location) {

@@ -120,6 +120,21 @@ std::vector<Point2D> Point2D::remove_collinear(std::vector<Point2D> const& point
   return unique_points;
 }
 
+Point2D Point2D::average(std::vector<Point2D> const& points) {
+  int n = points.size();
+  if (n == 0) {
+    throw std::runtime_error("average of zero points");
+  }
+  double x = 0;
+  double y = 0;
+  for (auto const& p : points) {
+    x += p.x();
+    y += p.y();
+  }
+
+  return {x / n, y / n};
+}
+
 #pragma endregion
 
 #pragma region Operator Overloading
