@@ -103,11 +103,15 @@ bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
   auto v = (P2 - P0);
   auto w = (point - P0);
 
-  double wu = w.Dot(u) / u.Dot(u);
-  double wv = w.Dot(v) / v.Dot(v);
+  auto up = u.Perp();
+  auto vp = v.Perp();
 
-  return (round_to(wu, decimal_precision) >= 0.0 && round_to(wu - 1.0, decimal_precision) <= 0.0) &&
-         (round_to(wv, decimal_precision) >= 0.0 && round_to(wv - 1.0, decimal_precision) <= 0.0);
+  double s = w.Dot(vp) / u.Dot(vp);
+  double t = w.Dot(up) / v.Dot(up);
+
+  return (round_to(s, decimal_precision) >= 0.0 && round_to(s - 1.0, decimal_precision) <= 0.0) &&
+         (round_to(t, decimal_precision) >= 0.0 && round_to(t - 1.0, decimal_precision) <= 0.0 &&
+          round_to(s + t - 1.0, decimal_precision) <= 0.0);
 }
 
 // bool LineSegment2D::Intersects(Line2D const& line, int decimal_precision) const {

@@ -12,4 +12,4 @@ add_subdirectory(geompp)
 
 add_subdirectory(geompp_tests)
 
-add_subdirectory(geom_viewer)
+#add_subdirectory(geom_viewer)
