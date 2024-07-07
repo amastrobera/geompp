@@ -147,43 +147,73 @@ TEST(Triangle2D, DistanceTo) {
   ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(-2, 0), prec));
 }
 
-// TEST(Triangle2D, Location) {
-//   int prec = 3;
-//   auto t = g::Triangle2D::Make(g::Point2D(0, -1), g::Point2D(1, 0), g::Point2D(-1, 0));
+TEST(Triangle2D, Interpolate) {
+  int prec = 4;
+  auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
 
-//   ASSERT_EQ(0.2, g::round_to(t.Location(g::Point2D(0.2, 0), prec), prec));
-//   ASSERT_EQ(0.5, g::round_to(t.Location(g::Point2D(0.5, 0), prec), prec));
-//   ASSERT_EQ(0.75, g::round_to(t.Location(g::Point2D(0.75, 0), prec), prec));
+  auto points = tri.Vertices();
 
-//   ASSERT_EQ(-1, g::round_to(t.Location(g::Point2D(-1, 0), prec), prec));
-//   ASSERT_EQ(-0.1, g::round_to(t.Location(g::Point2D(-0.1, 0), prec), prec));
-//   ASSERT_EQ(1.1, g::round_to(t.Location(g::Point2D(1.1, 0), prec), prec));
+  // triangle points
+  ASSERT_EQ(std::get<0>(points), tri.Interpolate(0, 0));
+  ASSERT_EQ(std::get<1>(points), tri.Interpolate(1, 0));
+  ASSERT_EQ(std::get<2>(points), tri.Interpolate(0, 1));
 
-//   ASSERT_TRUE(std::isinf(t.Location(g::Point2D(1, 1), prec)));
-//   ASSERT_TRUE(std::isinf(t.Location(g::Point2D(0, -1), prec)));
-//   ASSERT_TRUE(std::isinf(t.Location(g::Point2D(-1, -1), prec)));
-//   ASSERT_TRUE(std::isinf(t.Location(g::Point2D(1, -1), prec)));
-// }
+  // centroid
+  auto c = tri.Centroid();
+  auto loc = tri.Location(c, prec);
+  ASSERT_EQ(c, tri.Interpolate(std::get<0>(loc), std::get<1>(loc), prec));
+}
 
-// TEST(Triangle2D, Interpolate) {
-//   int prec = 4;
-//   auto seg = g::Triangle2D::FromWkt("LINESTRING (0 0, 3 0)");
+TEST(Triangle2D, IntersectionWLine) {
+  int prec = 4;
+  auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 1, -1 1)");
 
-//   // on segment
-//   ASSERT_EQ(seg.First(), seg.Interpolate(0));
+  auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0), prec);
+  auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1), prec);
 
-//   ASSERT_EQ(seg.Last(), seg.Interpolate(1));
+  auto px = g::Line2D::Make(g::Point2D(0, -1), g::Vector2D(1, -1), prec);
+  auto py = g::Line2D::Make(g::Point2D(1, 1), g::Vector2D(1, 2), prec);
 
-//   // on segment
-//   ASSERT_EQ(0.223, g::round_to(seg.Location(seg.Interpolate(0.223), prec), 3));
+  auto pax = g::Line2D::Make(g::Point2D(0, 2), g::Vector2D(1, 2), prec);
+  auto pay = g::Line2D::Make(g::Point2D(2, 0), g::Vector2D(2, 1), prec);
 
-//   // on line
-//   ASSERT_EQ(1.0, g::round_to(seg.Location(seg.Interpolate(1.2), prec), 1));
+  ASSERT_TRUE(tri.Intersects(x, prec));
+  {
+    auto inter = tri.Intersection(x, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment2D>(*inter));
+    EXPECT_EQ(g::LineSegment2D::Make({-0.5, 0}, {0.5, 0}), std::get<g::LineSegment2D>(*inter));
+  }
 
-//   ASSERT_EQ(0.0, g::round_to(seg.Location(seg.Interpolate(-0.2), prec), 1));
-// }
+  ASSERT_TRUE(tri.Intersects(y, prec));
+  {
+    auto inter = tri.Intersection(y, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment2D>(*inter));
+    EXPECT_EQ(g::LineSegment2D::Make({0, -1}, {0, 1}), std::get<g::LineSegment2D>(*inter));
+  }
 
-// TEST(Triangle2D, Intersection) {
+  ASSERT_TRUE(tri.Intersects(px, prec));
+  {
+    auto inter = tri.Intersection(px, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0, -1), std::get<g::Point2D>(*inter));
+  }
+
+  ASSERT_TRUE(tri.Intersects(py, prec));
+  {
+    auto inter = tri.Intersection(py, prec);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(1, 1), std::get<g::Point2D>(*inter));
+  }
+
+  ASSERT_FALSE(tri.Intersects(pax, prec));
+  ASSERT_FALSE(tri.Intersects(pay, prec));
+}
+
+// TEST(Triangle2D, IntersectionWRay) {
 //   int prec = 4;
 //   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1), prec);
 //   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1), prec);    // intersects r1 in (0,0)
@@ -218,50 +248,6 @@ TEST(Triangle2D, DistanceTo) {
 //     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
 //     EXPECT_EQ(g::Point2D(1, 1), std::get<g::Point2D>(*inter));
 //   }
-// }
-
-// TEST(Triangle2D, IntersectionWLine) {
-//   int prec = 4;
-//   auto s1 = g::LineSegment2D::Make(g::Point2D(-1, -2), g::Point2D(2, 1), prec);   // intersects x, y
-//   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1), prec);     // intersects y
-//   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1), prec);  // intersects x
-
-//   auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0), prec);
-//   auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1), prec);
-
-//   ASSERT_TRUE(s1.Intersects(x, prec));
-//   {
-//     auto inter = s1.Intersection(x, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(1, 0), std::get<g::Point2D>(*inter));
-//   }
-
-//   ASSERT_TRUE(s1.Intersects(y, prec));
-//   {
-//     auto inter = s1.Intersection(y, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0, -1), std::get<g::Point2D>(*inter));
-//   }
-
-//   ASSERT_TRUE(s2.Intersects(y, prec));
-//   {
-//     auto inter = s2.Intersection(y, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0, 1), std::get<g::Point2D>(*inter));
-//   }
-//   ASSERT_FALSE(s2.Intersects(x, prec));
-
-//   ASSERT_TRUE(s3.Intersects(x, prec));
-//   {
-//     auto inter = s3.Intersection(x, prec);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(-1, 0), std::get<g::Point2D>(*inter));
-//   }
-//   ASSERT_FALSE(s3.Intersects(y, prec));
 // }
 
 // TEST(Triangle2D, IntersectionWRay) {

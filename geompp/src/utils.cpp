@@ -12,7 +12,7 @@ namespace geompp {
 
 double round_to(double x, int decimal_precision) {
   double exp = pow(10, decimal_precision);
-  return round(x * exp) / exp;
+  return std::round(x * exp) / exp;
 }
 
 int sign(double x, int decimal_precision) {

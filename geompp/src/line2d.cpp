@@ -52,6 +52,10 @@ Point2D Line2D::ProjectOnto(Point2D const& point, int decimal_precision) const {
   return P0 + (point - P0).Dot(DIR) * DIR;
 }
 
+double Line2D::Location(Point2D const& point, int decimal_precision) const {
+  return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length();
+}
+
 #pragma endregion
 
 #pragma region Operator Overloading

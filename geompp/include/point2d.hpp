@@ -6,7 +6,6 @@
 #include <string>
 #include <vector>
 
-
 namespace geompp {
 
 class Vector2D;
@@ -39,6 +38,8 @@ class Point2D {
   static std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
 
   static std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
+
+  static Point2D linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights);
 
   static Point2D average(std::vector<Point2D> const& points);
 

@@ -120,19 +120,36 @@ std::vector<Point2D> Point2D::remove_collinear(std::vector<Point2D> const& point
   return unique_points;
 }
 
+Point2D Point2D::linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights) {
+  int n = points.size();
+  if (n == 0) {
+    throw std::runtime_error("average of zero points");
+  }
+  if (weights.size() != n) {
+    throw std::runtime_error("weights and points' vectors have different sizes");
+  }
+  double x = 0;
+  double y = 0;
+  for (int i = 0; i < n; ++i) {
+    x += points[i].x() * weights[i];
+    y += points[i].y() * weights[i];
+  }
+
+  return {x, y};
+}
+
 Point2D Point2D::average(std::vector<Point2D> const& points) {
   int n = points.size();
   if (n == 0) {
     throw std::runtime_error("average of zero points");
   }
-  double x = 0;
-  double y = 0;
-  for (auto const& p : points) {
-    x += p.x();
-    y += p.y();
+
+  std::vector<double> weights(points.size());
+  for (int i = 0; i < n; ++i) {
+    weights[i] = 1.0 / n;
   }
 
-  return {x / n, y / n};
+  return linear_combination(points, weights);
 }
 
 #pragma endregion

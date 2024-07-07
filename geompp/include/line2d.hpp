@@ -9,12 +9,11 @@
 #include <string>
 #include <variant>
 
-
 namespace geompp {
 
 class Ray2D;
 class LineSegment2D;
-class Shape2D;
+class Triangle2D;
 
 class Line2D {
  public:
@@ -31,6 +30,7 @@ class Line2D {
   bool AlmostEquals(Line2D const& other, int decimal_precision = DP_THREE) const;
   double DistanceTo(Point2D const& point, int decimal_precision = DP_THREE) const;
   Point2D ProjectOnto(Point2D const& point, int decimal_precision = DP_THREE) const;
+  double Location(Point2D const& point, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Line2D FromWkt(std::string const& wkt);
@@ -45,9 +45,11 @@ class Line2D {
   bool Intersects(Line2D const& other, int decimal_precision = DP_THREE) const;
   bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
   bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
+  bool Intersects(Triangle2D const& t, int decimal_precision = DP_THREE) const;
   ReturnSet Intersection(Line2D const& other, int decimal_precision = DP_THREE) const;
   ReturnSet Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
   ReturnSet Intersection(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
+  // TODO make ReturnSet public, and write Intersection(triangle)
 #pragma endregion
 
  private:

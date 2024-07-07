@@ -38,7 +38,7 @@ class Triangle2D {
       const;  // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
   std::tuple<double, double> Location(Point2D const& point,
                                       int decimal_precision = DP_THREE) const;  // coordinates of axis U, and axis V
-  Point2D Interpolate(double pct_axis_u, double pct_axis_v) const;
+  std::optional<Point2D> Interpolate(double s, double t, int decimal_precision = DP_THREE) const;
 
   std::string ToWkt(int decimal_precision = DP_THREE) const;
   static Triangle2D FromWkt(std::string const& wkt);
@@ -50,11 +50,11 @@ class Triangle2D {
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
   using ReturnSet = std::optional<std::variant<Point2D, LineSegment2D, Triangle2D, Polygon2D>>;
-  // bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
+  bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
   // bool Intersects(Ray2D const& ray, int decimal_precision = DP_THREE) const;
   // bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
   // ReturnSet Intersects(Triangle2D const& other, int decimal_precision = DP_THREE) const;
-  // ReturnSet Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
+  ReturnSet Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
   // ReturnSet Intersection(Ray2D const& ray, int decimal_precision = DP_THREE) const;
   // ReturnSet Intersection(LineSegment2D const& other, int decimal_precision = DP_THREE) const;
   // ReturnSet Intersection(Triangle2D const& other, int decimal_precision = DP_THREE) const;

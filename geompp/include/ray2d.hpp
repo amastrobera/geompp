@@ -13,7 +13,6 @@ namespace geompp {
 
 class Line2D;
 class LineSegment2D;
-class Shape2D;
 
 class Ray2D {
  public:

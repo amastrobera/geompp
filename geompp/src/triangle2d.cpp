@@ -12,9 +12,21 @@
 #include <fstream>
 #include <iostream>  // TODO: replace with logger lib
 #include <limits>
+#include <ranges>
 #include <stdexcept>
+#include <vector>
 
 namespace geompp {
+
+namespace {
+
+static bool within_axis_boundary(double s, double t, int decimal_precision = DP_THREE) {
+  return (round_to(s, decimal_precision) >= 0.0 && round_to(s - 1.0, decimal_precision) <= 0.0) &&
+         (round_to(t, decimal_precision) >= 0.0 && round_to(t - 1.0, decimal_precision) <= 0.0 &&
+          round_to(s + t - 1.0, decimal_precision) <= 0.0);  // including borders
+}
+
+}  // namespace
 
 #pragma region Constructors
 
@@ -66,21 +78,14 @@ double Triangle2D::DistanceTo(Point2D const& point, int decimal_precision) const
 
 std::tuple<Vector2D, Vector2D> Triangle2D::ToAxis() const { return {P1 - P0, P2 - P0}; }
 
-std::tuple<double, double> Triangle2D::Location(Point2D const& point, int decimal_precision) const {
-  if (!Contains(point, decimal_precision)) {
-    return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
+std::optional<Point2D> Triangle2D::Interpolate(double s, double t, int decimal_precision) const {
+  if (!within_axis_boundary(s, t, decimal_precision)) {
+    std::cerr << "(s, t) = (" << s << ", " << t << ") are not within boundaries [0, 1]"
+              << std::endl;  // TODO: log warning
+    return std::nullopt;
   }
 
-  auto w = point - P0;
-  auto u = P1 - P0;
-  auto v = P2 - P0;
-
-  return {sign((w).Dot(u), decimal_precision) * (w).Length() / u.Length(),
-          sign((w).Dot(v), decimal_precision) * (w).Length() / v.Length()};
-}
-
-Point2D Triangle2D::Interpolate(double pct_axis_u, double pct_axis_v) const {
-  return P0 + pct_axis_u * (P1 - P0) + pct_axis_v * (P2 - P0);
+  return Point2D::linear_combination({P0, P1, P2}, {1 - s - t, s, t});
 }
 
 // #pragma endregion
@@ -98,7 +103,7 @@ std::ostream& operator<<(std::ostream& os, Triangle2D const& g) {
 
 // #pragma region Geometrical Operations
 
-bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
+std::tuple<double, double> Triangle2D::Location(Point2D const& point, int decimal_precision) const {
   auto u = (P1 - P0);
   auto v = (P2 - P0);
   auto w = (point - P0);
@@ -109,14 +114,18 @@ bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
   double s = w.Dot(vp) / u.Dot(vp);
   double t = w.Dot(up) / v.Dot(up);
 
-  return (round_to(s, decimal_precision) >= 0.0 && round_to(s - 1.0, decimal_precision) <= 0.0) &&
-         (round_to(t, decimal_precision) >= 0.0 && round_to(t - 1.0, decimal_precision) <= 0.0 &&
-          round_to(s + t - 1.0, decimal_precision) <= 0.0);
+  return {s, t};
 }
 
-// bool LineSegment2D::Intersects(Line2D const& line, int decimal_precision) const {
-//   return Intersection(line, decimal_precision).has_value();
-// }
+bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
+  auto loc = Location(point, decimal_precision);
+
+  return within_axis_boundary(std::get<0>(loc), std::get<1>(loc), decimal_precision);
+}
+
+bool Triangle2D::Intersects(Line2D const& line, int decimal_precision) const {
+  return Intersection(line, decimal_precision).has_value();
+}
 
 // bool LineSegment2D::Intersects(Ray2D const& ray, int decimal_precision) const {
 //   return Intersection(ray, decimal_precision).has_value();
@@ -126,25 +135,37 @@ bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
 //   return Intersection(other, decimal_precision).has_value();
 // }
 
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line, int decimal_precision) const {
-//   auto u = P1 - P0;
-//   auto v = line.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - line.First());
+Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_precision) const {
+  auto intersections =
+      std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1, decimal_precision),
+                                 LineSegment2D::Make(P1, P2, decimal_precision),
+                                 LineSegment2D::Make(P2, P0, decimal_precision)} |
+      std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line, decimal_precision); }) |
+      std::views::filter([](LineSegment2D::ReturnSet const& res) {
+        return res.has_value() && std::holds_alternative<Point2D>(*res);
+      }) |
+      std::views::transform([](LineSegment2D::ReturnSet const& res) { return std::get<Point2D>(*res); });
 
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
+  std::vector<Point2D> intersection_points(intersections.begin(), intersections.end());
 
-//   // verify that the intersection is ahead of the ray
-//   auto inter_p = P0 + t * u;
-//   if (!Contains(inter_p, decimal_precision)) {
-//     return std::nullopt;
-//   }
+  if (intersection_points.empty()) {
+    return std::nullopt;
+  }
 
-//   return inter_p;
-// }
+  intersection_points = Point2D::remove_duplicates(intersection_points, decimal_precision);
+
+  if (intersection_points.size() == 1) {
+    return intersection_points[0];
+  }
+
+  // TODO: this makes a stupid error "unknown file: error: SEH exception with code 0xc00000fd thrown in the test body."
+  // std::ranges::sort(intersection_points, [&](Point2D const& a, Point2D const& b) {
+  //  return round_to(line.Location(a, decimal_precision) - line.Location(b, decimal_precision),
+  //                  decimal_precision) < 0.0;
+  //});
+
+  return LineSegment2D::Make(intersection_points[0], intersection_points[1], decimal_precision);
+}
 
 // LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray, int decimal_precision) const {
 //   auto u = P1 - P0;
