@@ -1,0 +1,89 @@
+#pragma once
+
+#include "constants.hpp"
+
+#include <ostream>
+#include <string>
+#include <vector>
+
+namespace geompp {
+
+class Vector3D;
+
+class Point3D {
+ public:
+  Point3D(double x = 0.0, double y = 0.0, double z = 0.0);
+  Point3D(Point3D const&);
+  Point3D(Point3D&&) = default;
+  ~Point3D() = default;
+
+  inline double x() const { return X; }
+  inline double y() const { return Y; }
+  inline double z() const { return Z; }
+
+  Vector3D ToVector();
+  bool AlmostEquals(Point3D const& other, int decimal_precision = DP_THREE) const;
+  double DistanceTo(Point3D const& other, int decimal_precision = DP_THREE) const;
+
+  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  static Point3D FromWkt(std::string const& wkt);
+  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  static Point3D FromFile(std::string const& path);
+
+  Point3D& operator=(Point3D const& other);
+
+  static inline Point3D Origin() { return Point3D(); }
+
+#pragma region Collection Operations
+
+  static std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
+
+  static std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
+
+  static Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights);
+
+  static Point3D average(std::vector<Point3D> const& points);
+
+#pragma endregion
+
+ private:
+  double X, Y, Z;
+};
+
+#pragma region Operators Overloading
+
+bool operator==(Point3D const& lhs, Point3D const& rhs);
+
+Point3D operator+(Point3D const& lhs, Vector3D const& rhs);
+
+Vector3D operator-(Point3D const& lhs, Point3D const& rhs);
+Point3D operator-(Point3D const& lhs, Vector3D const& rhs);
+
+Point3D operator*(Point3D const& lhs, double a);
+Point3D operator*(double a, Point3D const& rhs);
+Point3D operator*(Point3D const& lhs, Point3D const& rhs) = delete;
+Point3D operator+(Point3D const& lhs, Point3D const& rhs) = delete;
+
+Point3D operator/(Point3D const& lhs, Point3D const& rhs) = delete;
+
+std::ostream& operator<<(std::ostream& os, Point3D const& g);
+
+#pragma endregion
+
+#pragma region Formatter
+
+//#include <format>
+// template <>
+// struct std::formatter<Point3D> {
+//   constexpr auto parse(std::format_parse_context& ctx) {
+//     return ctx.end();
+//   }
+//
+//   auto format(Point3D const& p, std::format_context& ctx) {
+//     return std::format_to(ctx.out(), "{}", p.ToWkt());
+//   }
+// };
+
+#pragma endregion
+
+}  // namespace geompp

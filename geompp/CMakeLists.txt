@@ -14,6 +14,7 @@ include_directories(include)
 # Add the library
 add_library(${PROJECT_NAME}
     src/utils.cpp
+
     src/point2d.cpp
     src/vector2d.cpp
     src/line2d.cpp
@@ -22,6 +23,12 @@ add_library(${PROJECT_NAME}
     src/polyline2d.cpp
     src/triangle2d.cpp
     src/polygon2d.cpp
+
+    src/point3d.cpp
+    src/vector3d.cpp
+    src/line3d.cpp
+    src/plane.cpp
+    src/triangle3d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
