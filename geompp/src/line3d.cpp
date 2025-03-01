@@ -45,7 +45,8 @@ bool Line3D::AlmostEquals(Line3D const& other, int decimal_precision) const {
 }
 
 double Line3D::DistanceTo(Point3D const& point, int decimal_precision) const {
-  return round_to(std::abs(DIR.Cross(point - P0)), decimal_precision);
+  throw std::runtime_error("not implemented");
+  // return round_to(std::abs(DIR.Cross(point - P0)), decimal_precision);
 }
 
 Point3D Line3D::ProjectOnto(Point3D const& point, int decimal_precision) const {
@@ -72,44 +73,44 @@ std::ostream& operator<<(std::ostream& os, Line3D const& g) {
 #pragma region Geometrical Operations
 
 bool Line3D::Contains(Point3D const& point, int decimal_precision) const {
-  return round_to((point - P0).Cross(DIR), decimal_precision) == 0.0;
+  throw std::runtime_error("not implemented");
+  // return round_to((point - P0).Cross(DIR), decimal_precision) == 0.0;
 }
 
 bool Line3D::Intersects(Line3D const& other, int decimal_precision) const {
-  
-    throw std::runtime_error("not implemented");
+  throw std::runtime_error("not implemented");
 
-  //return round_to(DIR.Cross(other.DIR), decimal_precision) != 0.0;
+  // return round_to(DIR.Cross(other.DIR), decimal_precision) != 0.0;
 }
 
-//bool Line3D::Intersects(Ray3D const& ray, int decimal_precision) const {
+// bool Line3D::Intersects(Ray3D const& ray, int decimal_precision) const {
 //  return ray.Intersects(*this, decimal_precision);
 //}
 //
-//bool Line3D::Intersects(LineSegment3D const& segment, int decimal_precision) const {
+// bool Line3D::Intersects(LineSegment3D const& segment, int decimal_precision) const {
 //  return segment.Intersects(*this, decimal_precision);
 //}
 
 Line3D::ReturnSet Line3D::Intersection(Line3D const& other, int decimal_precision) const {
-    throw std::runtime_error("not implemented");
-  //auto u = DIR;
-  //auto v = other.DIR;
-  //auto vp = v.Perp();
-  //auto w = (P0 - other.P0);
+  throw std::runtime_error("not implemented");
+  // auto u = DIR;
+  // auto v = other.DIR;
+  // auto vp = v.Perp();
+  // auto w = (P0 - other.P0);
 
-  //if (round_to(u * vp, decimal_precision) == 0.0) {
+  // if (round_to(u * vp, decimal_precision) == 0.0) {
   //  return std::nullopt;
   //}
-  //double t = (-w * vp) / (u * vp);
+  // double t = (-w * vp) / (u * vp);
 
-  //return P0 + t * u;
+  // return P0 + t * u;
 }
 
-//Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray, int decimal_precision) const {
+// Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray, int decimal_precision) const {
 //  return ray.Intersection(*this, decimal_precision);
 //}
 //
-//Line3D::ReturnSet Line3D::Intersection(LineSegment3D const& segment, int decimal_precision) const {
+// Line3D::ReturnSet Line3D::Intersection(LineSegment3D const& segment, int decimal_precision) const {
 //  return segment.Intersection(*this, decimal_precision);
 //}
 
@@ -118,8 +119,10 @@ Line3D::ReturnSet Line3D::Intersection(Line3D const& other, int decimal_precisio
 #pragma region Formatting
 
 std::string Line3D::ToWkt(int decimal_precision) const {
-  return std::format("LINE ({} {} {}, {} {} {})", round_to(P0.x(), decimal_precision), round_to(P0.y(), decimal_precision), round_to(P0.z(), decimal_precision),
-                     round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision), round_to(P1.z(), decimal_precision));
+  return std::format("LINE ({} {} {}, {} {} {})", round_to(P0.x(), decimal_precision),
+                     round_to(P0.y(), decimal_precision), round_to(P0.z(), decimal_precision),
+                     round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision),
+                     round_to(P1.z(), decimal_precision));
 }
 
 Line3D Line3D::FromWkt(std::string const& wkt) {
@@ -158,7 +161,7 @@ Line3D Line3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("numbers p2");
     }
 
-    return Make(Point3D{nums_p1[0], nums_p1[1], nums_p1[2] }, Point3D{nums_p2[0], nums_p2[1], nums_p2[2] });
+    return Make(Point3D{nums_p1[0], nums_p1[1], nums_p1[2]}, Point3D{nums_p2[0], nums_p2[1], nums_p2[2]});
 
   } catch (...) {
     std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib

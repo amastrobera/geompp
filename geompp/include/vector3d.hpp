@@ -5,7 +5,6 @@
 #include <ostream>
 #include <string>
 
-
 namespace geompp {
 
 class Point3D;
@@ -33,7 +32,7 @@ class Vector3D {
   Vector3D& operator=(Vector3D const& other);
 
   double Dot(Vector3D const& v) const;
-  double Cross(Vector3D const& v) const;
+  Vector3D Cross(Vector3D const& v) const;
   Vector3D Perp() const;
   Vector3D Normalize() const;
 

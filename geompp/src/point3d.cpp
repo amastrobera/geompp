@@ -16,7 +16,8 @@ Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
 Point3D::Point3D(Point3D const& p) : X(p.X), Y(p.Y), Z(p.Z) {}
 
 bool Point3D::AlmostEquals(Point3D const& other, int decimal_precision) const {
-  return round_to(X - other.X, decimal_precision) == 0.0 && round_to(Y - other.Y, decimal_precision) == 0.0 && round_to(Z - other.Z, decimal_precision) == 0.0;
+  return round_to(X - other.X, decimal_precision) == 0.0 && round_to(Y - other.Y, decimal_precision) == 0.0 &&
+         round_to(Z - other.Z, decimal_precision) == 0.0;
 }
 
 Vector3D Point3D::ToVector() { return {X, Y, Z}; }
@@ -160,12 +161,18 @@ Point3D Point3D::average(std::vector<Point3D> const& points) {
 
 bool operator==(Point3D const& lhs, Point3D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Point3D operator+(Point3D const& lhs, Vector3D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z() }; }
+Point3D operator+(Point3D const& lhs, Vector3D const& rhs) {
+  return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z()};
+}
 
-Vector3D operator-(Point3D const& lhs, Point3D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z() }; }
-Point3D operator-(Point3D const& lhs, Vector3D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z() }; }
+Vector3D operator-(Point3D const& lhs, Point3D const& rhs) {
+  return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z()};
+}
+Point3D operator-(Point3D const& lhs, Vector3D const& rhs) {
+  return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z()};
+}
 
-Point3D operator*(Point3D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a, lhs.z() * a }; }
+Point3D operator*(Point3D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a, lhs.z() * a}; }
 Point3D operator*(double a, Point3D const& rhs) { return rhs * a; }
 
 std::ostream& operator<<(std::ostream& os, Point3D const& g) {
@@ -178,7 +185,8 @@ std::ostream& operator<<(std::ostream& os, Point3D const& g) {
 #pragma region Formatting
 
 std::string Point3D::ToWkt(int decimal_precision) const {
-  return std::format("POINT ({} {} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision), round_to(Z, decimal_precision));
+  return std::format("POINT ({} {} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision),
+                     round_to(Z, decimal_precision));
 }
 
 Point3D Point3D::FromWkt(std::string const& wkt) {
@@ -206,7 +214,7 @@ Point3D Point3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("numbers");
     }
 
-    return {nums[0], nums[1], nums[2] };
+    return {nums[0], nums[1], nums[2]};
 
   } catch (...) {
     std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib

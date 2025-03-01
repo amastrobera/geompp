@@ -23,28 +23,29 @@ Point3D Vector3D::ToPoint() { return Point3D(X, Y, Z); }
 double Vector3D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z, 2)); }
 
 bool Vector3D::AlmostEquals(Vector3D const& other, int decimal_precision) const {
-  return round_to(X - other.X, decimal_precision) == 0 && round_to(Y - other.Y, decimal_precision) == 0 && round_to(Z - other.Z, decimal_precision) == 0;
+  return round_to(X - other.X, decimal_precision) == 0 && round_to(Y - other.Y, decimal_precision) == 0 &&
+         round_to(Z - other.Z, decimal_precision) == 0;
 }
 
 double Vector3D::Dot(Vector3D const& v) const { return (X * v.X + Y * v.Y + Z * v.Z); }
 
-double Vector3D::Cross(Vector3D const& v) const { return (Y*v.Z - Z*v.Y, Z*v.X - X*v.Z, X*v.Y - Y*v.X); }
+Vector3D Vector3D::Cross(Vector3D const& v) const { return {Y * v.Z - Z * v.Y, Z * v.X - X * v.Z, X * v.Y - Y * v.X}; }
 
-Vector3D Vector3D::Perp() const { 
-    bool is_z_biggest = round_to(Z - Y, DP_NINE) >= 0 && round_to(Z - X, DP_NINE) >= 0;
-    bool is_x_biggest = round_to(X - Y, DP_NINE) >= 0 && round_to(X - Z, DP_NINE) >= 0;
-    // bool is_y_biggest = round_to(Y - Z, DP_NINE) >= 0 && round_to(Y - X, DP_NINE) >= 0;
+Vector3D Vector3D::Perp() const {
+  bool is_z_biggest = round_to(Z - Y, DP_NINE) >= 0 && round_to(Z - X, DP_NINE) >= 0;
+  bool is_x_biggest = round_to(X - Y, DP_NINE) >= 0 && round_to(X - Z, DP_NINE) >= 0;
+  // bool is_y_biggest = round_to(Y - Z, DP_NINE) >= 0 && round_to(Y - X, DP_NINE) >= 0;
 
-    if (is_z_biggest) {
-        return { -Y, X, 0 };
-    }
+  if (is_z_biggest) {
+    return {-Y, X, 0};
+  }
 
-    if (is_x_biggest) {
-        return { 0, -Z, Y };
-    }
+  if (is_x_biggest) {
+    return {0, -Z, Y};
+  }
 
-    //if (is_y_biggest) { }
-    return { Z, 0, -X };
+  // if (is_y_biggest) { }
+  return {Z, 0, -X};
 }
 
 Vector3D Vector3D::Normalize() const {
@@ -58,13 +59,19 @@ Vector3D Vector3D::operator-() { return {-X, -Y, -Z}; }
 
 bool operator==(Vector3D const& lhs, Vector3D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Vector3D operator+(Vector3D const& lhs, Vector3D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z() }; }
+Vector3D operator+(Vector3D const& lhs, Vector3D const& rhs) {
+  return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z()};
+}
 
-Vector3D operator-(Vector3D const& lhs, Vector3D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z() }; }
+Vector3D operator-(Vector3D const& lhs, Vector3D const& rhs) {
+  return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z()};
+}
 
-Point3D operator+(Vector3D const& lhs, Point3D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z() }; }
+Point3D operator+(Vector3D const& lhs, Point3D const& rhs) {
+  return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z()};
+}
 
-Vector3D operator*(Vector3D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a, lhs.z() * a }; }
+Vector3D operator*(Vector3D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a, lhs.z() * a}; }
 
 Vector3D operator*(double a, Vector3D const& rhs) { return rhs * a; }
 
@@ -82,7 +89,8 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& g) {
 #pragma region Formatting
 
 std::string Vector3D::ToWkt(int decimal_precision) const {
-  return std::format("VECTOR ({} {} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision), round_to(Z, decimal_precision));
+  return std::format("VECTOR ({} {} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision),
+                     round_to(Z, decimal_precision));
 }
 
 Vector3D Vector3D::FromWkt(std::string const& wkt) {
@@ -110,7 +118,7 @@ Vector3D Vector3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("numbers");
     }
 
-    return {nums[0], nums[1], nums[2] };
+    return {nums[0], nums[1], nums[2]};
 
   } catch (...) {
     std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib

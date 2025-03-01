@@ -11,8 +11,8 @@
 
 namespace geompp {
 
-//class Ray3D;
-//class LineSegment3D;
+// class Ray3D;
+// class LineSegment3D;
 class Triangle3D;
 
 class Line3D {
@@ -43,12 +43,12 @@ class Line3D {
   bool Contains(Point3D const& point, int decimal_precision = DP_THREE) const;
   using ReturnSet = std::optional<std::variant<Point3D>>;
   bool Intersects(Line3D const& other, int decimal_precision = DP_THREE) const;
-  //bool Intersects(Ray3D const& ray, int decimal_precision = DP_THREE) const;
-  //bool Intersects(LineSegment3D const& segment, int decimal_precision = DP_THREE) const;
+  // bool Intersects(Ray3D const& ray, int decimal_precision = DP_THREE) const;
+  // bool Intersects(LineSegment3D const& segment, int decimal_precision = DP_THREE) const;
   bool Intersects(Triangle3D const& t, int decimal_precision = DP_THREE) const;
   ReturnSet Intersection(Line3D const& other, int decimal_precision = DP_THREE) const;
-  //ReturnSet Intersection(Ray3D const& ray, int decimal_precision = DP_THREE) const;
-  //ReturnSet Intersection(LineSegment3D const& segment, int decimal_precision = DP_THREE) const;
+  // ReturnSet Intersection(Ray3D const& ray, int decimal_precision = DP_THREE) const;
+  // ReturnSet Intersection(LineSegment3D const& segment, int decimal_precision = DP_THREE) const;
   // TODO make ReturnSet public, and write Intersection(triangle)
 #pragma endregion
 

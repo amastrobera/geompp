@@ -57,7 +57,6 @@ bool Triangle3D::AlmostEquals(Triangle3D const& other, int decimal_precision) co
 
 #pragma endregion
 
-
 #pragma region Dimentions
 
 Point3D Triangle3D::Centroid() const { return Point3D::average({P0, P1, P2}); }
@@ -66,18 +65,21 @@ Point3D Triangle3D::Centroid() const { return Point3D::average({P0, P1, P2}); }
 //  return Polygon3D::Make({P0, P1, P2}, decimal_precision);
 //}
 
-double Triangle3D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
+double Triangle3D::SignedArea() const {
+  throw std::runtime_error("not implemented");
+  // return ((P1 - P0).Cross(P2 - P0)) / 2.0;
+}
 
 double Triangle3D::Area() const { return std::abs(SignedArea()); }
 
 double Triangle3D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
 double Triangle3D::DistanceTo(Point3D const& point, int decimal_precision) const {
-    throw new std::runtime_error("not implemented");
-  //if (Contains(point, decimal_precision)) {
+  throw new std::runtime_error("not implemented");
+  // if (Contains(point, decimal_precision)) {
   //  return 0;
   //}
-  //return std::min(std::min(LineSegment3D::Make(P0, P1, decimal_precision).DistanceTo(point, decimal_precision),
+  // return std::min(std::min(LineSegment3D::Make(P0, P1, decimal_precision).DistanceTo(point, decimal_precision),
   //                         LineSegment3D::Make(P1, P2, decimal_precision).DistanceTo(point, decimal_precision)),
   //                LineSegment3D::Make(P2, P0, decimal_precision).DistanceTo(point, decimal_precision));
 }
@@ -110,26 +112,26 @@ std::ostream& operator<<(std::ostream& os, Triangle3D const& g) {
 #pragma region Geometrical Operations
 
 std::tuple<double, double> Triangle3D::Location(Point3D const& point, int decimal_precision) const {
-    throw std::runtime_error("not implemented");
-  //auto u = (P1 - P0);
-  //auto v = (P2 - P0);
-  //auto w = (point - P0);
+  throw std::runtime_error("not implemented");
+  // auto u = (P1 - P0);
+  // auto v = (P2 - P0);
+  // auto w = (point - P0);
 
-  //auto up = u.Perp();
-  //auto vp = v.Perp();
+  // auto up = u.Perp();
+  // auto vp = v.Perp();
 
-  //double s = w.Dot(vp) / u.Dot(vp);
-  //double t = w.Dot(up) / v.Dot(up);
+  // double s = w.Dot(vp) / u.Dot(vp);
+  // double t = w.Dot(up) / v.Dot(up);
 
-  //return {s, t};
+  // return {s, t};
 }
 
 bool Triangle3D::Contains(Point3D const& point, int decimal_precision) const {
-    throw new std::runtime_error("not implemented");
-    
-    /*auto loc = Location(point, decimal_precision);
+  throw new std::runtime_error("not implemented");
 
-  return within_axis_boundary(std::get<0>(loc), std::get<1>(loc), decimal_precision);*/
+  /*auto loc = Location(point, decimal_precision);
+
+return within_axis_boundary(std::get<0>(loc), std::get<1>(loc), decimal_precision);*/
 }
 
 bool Triangle3D::Intersects(Line3D const& line, int decimal_precision) const {
@@ -145,7 +147,7 @@ bool Triangle3D::Intersects(Line3D const& line, int decimal_precision) const {
 // }
 
 Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line, int decimal_precision) const {
-    throw std::runtime_error("not implemented");
+  throw std::runtime_error("not implemented");
 }
 
 // LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray, int decimal_precision) const {

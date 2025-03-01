@@ -13,10 +13,10 @@
 namespace geompp {
 
 class Line3D;
-//class Ray3D;
-//class LineSegment3D;
-//class Polyline3D;
-//class Polygon3D;
+// class Ray3D;
+// class LineSegment3D;
+// class Polyline3D;
+// class Polygon3D;
 
 class Triangle3D {
  public:
@@ -29,7 +29,7 @@ class Triangle3D {
 
   bool AlmostEquals(Triangle3D const& other, int decimal_precision = DP_THREE) const;
   Point3D Centroid() const;
-  //Polygon3D ToPolygon(int decimal_precision = DP_THREE) const;  // useful for ToWkt() polygon
+  // Polygon3D ToPolygon(int decimal_precision = DP_THREE) const;  // useful for ToWkt() polygon
   double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
   double Area() const;
   double Perimeter() const;
@@ -50,10 +50,11 @@ class Triangle3D {
 #pragma region Geometrical Operations
   bool Contains(Point3D const& point, int decimal_precision = DP_THREE) const;
   using ReturnSet = std::optional<std::variant<Point3D
-                                //, LineSegment3D
-                                , Triangle3D
-                                //, Polygon3D
-                                >>;
+                                               //, LineSegment3D
+                                               ,
+                                               Triangle3D
+                                               //, Polygon3D
+                                               >>;
   bool Intersects(Line3D const& line, int decimal_precision = DP_THREE) const;
   // bool Intersects(Ray3D const& ray, int decimal_precision = DP_THREE) const;
   // bool Intersects(LineSegment3D const& segment, int decimal_precision = DP_THREE) const;
