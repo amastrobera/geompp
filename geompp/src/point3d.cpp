@@ -35,7 +35,11 @@ Point3D& Point3D::operator=(Point3D const& other) {
 
 #pragma region Collection Operations
 
-std::vector<Point3D> Point3D::remove_duplicates(std::vector<Point3D> const& points, int decimal_precision) {
+bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3, int decimal_precision) {
+  return round_to((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize()), decimal_precision) == 0;
+}
+
+std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int decimal_precision) {
   if (points.size() == 0) {
     return points;
   }
@@ -63,7 +67,7 @@ std::vector<Point3D> Point3D::remove_duplicates(std::vector<Point3D> const& poin
   return unique_points;
 }
 
-std::vector<Point3D> Point3D::remove_collinear(std::vector<Point3D> const& points, int decimal_precision) {
+std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points, int decimal_precision) {
   if (points.size() < 3) {
     return points;
   }
@@ -81,10 +85,9 @@ std::vector<Point3D> Point3D::remove_collinear(std::vector<Point3D> const& point
       continue;
     }
 
-    auto u = (points[i2] - points[i1]);
-    auto v = (points[i3] - points[i1]);
-
-    if (round_to(u.Perp().Dot(v), decimal_precision) == 0) {  // test of collinearity
+    if (are_collinear(points[i1], points[i2], points[i3], decimal_precision)) {  // test of collinearity
+      auto u = (points[i2] - points[i1]);
+      auto v = (points[i3] - points[i1]);
       if (round_to(u.Dot(v), decimal_precision) >=
           0) {  // same direction, pick the farthest point in the U-vector's direction
         if (round_to(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2]), decimal_precision) >= 0) {
@@ -121,7 +124,7 @@ std::vector<Point3D> Point3D::remove_collinear(std::vector<Point3D> const& point
   return unique_points;
 }
 
-Point3D Point3D::linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights) {
+Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights) {
   int n = points.size();
   if (n == 0) {
     throw std::runtime_error("average of zero points");
@@ -141,7 +144,7 @@ Point3D Point3D::linear_combination(std::vector<Point3D> const& points, std::vec
   return {x, y, z};
 }
 
-Point3D Point3D::average(std::vector<Point3D> const& points) {
+Point3D average(std::vector<Point3D> const& points) {
   int n = points.size();
   if (n == 0) {
     throw std::runtime_error("average of zero points");

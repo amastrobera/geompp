@@ -33,21 +33,23 @@ class Point2D {
 
   static inline Point2D Origin() { return Point2D(); }
 
-#pragma region Collection Operations
-
-  static std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
-
-  static std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
-
-  static Point2D linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights);
-
-  static Point2D average(std::vector<Point2D> const& points);
-
-#pragma endregion
-
  private:
   double X, Y;
 };
+
+#pragma region Collection Operations
+
+bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3, int decimal_precision = DP_THREE);
+
+std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
+
+std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
+
+Point2D linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights);
+
+Point2D average(std::vector<Point2D> const& points);
+
+#pragma endregion
 
 #pragma region Operators Overloading
 

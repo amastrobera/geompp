@@ -34,21 +34,23 @@ class Point3D {
 
   static inline Point3D Origin() { return Point3D(); }
 
-#pragma region Collection Operations
-
-  static std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
-
-  static std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
-
-  static Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights);
-
-  static Point3D average(std::vector<Point3D> const& points);
-
-#pragma endregion
-
  private:
   double X, Y, Z;
 };
+
+#pragma region Collection Operations
+
+bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3, int decimal_precision = DP_THREE);
+
+std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
+
+std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
+
+Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights);
+
+Point3D average(std::vector<Point3D> const& points);
+
+#pragma endregion
 
 #pragma region Operators Overloading
 

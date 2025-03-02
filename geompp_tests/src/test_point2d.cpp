@@ -116,7 +116,7 @@ TEST(Point2D, RemoveDuplicates) {
   // clang-format on
   ASSERT_EQ(9, pts.size());
 
-  auto unique_pts = g::Point2D::remove_duplicates(pts);
+  auto unique_pts = g::remove_duplicates(pts);
 
   ASSERT_EQ(5, unique_pts.size());
   ASSERT_EQ(g::Point2D(0, 0), unique_pts[0]);
@@ -145,7 +145,7 @@ TEST(Point2D, RemoveCollinear) {
 
   ASSERT_EQ(12, pts.size());
 
-  auto unique_pts = g::Point2D::remove_collinear(pts);
+  auto unique_pts = g::remove_collinear(pts);
 
   ASSERT_EQ(g::Point2D(0, 0), unique_pts[0]);
   ASSERT_EQ(g::Point2D(2, 0), unique_pts[1]);
@@ -167,7 +167,7 @@ TEST(Point2D, Average) {
                               g::Point2D(0, 1)
                               };
   // clang-format on
-  ASSERT_EQ(g::Point2D(3.0 / pts.size(), -5.0 / pts.size()), g::Point2D::average(pts));
+  ASSERT_EQ(g::Point2D(3.0 / pts.size(), -5.0 / pts.size()), g::average(pts));
 }
 
 }  // namespace geompp_tests

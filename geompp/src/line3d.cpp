@@ -73,14 +73,11 @@ std::ostream& operator<<(std::ostream& os, Line3D const& g) {
 #pragma region Geometrical Operations
 
 bool Line3D::Contains(Point3D const& point, int decimal_precision) const {
-  throw std::runtime_error("not implemented");
-  // return round_to((point - P0).Cross(DIR), decimal_precision) == 0.0;
+  return round_to(DIR.Perp().Dot((point - P0)), decimal_precision) == 0.0;
 }
 
 bool Line3D::Intersects(Line3D const& other, int decimal_precision) const {
-  throw std::runtime_error("not implemented");
-
-  // return round_to(DIR.Cross(other.DIR), decimal_precision) != 0.0;
+  return Intersection(other, decimal_precision).has_value();
 }
 
 // bool Line3D::Intersects(Ray3D const& ray, int decimal_precision) const {
@@ -92,18 +89,17 @@ bool Line3D::Intersects(Line3D const& other, int decimal_precision) const {
 //}
 
 Line3D::ReturnSet Line3D::Intersection(Line3D const& other, int decimal_precision) const {
-  throw std::runtime_error("not implemented");
-  // auto u = DIR;
-  // auto v = other.DIR;
-  // auto vp = v.Perp();
-  // auto w = (P0 - other.P0);
+  auto u = DIR;
+  auto v = other.DIR;
+  auto vp = v.Perp();
+  auto w = (P0 - other.P0);
 
-  // if (round_to(u * vp, decimal_precision) == 0.0) {
-  //  return std::nullopt;
-  //}
-  // double t = (-w * vp) / (u * vp);
+  if (round_to(u * vp, decimal_precision) == 0.0) {
+    return std::nullopt;
+  }
+  double t = (-w * vp) / (u * vp);
 
-  // return P0 + t * u;
+  return P0 + t * u;
 }
 
 // Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray, int decimal_precision) const {

@@ -61,11 +61,11 @@ TEST(Triangle2D, Contains) {
   ASSERT_FALSE(t.Contains(c + 2 * (std::get<2>(points) - c)));
 
   // outside (ahead of segments)
-  ASSERT_FALSE(t.Contains(g::Point2D::average({std::get<0>(points), std::get<1>(points)}) -
+  ASSERT_FALSE(t.Contains(g::average({std::get<0>(points), std::get<1>(points)}) -
                           (std::get<1>(points) - std::get<0>(points)).Perp().Normalize()));
-  ASSERT_FALSE(t.Contains(g::Point2D::average({std::get<1>(points), std::get<2>(points)}) -
+  ASSERT_FALSE(t.Contains(g::average({std::get<1>(points), std::get<2>(points)}) -
                           (std::get<2>(points) - std::get<1>(points)).Perp().Normalize()));
-  ASSERT_FALSE(t.Contains(g::Point2D::average({std::get<2>(points), std::get<0>(points)}) -
+  ASSERT_FALSE(t.Contains(g::average({std::get<2>(points), std::get<0>(points)}) -
                           (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
 }
 
@@ -125,19 +125,19 @@ TEST(Triangle2D, DistanceTo) {
   ASSERT_EQ(0, t.DistanceTo(t.Centroid(), prec));
 
   // on line
-  ASSERT_EQ(0, t.DistanceTo(g::Point2D::average({std::get<0>(points), std::get<1>(points)}), prec));
-  ASSERT_EQ(0, t.DistanceTo(g::Point2D::average({std::get<1>(points), std::get<2>(points)}), prec));
-  ASSERT_EQ(0, t.DistanceTo(g::Point2D::average({std::get<2>(points), std::get<0>(points)}), prec));
+  ASSERT_EQ(0, t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}), prec));
+  ASSERT_EQ(0, t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}), prec));
+  ASSERT_EQ(0, t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}), prec));
 
   // outside (ahead of segments)
-  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D::average({std::get<0>(points), std::get<1>(points)}) -
+  ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}) -
                                   (std::get<1>(points) - std::get<0>(points)).Perp().Normalize(),
                               prec));
 
-  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D::average({std::get<1>(points), std::get<2>(points)}) -
+  ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}) -
                                   (std::get<2>(points) - std::get<1>(points)).Perp().Normalize(),
                               prec));
-  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D::average({std::get<2>(points), std::get<0>(points)}) -
+  ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}) -
                                   (std::get<0>(points) - std::get<2>(points)).Perp().Normalize(),
                               prec));
 

@@ -27,6 +27,7 @@ class Polyline2D {
   ~Polyline2D() = default;
 
   inline int Size() const { return KNOTS.size(); }
+  Point2D const& operator[](size_t i) const;
   // TODO: it would be nice to have a "generator" with coroutines that "yields" point by point
 
   bool AlmostEquals(Polyline2D const& other, int decimal_precision = DP_THREE) const;

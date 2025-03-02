@@ -31,7 +31,7 @@ static bool within_axis_boundary(double s, double t, int decimal_precision = DP_
 #pragma region Constructors
 
 Triangle3D Triangle3D::Make(Point3D const& p0, Point3D const& p1, Point3D const& p2, int decimal_precision) {
-  auto unique_points = Point3D::remove_duplicates({p0, p1, p2}, decimal_precision);
+  auto unique_points = remove_duplicates({p0, p1, p2}, decimal_precision);
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
@@ -59,7 +59,7 @@ bool Triangle3D::AlmostEquals(Triangle3D const& other, int decimal_precision) co
 
 #pragma region Dimentions
 
-Point3D Triangle3D::Centroid() const { return Point3D::average({P0, P1, P2}); }
+Point3D Triangle3D::Centroid() const { return average({P0, P1, P2}); }
 
 ////Polygon3D Triangle3D::ToPolygon(int decimal_precision) const {
 //  return Polygon3D::Make({P0, P1, P2}, decimal_precision);
@@ -93,7 +93,7 @@ std::optional<Point3D> Triangle3D::Interpolate(double s, double t, int decimal_p
     return std::nullopt;
   }
 
-  return Point3D::linear_combination({P0, P1, P2}, {1 - s - t, s, t});
+  return linear_combination({P0, P1, P2}, {1 - s - t, s, t});
 }
 
 #pragma endregion

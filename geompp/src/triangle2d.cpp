@@ -31,7 +31,7 @@ static bool within_axis_boundary(double s, double t, int decimal_precision = DP_
 #pragma region Constructors
 
 Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const& p2, int decimal_precision) {
-  auto unique_points = Point2D::remove_duplicates({p0, p1, p2}, decimal_precision);
+  auto unique_points = remove_duplicates({p0, p1, p2}, decimal_precision);
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
@@ -55,7 +55,7 @@ bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) co
          P2.AlmostEquals(other.P2, decimal_precision);
 }
 
-Point2D Triangle2D::Centroid() const { return Point2D::average({P0, P1, P2}); }
+Point2D Triangle2D::Centroid() const { return average({P0, P1, P2}); }
 
 Polygon2D Triangle2D::ToPolygon(int decimal_precision) const {
   return Polygon2D::Make({P0, P1, P2}, decimal_precision);
@@ -85,7 +85,7 @@ std::optional<Point2D> Triangle2D::Interpolate(double s, double t, int decimal_p
     return std::nullopt;
   }
 
-  return Point2D::linear_combination({P0, P1, P2}, {1 - s - t, s, t});
+  return linear_combination({P0, P1, P2}, {1 - s - t, s, t});
 }
 
 // #pragma endregion
@@ -152,7 +152,7 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_p
     return std::nullopt;
   }
 
-  intersection_points = Point2D::remove_duplicates(intersection_points, decimal_precision);
+  intersection_points = remove_duplicates(intersection_points, decimal_precision);
 
   if (intersection_points.size() == 1) {
     return intersection_points[0];

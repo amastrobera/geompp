@@ -17,7 +17,7 @@ namespace geompp {
 #pragma region Constructors
 
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, int decimal_precision) {
-  auto unique_points = Point2D::remove_duplicates(points, decimal_precision);
+  auto unique_points = remove_duplicates(points, decimal_precision);
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format("points  are too close with {} decimals precision", decimal_precision));
@@ -103,6 +103,13 @@ bool Polygon2D::AlmostEquals(Polygon2D const& other, int decimal_precision) cons
 #pragma region Operator Overloading
 
 bool operator==(Polygon2D const& lhs, Polygon2D const& rhs) { return lhs.AlmostEquals(rhs); }
+
+Point2D const& Polygon2D::operator[](int i) const {
+  if (i >= Size()) {
+    throw std::out_of_range("Index out of range");
+  }
+  return VERTICES[i];
+}
 
 std::ostream& operator<<(std::ostream& os, Polygon2D const& g) {
   os << g.ToWkt();

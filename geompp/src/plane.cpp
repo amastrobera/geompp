@@ -61,12 +61,16 @@ Plane& Plane::operator=(Plane const& other) {
 
 #pragma region Geometrical Operations
 
-double Plane::DistanceTo(Point3D const& p, int decimal_precision) const {
+double Plane::SignedDistanceTo(Point3D const& p, int decimal_precision) const {
   return round_to((p - Origin).Dot(Normal), decimal_precision);
 }
 
+double Plane::DistanceTo(Point3D const& p, int decimal_precision) const {
+  return std::abs(SignedDistanceTo(p, decimal_precision));
+}
+
 Point3D Plane::ProjectOnto(Point3D const& p, int decimal_precision) const {
-  return p - DistanceTo(p, decimal_precision) * Normal;
+  return p - SignedDistanceTo(p, decimal_precision) * Normal;
 }
 
 Point2D Plane::ProjectInto(Point3D const& p, int decimal_precision) const {

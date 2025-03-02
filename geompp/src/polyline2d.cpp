@@ -24,8 +24,7 @@ namespace geompp {
 Polyline2D::Polyline2D(std::vector<Point2D>&& points) : KNOTS{std::move(points)} {}
 
 Polyline2D Polyline2D::Make(std::vector<Point2D> const& points, int decimal_precision) {
-  auto unique_points =
-      Point2D::remove_collinear(Point2D::remove_duplicates(points, decimal_precision), decimal_precision);
+  auto unique_points = remove_collinear(remove_duplicates(points, decimal_precision), decimal_precision);
 
   if (unique_points.size() < 2) {
     throw std::runtime_error("cannot built polyline with less than 2 unique non-collinear consecutive points");
@@ -146,6 +145,13 @@ double Polyline2D::DistanceTo(Point2D const& point, int decimal_precision) const
 #pragma region Operator Overloading
 
 bool operator==(Polyline2D const& lhs, Polyline2D const& rhs) { return lhs.AlmostEquals(rhs); }
+
+Point2D const& Polyline2D::operator[](size_t i) const {
+  if (i >= Size()) {
+    throw std::out_of_range("Index out of range");
+  }
+  return KNOTS[i];
+}
 
 std::ostream& operator<<(std::ostream& os, Polyline2D const& g) {
   os << g.ToWkt();

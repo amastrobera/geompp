@@ -21,12 +21,8 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Plane, Constructor) {
-}
+TEST(Plane, Constructor) {}
 
-TEST(Plane, IntersectionWLine) {
-
-
-}
+TEST(Plane, IntersectionWLine) {}
 
 }  // namespace geompp_tests

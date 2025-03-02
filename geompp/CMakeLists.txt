@@ -23,12 +23,16 @@ add_library(${PROJECT_NAME}
     src/polyline2d.cpp
     src/triangle2d.cpp
     src/polygon2d.cpp
+    src/bbox2d.cpp
 
     src/point3d.cpp
     src/vector3d.cpp
     src/line3d.cpp
+    src/line_segment3d.cpp
+    src/ray3d.cpp 
     src/plane.cpp
     src/triangle3d.cpp
+    src/bbox3d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

@@ -33,6 +33,7 @@ class Plane {
   Plane& operator=(Plane const& other);
 
 #pragma region Geometrial Operations
+  double SignedDistanceTo(Point3D const& p, int decimal_precision = DP_THREE) const;
   double DistanceTo(Point3D const& p, int decimal_precision = DP_THREE) const;
   Point3D ProjectOnto(Point3D const& p, int decimal_precision = DP_THREE) const;
   Point2D ProjectInto(Point3D const& p, int decimal_precision = DP_THREE) const;

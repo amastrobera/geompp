@@ -5,7 +5,6 @@
 #include <ostream>
 #include <string>
 
-
 namespace geompp {
 
 class Point2D;

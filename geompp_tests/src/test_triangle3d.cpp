@@ -164,7 +164,7 @@ TEST(Triangle3D, Constructor) {
 ////  ASSERT_EQ(c, tri.Interpolate(std::get<0>(loc), std::get<1>(loc), prec));
 ////}
 //
-//TEST(Triangle3D, IntersectionWLine) {
+// TEST(Triangle3D, IntersectionWLine) {
 //  int prec = 4;
 //  auto tri = g::Triangle3D::FromWkt("TRIANGLE (0 -1, 1 1, -1 1)");
 //

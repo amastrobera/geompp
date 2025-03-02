@@ -10,7 +10,6 @@
 #include <tuple>
 #include <variant>
 
-
 namespace geompp {
 
 class Line2D;
@@ -27,7 +26,7 @@ class Polygon2D {
   ~Polygon2D() = default;
 
   inline std::size_t Size() const { return VERTICES.size(); }
-  inline Point2D const operator[](int i) const { return VERTICES[i]; }
+  Point2D const& operator[](int i) const;
 
   bool AlmostEquals(Polygon2D const& other, int decimal_precision = DP_THREE) const;
   // Point2D Centroid() const;
