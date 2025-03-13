@@ -44,6 +44,7 @@ if [[ "${image}" == "Windows" ]]; then
         --publish 3232:3232 \
         --interactive \
         --tty \
+        --privileged \
         --env DISPLAY=$DISPLAY \
         --volume /tmp/.X11-unix:/tmp/.X11-unix \
         --entrypoint /bin/bash \

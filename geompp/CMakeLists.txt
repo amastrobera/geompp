@@ -29,9 +29,11 @@ add_library(${PROJECT_NAME}
     src/vector3d.cpp
     src/line3d.cpp
     src/line_segment3d.cpp
+    src/polyline3d.cpp
     src/ray3d.cpp 
     src/plane.cpp
     src/triangle3d.cpp
+    src/polygon3d.cpp
     src/bbox3d.cpp
 )
 
