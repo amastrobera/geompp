@@ -20,23 +20,23 @@ namespace geompp {
 
 namespace {
 
-static bool within_axis_boundary(double s, double t, int decimal_precision = DP_THREE) {
-  return (round_to(s, decimal_precision) >= 0.0 && round_to(s - 1.0, decimal_precision) <= 0.0) &&
-         (round_to(t, decimal_precision) >= 0.0 && round_to(t - 1.0, decimal_precision) <= 0.0 &&
-          round_to(s + t - 1.0, decimal_precision) <= 0.0);  // including borders
+static bool within_axis_boundary(double s, double t) {
+  return (round(s) >= 0.0 && round(s - 1.0) <= 0.0) &&
+         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 &&
+          round(s + t - 1.0) <= 0.0);  // including borders
 }
 
 }  // namespace
 
 #pragma region Constructors
 
-Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const& p2, int decimal_precision) {
-  auto unique_points = remove_duplicates({p0, p1, p2}, decimal_precision);
+Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const& p2) {
+  auto unique_points = remove_duplicates({p0, p1, p2});
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
-                                         p0.ToWkt(decimal_precision), p1.ToWkt(decimal_precision),
-                                         p2.ToWkt(decimal_precision), decimal_precision));
+    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision", DECIMAL_PRECISION,
+                                         p0.ToWkt(), p1.ToWkt(),
+                                         p2.ToWkt()));
   }
   return {p0, p1, p2};
 }
@@ -50,15 +50,15 @@ Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
   return *this;
 }
 
-bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
-         P2.AlmostEquals(other.P2, decimal_precision);
+bool Triangle2D::AlmostEquals(Triangle2D const& other) const {
+  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1) &&
+         P2.AlmostEquals(other.P2);
 }
 
 Point2D Triangle2D::Centroid() const { return average({P0, P1, P2}); }
 
-Polygon2D Triangle2D::ToPolygon(int decimal_precision) const {
-  return Polygon2D::Make({P0, P1, P2}, decimal_precision);
+Polygon2D Triangle2D::ToPolygon() const {
+  return Polygon2D::Make({P0, P1, P2});
 }
 
 double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
@@ -67,19 +67,19 @@ double Triangle2D::Area() const { return std::abs(SignedArea()); }
 
 double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
-double Triangle2D::DistanceTo(Point2D const& point, int decimal_precision) const {
-  if (Contains(point, decimal_precision)) {
+double Triangle2D::DistanceTo(Point2D const& point) const {
+  if (Contains(point)) {
     return 0;
   }
-  return std::min(std::min(LineSegment2D::Make(P0, P1, decimal_precision).DistanceTo(point, decimal_precision),
-                           LineSegment2D::Make(P1, P2, decimal_precision).DistanceTo(point, decimal_precision)),
-                  LineSegment2D::Make(P2, P0, decimal_precision).DistanceTo(point, decimal_precision));
+  return std::min(std::min(LineSegment2D::Make(P0, P1).DistanceTo(point),
+                           LineSegment2D::Make(P1, P2).DistanceTo(point)),
+                  LineSegment2D::Make(P2, P0).DistanceTo(point));
 }
 
 std::tuple<Vector2D, Vector2D> Triangle2D::ToAxis() const { return {P1 - P0, P2 - P0}; }
 
-std::optional<Point2D> Triangle2D::Interpolate(double s, double t, int decimal_precision) const {
-  if (!within_axis_boundary(s, t, decimal_precision)) {
+std::optional<Point2D> Triangle2D::Interpolate(double s, double t) const {
+  if (!within_axis_boundary(s, t)) {
     std::cerr << "(s, t) = (" << s << ", " << t << ") are not within boundaries [0, 1]"
               << std::endl;  // TODO: log warning
     return std::nullopt;
@@ -103,7 +103,7 @@ std::ostream& operator<<(std::ostream& os, Triangle2D const& g) {
 
 // #pragma region Geometrical Operations
 
-std::tuple<double, double> Triangle2D::Location(Point2D const& point, int decimal_precision) const {
+std::tuple<double, double> Triangle2D::Location(Point2D const& point) const {
   auto u = (P1 - P0);
   auto v = (P2 - P0);
   auto w = (point - P0);
@@ -117,30 +117,30 @@ std::tuple<double, double> Triangle2D::Location(Point2D const& point, int decima
   return {s, t};
 }
 
-bool Triangle2D::Contains(Point2D const& point, int decimal_precision) const {
-  auto loc = Location(point, decimal_precision);
+bool Triangle2D::Contains(Point2D const& point) const {
+  auto loc = Location(point);
 
-  return within_axis_boundary(std::get<0>(loc), std::get<1>(loc), decimal_precision);
+  return within_axis_boundary(std::get<0>(loc), std::get<1>(loc));
 }
 
-bool Triangle2D::Intersects(Line2D const& line, int decimal_precision) const {
-  return Intersection(line, decimal_precision).has_value();
+bool Triangle2D::Intersects(Line2D const& line) const {
+  return Intersection(line).has_value();
 }
 
-// bool LineSegment2D::Intersects(Ray2D const& ray, int decimal_precision) const {
-//   return Intersection(ray, decimal_precision).has_value();
+// bool LineSegment2D::Intersects(Ray2D const& ray) const {
+//   return Intersection(ray).has_value();
 // }
 
-// bool LineSegment2D::Intersects(LineSegment2D const& other, int decimal_precision) const {
-//   return Intersection(other, decimal_precision).has_value();
+// bool LineSegment2D::Intersects(LineSegment2D const& other) const {
+//   return Intersection(other).has_value();
 // }
 
-Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_precision) const {
+Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto intersections =
-      std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1, decimal_precision),
-                                 LineSegment2D::Make(P1, P2, decimal_precision),
-                                 LineSegment2D::Make(P2, P0, decimal_precision)} |
-      std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line, decimal_precision); }) |
+      std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1),
+                                 LineSegment2D::Make(P1, P2),
+                                 LineSegment2D::Make(P2, P0)} |
+      std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line); }) |
       std::views::filter([](LineSegment2D::ReturnSet const& res) {
         return res.has_value() && std::holds_alternative<Point2D>(*res);
       }) |
@@ -152,7 +152,7 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_p
     return std::nullopt;
   }
 
-  intersection_points = remove_duplicates(intersection_points, decimal_precision);
+  intersection_points = remove_duplicates(intersection_points);
 
   if (intersection_points.size() == 1) {
     return intersection_points[0];
@@ -160,14 +160,14 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_p
 
   // TODO: this makes a stupid error "unknown file: error: SEH exception with code 0xc00000fd thrown in the test body."
   // std::ranges::sort(intersection_points, [&](Point2D const& a, Point2D const& b) {
-  //  return round_to(line.Location(a, decimal_precision) - line.Location(b, decimal_precision),
+  //  return round(line.Location(a) - line.Location(b),
   //                  decimal_precision) < 0.0;
   //});
 
-  return LineSegment2D::Make(intersection_points[0], intersection_points[1], decimal_precision);
+  return LineSegment2D::Make(intersection_points[0], intersection_points[1]);
 }
 
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray, int decimal_precision) const {
+// LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
 //   auto u = P1 - P0;
 //   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = ray.Direction();
@@ -175,29 +175,29 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_p
 //   auto w = (P0 - ray.Origin());
 
 //   // testing on this ray
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
+//   if (round(u * vp) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t, decimal_precision)) {
+//   if (!Contains(inter_t)) {
 //     return std::nullopt;
 //   }
 
 //   // testing on the other ray
-//   if (round_to(v * up, decimal_precision) == 0.0) {
+//   if (round(v * up) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
 //   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s, decimal_precision)) {
+//   if (!ray.IsAhead(inter_s)) {
 //     return std::nullopt;
 //   }
 
 //   return inter_t;
 // }
 
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other, int decimal_precision) const {
+// LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
 //   auto u = P1 - P0;
 //   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = (other.P1 - other.P0);
@@ -205,22 +205,22 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_p
 //   auto w = (P0 - other.P0);
 
 //   // testing on this ray
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
+//   if (round(u * vp) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t, decimal_precision)) {
+//   if (!Contains(inter_t)) {
 //     return std::nullopt;
 //   }
 
 //   // testing on the other ray
-//   if (round_to(v * up, decimal_precision) == 0.0) {
+//   if (round(v * up) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
 //   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s, decimal_precision)) {
+//   if (!other.Contains(inter_s)) {
 //     return std::nullopt;
 //   }
 
@@ -231,12 +231,12 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line, int decimal_p
 
 // #pragma region Formatting
 
-std::string Triangle2D::ToWkt(int decimal_precision) const {
+std::string Triangle2D::ToWkt() const {
   // clang-format off
   return std::format("TRIANGLE ({} {}, {} {}, {} {})", 
-                     round_to(P0.x(), decimal_precision), round_to(P0.y(), decimal_precision), 
-                     round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision),
-                     round_to(P2.x(), decimal_precision), round_to(P2.y(), decimal_precision)
+                     round(P0.x()), round(P0.y()), 
+                     round(P1.x()), round(P1.y()),
+                     round(P2.x()), round(P2.y())
                      );
   // clang-format on
 }
@@ -290,7 +290,7 @@ Triangle2D Triangle2D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("initialized with n != 3 points");
     }
 
-    return Make(pt_vec[0], pt_vec[1], pt_vec[2], decimal_precision);
+    return Make(pt_vec[0], pt_vec[1], pt_vec[2]);
 
   } catch (...) {
     std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
@@ -299,9 +299,9 @@ Triangle2D Triangle2D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Triangle2D::ToFile(std::string const& path, int decimal_precision) const {
+void Triangle2D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

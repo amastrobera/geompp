@@ -22,9 +22,9 @@ Point3D Vector3D::ToPoint() { return Point3D(X, Y, Z); }
 
 double Vector3D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z, 2)); }
 
-bool Vector3D::AlmostEquals(Vector3D const& other, int decimal_precision) const {
-  return round_to(X - other.X, decimal_precision) == 0 && round_to(Y - other.Y, decimal_precision) == 0 &&
-         round_to(Z - other.Z, decimal_precision) == 0;
+bool Vector3D::AlmostEquals(Vector3D const& other) const {
+  return round(X - other.X) == 0 && round(Y - other.Y) == 0 &&
+         round(Z - other.Z) == 0;
 }
 
 double Vector3D::Dot(Vector3D const& v) const { return (X * v.X + Y * v.Y + Z * v.Z); }
@@ -32,9 +32,9 @@ double Vector3D::Dot(Vector3D const& v) const { return (X * v.X + Y * v.Y + Z * 
 Vector3D Vector3D::Cross(Vector3D const& v) const { return {Y * v.Z - Z * v.Y, Z * v.X - X * v.Z, X * v.Y - Y * v.X}; }
 
 Vector3D Vector3D::Perp() const {
-  bool is_z_biggest = round_to(Z - Y, DP_NINE) >= 0 && round_to(Z - X, DP_NINE) >= 0;
-  bool is_x_biggest = round_to(X - Y, DP_NINE) >= 0 && round_to(X - Z, DP_NINE) >= 0;
-  // bool is_y_biggest = round_to(Y - Z, DP_NINE) >= 0 && round_to(Y - X, DP_NINE) >= 0;
+  bool is_z_biggest = round(Z - Y) >= 0 && round(Z - X) >= 0;
+  bool is_x_biggest = round(X - Y) >= 0 && round(X - Z) >= 0;
+  // bool is_y_biggest = round(Y - Z) >= 0 && round(Y - X) >= 0;
 
   if (is_z_biggest) {
     return {-Y, X, 0};
@@ -88,9 +88,9 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& g) {
 
 #pragma region Formatting
 
-std::string Vector3D::ToWkt(int decimal_precision) const {
-  return std::format("VECTOR ({} {} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision),
-                     round_to(Z, decimal_precision));
+std::string Vector3D::ToWkt() const {
+  return std::format("VECTOR ({} {} {})", round(X), round(Y),
+                     round(Z));
 }
 
 Vector3D Vector3D::FromWkt(std::string const& wkt) {
@@ -127,9 +127,9 @@ Vector3D Vector3D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Vector3D::ToFile(std::string const& path, int decimal_precision) const {
+void Vector3D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

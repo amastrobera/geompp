@@ -8,9 +8,9 @@
 
 namespace geompp {
 
-double round_to(double x, int decimal_precision = 0);
+double round(double x, int precision = DECIMAL_PRECISION);
 
-int sign(double x, int decimal_precision = DP_THREE);
+int sign(double x);
 
 std::string trim(std::string s);
 

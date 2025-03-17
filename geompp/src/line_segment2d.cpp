@@ -14,10 +14,10 @@ namespace geompp {
 
 #pragma region Constructors
 
-LineSegment2D LineSegment2D::Make(Point2D const& p0, Point2D const& p1, int decimal_precision) {
-  if (p0.AlmostEquals(p1, decimal_precision)) {
-    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision",
-                                         p0.ToWkt(decimal_precision), p1.ToWkt(decimal_precision), decimal_precision));
+LineSegment2D LineSegment2D::Make(Point2D const& p0, Point2D const& p1) {
+  if (p0.AlmostEquals(p1)) {
+    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", DECIMAL_PRECISION,
+                                         p0.ToWkt(), p1.ToWkt()));
   }
   return {p0, p1};
 }
@@ -33,46 +33,46 @@ LineSegment2D& LineSegment2D::operator=(LineSegment2D const& other) {
 
 double LineSegment2D::Length() const { return (P1 - P0).Length(); }
 
-bool LineSegment2D::AlmostEquals(LineSegment2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+bool LineSegment2D::AlmostEquals(LineSegment2D const& other) const {
+  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1);
 }
 
-Line2D LineSegment2D::ToLine(int decimal_precision) const { return Line2D::Make(P0, P1, decimal_precision); }
+Line2D LineSegment2D::ToLine() const { return Line2D::Make(P0, P1); }
 
-double LineSegment2D::Location(Point2D const& point, int decimal_precision) const {
-  if (!ToLine().Contains(point, decimal_precision)) {
+double LineSegment2D::Location(Point2D const& point) const {
+  if (!ToLine().Contains(point)) {
     return std::numeric_limits<double>::infinity();
   }
-  return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length() / Length();
+  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length() / Length();
 }
 
 Point2D LineSegment2D::Interpolate(double pct) const {
   // the point is behind the polyline
-  if (round_to(pct, DP_NINE) < 0.0) {
+  if (round(pct) < 0.0) {
     return P0;
   }
 
   // the point is beyond the polyline
-  if (round_to(pct, DP_NINE) > 1.0) {
+  if (round(pct) > 1.0) {
     return P1;
   }
 
   return P0 + pct * (P1 - P0);
 }
 
-double LineSegment2D::DistanceTo(Point2D const& point, int decimal_precision) const {
-  auto line_eqv = ToLine(decimal_precision);
-  auto proj = line_eqv.ProjectOnto(point, decimal_precision);
-  double loc = Location(proj, decimal_precision);
+double LineSegment2D::DistanceTo(Point2D const& point) const {
+  auto line_eqv = ToLine();
+  auto proj = line_eqv.ProjectOnto(point);
+  double loc = Location(proj);
 
-  if (round_to(loc, decimal_precision) < 0.0) {
-    return P0.DistanceTo(point, decimal_precision);
+  if (round(loc) < 0.0) {
+    return P0.DistanceTo(point);
 
-  } else if (round_to(loc - 1.0, decimal_precision) > 0.0) {
-    return P1.DistanceTo(point, decimal_precision);
+  } else if (round(loc - 1.0) > 0.0) {
+    return P1.DistanceTo(point);
   }
 
-  return line_eqv.DistanceTo(point, decimal_precision);
+  return line_eqv.DistanceTo(point);
 }
 
 #pragma endregion
@@ -90,44 +90,44 @@ std::ostream& operator<<(std::ostream& os, LineSegment2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool LineSegment2D::Contains(Point2D const& point, int decimal_precision) const {
-  double t = Location(point, decimal_precision);
-  return round_to(t, decimal_precision) >= 0 && round_to(t - 1, decimal_precision) <= 0;
+bool LineSegment2D::Contains(Point2D const& point) const {
+  double t = Location(point);
+  return round(t) >= 0 && round(t - 1) <= 0;
 }
 
-bool LineSegment2D::Intersects(Line2D const& line, int decimal_precision) const {
-  return Intersection(line, decimal_precision).has_value();
+bool LineSegment2D::Intersects(Line2D const& line) const {
+  return Intersection(line).has_value();
 }
 
-bool LineSegment2D::Intersects(Ray2D const& ray, int decimal_precision) const {
-  return Intersection(ray, decimal_precision).has_value();
+bool LineSegment2D::Intersects(Ray2D const& ray) const {
+  return Intersection(ray).has_value();
 }
 
-bool LineSegment2D::Intersects(LineSegment2D const& other, int decimal_precision) const {
-  return Intersection(other, decimal_precision).has_value();
+bool LineSegment2D::Intersects(LineSegment2D const& other) const {
+  return Intersection(other).has_value();
 }
 
-LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line, int decimal_precision) const {
+LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line) const {
   auto u = P1 - P0;
-  auto v = line.Direction();
+  auto v = line.Last() - line.First();
   auto vp = v.Perp();
   auto w = (P0 - line.First());
 
-  if (round_to(u * vp, decimal_precision) == 0.0) {
+  if (round(u * vp) == 0.0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
 
   // verify that the intersection is ahead of the ray
   auto inter_p = P0 + t * u;
-  if (!Contains(inter_p, decimal_precision)) {
+  if (!Contains(inter_p)) {
     return std::nullopt;
   }
 
   return inter_p;
 }
 
-LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray, int decimal_precision) const {
+LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
   auto u = P1 - P0;
   auto up = u.Perp();  // equivalent (calc, on the other side)
   auto v = ray.Direction();
@@ -135,29 +135,29 @@ LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray, int decim
   auto w = (P0 - ray.Origin());
 
   // testing on this ray
-  if (round_to(u * vp, decimal_precision) == 0.0) {
+  if (round(u * vp) == 0.0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
   auto inter_t = P0 + t * u;
-  if (!Contains(inter_t, decimal_precision)) {
+  if (!Contains(inter_t)) {
     return std::nullopt;
   }
 
   // testing on the other ray
-  if (round_to(v * up, decimal_precision) == 0.0) {
+  if (round(v * up) == 0.0) {
     return std::nullopt;
   }
   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
   auto inter_s = ray.Origin() + s * v;
-  if (!ray.IsAhead(inter_s, decimal_precision)) {
+  if (!ray.IsAhead(inter_s)) {
     return std::nullopt;
   }
 
   return inter_t;
 }
 
-LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other, int decimal_precision) const {
+LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
   auto u = P1 - P0;
   auto up = u.Perp();  // equivalent (calc, on the other side)
   auto v = (other.P1 - other.P0);
@@ -165,22 +165,22 @@ LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other,
   auto w = (P0 - other.P0);
 
   // testing on this ray
-  if (round_to(u * vp, decimal_precision) == 0.0) {
+  if (round(u * vp) == 0.0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
   auto inter_t = P0 + t * u;
-  if (!Contains(inter_t, decimal_precision)) {
+  if (!Contains(inter_t)) {
     return std::nullopt;
   }
 
   // testing on the other ray
-  if (round_to(v * up, decimal_precision) == 0.0) {
+  if (round(v * up) == 0.0) {
     return std::nullopt;
   }
   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
   auto inter_s = other.P0 + s * v;
-  if (!other.Contains(inter_s, decimal_precision)) {
+  if (!other.Contains(inter_s)) {
     return std::nullopt;
   }
 
@@ -191,10 +191,10 @@ LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other,
 
 #pragma region Formatting
 
-std::string LineSegment2D::ToWkt(int decimal_precision) const {
-  return std::format("LINESTRING ({} {}, {} {})", round_to(P0.x(), decimal_precision),
-                     round_to(P0.y(), decimal_precision), round_to(P1.x(), decimal_precision),
-                     round_to(P1.y(), decimal_precision));
+std::string LineSegment2D::ToWkt() const {
+  return std::format("LINESTRING ({} {}, {} {})", round(P0.x()),
+                     round(P0.y()), round(P1.x()),
+                     round(P1.y()));
 }
 
 LineSegment2D LineSegment2D::FromWkt(std::string const& wkt) {
@@ -242,9 +242,9 @@ LineSegment2D LineSegment2D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void LineSegment2D::ToFile(std::string const& path, int decimal_precision) const {
+void LineSegment2D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

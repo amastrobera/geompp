@@ -48,8 +48,10 @@ TEST(Point2D, AddVector) {
 
 TEST(Point2D, Wkt) {
   ASSERT_EQ("POINT (0 0)", g::Point2D().ToWkt());
-  ASSERT_EQ("POINT (56491.62 -795.97)", g::Point2D(56491.6164, -795.97416).ToWkt(2));
+  geompp::DECIMAL_PRECISION = 2;
+  ASSERT_EQ("POINT (56491.62 -795.97)", g::Point2D(56491.6164, -795.97416).ToWkt());
 
+  geompp::DECIMAL_PRECISION = 4;
   EXPECT_EQ(g::Point2D(256.1343, -684.64971), g::Point2D::FromWkt("POINT (256.1343 -684.64971)"));
   EXPECT_EQ(g::Point2D(-7.5, -60.7), g::Point2D::FromWkt("  point( -7.5    -60.7)"));
   EXPECT_EQ(g::Point2D(0.645, -1.689741), g::Point2D::FromWkt("PoInT   ( 0.645  -1.689741  )"));
@@ -64,11 +66,11 @@ TEST(Point2D, Wkt) {
 }
 
 TEST(Point2D, ToFile) {
-  int prec = 4;
+  geompp::DECIMAL_PRECISION =  4;
   std::string path = (test_res_path / "temp" / "point.wkt").string();
   auto p = g::Point2D(15.341, -781.684);
 
-  p.ToFile(path, prec);
+  p.ToFile(path);
   ASSERT_TRUE(fs::exists(path));
 
   g::Point2D p_file = g::Point2D::FromFile(path);  // TODO make assert no throw for the whole call
@@ -90,7 +92,7 @@ TEST(Point2D, TestFromFile) {
 }
 
 TEST(Point2D, DistanceTo) {
-  int prec = 4;
+  geompp::DECIMAL_PRECISION =  4;
   auto p1 = g::Point2D();
   auto p2 = g::Point2D(1, 0);
 
@@ -98,7 +100,7 @@ TEST(Point2D, DistanceTo) {
 
   auto p3 = g::Point2D(-1, -1);
 
-  EXPECT_EQ(g::round_to(sqrt(2), prec), p1.DistanceTo(p3, prec));
+  EXPECT_EQ(g::round(sqrt(2)), p1.DistanceTo(p3));
 }
 
 TEST(Point2D, RemoveDuplicates) {

@@ -16,9 +16,9 @@ class Line3D;
 
 class Plane {
  public:
-  static Plane From3Points(Point3D p1, Point3D p2, Point3D p3, int decimal_precision = DP_THREE);
-  static Plane FromOriginAndAxes(Point3D origin, Vector3D u, Vector3D v, int decimal_precision = DP_THREE);
-  static Plane FromOriginAndNormal(Point3D origin, Vector3D normal, int decimal_precision = DP_THREE);
+  static Plane From3Points(Point3D p1, Point3D p2, Point3D p3);
+  static Plane FromOriginAndAxes(Point3D origin, Vector3D u, Vector3D v);
+  static Plane FromOriginAndNormal(Point3D origin, Vector3D normal);
 
   Plane(Plane const&) = default;
   Plane(Plane&&) = default;
@@ -29,20 +29,20 @@ class Plane {
   Vector3D inline const axis_u() const { return AxisU; }
   Vector3D inline const axis_v() const { return AxisV; }
 
-  bool AlmostEquals(Plane const& other, int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(Plane const& other) const;
   Plane& operator=(Plane const& other);
 
 #pragma region Geometrial Operations
-  double SignedDistanceTo(Point3D const& p, int decimal_precision = DP_THREE) const;
-  double DistanceTo(Point3D const& p, int decimal_precision = DP_THREE) const;
-  Point3D ProjectOnto(Point3D const& p, int decimal_precision = DP_THREE) const;
-  Point2D ProjectInto(Point3D const& p, int decimal_precision = DP_THREE) const;
-  Point3D Evaluate(Point2D const& p, int decimal_precision = DP_THREE) const;
+  double SignedDistanceTo(Point3D const& p) const;
+  double DistanceTo(Point3D const& p) const;
+  Point3D ProjectOnto(Point3D const& p) const;
+  Point2D ProjectInto(Point3D const& p) const;
+  Point3D Evaluate(Point2D const& p) const;
 
-  bool Contains(Point3D const& point, int decimal_precision = DP_THREE) const;
+  bool Contains(Point3D const& point) const;
   using ReturnSet = std::optional<std::variant<Point3D>>;
-  bool Intersects(Line3D const& line, int decimal_precision = DP_THREE) const;
-  ReturnSet Intersection(Line3D const& line, int decimal_precision = DP_THREE) const;
+  bool Intersects(Line3D const& line) const;
+  ReturnSet Intersection(Line3D const& line) const;
 
 #pragma endregion
 

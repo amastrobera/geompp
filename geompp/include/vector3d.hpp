@@ -23,10 +23,10 @@ class Vector3D {
   Point3D ToPoint();
 
   double Length() const;
-  bool AlmostEquals(Vector3D const& other, int decimal_precision = DP_THREE) const;
-  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(Vector3D const& other) const;
+  std::string ToWkt() const;
   static Vector3D FromWkt(std::string const& wkt);
-  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  void ToFile(std::string const& path) const;
   static Vector3D FromFile(std::string const& path);
 
   Vector3D& operator=(Vector3D const& other);

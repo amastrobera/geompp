@@ -16,35 +16,35 @@ class LineSegment2D;
 
 class Ray2D {
  public:
-  static Ray2D Make(Point2D const& orig, Vector2D const& dir, int decimal_precision = DP_THREE);
+  static Ray2D Make(Point2D const& orig, Vector2D const& dir);
   Ray2D(Ray2D const&) = default;
   Ray2D(Ray2D&&) = default;
   ~Ray2D() = default;
 
   inline Point2D const& Origin() const { return ORIGIN; }
   inline Vector2D const& Direction() const { return DIR; }
-  bool AlmostEquals(Ray2D const& other, int decimal_precision = DP_THREE) const;
-  bool IsAhead(Point2D const& point, int decimal_precision = DP_THREE) const;
-  bool IsBehind(Point2D const& point, int decimal_precision = DP_THREE) const;
-  Line2D ToLine(int decimal_precision = DP_THREE) const;
-  double DistanceTo(Point2D const& point, int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(Ray2D const& other) const;
+  bool IsAhead(Point2D const& point) const;
+  bool IsBehind(Point2D const& point) const;
+  Line2D ToLine() const;
+  double DistanceTo(Point2D const& point) const;
 
-  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  std::string ToWkt() const;
   static Ray2D FromWkt(std::string const& wkt);
-  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  void ToFile(std::string const& path) const;
   static Ray2D FromFile(std::string const& path);
 
   Ray2D& operator=(Ray2D const& other);
 
 #pragma region Geometrical Operations
-  bool Contains(Point2D const& point, int decimal_precision = DP_THREE) const;
+  bool Contains(Point2D const& point) const;
   using ReturnSet = std::optional<std::variant<Point2D>>;
-  bool Intersects(Line2D const& line, int decimal_precision = DP_THREE) const;
-  bool Intersects(Ray2D const& other, int decimal_precision = DP_THREE) const;
-  bool Intersects(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
-  ReturnSet Intersection(Line2D const& line, int decimal_precision = DP_THREE) const;
-  ReturnSet Intersection(Ray2D const& other, int decimal_precision = DP_THREE) const;
-  ReturnSet Intersection(LineSegment2D const& segment, int decimal_precision = DP_THREE) const;
+  bool Intersects(Line2D const& line) const;
+  bool Intersects(Ray2D const& other) const;
+  bool Intersects(LineSegment2D const& segment) const;
+  ReturnSet Intersection(Line2D const& line) const;
+  ReturnSet Intersection(Ray2D const& other) const;
+  ReturnSet Intersection(LineSegment2D const& segment) const;
 #pragma endregion
 
  private:

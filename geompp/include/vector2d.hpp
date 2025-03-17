@@ -22,10 +22,10 @@ class Vector2D {
   Point2D ToPoint();
 
   double Length() const;
-  bool AlmostEquals(Vector2D const& other, int decimal_precision = DP_THREE) const;
-  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(Vector2D const& other) const;
+  std::string ToWkt() const;
   static Vector2D FromWkt(std::string const& wkt);
-  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  void ToFile(std::string const& path) const;
   static Vector2D FromFile(std::string const& path);
 
   Vector2D& operator=(Vector2D const& other);

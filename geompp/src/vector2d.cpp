@@ -22,8 +22,8 @@ Point2D Vector2D::ToPoint() { return Point2D(X, Y); }
 
 double Vector2D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2)); }
 
-bool Vector2D::AlmostEquals(Vector2D const& other, int decimal_precision) const {
-  return round_to(X - other.X, decimal_precision) == 0 && round_to(Y - other.Y, decimal_precision) == 0;
+bool Vector2D::AlmostEquals(Vector2D const& other) const {
+  return round(X - other.X) == 0 && round(Y - other.Y) == 0;
 }
 
 double Vector2D::Dot(Vector2D const& v) const { return (X * v.X + Y * v.Y); }
@@ -66,8 +66,8 @@ std::ostream& operator<<(std::ostream& os, Vector2D const& g) {
 
 #pragma region Formatting
 
-std::string Vector2D::ToWkt(int decimal_precision) const {
-  return std::format("VECTOR ({} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision));
+std::string Vector2D::ToWkt() const {
+  return std::format("VECTOR ({} {})", round(X), round(Y));
 }
 
 Vector2D Vector2D::FromWkt(std::string const& wkt) {
@@ -104,9 +104,9 @@ Vector2D Vector2D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Vector2D::ToFile(std::string const& path, int decimal_precision) const {
+void Vector2D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

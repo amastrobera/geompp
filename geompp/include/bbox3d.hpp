@@ -18,10 +18,10 @@ class Triangle3D;
 class BBox3D {
  public:
   BBox3D(Point3D const& min, Point3D const& max);
-  // BBox3D(LineSegment3D const& s, int decimal_precision = DP_THREE);
-  // BBox3D(Polyline3D const& s, int decimal_precision = DP_THREE);
-  // BBox3D(Polygon3D const& s, int decimal_precision = DP_THREE);
-  // BBox3D(Triangle3D const& s, int decimal_precision = DP_THREE);
+  // BBox3D(LineSegment3D const& s);
+  // BBox3D(Polyline3D const& s);
+  // BBox3D(Polygon3D const& s);
+  // BBox3D(Triangle3D const& s);
 
   BBox3D(BBox3D const&);
   BBox3D(BBox3D&&) = default;
@@ -30,12 +30,12 @@ class BBox3D {
   inline Point3D min() const { return MIN; }
   inline Point3D max() const { return MAX; }
 
-  bool AlmostEquals(BBox3D const& other, int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(BBox3D const& other) const;
   BBox3D& operator=(BBox3D const& other);
 
 #pragma region Geometrical Operations
 
-  bool Contains(Point3D const& p, int decimal_precision = DP_THREE) const;
+  bool Contains(Point3D const& p) const;
 
 #pragma endregion
 

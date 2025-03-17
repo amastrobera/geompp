@@ -46,18 +46,20 @@ TEST(Vector2D, AddVector) {
 }
 
 TEST(Vector2D, PerpDotCross) {
-  int prec = 3;
+  geompp::DECIMAL_PRECISION = 3;
   auto v1 = g::Vector2D(1, 0);
   auto v2 = v1.Perp();
-  ASSERT_EQ(0.0, g::round_to(v1.Dot(v2), prec));  // perp is perpendicular
-  EXPECT_EQ(1.0, g::round_to(v1.Cross(v2), prec));
-  EXPECT_EQ(-1.0, g::round_to(v2.Cross(v1), prec));
+  ASSERT_EQ(0.0, g::round(v1.Dot(v2)));  // perp is perpendicular
+  EXPECT_EQ(1.0, g::round(v1.Cross(v2)));
+  EXPECT_EQ(-1.0, g::round(v2.Cross(v1)));
 }
 
 TEST(Vector2D, Wkt) {
   ASSERT_EQ("VECTOR (0 0)", g::Vector2D().ToWkt());
-  ASSERT_EQ("VECTOR (56491.62 -795.97)", g::Vector2D(56491.6164, -795.97416).ToWkt(2));
+  geompp::DECIMAL_PRECISION = 2;
+  ASSERT_EQ("VECTOR (56491.62 -795.97)", g::Vector2D(56491.6164, -795.97416).ToWkt());
 
+  geompp::DECIMAL_PRECISION = 6;
   EXPECT_EQ(g::Vector2D(256.1343, -684.64971), g::Vector2D::FromWkt("VECTOR (256.1343 -684.64971)"));
   EXPECT_EQ(g::Vector2D(-7.5, -60.7), g::Vector2D::FromWkt("  vector( -7.5    -60.7)"));
   EXPECT_EQ(g::Vector2D(0.645, -1.689741), g::Vector2D::FromWkt("VecTOR   ( 0.645  -1.689741  )"));
@@ -72,11 +74,11 @@ TEST(Vector2D, Wkt) {
 }
 
 TEST(Vector2D, ToFile) {
-  int prec = 4;
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "vector.wkt").string();
   auto v = g::Vector2D(12.32, -61.6164);
 
-  v.ToFile(path, prec);
+  v.ToFile(path);
   ASSERT_TRUE(fs::exists(path));
 
   g::Vector2D v_file = g::Vector2D::FromFile(path);  // TODO make assert no throw for the whole call

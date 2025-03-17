@@ -22,12 +22,12 @@ class Point3D {
   inline double z() const { return Z; }
 
   Vector3D ToVector();
-  bool AlmostEquals(Point3D const& other, int decimal_precision = DP_THREE) const;
-  double DistanceTo(Point3D const& other, int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(Point3D const& other) const;
+  double DistanceTo(Point3D const& other) const;
 
-  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  std::string ToWkt() const;
   static Point3D FromWkt(std::string const& wkt);
-  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  void ToFile(std::string const& path) const;
   static Point3D FromFile(std::string const& path);
 
   Point3D& operator=(Point3D const& other);
@@ -40,11 +40,11 @@ class Point3D {
 
 #pragma region Collection Operations
 
-bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3, int decimal_precision = DP_THREE);
+bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3);
 
-std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
+std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points);
 
-std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points, int decimal_precision = DP_THREE);
+std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points);
 
 Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights);
 

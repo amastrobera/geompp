@@ -1,7 +1,7 @@
 #include "line3d.hpp"
 
-//#include "line_segment3d.hpp"
-//#include "ray3d.hpp"
+#include "line_segment3d.hpp"
+#include "ray3d.hpp"
 #include "utils.hpp"
 
 #include <cmath>
@@ -14,17 +14,17 @@ namespace geompp {
 
 #pragma region Constructors
 
-Line3D Line3D::Make(Point3D const& p0, Point3D const& p1, int decimal_precision) {
-  if (p0.AlmostEquals(p1, decimal_precision)) {
-    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision",
-                                         p0.ToWkt(decimal_precision), p1.ToWkt(decimal_precision), decimal_precision));
+Line3D Line3D::Make(Point3D const& p0, Point3D const& p1) {
+  if (p0.AlmostEquals(p1)) {
+    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", DECIMAL_PRECISION,
+                                         p0.ToWkt(), p1.ToWkt()));
   }
   return {p0, p1};
 }
 
-Line3D Line3D::Make(Point3D const& p0, Vector3D const& dir, int decimal_precision) {
-  if (round_to(dir.Length(), decimal_precision) == 0) {
-    throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", decimal_precision));
+Line3D Line3D::Make(Point3D const& p0, Vector3D const& dir) {
+  if (round(dir.Length()) == 0) {
+    throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
 }
@@ -40,21 +40,21 @@ Line3D& Line3D::operator=(Line3D const& other) {
   return *this;
 }
 
-bool Line3D::AlmostEquals(Line3D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+bool Line3D::AlmostEquals(Line3D const& other) const {
+  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1);
 }
 
-double Line3D::DistanceTo(Point3D const& point, int decimal_precision) const {
+double Line3D::DistanceTo(Point3D const& point) const {
   throw std::runtime_error("not implemented");
-  // return round_to(std::abs(DIR.Cross(point - P0)), decimal_precision);
+  // return round(std::abs(DIR.Cross(point - P0)));
 }
 
-Point3D Line3D::ProjectOnto(Point3D const& point, int decimal_precision) const {
+Point3D Line3D::ProjectOnto(Point3D const& point) const {
   return P0 + (point - P0).Dot(DIR) * DIR;
 }
 
-double Line3D::Location(Point3D const& point, int decimal_precision) const {
-  return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length();
+double Line3D::Location(Point3D const& point) const {
+  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length();
 }
 
 #pragma endregion
@@ -72,29 +72,29 @@ std::ostream& operator<<(std::ostream& os, Line3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line3D::Contains(Point3D const& point, int decimal_precision) const {
-  return round_to(DIR.Perp().Dot((point - P0)), decimal_precision) == 0.0;
+bool Line3D::Contains(Point3D const& point) const {
+  return round(DIR.Perp().Dot((point - P0))) == 0.0;
 }
 
-bool Line3D::Intersects(Line3D const& other, int decimal_precision) const {
-  return Intersection(other, decimal_precision).has_value();
+bool Line3D::Intersects(Line3D const& other) const {
+  return Intersection(other).has_value();
 }
 
-// bool Line3D::Intersects(Ray3D const& ray, int decimal_precision) const {
-//  return ray.Intersects(*this, decimal_precision);
-//}
-//
-// bool Line3D::Intersects(LineSegment3D const& segment, int decimal_precision) const {
-//  return segment.Intersects(*this, decimal_precision);
-//}
+ bool Line3D::Intersects(Ray3D const& ray) const {
+  return ray.Intersects(*this);
+}
 
-Line3D::ReturnSet Line3D::Intersection(Line3D const& other, int decimal_precision) const {
+ bool Line3D::Intersects(LineSegment3D const& segment) const {
+  return segment.Intersects(*this);
+}
+
+Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
   auto u = DIR;
   auto v = other.DIR;
   auto vp = v.Perp();
   auto w = (P0 - other.P0);
 
-  if (round_to(u * vp, decimal_precision) == 0.0) {
+  if (round(u * vp) == 0.0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
@@ -102,23 +102,23 @@ Line3D::ReturnSet Line3D::Intersection(Line3D const& other, int decimal_precisio
   return P0 + t * u;
 }
 
-// Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray, int decimal_precision) const {
-//  return ray.Intersection(*this, decimal_precision);
-//}
-//
-// Line3D::ReturnSet Line3D::Intersection(LineSegment3D const& segment, int decimal_precision) const {
-//  return segment.Intersection(*this, decimal_precision);
-//}
+ Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray) const {
+  return ray.Intersection(*this);
+}
+
+ Line3D::ReturnSet Line3D::Intersection(LineSegment3D const& segment) const {
+  return segment.Intersection(*this);
+}
 
 #pragma endregion
 
 #pragma region Formatting
 
-std::string Line3D::ToWkt(int decimal_precision) const {
-  return std::format("LINE ({} {} {}, {} {} {})", round_to(P0.x(), decimal_precision),
-                     round_to(P0.y(), decimal_precision), round_to(P0.z(), decimal_precision),
-                     round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision),
-                     round_to(P1.z(), decimal_precision));
+std::string Line3D::ToWkt() const {
+  return std::format("LINE ({} {} {}, {} {} {})", round(P0.x()),
+                     round(P0.y()), round(P0.z()),
+                     round(P1.x()), round(P1.y()),
+                     round(P1.z()));
 }
 
 Line3D Line3D::FromWkt(std::string const& wkt) {
@@ -166,9 +166,9 @@ Line3D Line3D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Line3D::ToFile(std::string const& path, int decimal_precision) const {
+void Line3D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

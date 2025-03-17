@@ -15,15 +15,15 @@ Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
 
 Point3D::Point3D(Point3D const& p) : X(p.X), Y(p.Y), Z(p.Z) {}
 
-bool Point3D::AlmostEquals(Point3D const& other, int decimal_precision) const {
-  return round_to(X - other.X, decimal_precision) == 0.0 && round_to(Y - other.Y, decimal_precision) == 0.0 &&
-         round_to(Z - other.Z, decimal_precision) == 0.0;
+bool Point3D::AlmostEquals(Point3D const& other) const {
+  return round(X - other.X) == 0.0 && round(Y - other.Y) == 0.0 &&
+         round(Z - other.Z) == 0.0;
 }
 
 Vector3D Point3D::ToVector() { return {X, Y, Z}; }
 
-double Point3D::DistanceTo(Point3D const& other, int decimal_precision) const {
-  return round_to((other - *this).Length(), decimal_precision);
+double Point3D::DistanceTo(Point3D const& other) const {
+  return round((other - *this).Length());
 }
 
 Point3D& Point3D::operator=(Point3D const& other) {
@@ -35,11 +35,11 @@ Point3D& Point3D::operator=(Point3D const& other) {
 
 #pragma region Collection Operations
 
-bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3, int decimal_precision) {
-  return round_to((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize()), decimal_precision) == 0;
+bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3) {
+  return round((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize())) == 0;
 }
 
-std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int decimal_precision) {
+std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points) {
   if (points.size() == 0) {
     return points;
   }
@@ -50,7 +50,7 @@ std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int d
       continue;
     }
     for (int j = i + 1; j < points.size(); ++j) {
-      if (!points[i].AlmostEquals(points[j], decimal_precision)) {
+      if (!points[i].AlmostEquals(points[j])) {
         break;
       }
       duplicates.insert(j);
@@ -67,7 +67,7 @@ std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points, int d
   return unique_points;
 }
 
-std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points, int decimal_precision) {
+std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points) {
   if (points.size() < 3) {
     return points;
   }
@@ -85,12 +85,12 @@ std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points, int de
       continue;
     }
 
-    if (are_collinear(points[i1], points[i2], points[i3], decimal_precision)) {  // test of collinearity
+    if (are_collinear(points[i1], points[i2], points[i3])) {  // test of collinearity
       auto u = (points[i2] - points[i1]);
       auto v = (points[i3] - points[i1]);
-      if (round_to(u.Dot(v), decimal_precision) >=
+      if (round(u.Dot(v)) >=
           0) {  // same direction, pick the farthest point in the U-vector's direction
-        if (round_to(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2]), decimal_precision) >= 0) {
+        if (round(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2])) >= 0) {
           duplicates.insert(i2);
           ++i2;
           ++i3;
@@ -187,9 +187,9 @@ std::ostream& operator<<(std::ostream& os, Point3D const& g) {
 
 #pragma region Formatting
 
-std::string Point3D::ToWkt(int decimal_precision) const {
-  return std::format("POINT ({} {} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision),
-                     round_to(Z, decimal_precision));
+std::string Point3D::ToWkt() const {
+  return std::format("POINT ({} {} {})", round(X), round(Y),
+                     round(Z));
 }
 
 Point3D Point3D::FromWkt(std::string const& wkt) {
@@ -226,9 +226,9 @@ Point3D Point3D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Point3D::ToFile(std::string const& path, int decimal_precision) const {
+void Point3D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

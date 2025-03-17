@@ -21,12 +21,12 @@ class Point2D {
   inline double y() const { return Y; }
 
   Vector2D ToVector();
-  bool AlmostEquals(Point2D const& other, int decimal_precision = DP_THREE) const;
-  double DistanceTo(Point2D const& other, int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(Point2D const& other) const;
+  double DistanceTo(Point2D const& other) const;
 
-  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  std::string ToWkt() const;
   static Point2D FromWkt(std::string const& wkt);
-  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  void ToFile(std::string const& path) const;
   static Point2D FromFile(std::string const& path);
 
   Point2D& operator=(Point2D const& other);
@@ -39,11 +39,11 @@ class Point2D {
 
 #pragma region Collection Operations
 
-bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3, int decimal_precision = DP_THREE);
+bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3);
 
-std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
+std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points);
 
-std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points, int decimal_precision = DP_THREE);
+std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points);
 
 Point2D linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights);
 

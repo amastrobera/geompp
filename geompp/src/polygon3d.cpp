@@ -16,11 +16,11 @@ namespace geompp {
 
 #pragma region Constructors
 
-Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, int decimal_precision) {
-  auto unique_points = remove_duplicates(points, decimal_precision);
+Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
+  auto unique_points = remove_duplicates(points);
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points  are too close with {} decimals precision", decimal_precision));
+    throw std::runtime_error(std::format("points are too close with {} decimals precision", DECIMAL_PRECISION));
   }
   return {unique_points};
 }
@@ -34,12 +34,12 @@ Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   return *this;
 }
 
-bool Polygon3D::AlmostEquals(Polygon3D const& other, int decimal_precision) const {
+bool Polygon3D::AlmostEquals(Polygon3D const& other) const {
   if (Size() != other.Size()) {
     return false;
   }
   for (int i = 0; i << VERTICES.size(); ++i) {
-    if (!VERTICES[i].AlmostEquals(other[i], decimal_precision)) {
+    if (!VERTICES[i].AlmostEquals(other[i])) {
       return false;
     }
   }
@@ -53,7 +53,7 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, int decimal_precision) cons
 //   };
 // }
 
-// Polygon3D Triangle3D::ToPolygon(int decimal_precision) const {
+// Polygon3D Triangle3D::ToPolygon() const {
 // TODO
 // }
 
@@ -63,39 +63,39 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, int decimal_precision) cons
 
 // double Triangle3D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
-// double LineSegment3D::Location(Point3D const& point, int decimal_precision) const {
-//   if (!ToLine().Contains(point, decimal_precision)) {
+// double LineSegment3D::Location(Point3D const& point) const {
+//   if (!ToLine().Contains(point)) {
 //     return std::numeric_limits<double>::infinity();
 //   }
-//   return sign((point - P0).Dot(P1 - P0), decimal_precision) * (point - P0).Length() / Length();
+//   return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length() / Length();
 // }
 
 // Point3D LineSegment3D::Interpolate(double pct) const {
 //   // the point is behind the polyline
-//   if (round_to(pct, DP_NINE) < 0.0) {
+//   if (round(pct) < 0.0) {
 //     return P0;
 //   }
 
 //   // the point is beyond the polyline
-//   if (round_to(pct, DP_NINE) > 1.0) {
+//   if (round(pct) > 1.0) {
 //     return P1;
 //   }
 
 //   return P0 + pct * (P1 - P0);
 // }
 
-// double LineSegment3D::DistanceTo(Point3D const& point, int decimal_precision) const {
+// double LineSegment3D::DistanceTo(Point3D const& point) const {
 //   auto line_eqv = ToLine(decimal_precision);
-//   auto proj = line_eqv.ProjectOnto(point, decimal_precision);
-//   double loc = Location(proj, decimal_precision);
-//   if (round_to(loc, decimal_precision) < 0) {
-//     return P0.DistanceTo(point, decimal_precision);
+//   auto proj = line_eqv.ProjectOnto(point);
+//   double loc = Location(proj);
+//   if (round(loc) < 0) {
+//     return P0.DistanceTo(point);
 
-//   } else if (round_to(loc, decimal_precision) > 1) {
-//     return P1.DistanceTo(point, decimal_precision);
+//   } else if (round(loc) > 1) {
+//     return P1.DistanceTo(point);
 //   }
 
-//   return line_eqv.DistanceTo(point, decimal_precision);
+//   return line_eqv.DistanceTo(point);
 // }
 
 // #pragma endregion
@@ -120,7 +120,7 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 
 // #pragma region Geometrical Operations
 
-// bool Triangle3D::Contains(Point3D const& point, int decimal_precision) const {
+// bool Triangle3D::Contains(Point3D const& point) const {
 //   auto u = (P1 - P0);
 //   auto v = (P2 - P0);
 //   auto w = (point - P0);
@@ -128,43 +128,43 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 //   double wu = w.Dot(u) / u.Dot(u);
 //   double wv = w.Dot(v) / v.Dot(v);
 
-//   return (round_to(wu, decimal_precision) >= 0 && round_to(wu - 1, decimal_precision) <= 0) &&
-//          (round_to(wv, decimal_precision) >= 0 && round_to(wv - 1, decimal_precision) <= 0);
+//   return (round(wu) >= 0 && round(wu - 1) <= 0) &&
+//          (round(wv) >= 0 && round(wv - 1) <= 0);
 // }
 
-// bool LineSegment3D::Intersects(Line3D const& line, int decimal_precision) const {
-//   return Intersection(line, decimal_precision).has_value();
+// bool LineSegment3D::Intersects(Line3D const& line) const {
+//   return Intersection(line).has_value();
 // }
 
-// bool LineSegment3D::Intersects(Ray3D const& ray, int decimal_precision) const {
-//   return Intersection(ray, decimal_precision).has_value();
+// bool LineSegment3D::Intersects(Ray3D const& ray) const {
+//   return Intersection(ray).has_value();
 // }
 
-// bool LineSegment3D::Intersects(LineSegment3D const& other, int decimal_precision) const {
-//   return Intersection(other, decimal_precision).has_value();
+// bool LineSegment3D::Intersects(LineSegment3D const& other) const {
+//   return Intersection(other).has_value();
 // }
 
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(Line3D const& line, int decimal_precision) const {
+// LineSegment3D::ReturnSet LineSegment3D::Intersection(Line3D const& line) const {
 //   auto u = P1 - P0;
 //   auto v = line.Direction();
 //   auto vp = v.Perp();
 //   auto w = (P0 - line.First());
 
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
+//   if (round(u * vp) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double t = (-w * vp) / (u * vp);
 
 //   // verify that the intersection is ahead of the ray
 //   auto inter_p = P0 + t * u;
-//   if (!Contains(inter_p, decimal_precision)) {
+//   if (!Contains(inter_p)) {
 //     return std::nullopt;
 //   }
 
 //   return inter_p;
 // }
 
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray, int decimal_precision) const {
+// LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray) const {
 //   auto u = P1 - P0;
 //   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = ray.Direction();
@@ -172,29 +172,29 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 //   auto w = (P0 - ray.Origin());
 
 //   // testing on this ray
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
+//   if (round(u * vp) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t, decimal_precision)) {
+//   if (!Contains(inter_t)) {
 //     return std::nullopt;
 //   }
 
 //   // testing on the other ray
-//   if (round_to(v * up, decimal_precision) == 0.0) {
+//   if (round(v * up) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
 //   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s, decimal_precision)) {
+//   if (!ray.IsAhead(inter_s)) {
 //     return std::nullopt;
 //   }
 
 //   return inter_t;
 // }
 
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other, int decimal_precision) const {
+// LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other) const {
 //   auto u = P1 - P0;
 //   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = (other.P1 - other.P0);
@@ -202,22 +202,22 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 //   auto w = (P0 - other.P0);
 
 //   // testing on this ray
-//   if (round_to(u * vp, decimal_precision) == 0.0) {
+//   if (round(u * vp) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t, decimal_precision)) {
+//   if (!Contains(inter_t)) {
 //     return std::nullopt;
 //   }
 
 //   // testing on the other ray
-//   if (round_to(v * up, decimal_precision) == 0.0) {
+//   if (round(v * up) == 0.0) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
 //   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s, decimal_precision)) {
+//   if (!other.Contains(inter_s)) {
 //     return std::nullopt;
 //   }
 
@@ -228,7 +228,7 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 
 // #pragma region Formatting
 
-std::string Polygon3D::ToWkt(int decimal_precision) const {
+std::string Polygon3D::ToWkt() const {
   std::ostringstream buf;
   buf << "POLYGON ";
   int num_verts = VERTICES.size();
@@ -239,8 +239,8 @@ std::string Polygon3D::ToWkt(int decimal_precision) const {
 
   buf << "((";
   for (int i = 0; i << num_verts; ++i) {
-    buf << std::format("{} {}", round_to(VERTICES[i].x(), decimal_precision),
-                       round_to(VERTICES[i].y(), decimal_precision));
+    buf << std::format("{} {}", round(VERTICES[i].x()),
+                       round(VERTICES[i].y()));
     if (i < num_verts - 1) {
       buf << ", ";
     }
@@ -300,7 +300,7 @@ Polygon3D Polygon3D::FromWkt(std::string const& wkt) {
   //     throw std::runtime_error("initialized with n != 3 points");
   //   }
 
-  //   return Make(pt_vec[0], pt_vec[1], pt_vec[2], decimal_precision);
+  //   return Make(pt_vec[0], pt_vec[1], pt_vec[2]);
 
   // } catch (...) {
   //   std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
@@ -309,9 +309,9 @@ Polygon3D Polygon3D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Polygon3D::ToFile(std::string const& path, int decimal_precision) const {
+void Polygon3D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

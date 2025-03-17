@@ -10,13 +10,13 @@
 
 namespace geompp {
 
-double round_to(double x, int decimal_precision) {
-  double exp = pow(10, decimal_precision);
+double round(double x, int precision) {
+  double exp = pow(10, precision);
   return std::round(x * exp) / exp;
 }
 
-int sign(double x, int decimal_precision) {
-  if (round_to(x, decimal_precision) >= 0) {
+int sign(double x) {
+  if (round(x) >= 0) {
     return 1;
   }
   return -1;

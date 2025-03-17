@@ -23,8 +23,8 @@ namespace geompp {
 
 Polyline3D::Polyline3D(std::vector<Point3D>&& points) : KNOTS{std::move(points)} {}
 
-Polyline3D Polyline3D::Make(std::vector<Point3D> const& points, int decimal_precision) {
-  auto unique_points = remove_collinear(remove_duplicates(points, decimal_precision), decimal_precision);
+Polyline3D Polyline3D::Make(std::vector<Point3D> const& points) {
+  auto unique_points = remove_collinear(remove_duplicates(points));
 
   if (unique_points.size() < 2) {
     throw std::runtime_error("cannot built polyline with less than 2 unique non-collinear consecutive points");
@@ -55,26 +55,26 @@ double Polyline3D::Length() const {
   return std::accumulate(iterable_range.begin(), iterable_range.end(), 0);
 }
 
-bool Polyline3D::AlmostEquals(Polyline3D const& other, int decimal_precision) const {
+bool Polyline3D::AlmostEquals(Polyline3D const& other) const {
   if (KNOTS.size() != other.KNOTS.size()) {
     return false;
   }
   for (int i = 0; i < KNOTS.size(); ++i) {
-    if (!KNOTS[i].AlmostEquals(other.KNOTS[i], decimal_precision)) {
+    if (!KNOTS[i].AlmostEquals(other.KNOTS[i])) {
       return false;
     }
   }
   return true;
 }
 
-double Polyline3D::Location(Point3D const& point, int decimal_precision) const {
+double Polyline3D::Location(Point3D const& point) const {
   auto segs = ToSegments();
 
   // check if the point is in the middle of the polyline
   double tot_len = 0;
   for (int i = 0; i < segs.size(); ++i) {
-    if (segs[i].Contains(point, decimal_precision)) {
-      tot_len += segs[i].Location(point, decimal_precision);
+    if (segs[i].Contains(point)) {
+      tot_len += segs[i].Location(point);
       return tot_len;
     }
     tot_len += segs[i].Length();
@@ -82,16 +82,15 @@ double Polyline3D::Location(Point3D const& point, int decimal_precision) const {
   // at this point tot_len == Lenght(), no need to call that loop again
 
   // check if the point is behind the polyline (on the first "line")
-  if (round_to((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First()), decimal_precision) ==
+  if (round((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First())) ==
       0) {  // collinearity check
-    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First()), decimal_precision) *
+    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First())) *
            segs[0].First().DistanceTo(point) / tot_len;
   }
 
   // check if the point is is beyond the polyline (on the last "line")
   int n = segs.size();
-  if (round_to((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First()),
-               decimal_precision) == 0) {  // collinearity check
+  if (round((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First())) == 0) {  // collinearity check
     return (tot_len + segs[n - 1].Last().DistanceTo(point)) / tot_len;
   }
 
@@ -101,12 +100,12 @@ double Polyline3D::Location(Point3D const& point, int decimal_precision) const {
 
 Point3D Polyline3D::Interpolate(double pct) const {
   // the point is behind the polyline
-  if (round_to(pct, DP_NINE) < 0.0) {
+  if (round(pct) < 0.0) {
     return KNOTS[0];
   }
 
   // the point is beyond the polyline
-  if (round_to(pct, DP_NINE) > 1.0) {
+  if (round(pct) > 1.0) {
     return KNOTS[KNOTS.size() - 1];
   }
 
@@ -114,9 +113,9 @@ Point3D Polyline3D::Interpolate(double pct) const {
   double len_to_i = 0;
   double len_i = 0;
   for (int i = 0; i < KNOTS.size() - 1; ++i) {
-    len_i = KNOTS[i].DistanceTo(KNOTS[i + 1], DP_NINE);
+    len_i = KNOTS[i].DistanceTo(KNOTS[i + 1]);
 
-    if (round_to(pct - (len_to_i + len_i), DP_NINE) <= 0) {
+    if (round(pct - (len_to_i + len_i)) <= 0) {
       double pct_i = pct - len_to_i;
       return KNOTS[i] + pct_i * (KNOTS[i + 1] - KNOTS[i]);
     }
@@ -127,15 +126,15 @@ Point3D Polyline3D::Interpolate(double pct) const {
   return KNOTS[KNOTS.size() - 1];
 }
 
-double Polyline3D::DistanceTo(Point3D const& point, int decimal_precision) const {
+double Polyline3D::DistanceTo(Point3D const& point) const {
   std::vector<double> distances;
   for (auto const& s : ToSegments()) {
-    distances.push_back(s.DistanceTo(point, decimal_precision));
+    distances.push_back(s.DistanceTo(point));
   }
   return *std::min_element(distances.begin(), distances.end());
   // std::vector<double> iterable_range =
   //     ToSegments() | std::ranges::views::transform([&point, decimal_precision](LineSegment3D const& s) {
-  //       return s.DistanceTo(point, decimal_precision);
+  //       return s.DistanceTo(point);
   //     });
   // return std::min_element(iterable_range.begin(), iterable_range.end());
 }
@@ -162,40 +161,40 @@ std::ostream& operator<<(std::ostream& os, Polyline3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Polyline3D::Contains(Point3D const& point, int decimal_precision) const {
+bool Polyline3D::Contains(Point3D const& point) const {
   for (auto const& s : ToSegments()) {
-    if (s.Contains(point, decimal_precision)) {
+    if (s.Contains(point)) {
       return true;
     }
   }
   return false;
   // return std::ranges::any_of(ToSegments() |
   //                            std::ranges::views::transform([&point, decimal_precision](LineSegment3D const& s) {
-  //                              return s.Contains(point, decimal_precision);
+  //                              return s.Contains(point);
   //                            }));
 }
 
-bool Polyline3D::Intersects(Line3D const& line, int decimal_precision) const {
-  return Intersection(line, decimal_precision).has_value();
+bool Polyline3D::Intersects(Line3D const& line) const {
+  return Intersection(line).has_value();
 }
 
-bool Polyline3D::Intersects(Ray3D const& ray, int decimal_precision) const {
-  return Intersection(ray, decimal_precision).has_value();
+bool Polyline3D::Intersects(Ray3D const& ray) const {
+  return Intersection(ray).has_value();
 }
 
-bool Polyline3D::Intersects(Polyline3D const& other, int decimal_precision) const {
-  return Intersection(other, decimal_precision).has_value();
+bool Polyline3D::Intersects(Polyline3D const& other) const {
+  return Intersection(other).has_value();
 }
 
-bool Polyline3D::Intersects(LineSegment3D const& other, int decimal_precision) const {
-  return Intersection(other, decimal_precision).has_value();
+bool Polyline3D::Intersects(LineSegment3D const& other) const {
+  return Intersection(other).has_value();
 }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(Line3D const& line, int decimal_precision) const {
+Polyline3D::ReturnSet Polyline3D::Intersection(Line3D const& line) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
-    auto inter = line.Intersection(seg, decimal_precision);
+    auto inter = line.Intersection(seg);
 
     if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
       intersections.push_back(std::get<Point3D>(*inter));
@@ -213,11 +212,11 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Line3D const& line, int decimal_p
   return intersections;
 }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(Ray3D const& ray, int decimal_precision) const {
+Polyline3D::ReturnSet Polyline3D::Intersection(Ray3D const& ray) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
-    auto inter = ray.Intersection(seg, decimal_precision);
+    auto inter = ray.Intersection(seg);
 
     if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
       intersections.push_back(std::get<Point3D>(*inter));
@@ -235,11 +234,11 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Ray3D const& ray, int decimal_pre
   return intersections;
 }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(LineSegment3D const& segment, int decimal_precision) const {
+Polyline3D::ReturnSet Polyline3D::Intersection(LineSegment3D const& segment) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
-    auto inter = segment.Intersection(seg, decimal_precision);
+    auto inter = segment.Intersection(seg);
 
     if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
       intersections.push_back(std::get<Point3D>(*inter));
@@ -257,12 +256,12 @@ Polyline3D::ReturnSet Polyline3D::Intersection(LineSegment3D const& segment, int
   return intersections;
 }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other, int decimal_precision) const {
+Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
     for (auto const& other_seg : other.ToSegments()) {
-      auto inter = seg.Intersection(other_seg, decimal_precision);
+      auto inter = seg.Intersection(other_seg);
 
       if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
         intersections.push_back(std::get<Point3D>(*inter));
@@ -285,14 +284,14 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other, int deci
 
 #pragma region Formatting
 
-std::string Polyline3D::ToWkt(int decimal_precision) const {
+std::string Polyline3D::ToWkt() const {
   std::ostringstream buf;
   buf << "LINESTRING ";
 
   if (KNOTS.size() > 0) {
     buf << "(";
     for (int i = 0; i < KNOTS.size(); ++i) {
-      buf << std::format("{} {}", round_to(KNOTS[i].x(), decimal_precision), round_to(KNOTS[i].y(), decimal_precision));
+      buf << std::format("{} {}", round(KNOTS[i].x()), round(KNOTS[i].y()));
 
       if (i < KNOTS.size() - 1) {
         buf << ", ";
@@ -352,7 +351,7 @@ Polyline3D Polyline3D::FromWkt(std::string const& wkt) {
       pt_vec.push_back({nums[0], nums[1]});
     }
 
-    return Make(pt_vec, decimal_precision);
+    return Make(pt_vec);
 
   } catch (...) {
     std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
@@ -361,9 +360,9 @@ Polyline3D Polyline3D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Polyline3D::ToFile(std::string const& path, int decimal_precision) const {
+void Polyline3D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);

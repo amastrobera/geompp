@@ -14,9 +14,9 @@ namespace geompp {
 
 #pragma region Constructors
 
-Ray3D Ray3D::Make(Point3D const& p0, Vector3D const& dir, int decimal_precision) {
-  if (round_to(dir.Length(), decimal_precision) == 0) {
-    throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", decimal_precision));
+Ray3D Ray3D::Make(Point3D const& p0, Vector3D const& dir) {
+  if (round(dir.Length()) == 0) {
+    throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
 }
@@ -30,23 +30,23 @@ Ray3D& Ray3D::operator=(Ray3D const& other) {
   return *this;
 }
 
-bool Ray3D::IsAhead(Point3D const& point, int decimal_precision) const {
-  return round_to(DIR.Dot(point - ORIGIN), decimal_precision) >= 0.0;
+bool Ray3D::IsAhead(Point3D const& point) const {
+  return round(DIR.Dot(point - ORIGIN)) >= 0.0;
 }
 
-bool Ray3D::IsBehind(Point3D const& point, int decimal_precision) const {
-  return round_to(DIR.Dot(point - ORIGIN), decimal_precision) < 0.0;
+bool Ray3D::IsBehind(Point3D const& point) const {
+  return round(DIR.Dot(point - ORIGIN)) < 0.0;
 }
 
-Line3D Ray3D::ToLine(int decimal_precision) const { return Line3D::Make(ORIGIN, DIR, decimal_precision); }
+Line3D Ray3D::ToLine() const { return Line3D::Make(ORIGIN, DIR); }
 
-double Ray3D::DistanceTo(Point3D const& point, int decimal_precision) const {
-  return IsAhead(point, decimal_precision) ? ToLine(decimal_precision).DistanceTo(point, decimal_precision)
-                                           : ORIGIN.DistanceTo(point, decimal_precision);
+double Ray3D::DistanceTo(Point3D const& point) const {
+  return IsAhead(point) ? ToLine().DistanceTo(point)
+                                           : ORIGIN.DistanceTo(point);
 }
 
-bool Ray3D::AlmostEquals(Ray3D const& other, int decimal_precision) const {
-  return ORIGIN.AlmostEquals(other.ORIGIN, decimal_precision) && DIR.AlmostEquals(other.DIR, decimal_precision);
+bool Ray3D::AlmostEquals(Ray3D const& other) const {
+  return ORIGIN.AlmostEquals(other.ORIGIN) && DIR.AlmostEquals(other.DIR);
 }
 
 #pragma endregion
@@ -64,43 +64,43 @@ std::ostream& operator<<(std::ostream& os, Ray3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Ray3D::Contains(Point3D const& point, int decimal_precision) const {
-  return ToLine().Contains(point, decimal_precision) && IsAhead(point, decimal_precision);
+bool Ray3D::Contains(Point3D const& point) const {
+  return ToLine().Contains(point) && IsAhead(point);
 }
 
-bool Ray3D::Intersects(Line3D const& line, int decimal_precision) const {
-  return Intersection(line, decimal_precision).has_value();
+bool Ray3D::Intersects(Line3D const& line) const {
+  return Intersection(line).has_value();
 }
 
-bool Ray3D::Intersects(Ray3D const& other, int decimal_precision) const {
-  return Intersection(other, decimal_precision).has_value();
+bool Ray3D::Intersects(Ray3D const& other) const {
+  return Intersection(other).has_value();
 }
 
-bool Ray3D::Intersects(LineSegment3D const& segment, int decimal_precision) const {
-  return segment.Intersects(*this, decimal_precision);
+bool Ray3D::Intersects(LineSegment3D const& segment) const {
+  return segment.Intersects(*this);
 }
 
-Ray3D::ReturnSet Ray3D::Intersection(Line3D const& line, int decimal_precision) const {
+Ray3D::ReturnSet Ray3D::Intersection(Line3D const& line) const {
   auto u = DIR;
   auto v = line.Direction();
   auto vp = v.Perp();
   auto w = (ORIGIN - line.First());
 
-  if (round_to(u * vp, decimal_precision) == 0.0) {
+  if (round(u * vp) == 0.0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
 
   // verify that the intersection is ahead of the ray
   auto inter_p = ORIGIN + t * u;
-  if (!IsAhead(inter_p, decimal_precision)) {
+  if (!IsAhead(inter_p)) {
     return std::nullopt;
   }
 
   return inter_p;
 }
 
-Ray3D::ReturnSet Ray3D::Intersection(Ray3D const& other, int decimal_precision) const {
+Ray3D::ReturnSet Ray3D::Intersection(Ray3D const& other) const {
   auto u = DIR;
   auto up = u.Perp();  // equivalent (calc, on the other side)
   auto v = other.DIR;
@@ -108,41 +108,41 @@ Ray3D::ReturnSet Ray3D::Intersection(Ray3D const& other, int decimal_precision) 
   auto w = (ORIGIN - other.ORIGIN);
 
   // testing on this ray
-  if (round_to(u * vp, decimal_precision) == 0.0) {
+  if (round(u * vp) == 0.0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
   auto inter_t = ORIGIN + t * u;
-  if (!IsAhead(inter_t, decimal_precision)) {
+  if (!IsAhead(inter_t)) {
     return std::nullopt;
   }
 
   // testing on the other ray
-  if (round_to(v * up, decimal_precision) == 0.0) {
+  if (round(v * up) == 0.0) {
     return std::nullopt;
   }
   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
   auto inter_s = other.ORIGIN + s * v;
-  if (!other.IsAhead(inter_s, decimal_precision)) {
+  if (!other.IsAhead(inter_s)) {
     return std::nullopt;
   }
 
   return inter_t;
 }
 
-Ray3D::ReturnSet Ray3D::Intersection(LineSegment3D const& segment, int decimal_precision) const {
-  return segment.Intersection(*this, decimal_precision);
+Ray3D::ReturnSet Ray3D::Intersection(LineSegment3D const& segment) const {
+  return segment.Intersection(*this);
 }
 
 #pragma endregion
 
 #pragma region Formatting
 
-std::string Ray3D::ToWkt(int decimal_precision) const {
-  return std::format("RAY ({} {} {}, {} {} {})", round_to(ORIGIN.x(), decimal_precision),
-                     round_to(ORIGIN.y(), decimal_precision), round_to(ORIGIN.z(), decimal_precision),
-                     round_to(DIR.x(), decimal_precision), round_to(DIR.y(), decimal_precision),
-                     round_to(DIR.z(), decimal_precision));
+std::string Ray3D::ToWkt() const {
+  return std::format("RAY ({} {} {}, {} {} {})", round(ORIGIN.x()),
+                     round(ORIGIN.y()), round(ORIGIN.z()),
+                     round(DIR.x()), round(DIR.y()),
+                     round(DIR.z()));
 }
 
 Ray3D Ray3D::FromWkt(std::string const& wkt) {
@@ -190,9 +190,9 @@ Ray3D Ray3D::FromWkt(std::string const& wkt) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Ray3D::ToFile(std::string const& path, int decimal_precision) const {
+void Ray3D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);
