@@ -1,8 +1,8 @@
-#include "line2d.hpp"
-#include "line_segment2d.hpp"
-#include "lsv_parser.hpp"
-#include "point2d.hpp"
-#include "ray2d.hpp"
+#include <line2d.hpp>
+#include <line_segment2d.hpp>
+#include <lsv_parser.hpp>
+#include <point2d.hpp>
+#include <ray2d.hpp>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -35,7 +35,6 @@ void main()
 )";
 
 namespace g = geompp;
-namespace gv = geom_viewer;
 namespace fs = std::filesystem;
 
 namespace {
@@ -107,7 +106,7 @@ int main(int argc, char** argv) {
 
   // Parse geometries
   std::string geom_file_path = (geoms_path / "initial_geometries.lsv").string();
-  auto geom_parser = gv::LVSParser::Open(geom_file_path);  // can throw
+  auto geom_parser = g::LVSParser::Open(geom_file_path);  // can throw
 
   // will this stupid hack work ?
   auto normalize_to_viewport = [](float value, float min, float max) -> float {

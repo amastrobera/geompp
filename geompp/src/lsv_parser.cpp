@@ -1,19 +1,12 @@
 #include "lsv_parser.hpp"
 
-#include "line2d.hpp"
-#include "line_segment2d.hpp"
-#include "point2d.hpp"
-#include "ray2d.hpp"
-
-#include "line_segment3d.hpp"
-#include "point3d.hpp"
-
 #include <filesystem>
+#include <fstream>
 #include <iostream>  // TODO: replace with log library
 
 namespace fs = std::filesystem;
 
-namespace geom_viewer {
+namespace geompp {
 
 LVSParser LVSParser::Open(std::string const& file_path) {
   if (!fs::exists(file_path)) {
@@ -39,7 +32,7 @@ enum class Dimention { UNKNOWN = -1, TWO, THREE };
 Dimention GetDimentionPoint(std::string wkt) {
   std::size_t end_gtype, end_p1, end_p2;
 
-  std::size_t end_gtype, end_nums;
+  std::size_t end_nums;
 
   end_gtype = wkt.find('(');
   if (end_gtype == std::string::npos) {
@@ -72,7 +65,7 @@ Dimention GetDimentionLineString(std::string wkt) {
     throw std::runtime_error("brakets");
   }
 
-  end_p1 = wkt.substr(end_gtype + 1).find(',');
+  end_p1 = wkt.substr(end_gtype).find(',');
   if (end_p1 == std::string::npos) {
     throw std::runtime_error("brakets");
   }
@@ -92,11 +85,13 @@ Dimention GetDimentionLineString(std::string wkt) {
 
 }  // namespace
 
+bool LVSParser::HasNext() const { return FILE.eof(); }
+
 LVSParser::ReturnSet LVSParser::Next() {
   std::string line, clean_line;
   while (std::getline(FILE, line)) {
     try {
-      clean_line = g::trim(line);
+      clean_line = trim(line);
 
       if (clean_line.find("#", 0) == 0) {  // skip comments
         continue;
@@ -104,24 +99,24 @@ LVSParser::ReturnSet LVSParser::Next() {
 
       if (clean_line.find("LINESTRING", 0) == 0) {
         if (GetDimentionLineString(clean_line) == Dimention::TWO) {
-          return g::LineSegment2D::FromWkt(clean_line);
+          return LineSegment2D::FromWkt(clean_line);
         }
-        return g::LineSegment3D::FromWkt(clean_line);
+        return LineSegment3D::FromWkt(clean_line);
       }
 
       if (clean_line.find("LINE", 0) == 0) {
-        return g::Line2D::FromWkt(clean_line);
+        return Line2D::FromWkt(clean_line);
       }
 
       if (clean_line.find("RAY", 0) == 0) {
-        return g::Ray2D::FromWkt(clean_line);
+        return Ray2D::FromWkt(clean_line);
       }
 
       if (clean_line.find("POINT", 0) == 0) {
         if (GetDimentionPoint(clean_line) == Dimention::TWO) {
-          return g::Point2D::FromWkt(clean_line);
+          return Point2D::FromWkt(clean_line);
         }
-        return g::Point3D::FromWkt(clean_line);
+        return Point3D::FromWkt(clean_line);
       }
 
       throw std::runtime_error("unknown type");
@@ -131,9 +126,7 @@ LVSParser::ReturnSet LVSParser::Next() {
       return std::nullopt;
     }
   }
-
-  HAS_NEXT = false;
   return std::nullopt;
 }
 
-}  // namespace geom_viewer
+}  // namespace geompp

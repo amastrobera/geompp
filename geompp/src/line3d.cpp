@@ -115,7 +115,7 @@ Line3D Line3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_p1 = wkt.substr(end_gtype + 1).find(',');
+    end_p1 = wkt.substr(end_gtype).find(',');
     if (end_p1 == std::string::npos) {
       throw std::runtime_error("brakets");
     }
@@ -126,7 +126,7 @@ Line3D Line3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("numbers p1");
     }
 
-    end_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1).find(')');
+    end_p2 = wkt.substr(end_gtype + 1 + end_p1).find(')');
     if (end_p2 == std::string::npos) {
       throw std::runtime_error("brakets");
     }

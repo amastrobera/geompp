@@ -56,9 +56,10 @@ std::vector<double> tokenize_to_doubles(std::string const& str, char delimiter) 
       try {
         tokens.push_back(std::stod(stoken));
 
-      } catch (const std::invalid_argument& e) {
+      } catch (const std::invalid_argument) {
         throw std::runtime_error("Invalid token encountered: " + stoken);
-      } catch (const std::out_of_range& e) {
+
+      } catch (const std::out_of_range) {
         throw std::runtime_error("Token out of range: " + stoken);
       }
     }

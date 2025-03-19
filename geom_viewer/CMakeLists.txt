@@ -24,7 +24,6 @@ include_directories(
 
 
 add_executable(${PROJECT_NAME} 
-    src/lsv_parser.cpp
     main.cpp
 )
 
