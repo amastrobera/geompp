@@ -33,7 +33,7 @@ TEST(Line2D, Constructor) {
 }
 
 TEST(Line2D, Contains) {
-    geompp::DECIMAL_PRECISION = 3;
+  geompp::DECIMAL_PRECISION = 3;
   auto l1 = g::Line2D::Make(g::Point2D(0, -1), g::Point2D(0, 1));
   auto p0 = g::Point2D();
   auto p1 = g::Point2D(0, 10);
@@ -45,7 +45,7 @@ TEST(Line2D, Contains) {
 }
 
 TEST(Line2D, Intersection) {
-  geompp::DECIMAL_PRECISION =  3;
+  geompp::DECIMAL_PRECISION = 3;
   auto l1 = g::Line2D::Make(g::Point2D(0, -1), g::Point2D(0, 1));
   auto l2 = g::Line2D::Make(g::Point2D(-1, 0), g::Point2D(1, 0));
 
@@ -112,7 +112,7 @@ TEST(Line2D, TestFromFile) {
 }
 
 TEST(Line2D, DistanceTo) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto line = g::Line2D::FromWkt("LINE (0 0, 3 0)");
 
   // on segment

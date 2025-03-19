@@ -11,9 +11,7 @@
 
 namespace geompp {
 
-Plane Plane::From3Points(Point3D p1, Point3D p2, Point3D p3) {
-  return FromOriginAndAxes(p1, p2 - p1, p3 - p1);
-}
+Plane Plane::From3Points(Point3D p1, Point3D p2, Point3D p3) { return FromOriginAndAxes(p1, p2 - p1, p3 - p1); }
 
 Plane Plane::FromOriginAndAxes(Point3D origin, Vector3D u, Vector3D v) {
   if (round(u.Length()) == 0) {
@@ -61,17 +59,11 @@ Plane& Plane::operator=(Plane const& other) {
 
 #pragma region Geometrical Operations
 
-double Plane::SignedDistanceTo(Point3D const& p) const {
-  return round((p - Origin).Dot(Normal));
-}
+double Plane::SignedDistanceTo(Point3D const& p) const { return round((p - Origin).Dot(Normal)); }
 
-double Plane::DistanceTo(Point3D const& p) const {
-  return std::abs(SignedDistanceTo(p));
-}
+double Plane::DistanceTo(Point3D const& p) const { return std::abs(SignedDistanceTo(p)); }
 
-Point3D Plane::ProjectOnto(Point3D const& p) const {
-  return p - SignedDistanceTo(p) * Normal;
-}
+Point3D Plane::ProjectOnto(Point3D const& p) const { return p - SignedDistanceTo(p) * Normal; }
 
 Point2D Plane::ProjectInto(Point3D const& p) const {
   auto pproj = ProjectOnto(p);
@@ -85,12 +77,8 @@ Point3D Plane::Evaluate(Point2D const& p) const {
   return ProjectOnto(Origin + AxisU * p.x() + AxisV * p.y());
 }
 
-bool Plane::Contains(Point3D const& point) const {
-  return round((point - Origin).Dot(Normal)) == 0;
-}
-bool Plane::Intersects(Line3D const& line) const {
-  return Intersection(line).has_value();
-}
+bool Plane::Contains(Point3D const& point) const { return round((point - Origin).Dot(Normal)) == 0; }
+bool Plane::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
   auto V = line.Last() - line.First();
   auto W = line.First() - Origin;

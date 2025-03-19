@@ -1,8 +1,8 @@
 #include "bbox3d.hpp"
 
-//#include "line_segment3d.hpp"
-//#include "polygon3d.hpp"
-//#include "polyline3d.hpp"
+// #include "line_segment3d.hpp"
+// #include "polygon3d.hpp"
+// #include "polyline3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
@@ -83,8 +83,8 @@ bool BBox3D::AlmostEquals(BBox3D const& other) const {
 #pragma region Geometrical Operations
 
 bool BBox3D::Contains(Point3D const& p) const {
-  return round(p.x() - MIN.x()) >= 0 && round(p.x() - MAX.x()) <= 0 &&
-         round(p.y() - MIN.y()) >= 0 && round(p.y() - MAX.y()) <= 0;
+  return round(p.x() - MIN.x()) >= 0 && round(p.x() - MAX.x()) <= 0 && round(p.y() - MIN.y()) >= 0 &&
+         round(p.y() - MAX.y()) <= 0;
 }
 
 #pragma endregion

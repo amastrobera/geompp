@@ -16,15 +16,12 @@ Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
 Point3D::Point3D(Point3D const& p) : X(p.X), Y(p.Y), Z(p.Z) {}
 
 bool Point3D::AlmostEquals(Point3D const& other) const {
-  return round(X - other.X) == 0.0 && round(Y - other.Y) == 0.0 &&
-         round(Z - other.Z) == 0.0;
+  return round(X - other.X) == 0.0 && round(Y - other.Y) == 0.0 && round(Z - other.Z) == 0.0;
 }
 
 Vector3D Point3D::ToVector() { return {X, Y, Z}; }
 
-double Point3D::DistanceTo(Point3D const& other) const {
-  return round((other - *this).Length());
-}
+double Point3D::DistanceTo(Point3D const& other) const { return round((other - *this).Length()); }
 
 Point3D& Point3D::operator=(Point3D const& other) {
   if (this != &other) {
@@ -88,8 +85,7 @@ std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points) {
     if (are_collinear(points[i1], points[i2], points[i3])) {  // test of collinearity
       auto u = (points[i2] - points[i1]);
       auto v = (points[i3] - points[i1]);
-      if (round(u.Dot(v)) >=
-          0) {  // same direction, pick the farthest point in the U-vector's direction
+      if (round(u.Dot(v)) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
         if (round(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2])) >= 0) {
           duplicates.insert(i2);
           ++i2;
@@ -187,10 +183,7 @@ std::ostream& operator<<(std::ostream& os, Point3D const& g) {
 
 #pragma region Formatting
 
-std::string Point3D::ToWkt() const {
-  return std::format("POINT ({} {} {})", round(X), round(Y),
-                     round(Z));
-}
+std::string Point3D::ToWkt() const { return std::format("POINT ({} {} {})", round(X), round(Y), round(Z)); }
 
 Point3D Point3D::FromWkt(std::string const& wkt) {
   try {

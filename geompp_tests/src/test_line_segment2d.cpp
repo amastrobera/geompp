@@ -43,7 +43,7 @@ TEST(LineSegment2D, Contains) {
 }
 
 TEST(LineSegment2D, Location) {
-  geompp::DECIMAL_PRECISION =  3;
+  geompp::DECIMAL_PRECISION = 3;
   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
 
   ASSERT_EQ(0.2, g::round(s1.Location(g::Point2D(0.2, 0))));
@@ -61,7 +61,7 @@ TEST(LineSegment2D, Location) {
 }
 
 TEST(LineSegment2D, Interpolate) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
 
   // on segment
@@ -79,7 +79,7 @@ TEST(LineSegment2D, Interpolate) {
 }
 
 TEST(LineSegment2D, Intersection) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
   auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1));  // intersects r2 in (-0.5,-0.5)
@@ -116,7 +116,7 @@ TEST(LineSegment2D, Intersection) {
 }
 
 TEST(LineSegment2D, IntersectionWLine) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto s1 = g::LineSegment2D::Make(g::Point2D(-1, -2), g::Point2D(2, 1));   // intersects x, y
   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects y
   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1));  // intersects x
@@ -160,7 +160,7 @@ TEST(LineSegment2D, IntersectionWLine) {
 }
 
 TEST(LineSegment2D, IntersectionWRay) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto s1 = g::LineSegment2D::Make(g::Point2D(-1, -2), g::Point2D(2, 1));   // intersects r1, r2
   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects r1
   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1));  // intersects r2
@@ -239,7 +239,7 @@ TEST(LineSegment2D, Wkt) {
 }
 
 TEST(LineSegment2D, ToFile) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "line_segment.wkt").string();
   auto s = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
 
@@ -266,7 +266,7 @@ TEST(LineSegment2D, TestFromFile) {
 }
 
 TEST(LineSegment2D, DistanceTo) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
 
   // on segment

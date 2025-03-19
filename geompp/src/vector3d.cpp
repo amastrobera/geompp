@@ -23,8 +23,7 @@ Point3D Vector3D::ToPoint() { return Point3D(X, Y, Z); }
 double Vector3D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z, 2)); }
 
 bool Vector3D::AlmostEquals(Vector3D const& other) const {
-  return round(X - other.X) == 0 && round(Y - other.Y) == 0 &&
-         round(Z - other.Z) == 0;
+  return round(X - other.X) == 0 && round(Y - other.Y) == 0 && round(Z - other.Z) == 0;
 }
 
 double Vector3D::Dot(Vector3D const& v) const { return (X * v.X + Y * v.Y + Z * v.Z); }
@@ -88,10 +87,7 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& g) {
 
 #pragma region Formatting
 
-std::string Vector3D::ToWkt() const {
-  return std::format("VECTOR ({} {} {})", round(X), round(Y),
-                     round(Z));
-}
+std::string Vector3D::ToWkt() const { return std::format("VECTOR ({} {} {})", round(X), round(Y), round(Z)); }
 
 Vector3D Vector3D::FromWkt(std::string const& wkt) {
   try {

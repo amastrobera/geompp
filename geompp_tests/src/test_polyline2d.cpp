@@ -21,7 +21,7 @@ namespace geompp_tests {
 extern fs::path test_res_path;
 
 TEST(Polyline2D, Constructor) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto polyline = g::Polyline2D::Make({g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)});
   ASSERT_EQ(4, polyline.Size());
   ASSERT_EQ(11, polyline.Length());
@@ -41,7 +41,7 @@ TEST(Polyline2D, Constructor) {
 }
 
 TEST(Polyline2D, Contains) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::vector<g::Point2D> points{g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)};
   auto polyline = g::Polyline2D::Make(points);
 
@@ -59,12 +59,11 @@ TEST(Polyline2D, Contains) {
   // before the polyline
   ASSERT_FALSE(polyline.Contains(points[0] - (points[1] - points[0])));
   // after the polyline
-  ASSERT_FALSE(
-      polyline.Contains(points[points.size() - 1] + (points[points.size() - 1] - points[points.size() - 2])));
+  ASSERT_FALSE(polyline.Contains(points[points.size() - 1] + (points[points.size() - 1] - points[points.size() - 2])));
 }
 
 TEST(Polyline2D, Location) {
-  geompp::DECIMAL_PRECISION =  3;
+  geompp::DECIMAL_PRECISION = 3;
   auto s1 = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)});
 
   ASSERT_EQ(0.2, g::round(s1.Location(g::Point2D(0.2, 0))));
@@ -82,7 +81,7 @@ TEST(Polyline2D, Location) {
 }
 
 TEST(Polyline2D, Interpolate) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto poly = g::Polyline2D::FromWkt("LINESTRING (0 0, 3 0)");
 
   // on segment
@@ -100,7 +99,7 @@ TEST(Polyline2D, Interpolate) {
 }
 
 TEST(Polyline2D, IntersectionWLine) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto poly1 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");  // intersects x (-1 0, 1 0) and y (0 -2)
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");  // intersects y (0 2)
   auto poly3 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -1, -2 -2, -1 -3)");  // intersects x (-1 0)
@@ -146,7 +145,7 @@ TEST(Polyline2D, IntersectionWLine) {
 }
 
 TEST(Polyline2D, IntersectionWRay) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto poly1 = g::Polyline2D::FromWkt(
       "LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");  // intersects x_neg (-1 0), x_pos (1 0) and y_neg (0 -2)
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");     // intersects y_pos (0 2)
@@ -207,7 +206,7 @@ TEST(Polyline2D, IntersectionWRay) {
 }
 
 TEST(Polyline2D, IntersectionWSegment) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto poly1 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");     // intersects s1 (-1 0, 1 0)
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");     // intersects s2 (0 2)
   auto poly3 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -1, -2 -2, -1 -3)");  // intersects s1 (-1 0), s3 ()
@@ -258,7 +257,7 @@ TEST(Polyline2D, IntersectionWSegment) {
 }
 
 TEST(Polyline2D, Intersection) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto poly1 =
       g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");  // intersects poly2 (-1 1, -0.5 -2, 0.5 -2, 1 1)
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-2 1, -0.5 1, -0.5 -3, 0.5 -3, 0.5 1, 2 1)");
@@ -310,7 +309,7 @@ TEST(Polyline2D, Wkt) {
 }
 
 TEST(Polyline2D, ToFile) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "polyline.wkt").string();
   auto s = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)});
 
@@ -337,7 +336,7 @@ TEST(Polyline2D, TestFromFile) {
 }
 
 TEST(Polyline2D, DistanceTo) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::vector<g::Point2D> points{g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)};
   auto polyline = g::Polyline2D::Make(points);
 

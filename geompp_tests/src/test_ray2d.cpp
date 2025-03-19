@@ -61,7 +61,7 @@ TEST(Ray2D, AheadBehind) {
 }
 
 TEST(Ray2D, Intersection) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
   auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1));  // intersects r2 in (-0.5,-0.5)
@@ -98,7 +98,7 @@ TEST(Ray2D, Intersection) {
 }
 
 TEST(Ray2D, IntersectionWLine) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(1, -1), g::Vector2D(1, 1));  // intersects r1 in (0,0)
 
@@ -160,7 +160,7 @@ TEST(Ray2D, Wkt) {
 }
 
 TEST(Ray2D, ToFile) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "ray.wkt").string();
   auto v = g::Ray2D::Make(g::Point2D(12.32, -61.6164), g::Vector2D(1, 1));
 
@@ -187,7 +187,7 @@ TEST(Ray2D, TestFromFile) {
 }
 
 TEST(Ray2D, DistanceTo) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto ray = g::Ray2D::FromWkt("RAY (0 0, 1 0)");
 
   // on segment

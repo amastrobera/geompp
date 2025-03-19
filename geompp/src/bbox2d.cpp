@@ -83,8 +83,8 @@ bool BBox2D::AlmostEquals(BBox2D const& other) const {
 #pragma region Geometrical Operations
 
 bool BBox2D::Contains(Point2D const& p) const {
-  return round(p.x() - MIN.x()) >= 0 && round(p.x() - MAX.x()) <= 0 &&
-         round(p.y() - MIN.y()) >= 0 && round(p.y() - MAX.y()) <= 0;
+  return round(p.x() - MIN.x()) >= 0 && round(p.x() - MAX.x()) <= 0 && round(p.y() - MIN.y()) >= 0 &&
+         round(p.y() - MAX.y()) <= 0;
 }
 
 #pragma endregion

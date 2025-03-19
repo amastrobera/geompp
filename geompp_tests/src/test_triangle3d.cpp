@@ -1,10 +1,10 @@
 #include "triangle3d.hpp"
 
 #include "line3d.hpp"
-//#include "line_segment3d.hpp"
+// #include "line_segment3d.hpp"
 #include "point3d.hpp"
-//#include "polygon3d.hpp"
-//#include "ray3d.hpp"
+// #include "polygon3d.hpp"
+// #include "ray3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -334,7 +334,7 @@ TEST(Triangle3D, Wkt) {
 }
 
 TEST(Triangle3D, ToFile) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "triangle.wkt").string();
   auto s = g::Triangle3D::Make(g::Point3D(), g::Point3D(1, 0), g::Point3D(0, 2));
 

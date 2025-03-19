@@ -66,7 +66,7 @@ TEST(Point2D, Wkt) {
 }
 
 TEST(Point2D, ToFile) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "point.wkt").string();
   auto p = g::Point2D(15.341, -781.684);
 
@@ -92,7 +92,7 @@ TEST(Point2D, TestFromFile) {
 }
 
 TEST(Point2D, DistanceTo) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto p1 = g::Point2D();
   auto p2 = g::Point2D(1, 0);
 

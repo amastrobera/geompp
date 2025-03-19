@@ -22,8 +22,7 @@ namespace {
 
 static bool within_axis_boundary(double s, double t) {
   return (round(s) >= 0.0 && round(s - 1.0) <= 0.0) &&
-         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 &&
-          round(s + t - 1.0) <= 0.0);  // including borders
+         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 && round(s + t - 1.0) <= 0.0);  // including borders
 }
 
 }  // namespace
@@ -34,9 +33,8 @@ Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const&
   auto unique_points = remove_duplicates({p0, p1, p2});
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision", DECIMAL_PRECISION,
-                                         p0.ToWkt(), p1.ToWkt(),
-                                         p2.ToWkt()));
+    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
+                                         DECIMAL_PRECISION, p0.ToWkt(), p1.ToWkt(), p2.ToWkt()));
   }
   return {p0, p1, p2};
 }
@@ -51,15 +49,12 @@ Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
 }
 
 bool Triangle2D::AlmostEquals(Triangle2D const& other) const {
-  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1) &&
-         P2.AlmostEquals(other.P2);
+  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1) && P2.AlmostEquals(other.P2);
 }
 
 Point2D Triangle2D::Centroid() const { return average({P0, P1, P2}); }
 
-Polygon2D Triangle2D::ToPolygon() const {
-  return Polygon2D::Make({P0, P1, P2});
-}
+Polygon2D Triangle2D::ToPolygon() const { return Polygon2D::Make({P0, P1, P2}); }
 
 double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
 
@@ -71,9 +66,9 @@ double Triangle2D::DistanceTo(Point2D const& point) const {
   if (Contains(point)) {
     return 0;
   }
-  return std::min(std::min(LineSegment2D::Make(P0, P1).DistanceTo(point),
-                           LineSegment2D::Make(P1, P2).DistanceTo(point)),
-                  LineSegment2D::Make(P2, P0).DistanceTo(point));
+  return std::min(
+      std::min(LineSegment2D::Make(P0, P1).DistanceTo(point), LineSegment2D::Make(P1, P2).DistanceTo(point)),
+      LineSegment2D::Make(P2, P0).DistanceTo(point));
 }
 
 std::tuple<Vector2D, Vector2D> Triangle2D::ToAxis() const { return {P1 - P0, P2 - P0}; }
@@ -123,9 +118,7 @@ bool Triangle2D::Contains(Point2D const& point) const {
   return within_axis_boundary(std::get<0>(loc), std::get<1>(loc));
 }
 
-bool Triangle2D::Intersects(Line2D const& line) const {
-  return Intersection(line).has_value();
-}
+bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
 // bool LineSegment2D::Intersects(Ray2D const& ray) const {
 //   return Intersection(ray).has_value();
@@ -137,8 +130,7 @@ bool Triangle2D::Intersects(Line2D const& line) const {
 
 Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto intersections =
-      std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1),
-                                 LineSegment2D::Make(P1, P2),
+      std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
                                  LineSegment2D::Make(P2, P0)} |
       std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line); }) |
       std::views::filter([](LineSegment2D::ReturnSet const& res) {

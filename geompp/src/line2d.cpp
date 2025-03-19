@@ -40,21 +40,13 @@ Line2D& Line2D::operator=(Line2D const& other) {
   return *this;
 }
 
-bool Line2D::AlmostEquals(Line2D const& other) const {
-  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1);
-}
+bool Line2D::AlmostEquals(Line2D const& other) const { return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1); }
 
-double Line2D::DistanceTo(Point2D const& point) const {
-  return round(std::abs(DIR.Cross(point - P0)));
-}
+double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DIR.Cross(point - P0))); }
 
-Point2D Line2D::ProjectOnto(Point2D const& point) const {
-  return P0 + (point - P0).Dot(DIR) * DIR;
-}
+Point2D Line2D::ProjectOnto(Point2D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
 
-double Line2D::Location(Point2D const& point) const {
-  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length();
-}
+double Line2D::Location(Point2D const& point) const { return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length(); }
 
 #pragma endregion
 
@@ -71,22 +63,16 @@ std::ostream& operator<<(std::ostream& os, Line2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line2D::Contains(Point2D const& point) const {
-  return round((point - P0).Cross(DIR)) == 0.0;
-}
+bool Line2D::Contains(Point2D const& point) const { return round((point - P0).Cross(DIR)) == 0.0; }
 
 bool Line2D::Intersects(Line2D const& other) const {
   // very easy to verify in 2D plane
   return round(DIR.Cross(other.DIR)) != 0.0;
 }
 
-bool Line2D::Intersects(Ray2D const& ray) const {
-  return ray.Intersects(*this);
-}
+bool Line2D::Intersects(Ray2D const& ray) const { return ray.Intersects(*this); }
 
-bool Line2D::Intersects(LineSegment2D const& segment) const {
-  return segment.Intersects(*this);
-}
+bool Line2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
 Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
   auto u = DIR;
@@ -102,21 +88,16 @@ Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
   return P0 + t * u;
 }
 
-Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray) const {
-  return ray.Intersection(*this);
-}
+Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }
 
-Line2D::ReturnSet Line2D::Intersection(LineSegment2D const& segment) const {
-  return segment.Intersection(*this);
-}
+Line2D::ReturnSet Line2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 
 #pragma region Formatting
 
 std::string Line2D::ToWkt() const {
-  return std::format("LINE ({} {}, {} {})", round(P0.x()), round(P0.y()),
-                     round(P1.x()), round(P1.y()));
+  return std::format("LINE ({} {}, {} {})", round(P0.x()), round(P0.y()), round(P1.x()), round(P1.y()));
 }
 
 Line2D Line2D::FromWkt(std::string const& wkt) {

@@ -30,7 +30,7 @@ class Triangle2D {
   bool AlmostEquals(Triangle2D const& other) const;
   Point2D Centroid() const;
   Polygon2D ToPolygon() const;  // useful for ToWkt() polygon
-  double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
+  double SignedArea() const;    // if negative the order of points is clock-wise, otherwise it's counter-clockwise
   double Area() const;
   double Perimeter() const;
   double DistanceTo(Point2D const& point) const;

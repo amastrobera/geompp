@@ -74,17 +74,17 @@ std::ostream& operator<<(std::ostream& os, Point3D const& g);
 
 #pragma region Formatter
 
-//#include <format>
-// template <>
-// struct std::formatter<Point3D> {
-//   constexpr auto parse(std::format_parse_context& ctx) {
-//     return ctx.end();
-//   }
+// #include <format>
+//  template <>
+//  struct std::formatter<Point3D> {
+//    constexpr auto parse(std::format_parse_context& ctx) {
+//      return ctx.end();
+//    }
 //
-//   auto format(Point3D const& p, std::format_context& ctx) {
-//     return std::format_to(ctx.out(), "{}", p.ToWkt());
-//   }
-// };
+//    auto format(Point3D const& p, std::format_context& ctx) {
+//      return std::format_to(ctx.out(), "{}", p.ToWkt());
+//    }
+//  };
 
 #pragma endregion
 

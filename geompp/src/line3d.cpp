@@ -40,22 +40,16 @@ Line3D& Line3D::operator=(Line3D const& other) {
   return *this;
 }
 
-bool Line3D::AlmostEquals(Line3D const& other) const {
-  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1);
-}
+bool Line3D::AlmostEquals(Line3D const& other) const { return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1); }
 
 double Line3D::DistanceTo(Point3D const& point) const {
   throw std::runtime_error("not implemented");
   // return round(std::abs(DIR.Cross(point - P0)));
 }
 
-Point3D Line3D::ProjectOnto(Point3D const& point) const {
-  return P0 + (point - P0).Dot(DIR) * DIR;
-}
+Point3D Line3D::ProjectOnto(Point3D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
 
-double Line3D::Location(Point3D const& point) const {
-  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length();
-}
+double Line3D::Location(Point3D const& point) const { return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length(); }
 
 #pragma endregion
 
@@ -72,21 +66,13 @@ std::ostream& operator<<(std::ostream& os, Line3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line3D::Contains(Point3D const& point) const {
-  return round(DIR.Perp().Dot((point - P0))) == 0.0;
-}
+bool Line3D::Contains(Point3D const& point) const { return round(DIR.Perp().Dot((point - P0))) == 0.0; }
 
-bool Line3D::Intersects(Line3D const& other) const {
-  return Intersection(other).has_value();
-}
+bool Line3D::Intersects(Line3D const& other) const { return Intersection(other).has_value(); }
 
- bool Line3D::Intersects(Ray3D const& ray) const {
-  return ray.Intersects(*this);
-}
+bool Line3D::Intersects(Ray3D const& ray) const { return ray.Intersects(*this); }
 
- bool Line3D::Intersects(LineSegment3D const& segment) const {
-  return segment.Intersects(*this);
-}
+bool Line3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
 Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
   auto u = DIR;
@@ -102,23 +88,17 @@ Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
   return P0 + t * u;
 }
 
- Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray) const {
-  return ray.Intersection(*this);
-}
+Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray) const { return ray.Intersection(*this); }
 
- Line3D::ReturnSet Line3D::Intersection(LineSegment3D const& segment) const {
-  return segment.Intersection(*this);
-}
+Line3D::ReturnSet Line3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 
 #pragma region Formatting
 
 std::string Line3D::ToWkt() const {
-  return std::format("LINE ({} {} {}, {} {} {})", round(P0.x()),
-                     round(P0.y()), round(P0.z()),
-                     round(P1.x()), round(P1.y()),
-                     round(P1.z()));
+  return std::format("LINE ({} {} {}, {} {} {})", round(P0.x()), round(P0.y()), round(P0.z()), round(P1.x()),
+                     round(P1.y()), round(P1.z()));
 }
 
 Line3D Line3D::FromWkt(std::string const& wkt) {

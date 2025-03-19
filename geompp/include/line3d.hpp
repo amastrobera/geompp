@@ -11,8 +11,8 @@
 
 namespace geompp {
 
- class Ray3D;
- class LineSegment3D;
+class Ray3D;
+class LineSegment3D;
 class Triangle3D;
 
 class Line3D {
@@ -43,12 +43,12 @@ class Line3D {
   bool Contains(Point3D const& point) const;
   using ReturnSet = std::optional<std::variant<Point3D>>;
   bool Intersects(Line3D const& other) const;
-   bool Intersects(Ray3D const& ray) const;
-   bool Intersects(LineSegment3D const& segment) const;
+  bool Intersects(Ray3D const& ray) const;
+  bool Intersects(LineSegment3D const& segment) const;
   bool Intersects(Triangle3D const& t) const;
   ReturnSet Intersection(Line3D const& other) const;
-   ReturnSet Intersection(Ray3D const& ray) const;
-   ReturnSet Intersection(LineSegment3D const& segment) const;
+  ReturnSet Intersection(Ray3D const& ray) const;
+  ReturnSet Intersection(LineSegment3D const& segment) const;
   // TODO make ReturnSet public, and write Intersection(triangle)
 #pragma endregion
 

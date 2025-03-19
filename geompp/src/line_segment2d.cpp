@@ -95,17 +95,11 @@ bool LineSegment2D::Contains(Point2D const& point) const {
   return round(t) >= 0 && round(t - 1) <= 0;
 }
 
-bool LineSegment2D::Intersects(Line2D const& line) const {
-  return Intersection(line).has_value();
-}
+bool LineSegment2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
-bool LineSegment2D::Intersects(Ray2D const& ray) const {
-  return Intersection(ray).has_value();
-}
+bool LineSegment2D::Intersects(Ray2D const& ray) const { return Intersection(ray).has_value(); }
 
-bool LineSegment2D::Intersects(LineSegment2D const& other) const {
-  return Intersection(other).has_value();
-}
+bool LineSegment2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
 LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line) const {
   auto u = P1 - P0;
@@ -192,9 +186,7 @@ LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other)
 #pragma region Formatting
 
 std::string LineSegment2D::ToWkt() const {
-  return std::format("LINESTRING ({} {}, {} {})", round(P0.x()),
-                     round(P0.y()), round(P1.x()),
-                     round(P1.y()));
+  return std::format("LINESTRING ({} {}, {} {})", round(P0.x()), round(P0.y()), round(P1.x()), round(P1.y()));
 }
 
 LineSegment2D LineSegment2D::FromWkt(std::string const& wkt) {

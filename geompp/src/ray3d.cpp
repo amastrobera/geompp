@@ -30,19 +30,14 @@ Ray3D& Ray3D::operator=(Ray3D const& other) {
   return *this;
 }
 
-bool Ray3D::IsAhead(Point3D const& point) const {
-  return round(DIR.Dot(point - ORIGIN)) >= 0.0;
-}
+bool Ray3D::IsAhead(Point3D const& point) const { return round(DIR.Dot(point - ORIGIN)) >= 0.0; }
 
-bool Ray3D::IsBehind(Point3D const& point) const {
-  return round(DIR.Dot(point - ORIGIN)) < 0.0;
-}
+bool Ray3D::IsBehind(Point3D const& point) const { return round(DIR.Dot(point - ORIGIN)) < 0.0; }
 
 Line3D Ray3D::ToLine() const { return Line3D::Make(ORIGIN, DIR); }
 
 double Ray3D::DistanceTo(Point3D const& point) const {
-  return IsAhead(point) ? ToLine().DistanceTo(point)
-                                           : ORIGIN.DistanceTo(point);
+  return IsAhead(point) ? ToLine().DistanceTo(point) : ORIGIN.DistanceTo(point);
 }
 
 bool Ray3D::AlmostEquals(Ray3D const& other) const {
@@ -64,21 +59,13 @@ std::ostream& operator<<(std::ostream& os, Ray3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Ray3D::Contains(Point3D const& point) const {
-  return ToLine().Contains(point) && IsAhead(point);
-}
+bool Ray3D::Contains(Point3D const& point) const { return ToLine().Contains(point) && IsAhead(point); }
 
-bool Ray3D::Intersects(Line3D const& line) const {
-  return Intersection(line).has_value();
-}
+bool Ray3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 
-bool Ray3D::Intersects(Ray3D const& other) const {
-  return Intersection(other).has_value();
-}
+bool Ray3D::Intersects(Ray3D const& other) const { return Intersection(other).has_value(); }
 
-bool Ray3D::Intersects(LineSegment3D const& segment) const {
-  return segment.Intersects(*this);
-}
+bool Ray3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
 Ray3D::ReturnSet Ray3D::Intersection(Line3D const& line) const {
   auto u = DIR;
@@ -130,19 +117,15 @@ Ray3D::ReturnSet Ray3D::Intersection(Ray3D const& other) const {
   return inter_t;
 }
 
-Ray3D::ReturnSet Ray3D::Intersection(LineSegment3D const& segment) const {
-  return segment.Intersection(*this);
-}
+Ray3D::ReturnSet Ray3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 
 #pragma region Formatting
 
 std::string Ray3D::ToWkt() const {
-  return std::format("RAY ({} {} {}, {} {} {})", round(ORIGIN.x()),
-                     round(ORIGIN.y()), round(ORIGIN.z()),
-                     round(DIR.x()), round(DIR.y()),
-                     round(DIR.z()));
+  return std::format("RAY ({} {} {}, {} {} {})", round(ORIGIN.x()), round(ORIGIN.y()), round(ORIGIN.z()),
+                     round(DIR.x()), round(DIR.y()), round(DIR.z()));
 }
 
 Ray3D Ray3D::FromWkt(std::string const& wkt) {

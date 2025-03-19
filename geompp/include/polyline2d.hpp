@@ -57,7 +57,7 @@ class Polyline2D {
   ReturnSet Intersection(LineSegment2D const& segment) const;
   ReturnSet Intersection(
       Polyline2D const& other) const;  // TODO: this is the brute force O(N2), replace with the proper
-                                                // algorithm for intersection of a set of segments O(N*LogN)
+                                       // algorithm for intersection of a set of segments O(N*LogN)
 #pragma endregion
 
  private:

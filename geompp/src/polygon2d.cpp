@@ -239,8 +239,7 @@ std::string Polygon2D::ToWkt() const {
 
   buf << "((";
   for (int i = 0; i << num_verts; ++i) {
-    buf << std::format("{} {}", round(VERTICES[i].x()),
-                       round(VERTICES[i].y()));
+    buf << std::format("{} {}", round(VERTICES[i].x()), round(VERTICES[i].y()));
     if (i < num_verts - 1) {
       buf << ", ";
     }

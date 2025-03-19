@@ -95,17 +95,11 @@ bool LineSegment3D::Contains(Point3D const& point) const {
   return round(t) >= 0 && round(t - 1) <= 0;
 }
 
-bool LineSegment3D::Intersects(Line3D const& line) const {
-  return Intersection(line).has_value();
-}
+bool LineSegment3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 
-bool LineSegment3D::Intersects(Ray3D const& ray) const {
-  return Intersection(ray).has_value();
-}
+bool LineSegment3D::Intersects(Ray3D const& ray) const { return Intersection(ray).has_value(); }
 
-bool LineSegment3D::Intersects(LineSegment3D const& other) const {
-  return Intersection(other).has_value();
-}
+bool LineSegment3D::Intersects(LineSegment3D const& other) const { return Intersection(other).has_value(); }
 
 LineSegment3D::ReturnSet LineSegment3D::Intersection(Line3D const& line) const {
   auto u = P1 - P0;
@@ -192,10 +186,8 @@ LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other)
 #pragma region Formatting
 
 std::string LineSegment3D::ToWkt() const {
-  return std::format("LINESTRING ({} {} {}, {} {} {})", round(P0.x()),
-                     round(P0.y()), round(P0.z()),
-                     round(P1.x()), round(P1.y()),
-                     round(P1.z()));
+  return std::format("LINESTRING ({} {} {}, {} {} {})", round(P0.x()), round(P0.y()), round(P0.z()), round(P1.x()),
+                     round(P1.y()), round(P1.z()));
 }
 
 LineSegment3D LineSegment3D::FromWkt(std::string const& wkt) {

@@ -21,9 +21,7 @@ bool Point2D::AlmostEquals(Point2D const& other) const {
 
 Vector2D Point2D::ToVector() { return {X, Y}; }
 
-double Point2D::DistanceTo(Point2D const& other) const {
-  return round((other - *this).Length());
-}
+double Point2D::DistanceTo(Point2D const& other) const { return round((other - *this).Length()); }
 
 Point2D& Point2D::operator=(Point2D const& other) {
   if (this != &other) {
@@ -89,8 +87,7 @@ std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points) {
       auto u = (points[i2] - points[i1]);
       auto v = (points[i3] - points[i1]);
 
-      if (round(u.Dot(v)) >=
-          0) {  // same direction, pick the farthest point in the U-vector's direction
+      if (round(u.Dot(v)) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
         if (round(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2])) >= 0) {
           duplicates.insert(i2);
           ++i2;
@@ -180,9 +177,7 @@ std::ostream& operator<<(std::ostream& os, Point2D const& g) {
 
 #pragma region Formatting
 
-std::string Point2D::ToWkt() const {
-  return std::format("POINT ({} {})", round(X), round(Y));
-}
+std::string Point2D::ToWkt() const { return std::format("POINT ({} {})", round(X), round(Y)); }
 
 Point2D Point2D::FromWkt(std::string const& wkt) {
   try {

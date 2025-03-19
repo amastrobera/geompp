@@ -30,19 +30,14 @@ Ray2D& Ray2D::operator=(Ray2D const& other) {
   return *this;
 }
 
-bool Ray2D::IsAhead(Point2D const& point) const {
-  return round(DIR.Dot(point - ORIGIN)) >= 0.0;
-}
+bool Ray2D::IsAhead(Point2D const& point) const { return round(DIR.Dot(point - ORIGIN)) >= 0.0; }
 
-bool Ray2D::IsBehind(Point2D const& point) const {
-  return round(DIR.Dot(point - ORIGIN)) < 0.0;
-}
+bool Ray2D::IsBehind(Point2D const& point) const { return round(DIR.Dot(point - ORIGIN)) < 0.0; }
 
 Line2D Ray2D::ToLine() const { return Line2D::Make(ORIGIN, DIR); }
 
 double Ray2D::DistanceTo(Point2D const& point) const {
-  return IsAhead(point) ? ToLine().DistanceTo(point)
-                                           : ORIGIN.DistanceTo(point);
+  return IsAhead(point) ? ToLine().DistanceTo(point) : ORIGIN.DistanceTo(point);
 }
 
 bool Ray2D::AlmostEquals(Ray2D const& other) const {
@@ -64,21 +59,13 @@ std::ostream& operator<<(std::ostream& os, Ray2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Ray2D::Contains(Point2D const& point) const {
-  return round((point - ORIGIN).Cross(DIR)) == 0.0 && IsAhead(point);
-}
+bool Ray2D::Contains(Point2D const& point) const { return round((point - ORIGIN).Cross(DIR)) == 0.0 && IsAhead(point); }
 
-bool Ray2D::Intersects(Line2D const& line) const {
-  return Intersection(line).has_value();
-}
+bool Ray2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
-bool Ray2D::Intersects(Ray2D const& other) const {
-  return Intersection(other).has_value();
-}
+bool Ray2D::Intersects(Ray2D const& other) const { return Intersection(other).has_value(); }
 
-bool Ray2D::Intersects(LineSegment2D const& segment) const {
-  return segment.Intersects(*this);
-}
+bool Ray2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
 Ray2D::ReturnSet Ray2D::Intersection(Line2D const& line) const {
   auto u = DIR;
@@ -130,18 +117,14 @@ Ray2D::ReturnSet Ray2D::Intersection(Ray2D const& other) const {
   return inter_t;
 }
 
-Ray2D::ReturnSet Ray2D::Intersection(LineSegment2D const& segment) const {
-  return segment.Intersection(*this);
-}
+Ray2D::ReturnSet Ray2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 
 #pragma region Formatting
 
 std::string Ray2D::ToWkt() const {
-  return std::format("RAY ({} {}, {} {})", round(ORIGIN.x()),
-                     round(ORIGIN.y()), round(DIR.x()),
-                     round(DIR.y()));
+  return std::format("RAY ({} {}, {} {})", round(ORIGIN.x()), round(ORIGIN.y()), round(DIR.x()), round(DIR.y()));
 }
 
 Ray2D Ray2D::FromWkt(std::string const& wkt) {

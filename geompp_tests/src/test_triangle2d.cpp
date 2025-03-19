@@ -70,7 +70,7 @@ TEST(Triangle2D, Contains) {
 }
 
 TEST(Triangle2D, Areas) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto t_ccw = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
 
   ASSERT_EQ(6.4721, g::round(t_ccw.Perimeter()));
@@ -95,7 +95,7 @@ TEST(Triangle2D, Areas) {
 }
 
 TEST(Triangle2D, ToPolygon) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto t = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
 
   auto verts = t.Vertices();
@@ -114,7 +114,7 @@ TEST(Triangle2D, ToAxis) {
 }
 
 TEST(Triangle2D, DistanceTo) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto t = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
 
   // points
@@ -131,12 +131,12 @@ TEST(Triangle2D, DistanceTo) {
 
   // outside (ahead of segments)
   ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}) -
-                                  (std::get<1>(points) - std::get<0>(points)).Perp().Normalize()));
+                              (std::get<1>(points) - std::get<0>(points)).Perp().Normalize()));
 
   ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}) -
-                                  (std::get<2>(points) - std::get<1>(points)).Perp().Normalize()));
+                              (std::get<2>(points) - std::get<1>(points)).Perp().Normalize()));
   ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}) -
-                                  (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
+                              (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
 
   // outside (ahead of vertices)
   ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(0, -2)));
@@ -145,7 +145,7 @@ TEST(Triangle2D, DistanceTo) {
 }
 
 TEST(Triangle2D, Interpolate) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
 
   auto points = tri.Vertices();
@@ -162,7 +162,7 @@ TEST(Triangle2D, Interpolate) {
 }
 
 TEST(Triangle2D, IntersectionWLine) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 1, -1 1)");
 
   auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0));
@@ -331,7 +331,7 @@ TEST(Triangle2D, Wkt) {
 }
 
 TEST(Triangle2D, ToFile) {
-  geompp::DECIMAL_PRECISION =  4;
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "triangle.wkt").string();
   auto s = g::Triangle2D::Make(g::Point2D(), g::Point2D(1, 0), g::Point2D(0, 2));
 

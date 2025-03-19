@@ -1,10 +1,10 @@
 #include "plane.hpp"
 
 #include "line3d.hpp"
-//#include "line_segment3d.hpp"
+// #include "line_segment3d.hpp"
 #include "point3d.hpp"
-//#include "polygon3d.hpp"
-//#include "ray3d.hpp"
+// #include "polygon3d.hpp"
+// #include "ray3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 

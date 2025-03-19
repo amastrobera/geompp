@@ -1,9 +1,9 @@
 #include "triangle3d.hpp"
 
 #include "line3d.hpp"
-//#include "line_segment3d.hpp"
-//#include "polygon3d.hpp"
-//#include "ray3d.hpp"
+// #include "line_segment3d.hpp"
+// #include "polygon3d.hpp"
+// #include "ray3d.hpp"
 #include "utils.hpp"
 
 #include <algorithm>
@@ -22,8 +22,7 @@ namespace {
 
 static bool within_axis_boundary(double s, double t) {
   return (round(s) >= 0.0 && round(s - 1.0) <= 0.0) &&
-         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 &&
-          round(s + t - 1.0) <= 0.0);  // including borders
+         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 && round(s + t - 1.0) <= 0.0);  // including borders
 }
 
 }  // namespace
@@ -34,9 +33,8 @@ Triangle3D Triangle3D::Make(Point3D const& p0, Point3D const& p1, Point3D const&
   auto unique_points = remove_duplicates({p0, p1, p2});
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision", DECIMAL_PRECISION,
-                                         p0.ToWkt(), p1.ToWkt(),
-                                         p2.ToWkt()));
+    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
+                                         DECIMAL_PRECISION, p0.ToWkt(), p1.ToWkt(), p2.ToWkt()));
   }
   return {p0, p1, p2};
 }
@@ -51,8 +49,7 @@ Triangle3D& Triangle3D::operator=(Triangle3D const& other) {
 }
 
 bool Triangle3D::AlmostEquals(Triangle3D const& other) const {
-  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1) &&
-         P2.AlmostEquals(other.P2);
+  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1) && P2.AlmostEquals(other.P2);
 }
 
 #pragma endregion
@@ -134,9 +131,7 @@ bool Triangle3D::Contains(Point3D const& point) const {
 return within_axis_boundary(std::get<0>(loc), std::get<1>(loc));*/
 }
 
-bool Triangle3D::Intersects(Line3D const& line) const {
-  return Intersection(line).has_value();
-}
+bool Triangle3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 
 // bool LineSegment3D::Intersects(Ray3D const& ray) const {
 //   return Intersection(ray).has_value();

@@ -22,9 +22,7 @@ Point2D Vector2D::ToPoint() { return Point2D(X, Y); }
 
 double Vector2D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2)); }
 
-bool Vector2D::AlmostEquals(Vector2D const& other) const {
-  return round(X - other.X) == 0 && round(Y - other.Y) == 0;
-}
+bool Vector2D::AlmostEquals(Vector2D const& other) const { return round(X - other.X) == 0 && round(Y - other.Y) == 0; }
 
 double Vector2D::Dot(Vector2D const& v) const { return (X * v.X + Y * v.Y); }
 
@@ -66,9 +64,7 @@ std::ostream& operator<<(std::ostream& os, Vector2D const& g) {
 
 #pragma region Formatting
 
-std::string Vector2D::ToWkt() const {
-  return std::format("VECTOR ({} {})", round(X), round(Y));
-}
+std::string Vector2D::ToWkt() const { return std::format("VECTOR ({} {})", round(X), round(Y)); }
 
 Vector2D Vector2D::FromWkt(std::string const& wkt) {
   try {

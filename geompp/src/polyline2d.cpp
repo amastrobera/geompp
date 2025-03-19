@@ -82,15 +82,15 @@ double Polyline2D::Location(Point2D const& point) const {
   // at this point tot_len == Lenght(), no need to call that loop again
 
   // check if the point is behind the polyline (on the first "line")
-  if (round((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First())) ==
-      0) {  // collinearity check
-    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First())) *
-           segs[0].First().DistanceTo(point) / tot_len;
+  if (round((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First())) == 0) {  // collinearity check
+    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First())) * segs[0].First().DistanceTo(point) /
+           tot_len;
   }
 
   // check if the point is is beyond the polyline (on the last "line")
   int n = segs.size();
-  if (round((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First())) == 0) {  // collinearity check
+  if (round((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First())) ==
+      0) {  // collinearity check
     return (tot_len + segs[n - 1].Last().DistanceTo(point)) / tot_len;
   }
 
@@ -174,21 +174,13 @@ bool Polyline2D::Contains(Point2D const& point) const {
   //                            }));
 }
 
-bool Polyline2D::Intersects(Line2D const& line) const {
-  return Intersection(line).has_value();
-}
+bool Polyline2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
-bool Polyline2D::Intersects(Ray2D const& ray) const {
-  return Intersection(ray).has_value();
-}
+bool Polyline2D::Intersects(Ray2D const& ray) const { return Intersection(ray).has_value(); }
 
-bool Polyline2D::Intersects(Polyline2D const& other) const {
-  return Intersection(other).has_value();
-}
+bool Polyline2D::Intersects(Polyline2D const& other) const { return Intersection(other).has_value(); }
 
-bool Polyline2D::Intersects(LineSegment2D const& other) const {
-  return Intersection(other).has_value();
-}
+bool Polyline2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
 Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line) const {
   MultiPoint intersections;
