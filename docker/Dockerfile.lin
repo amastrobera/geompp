@@ -1,4 +1,4 @@
-FROM ubuntu:23.04
+FROM ubuntu:24.04
 
 RUN sed -i 's/lunar/jammy/g' /etc/apt/sources.list
 
@@ -35,6 +35,6 @@ RUN useradd --create-home --groups sudo --shell /bin/bash developer \
 
 # Set the working directory and default entrypoint
 USER developer
-ENV HOME /home/developer
+ENV HOME=/home/developer
 WORKDIR /home/developer/workspace/geompp
 ENTRYPOINT ["/bin/bash"]
