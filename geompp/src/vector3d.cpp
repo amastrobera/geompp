@@ -13,7 +13,9 @@ Vector3D::Vector3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
 
 Vector3D& Vector3D::operator=(Vector3D const& other) {
   if (this != &other) {
-    *this = other;
+    X = other.X;
+    Y = other.Y;
+    Z = other.Z;
   }
   return *this;
 }

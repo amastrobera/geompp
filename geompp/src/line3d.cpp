@@ -35,7 +35,9 @@ Line3D::Line3D(Point3D const& orig, Vector3D const& dir) : P0(orig), DIR(dir.Nor
 
 Line3D& Line3D::operator=(Line3D const& other) {
   if (this != &other) {
-    *this = other;
+    P0 = other.P0;
+    P1 = other.P1;
+    DIR = other.DIR;
   }
   return *this;
 }

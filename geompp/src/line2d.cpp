@@ -35,7 +35,9 @@ Line2D::Line2D(Point2D const& orig, Vector2D const& dir) : P0(orig), DIR(dir.Nor
 
 Line2D& Line2D::operator=(Line2D const& other) {
   if (this != &other) {
-    *this = other;
+    P0 = other.P0;
+    P1 = other.P1;
+    DIR = other.DIR;
   }
   return *this;
 }

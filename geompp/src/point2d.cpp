@@ -25,7 +25,8 @@ double Point2D::DistanceTo(Point2D const& other) const { return round((other - *
 
 Point2D& Point2D::operator=(Point2D const& other) {
   if (this != &other) {
-    *this = other;
+    X = other.X;
+    Y = other.Y;
   }
   return *this;
 }

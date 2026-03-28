@@ -25,7 +25,8 @@ Ray3D::Ray3D(Point3D const& orig, Vector3D const& dir) : ORIGIN(orig), DIR(dir.N
 
 Ray3D& Ray3D::operator=(Ray3D const& other) {
   if (this != &other) {
-    *this = other;
+    ORIGIN = other.ORIGIN;
+    DIR = other.DIR;
   }
   return *this;
 }

@@ -29,7 +29,7 @@ Polygon2D::Polygon2D(std::vector<Point2D> const& points) : VERTICES(points) {}
 
 Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   if (this != &other) {
-    *this = other;
+    VERTICES = other.VERTICES;
   }
   return *this;
 }

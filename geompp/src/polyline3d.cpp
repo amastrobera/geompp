@@ -35,7 +35,7 @@ Polyline3D Polyline3D::Make(std::vector<Point3D> const& points) {
 
 Polyline3D& Polyline3D::operator=(Polyline3D const& other) {
   if (this != &other) {
-    *this = other;
+    KNOTS = other.KNOTS;
   }
   return *this;
 }

@@ -25,7 +25,8 @@ Ray2D::Ray2D(Point2D const& orig, Vector2D const& dir) : ORIGIN(orig), DIR(dir.N
 
 Ray2D& Ray2D::operator=(Ray2D const& other) {
   if (this != &other) {
-    *this = other;
+    ORIGIN = other.ORIGIN;
+    DIR = other.DIR;
   }
   return *this;
 }

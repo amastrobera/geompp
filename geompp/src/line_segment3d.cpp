@@ -26,7 +26,8 @@ LineSegment3D::LineSegment3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(
 
 LineSegment3D& LineSegment3D::operator=(LineSegment3D const& other) {
   if (this != &other) {
-    *this = other;
+    P0 = other.P0;
+    P1 = other.P1;
   }
   return *this;
 }

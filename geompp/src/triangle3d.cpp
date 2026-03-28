@@ -43,7 +43,9 @@ Triangle3D::Triangle3D(Point3D const& p0, Point3D const& p1, Point3D const& p2) 
 
 Triangle3D& Triangle3D::operator=(Triangle3D const& other) {
   if (this != &other) {
-    *this = other;
+    P0 = other.P0;
+    P1 = other.P1;
+    P2 = other.P2;
   }
   return *this;
 }

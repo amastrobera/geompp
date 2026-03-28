@@ -29,7 +29,7 @@ Polygon3D::Polygon3D(std::vector<Point3D> const& points) : VERTICES(points) {}
 
 Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   if (this != &other) {
-    *this = other;
+    VERTICES = other.VERTICES;
   }
   return *this;
 }

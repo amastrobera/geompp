@@ -52,7 +52,10 @@ bool Plane::AlmostEquals(Plane const& other) const {
 
 Plane& Plane::operator=(Plane const& other) {
   if (this != &other) {
-    *this = other;
+    Origin = other.Origin;
+    Normal = other.Normal;
+    AxisU = other.AxisU;
+    AxisV = other.AxisV;
   }
   return *this;
 }

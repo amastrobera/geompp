@@ -43,7 +43,9 @@ Triangle2D::Triangle2D(Point2D const& p0, Point2D const& p1, Point2D const& p2) 
 
 Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
   if (this != &other) {
-    *this = other;
+    P0 = other.P0;
+    P1 = other.P1;
+    P2 = other.P2;
   }
   return *this;
 }

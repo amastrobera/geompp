@@ -13,7 +13,8 @@ Vector2D::Vector2D(double x, double y) : X(x), Y(y) {}
 
 Vector2D& Vector2D::operator=(Vector2D const& other) {
   if (this != &other) {
-    *this = other;
+    X = other.X;
+    Y = other.Y;
   }
   return *this;
 }

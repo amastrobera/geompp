@@ -25,7 +25,9 @@ double Point3D::DistanceTo(Point3D const& other) const { return round((other - *
 
 Point3D& Point3D::operator=(Point3D const& other) {
   if (this != &other) {
-    *this = other;
+    X = other.X;
+    Y = other.Y;
+    Z = other.Z;
   }
   return *this;
 }

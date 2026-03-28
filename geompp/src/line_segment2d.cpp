@@ -26,7 +26,8 @@ LineSegment2D::LineSegment2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(
 
 LineSegment2D& LineSegment2D::operator=(LineSegment2D const& other) {
   if (this != &other) {
-    *this = other;
+    P0 = other.P0;
+    P1 = other.P1;
   }
   return *this;
 }

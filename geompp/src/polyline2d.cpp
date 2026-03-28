@@ -35,7 +35,7 @@ Polyline2D Polyline2D::Make(std::vector<Point2D> const& points) {
 
 Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
   if (this != &other) {
-    *this = other;
+    KNOTS = other.KNOTS;
   }
   return *this;
 }
