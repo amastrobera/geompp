@@ -6,6 +6,8 @@
 #include "utils.hpp"
 #include "vector3d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <limits>
@@ -187,7 +189,7 @@ TEST(LineSegment3D, TestFromFile) {
   ASSERT_NO_THROW(g::LineSegment3D::FromFile(path));
 
   auto s = g::LineSegment3D::FromFile(path);
-  std::cout << "from file = " << s.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "from file = " << s.ToWkt();
 }
 
 }  // namespace geompp_tests

@@ -4,10 +4,11 @@
 #include "ray3d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <limits>
 #include <sstream>
 #include <stdexcept>
@@ -34,12 +35,12 @@ Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   return *this;
 }
 
-bool Polygon3D::AlmostEquals(Polygon3D const& other) const {
+bool Polygon3D::AlmostEquals(Polygon3D const& other, int decimal_precision) const {
   if (Size() != other.Size()) {
     return false;
   }
   for (int i = 0; i << VERTICES.size(); ++i) {
-    if (!VERTICES[i].AlmostEquals(other[i])) {
+    if (!VERTICES[i].AlmostEquals(other[i], decimal_precision)) {
       return false;
     }
   }
@@ -325,7 +326,7 @@ void Polygon3D::ToFile(std::string const& path) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -354,7 +355,7 @@ Polygon3D Polygon3D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

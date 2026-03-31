@@ -2,10 +2,11 @@
 
 #include "point3d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 
 namespace geompp {
 
@@ -24,8 +25,9 @@ Point3D Vector3D::ToPoint() { return Point3D(X, Y, Z); }
 
 double Vector3D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z, 2)); }
 
-bool Vector3D::AlmostEquals(Vector3D const& other) const {
-  return round(X - other.X) == 0 && round(Y - other.Y) == 0 && round(Z - other.Z) == 0;
+bool Vector3D::AlmostEquals(Vector3D const& other, int decimal_precision) const {
+  return round(X - other.X, decimal_precision) == 0 && round(Y - other.Y, decimal_precision) == 0 &&
+         round(Z - other.Z, decimal_precision) == 0;
 }
 
 double Vector3D::Dot(Vector3D const& v) const { return (X * v.X + Y * v.Y + Z * v.Z); }
@@ -119,7 +121,7 @@ Vector3D Vector3D::FromWkt(std::string const& wkt) {
     return {nums[0], nums[1], nums[2]};
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
@@ -142,7 +144,7 @@ void Vector3D::ToFile(std::string const& path) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -171,7 +173,7 @@ Vector3D Vector3D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

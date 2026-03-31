@@ -7,6 +7,8 @@
 #include "utils.hpp"
 #include "vector3d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 
@@ -37,8 +39,8 @@ TEST(Ray3D, AlmostEquals) {
   auto r4 = g::Ray3D::Make(g::Point3D(1, 0, 0), g::Vector3D(1, 0, 0));
 
   ASSERT_EQ(r1, r2);
-  ASSERT_NE(r1, r3);   // different direction
-  ASSERT_NE(r1, r4);   // different origin
+  ASSERT_NE(r1, r3);  // different direction
+  ASSERT_NE(r1, r4);  // different origin
 
   // self-equality
   ASSERT_EQ(r1, r1);
@@ -62,8 +64,8 @@ TEST(Ray3D, IsAheadIsBehind) {
 
   // points ahead (same direction as DIR)
   ASSERT_TRUE(r.IsAhead(g::Point3D(1, 0, 0)));
-  ASSERT_TRUE(r.IsAhead(g::Point3D(5, 3, 0)));   // off-axis but ahead in X
-  ASSERT_TRUE(r.IsAhead(g::Point3D(0, 0, 0)));   // at origin: on the boundary (ahead)
+  ASSERT_TRUE(r.IsAhead(g::Point3D(5, 3, 0)));  // off-axis but ahead in X
+  ASSERT_TRUE(r.IsAhead(g::Point3D(0, 0, 0)));  // at origin: on the boundary (ahead)
 
   // points behind
   ASSERT_TRUE(r.IsBehind(g::Point3D(-1, 0, 0)));
@@ -156,7 +158,7 @@ TEST(Ray3D, TestFromFile) {
   ASSERT_NO_THROW(g::Ray3D::FromFile(path));
 
   auto r = g::Ray3D::FromFile(path);
-  std::cout << "from file = " << r.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "from file = " << r.ToWkt();
 }
 
 }  // namespace geompp_tests

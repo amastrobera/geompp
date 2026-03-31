@@ -11,9 +11,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Include directories
 include_directories(include)
 
+##################
+## Prepare GLOG ##
+##################
+
+include(FetchContent)
+FetchContent_Declare(
+  glog
+  URL https://github.com/google/glog/archive/refs/tags/v0.7.1.zip
+)
+set(WITH_GFLAGS     OFF CACHE BOOL "" FORCE)
+set(WITH_GTEST      OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE) # Build static library
+FetchContent_MakeAvailable(glog)
+
 
 # Add the library
 add_library(${PROJECT_NAME}
+    src/constants.cpp
+    src/geompp_log.cpp
     src/utils.cpp
     src/lsv_parser.cpp
 
@@ -40,3 +56,5 @@ add_library(${PROJECT_NAME}
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC glog::glog)

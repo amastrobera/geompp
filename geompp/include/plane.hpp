@@ -29,7 +29,7 @@ class Plane {
   Vector3D inline const axis_u() const { return AxisU; }
   Vector3D inline const axis_v() const { return AxisV; }
 
-  bool AlmostEquals(Plane const& other) const;
+  bool AlmostEquals(Plane const& other, int decimal_precision = DECIMAL_PRECISION) const;
   Plane& operator=(Plane const& other);
 
 #pragma region Geometrial Operations

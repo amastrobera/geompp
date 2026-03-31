@@ -8,6 +8,8 @@
 #include "utils.hpp"
 #include "vector2d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -119,29 +121,29 @@ TEST(Triangle2D, DistanceTo) {
 
   // points
   auto points = t.Vertices();
-  ASSERT_EQ(0, t.DistanceTo(std::get<0>(points)));
-  ASSERT_EQ(0, t.DistanceTo(std::get<1>(points)));
-  ASSERT_EQ(0, t.DistanceTo(std::get<2>(points)));
-  ASSERT_EQ(0, t.DistanceTo(t.Centroid()));
+  ASSERT_EQ(0, g::round(t.DistanceTo(std::get<0>(points))));
+  ASSERT_EQ(0, g::round(t.DistanceTo(std::get<1>(points))));
+  ASSERT_EQ(0, g::round(t.DistanceTo(std::get<2>(points))));
+  ASSERT_EQ(0, g::round(t.DistanceTo(t.Centroid())));
 
   // on line
-  ASSERT_EQ(0, t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)})));
-  ASSERT_EQ(0, t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)})));
-  ASSERT_EQ(0, t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)})));
+  ASSERT_EQ(0, g::round(t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}))));
+  ASSERT_EQ(0, g::round(t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}))));
+  ASSERT_EQ(0, g::round(t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}))));
 
   // outside (ahead of segments)
-  ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}) -
-                              (std::get<1>(points) - std::get<0>(points)).Perp().Normalize()));
+  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}) -
+                                       (std::get<1>(points) - std::get<0>(points)).Perp().Normalize())));
 
-  ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}) -
-                              (std::get<2>(points) - std::get<1>(points)).Perp().Normalize()));
-  ASSERT_EQ(1.0, t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}) -
-                              (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
+  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}) -
+                                       (std::get<2>(points) - std::get<1>(points)).Perp().Normalize())));
+  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}) -
+                                       (std::get<0>(points) - std::get<2>(points)).Perp().Normalize())));
 
   // outside (ahead of vertices)
-  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(0, -2)));
-  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(2, 0)));
-  ASSERT_EQ(1.0, t.DistanceTo(g::Point2D(-2, 0)));
+  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::Point2D(0, -2))));
+  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::Point2D(2, 0))));
+  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::Point2D(-2, 0))));
 }
 
 TEST(Triangle2D, Interpolate) {
@@ -354,7 +356,7 @@ TEST(Triangle2D, TestFromFile) {
 
   auto p = g::Triangle2D::FromFile(path);
 
-  std::cout << "form file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
 }  // namespace geompp_tests

@@ -6,10 +6,11 @@
 #include "ray3d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <algorithm>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <limits>
 #include <numeric>
 #include <ranges>
@@ -55,12 +56,12 @@ double Polyline3D::Length() const {
   return std::accumulate(iterable_range.begin(), iterable_range.end(), 0);
 }
 
-bool Polyline3D::AlmostEquals(Polyline3D const& other) const {
+bool Polyline3D::AlmostEquals(Polyline3D const& other, int decimal_precision) const {
   if (KNOTS.size() != other.KNOTS.size()) {
     return false;
   }
   for (int i = 0; i < KNOTS.size(); ++i) {
-    if (!KNOTS[i].AlmostEquals(other.KNOTS[i])) {
+    if (!KNOTS[i].AlmostEquals(other.KNOTS[i], decimal_precision)) {
       return false;
     }
   }
@@ -346,7 +347,7 @@ Polyline3D Polyline3D::FromWkt(std::string const& wkt) {
     return Make(pt_vec);
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
@@ -369,7 +370,7 @@ void Polyline3D::ToFile(std::string const& path) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -398,7 +399,7 @@ Polyline3D Polyline3D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

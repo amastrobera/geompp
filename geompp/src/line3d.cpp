@@ -4,10 +4,11 @@
 #include "ray3d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <stdexcept>
 
 namespace geompp {
@@ -42,7 +43,9 @@ Line3D& Line3D::operator=(Line3D const& other) {
   return *this;
 }
 
-bool Line3D::AlmostEquals(Line3D const& other) const { return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1); }
+bool Line3D::AlmostEquals(Line3D const& other, int decimal_precision) const {
+  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+}
 
 double Line3D::DistanceTo(Point3D const& point) const {
   throw std::runtime_error("not implemented");
@@ -142,7 +145,7 @@ Line3D Line3D::FromWkt(std::string const& wkt) {
     return Make(Point3D{nums_p1[0], nums_p1[1], nums_p1[2]}, Point3D{nums_p2[0], nums_p2[1], nums_p2[2]});
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
@@ -165,7 +168,7 @@ void Line3D::ToFile(std::string const& path) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -194,7 +197,7 @@ Line3D Line3D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

@@ -3,6 +3,8 @@
 #include "utils.hpp"
 #include "vector3d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -113,26 +115,26 @@ TEST(Point3D, DistanceTo) {
   auto origin = g::Point3D();
 
   // axis-aligned
-  ASSERT_EQ(1.0, origin.DistanceTo(g::Point3D(1, 0, 0)));
-  ASSERT_EQ(1.0, origin.DistanceTo(g::Point3D(0, 1, 0)));
-  ASSERT_EQ(1.0, origin.DistanceTo(g::Point3D(0, 0, 1)));
+  ASSERT_EQ(1.0, g::round(origin.DistanceTo(g::Point3D(1, 0, 0))));
+  ASSERT_EQ(1.0, g::round(origin.DistanceTo(g::Point3D(0, 1, 0))));
+  ASSERT_EQ(1.0, g::round(origin.DistanceTo(g::Point3D(0, 0, 1))));
 
   // diagonal in XY plane: sqrt(2)
   geompp::DECIMAL_PRECISION = 3;
-  ASSERT_EQ(g::round(std::sqrt(2.0)), origin.DistanceTo(g::Point3D(1, 1, 0)));
+  ASSERT_EQ(g::round(std::sqrt(2.0)), g::round(origin.DistanceTo(g::Point3D(1, 1, 0))));
 
   // space diagonal of unit cube: sqrt(3)
-  ASSERT_EQ(g::round(std::sqrt(3.0)), origin.DistanceTo(g::Point3D(1, 1, 1)));
+  ASSERT_EQ(g::round(std::sqrt(3.0)), g::round(origin.DistanceTo(g::Point3D(1, 1, 1))));
 
   geompp::DECIMAL_PRECISION = 4;
 
   // symmetry
   auto p1 = g::Point3D(1, 2, 3);
   auto p2 = g::Point3D(4, 6, 3);
-  ASSERT_EQ(p1.DistanceTo(p2), p2.DistanceTo(p1));
+  ASSERT_EQ(g::round(p1.DistanceTo(p2)), g::round(p2.DistanceTo(p1)));
 
   // distance to self is 0
-  ASSERT_EQ(0.0, p1.DistanceTo(p1));
+  ASSERT_EQ(0.0, g::round(p1.DistanceTo(p1)));
 }
 
 TEST(Point3D, AlmostEquals) {
@@ -199,7 +201,7 @@ TEST(Point3D, TestFromFile) {
   ASSERT_NO_THROW(g::Point3D::FromFile(path));
 
   auto p = g::Point3D::FromFile(path);
-  std::cout << "from file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "from file = " << p.ToWkt();
 }
 
 TEST(Point3D, AreCollinear) {

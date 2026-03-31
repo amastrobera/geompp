@@ -27,7 +27,7 @@ class Triangle3D {
 
   inline std::tuple<Point3D, Point3D, Point3D> const Vertices() const { return {P0, P1, P2}; }
 
-  bool AlmostEquals(Triangle3D const& other) const;
+  bool AlmostEquals(Triangle3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   Point3D Centroid() const;
   // Polygon3D ToPolygon() const;  // useful for ToWkt() polygon
   double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise

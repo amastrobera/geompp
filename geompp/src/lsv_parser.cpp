@@ -1,8 +1,9 @@
 #include "lsv_parser.hpp"
 
+#include "geompp_log.hpp"
+
 #include <filesystem>
 #include <fstream>
-#include <iostream>  // TODO: replace with log library
 
 namespace fs = std::filesystem;
 
@@ -122,7 +123,7 @@ LVSParser::ReturnSet LVSParser::Next() {
       throw std::runtime_error("unknown type");
 
     } catch (...) {
-      std::cerr << "unsupported geometry " << clean_line << std::endl;
+      GEOMPP_LOG(ERROR) << "unsupported geometry " << clean_line;
       return std::nullopt;
     }
   }

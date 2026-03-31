@@ -27,7 +27,7 @@ class Triangle2D {
 
   inline std::tuple<Point2D, Point2D, Point2D> const Vertices() const { return {P0, P1, P2}; }
 
-  bool AlmostEquals(Triangle2D const& other) const;
+  bool AlmostEquals(Triangle2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   Point2D Centroid() const;
   Polygon2D ToPolygon() const;  // useful for ToWkt() polygon
   double SignedArea() const;    // if negative the order of points is clock-wise, otherwise it's counter-clockwise

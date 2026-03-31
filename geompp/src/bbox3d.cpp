@@ -76,8 +76,8 @@ BBox3D::BBox3D(Point3D const& min, Point3D const& max) : MIN(min), MAX(max) {}
 
 BBox3D::BBox3D(BBox3D const& b) : MIN(b.MAX), MAX(b.MAX) {}
 
-bool BBox3D::AlmostEquals(BBox3D const& other) const {
-  return MIN.AlmostEquals(other.MIN) && MAX.AlmostEquals(other.MAX);
+bool BBox3D::AlmostEquals(BBox3D const& other, int decimal_precision) const {
+  return MIN.AlmostEquals(other.MIN, decimal_precision) && MAX.AlmostEquals(other.MAX, decimal_precision);
 }
 
 #pragma region Geometrical Operations

@@ -76,8 +76,8 @@ BBox2D::BBox2D(Triangle2D const& s) : BBox2D(s.ToPolygon()) {}
 
 BBox2D::BBox2D(BBox2D const& b) : MIN(b.MAX), MAX(b.MAX) {}
 
-bool BBox2D::AlmostEquals(BBox2D const& other) const {
-  return MIN.AlmostEquals(other.MIN) && MAX.AlmostEquals(other.MAX);
+bool BBox2D::AlmostEquals(BBox2D const& other, int decimal_precision) const {
+  return MIN.AlmostEquals(other.MIN, decimal_precision) && MAX.AlmostEquals(other.MAX, decimal_precision);
 }
 
 #pragma region Geometrical Operations

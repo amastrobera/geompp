@@ -30,7 +30,7 @@ class Polyline3D {
   Point3D const& operator[](size_t i) const;
   // TODO: it would be nice to have a "generator" with coroutines that "yields" point by point
 
-  bool AlmostEquals(Polyline3D const& other) const;
+  bool AlmostEquals(Polyline3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   std::vector<LineSegment3D> ToSegments() const;
   double Length() const;
   double DistanceTo(Point3D const& point) const;

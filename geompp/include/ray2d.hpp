@@ -23,7 +23,7 @@ class Ray2D {
 
   inline Point2D const& Origin() const { return ORIGIN; }
   inline Vector2D const& Direction() const { return DIR; }
-  bool AlmostEquals(Ray2D const& other) const;
+  bool AlmostEquals(Ray2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   bool IsAhead(Point2D const& point) const;
   bool IsBehind(Point2D const& point) const;
   Line2D ToLine() const;

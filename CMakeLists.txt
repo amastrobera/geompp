@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 project(geompp_proj)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 include_directories(${CMAKE_SOURCE_DIR}/geompp/include)
 
 add_subdirectory(geompp)

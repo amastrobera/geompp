@@ -3,6 +3,8 @@
 #include "utils.hpp"
 #include "vector2d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -88,7 +90,7 @@ TEST(Point2D, TestFromFile) {
 
   auto p = g::Point2D::FromFile(path);
 
-  std::cout << "form file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
 TEST(Point2D, DistanceTo) {
@@ -96,11 +98,12 @@ TEST(Point2D, DistanceTo) {
   auto p1 = g::Point2D();
   auto p2 = g::Point2D(1, 0);
 
-  ASSERT_EQ(1, p1.DistanceTo(p2));
+  ASSERT_EQ(1, g::round(p1.DistanceTo(p2)));
+  ASSERT_EQ(1, g::round(p2.DistanceTo(p1)));
 
   auto p3 = g::Point2D(-1, -1);
 
-  EXPECT_EQ(g::round(sqrt(2)), p1.DistanceTo(p3));
+  EXPECT_EQ(1.4142, g::round(p1.DistanceTo(p3)));
 }
 
 TEST(Point2D, RemoveDuplicates) {

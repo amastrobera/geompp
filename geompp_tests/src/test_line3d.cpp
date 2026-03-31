@@ -7,6 +7,8 @@
 #include "utils.hpp"
 #include "vector3d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -157,7 +159,7 @@ TEST(Line3D, TestFromFile) {
   ASSERT_NO_THROW(g::Line3D::FromFile(path));
 
   auto l = g::Line3D::FromFile(path);
-  std::cout << "from file = " << l.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "from file = " << l.ToWkt();
 }
 
 TEST(Line3D, IntersectionWithLine3D) {

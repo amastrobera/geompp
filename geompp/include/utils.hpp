@@ -8,7 +8,7 @@
 
 namespace geompp {
 
-double round(double x, int precision = DECIMAL_PRECISION);
+double round(double x, int decimal_precision = DECIMAL_PRECISION);
 
 int sign(double x);
 

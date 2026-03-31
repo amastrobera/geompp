@@ -27,7 +27,7 @@ class Line2D {
   inline Point2D const& Last() const { return P1; }
   inline Point2D const& Origin() const { return P0; }
   inline Vector2D const& Direction() const { return DIR; }
-  bool AlmostEquals(Line2D const& other) const;
+  bool AlmostEquals(Line2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   double DistanceTo(Point2D const& point) const;
   Point2D ProjectOnto(Point2D const& point) const;
   double Location(Point2D const& point) const;

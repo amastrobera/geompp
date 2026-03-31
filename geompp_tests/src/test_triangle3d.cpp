@@ -8,6 +8,8 @@
 #include "utils.hpp"
 #include "vector3d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -357,7 +359,7 @@ TEST(Triangle3D, TestFromFile) {
 
   auto p = g::Triangle3D::FromFile(path);
 
-  std::cout << "form file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
 }  // namespace geompp_tests

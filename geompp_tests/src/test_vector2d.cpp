@@ -4,6 +4,8 @@
 #include "point2d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 
@@ -97,7 +99,7 @@ TEST(Vector2D, TestFromFile) {
 
   auto p = g::Vector2D::FromFile(path);
 
-  std::cout << "form file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
 }  // namespace geompp_tests

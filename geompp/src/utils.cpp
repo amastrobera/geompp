@@ -10,8 +10,8 @@
 
 namespace geompp {
 
-double round(double x, int precision) {
-  double exp = pow(10, precision);
+double round(double x, int decimal_precision) {
+  double exp = pow(10, decimal_precision);
   return std::round(x * exp) / exp;
 }
 

@@ -7,6 +7,8 @@
 #include "utils.hpp"
 #include "vector2d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -332,7 +334,7 @@ TEST(Polyline2D, TestFromFile) {
 
   auto p = g::Polyline2D::FromFile(path);
 
-  std::cout << "form file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
 TEST(Polyline2D, DistanceTo) {
@@ -342,18 +344,18 @@ TEST(Polyline2D, DistanceTo) {
 
   // knots
   for (auto const& p : points) {
-    ASSERT_EQ(0, polyline.DistanceTo(p));
+    ASSERT_EQ(0, g::round(polyline.DistanceTo(p)));
   }
 
   // mid points
   for (int i = 0; i < points.size() - 1; ++i) {
     auto avg = ((points[i].ToVector() + points[i + 1].ToVector()) / 2.0).ToPoint();
-    ASSERT_EQ(0, polyline.DistanceTo(avg));
+    ASSERT_EQ(0, g::round(polyline.DistanceTo(avg)));
   }
 
   // before the polyline
-  ASSERT_EQ(1, polyline.DistanceTo(g::Point2D(-3, -4)));
-  ASSERT_EQ(1, polyline.DistanceTo(g::Point2D(0, -2)));
+  ASSERT_EQ(1, g::round(polyline.DistanceTo(g::Point2D(-3, -4))));
+  ASSERT_EQ(1, g::round(polyline.DistanceTo(g::Point2D(0, -2))));
 }
 
 }  // namespace geompp_tests

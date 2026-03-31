@@ -27,7 +27,7 @@ class Line3D {
   inline Point3D const& Last() const { return P1; }
   inline Point3D const& Origin() const { return P0; }
   inline Vector3D const& Direction() const { return DIR; }
-  bool AlmostEquals(Line3D const& other) const;
+  bool AlmostEquals(Line3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   double DistanceTo(Point3D const& point) const;
   Point3D ProjectOnto(Point3D const& point) const;
   double Location(Point3D const& point) const;

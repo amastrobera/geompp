@@ -3,6 +3,7 @@
 #include <lsv_parser.hpp>
 #include <point2d.hpp>
 #include <ray2d.hpp>
+#include <geompp_log.hpp>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -132,7 +133,7 @@ int main(int argc, char** argv) {
       if (geom.has_value()) {
         if (std::holds_alternative<g::Point2D>(geom.value())) {
           auto point = std::get<g::Point2D>(geom.value());
-          std::cout << "rendering " << point.ToWkt() << std::endl;
+          GEOMPP_LOG(INFO) << "rendering " << point.ToWkt();
 
           auto geom_vertices = ParseShape(point);
           std::vector<float> vertices;
@@ -147,7 +148,7 @@ int main(int argc, char** argv) {
 
         } else if (std::holds_alternative<g::LineSegment2D>(geom.value())) {
           auto seg = std::get<g::LineSegment2D>(geom.value());
-          std::cout << "rendering " << seg.ToWkt() << std::endl;
+          GEOMPP_LOG(INFO) << "rendering " << seg.ToWkt();
 
           auto geom_vertices = ParseShape(seg);
           std::vector<float> vertices;

@@ -4,10 +4,11 @@
 #include "point2d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <variant>
 #include <vector>
 
@@ -77,16 +78,16 @@ TEST(LsvParser, FromFile) {
     if (geom.has_value()) {
       auto geom_val = geom.value();
       if (std::holds_alternative<g::Point2D>(geom_val)) {
-        std::cout << "rendering " << std::get<g::Point2D>(geom_val).ToWkt() << std::endl;
+        GEOMPP_LOG(INFO) << "rendering " << std::get<g::Point2D>(geom_val).ToWkt();
 
       } else if (std::holds_alternative<g::LineSegment2D>(geom_val)) {
-        std::cout << "rendering " << std::get<g::LineSegment2D>(geom_val).ToWkt() << std::endl;
+        GEOMPP_LOG(INFO) << "rendering " << std::get<g::LineSegment2D>(geom_val).ToWkt();
 
       } else if (std::holds_alternative<g::Point3D>(geom_val)) {
-        std::cout << "rendering " << std::get<g::Point3D>(geom_val).ToWkt() << std::endl;
+        GEOMPP_LOG(INFO) << "rendering " << std::get<g::Point3D>(geom_val).ToWkt();
 
       } else if (std::holds_alternative<g::LineSegment3D>(geom_val)) {
-        std::cout << "rendering " << std::get<g::LineSegment3D>(geom_val).ToWkt() << std::endl;
+        GEOMPP_LOG(INFO) << "rendering " << std::get<g::LineSegment3D>(geom_val).ToWkt();
       }
     }
   }

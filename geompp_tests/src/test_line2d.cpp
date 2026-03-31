@@ -3,6 +3,8 @@
 #include "point2d.hpp"
 #include "vector2d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 
@@ -108,7 +110,7 @@ TEST(Line2D, TestFromFile) {
 
   auto p = g::Line2D::FromFile(path);
 
-  std::cout << "form file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
 TEST(Line2D, DistanceTo) {
@@ -117,33 +119,33 @@ TEST(Line2D, DistanceTo) {
 
   // on segment
   auto p1 = g::Point2D();
-  EXPECT_EQ(0, line.DistanceTo(p1));
+  EXPECT_EQ(0, g::round(line.DistanceTo(p1)));
 
   auto p2 = g::Point2D(3, 0);
-  EXPECT_EQ(0, line.DistanceTo(p2));
+  EXPECT_EQ(0, g::round(line.DistanceTo(p2)));
 
   // on line
   auto p3 = g::Point2D(-20, 0);
-  EXPECT_EQ(0, line.DistanceTo(p3));
+  EXPECT_EQ(0, g::round(line.DistanceTo(p3)));
 
   auto p4 = g::Point2D(12, 0);
-  EXPECT_EQ(0, line.DistanceTo(p4));
+  EXPECT_EQ(0, g::round(line.DistanceTo(p4)));
 
   // Q1
   auto p5 = g::Point2D(12, 12);
-  EXPECT_EQ(12, line.DistanceTo(p5));
+  EXPECT_EQ(12, g::round(line.DistanceTo(p5)));
 
   // Q2
   auto p6 = g::Point2D(-5, 10);
-  EXPECT_EQ(10, line.DistanceTo(p6));
+  EXPECT_EQ(10, g::round(line.DistanceTo(p6)));
 
   // Q3
   auto p7 = g::Point2D(-2, -4);
-  EXPECT_EQ(4, line.DistanceTo(p7));
+  EXPECT_EQ(4, g::round(line.DistanceTo(p7)));
 
   // Q4
   auto p8 = g::Point2D(3, -7);
-  EXPECT_EQ(7, line.DistanceTo(p8));
+  EXPECT_EQ(7, g::round(line.DistanceTo(p8)));
 }
 
 }  // namespace geompp_tests

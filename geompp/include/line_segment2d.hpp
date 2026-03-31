@@ -23,7 +23,7 @@ class LineSegment2D {
   inline Point2D const& First() const { return P0; }
   inline Point2D const& Last() const { return P1; }
 
-  bool AlmostEquals(LineSegment2D const& other) const;
+  bool AlmostEquals(LineSegment2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   Line2D ToLine() const;
   double Length() const;
   double DistanceTo(Point2D const& point) const;

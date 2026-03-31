@@ -6,11 +6,12 @@
 // #include "ray3d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <limits>
 #include <ranges>
 #include <stdexcept>
@@ -50,8 +51,9 @@ Triangle3D& Triangle3D::operator=(Triangle3D const& other) {
   return *this;
 }
 
-bool Triangle3D::AlmostEquals(Triangle3D const& other) const {
-  return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1) && P2.AlmostEquals(other.P2);
+bool Triangle3D::AlmostEquals(Triangle3D const& other, int decimal_precision) const {
+  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
+         P2.AlmostEquals(other.P2, decimal_precision);
 }
 
 #pragma endregion
@@ -87,8 +89,7 @@ std::tuple<Vector3D, Vector3D> Triangle3D::ToAxis() const { return {P1 - P0, P2 
 
 std::optional<Point3D> Triangle3D::Interpolate(double s, double t) const {
   if (!within_axis_boundary(s, t)) {
-    std::cerr << "(s, t) = (" << s << ", " << t << ") are not within boundaries [0, 1]"
-              << std::endl;  // TODO: log warning
+    GEOMPP_LOG(ERROR) << "(s, t) = (" << s << ", " << t << ") are not within boundaries [0, 1]";
     return std::nullopt;
   }
 
@@ -273,7 +274,7 @@ Triangle3D Triangle3D::FromWkt(std::string const& wkt) {
     return Make(pt_vec[0], pt_vec[1], pt_vec[2]);
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
@@ -296,7 +297,7 @@ void Triangle3D::ToFile(std::string const& path) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -325,7 +326,7 @@ Triangle3D Triangle3D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

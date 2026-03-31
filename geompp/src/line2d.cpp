@@ -4,10 +4,11 @@
 #include "ray2d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <stdexcept>
 
 namespace geompp {
@@ -42,7 +43,9 @@ Line2D& Line2D::operator=(Line2D const& other) {
   return *this;
 }
 
-bool Line2D::AlmostEquals(Line2D const& other) const { return P0.AlmostEquals(other.P0) && P1.AlmostEquals(other.P1); }
+bool Line2D::AlmostEquals(Line2D const& other, int decimal_precision) const {
+  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+}
 
 double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DIR.Cross(point - P0))); }
 
@@ -141,7 +144,7 @@ Line2D Line2D::FromWkt(std::string const& wkt) {
     return Make(Point2D{nums_p1[0], nums_p1[1]}, Point2D{nums_p2[0], nums_p2[1]});
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
@@ -164,7 +167,7 @@ void Line2D::ToFile(std::string const& path) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -193,7 +196,7 @@ Line2D Line2D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

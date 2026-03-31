@@ -44,7 +44,7 @@ Plane::Plane(Point3D origin, Vector3D u, Vector3D v) {
   Normal = AxisU.Cross(AxisV).Normalize();
 }
 
-bool Plane::AlmostEquals(Plane const& other) const {
+bool Plane::AlmostEquals(Plane const& other, int decimal_precision) const {
   throw new std::runtime_error("not implemented");
   // return round(X - other.X) == 0.0 && round(Y - other.Y) == 0.0 &&
   // round(Z - other.Z) == 0.0;

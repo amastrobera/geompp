@@ -22,7 +22,7 @@ class Point3D {
   inline double z() const { return Z; }
 
   Vector3D ToVector();
-  bool AlmostEquals(Point3D const& other) const;
+  bool AlmostEquals(Point3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   double DistanceTo(Point3D const& other) const;
 
   std::string ToWkt() const;

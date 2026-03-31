@@ -23,7 +23,7 @@ class LineSegment3D {
   inline Point3D const& First() const { return P0; }
   inline Point3D const& Last() const { return P1; }
 
-  bool AlmostEquals(LineSegment3D const& other) const;
+  bool AlmostEquals(LineSegment3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
   Line3D ToLine() const;
   double Length() const;
   double DistanceTo(Point3D const& point) const;

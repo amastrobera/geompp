@@ -4,6 +4,8 @@
 #include "point3d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -96,8 +98,7 @@ TEST(Vector3D, Dot) {
   ASSERT_EQ(3.0, g::Vector3D(1, 1, 1).Dot(g::Vector3D(1, 1, 1)));
 
   // operator* delegates to Dot
-  ASSERT_EQ(g::Vector3D(1, 2, 3).Dot(g::Vector3D(4, 5, 6)),
-            g::Vector3D(1, 2, 3) * g::Vector3D(4, 5, 6));
+  ASSERT_EQ(g::Vector3D(1, 2, 3).Dot(g::Vector3D(4, 5, 6)), g::Vector3D(1, 2, 3) * g::Vector3D(4, 5, 6));
 
   // commutativity
   auto a = g::Vector3D(1, 2, 3);
@@ -255,7 +256,7 @@ TEST(Vector3D, TestFromFile) {
   ASSERT_NO_THROW(g::Vector3D::FromFile(path));
 
   auto v = g::Vector3D::FromFile(path);
-  std::cout << "from file = " << v.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "from file = " << v.ToWkt();
 }
 
 }  // namespace geompp_tests
