@@ -37,7 +37,7 @@ Point3D& Point3D::operator=(Point3D const& other) {
 #pragma region Collection Operations
 
 bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3) {
-  return round((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize())) == 0;
+  return round((p2 - p1).Cross(p3 - p1).Length()) == 0;
 }
 
 std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points) {

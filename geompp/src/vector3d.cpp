@@ -36,18 +36,17 @@ Vector3D Vector3D::Cross(Vector3D const& v) const { return {Y * v.Z - Z * v.Y, Z
 
 Vector3D Vector3D::Perp() const {
   bool is_z_biggest = round(Z - Y) >= 0 && round(Z - X) >= 0;
-  bool is_x_biggest = round(X - Y) >= 0 && round(X - Z) >= 0;
-  // bool is_y_biggest = round(Y - Z) >= 0 && round(Y - X) >= 0;
-
-  if (is_z_biggest) {
+  if (is_z_biggest) {  // yaw around Z axis, so X and Y swap and one is negated (ccw rotation)
     return {-Y, X, 0};
   }
 
-  if (is_x_biggest) {
+  bool is_x_biggest = round(X - Y) >= 0 && round(X - Z) >= 0;
+  if (is_x_biggest) {  // roll around X axis, so Y and Z swap and one is negated (ccw rotation)
     return {0, -Z, Y};
   }
 
-  // if (is_y_biggest) { }
+  // bool is_y_biggest = round(Y - Z) >= 0 && round(Y - X) >= 0;
+  // if (is_y_biggest) { } // pitch around Y axis, so X and Z swap and one is negated (ccw rotation)
   return {Z, 0, -X};
 }
 

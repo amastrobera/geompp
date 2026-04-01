@@ -205,6 +205,8 @@ TEST(Point3D, TestFromFile) {
 }
 
 TEST(Point3D, AreCollinear) {
+  g::DECIMAL_PRECISION = g::DP_THREE;  // tolerance ~0.005
+
   // on the X axis
   ASSERT_TRUE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(2, 0, 0)));
   ASSERT_TRUE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0), g::Point3D(100, 0, 0)));
@@ -251,6 +253,8 @@ TEST(Point3D, RemoveDuplicates) {
 }
 
 TEST(Point3D, RemoveCollinear) {
+  g::DECIMAL_PRECISION = g::DP_THREE;  // tolerance ~0.005
+
   // clang-format off
   std::vector<g::Point3D> pts{
     g::Point3D(0, 0, 0),
