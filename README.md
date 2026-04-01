@@ -60,6 +60,67 @@
   methods, making the library robust against rounding errors while remaining configurable per thread.
 
 
+  ### How to use it
+
+  Here is an example of code. You can also look at the [test directory](./geompp_tests/) or [sample code](./geompp_sample/sample.cpp) to see more.
+
+  #### Create geometries programmatically
+  ```
+  // This will be the precision used by all functions, in all threads, for this
+  // run of the program, and it can be modified in later code anytime.
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  auto s1 = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(-1, 0, 2));
+  auto s2 = g::LineSegment3D::Make(g::Point3D(0, 1, 0), g::Point3D(0, -1, 2));
+
+  GEOMPP_LOG(INFO) << "s1 = " << s1.ToWkt();
+  GEOMPP_LOG(INFO) << "s2 = " << s2.ToWkt();
+
+  if (s1.Intersects(s2)) {
+    auto result = s1.Intersection(s2);
+    if (result.has_value()) {
+      auto p = std::get<g::Point3D>(*result);
+      GEOMPP_LOG(INFO) << "intersection found: " << p.ToWkt();
+
+      p.ToFile("intersection.wkt");
+      GEOMPP_LOG(INFO) << "intersection written to intersection.wkt";
+    }
+  } else {
+    GEOMPP_LOG(INFO) << "no intersection found";
+  }
+  ```
+
+  #### Import geometries from a file
+  ```
+  std::string const lsv_path = "sample_geometries.lsv";
+  //   POINT (1 2 3)
+  //   POINT (4 5 6)
+  //   LINESTRING (0 0 0, 1 1 1)
+  //   LINESTRING (2 0 0, 2 3 4)
+  //   LINE (0 0 0, 1 0 0)
+  //   RAY (0 0 0, 0 1 0)
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  auto parser = g::LVSParser::Open(lsv_path);
+  if (!parser.HasNext()) {
+    GEOMPP_LOG(WARNING) << "no geometries found in file " << lsv_path;
+    return;
+  }
+
+  while (parser.HasNext()) {
+    auto entry = parser.Next();
+
+    if (!entry.has_value()) {
+      GEOMPP_LOG(WARNING) << "skipped unrecognised line";
+      continue;
+    }
+
+    GEOMPP_LOG(INFO) << g::LVSParser::ToWkt(entry.value());
+  }
+  ```
+
+
   ## geom_viewer — interactive geometry visualizer (WIP)
 
   `geom_viewer` is a companion OpenGL application intended to let you see and interact with geometric
@@ -82,7 +143,7 @@
 
   ## Roadmap
 
-  See [WIP.md](./WIP.md) for the full task list. High-level:
+  See [development plan](./development_plan.md) for the full task list. High-level:
 
   | Status | Area |
   |--------|------|
@@ -91,6 +152,18 @@
   | Next | Docker (Windows), geom_viewer camera/input/delete |
   | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping, Python
    bindings, C# bindings |
+
+
+  I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).
+
+  | Status | Count | % |
+  |---|---|---|
+  | Tested | ~220 | 63% |
+  | Untested | ~110 | 31% |
+  | Commented-only | ~20 | 6% |
+  | **Total** | **~350** | |
+
+  More on [test coverage](./test_coverage_report.md).
 
 
   ## Build it

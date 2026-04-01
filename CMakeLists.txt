@@ -16,4 +16,6 @@ add_subdirectory(geompp)
 
 add_subdirectory(geompp_tests)
 
+add_subdirectory(geompp_sample)
+
 #add_subdirectory(geom_viewer)

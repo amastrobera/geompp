@@ -27,11 +27,16 @@ class LVSParser {
   bool HasNext() const;
   ReturnSet Next();
 
+  std::string GetFilePath() const;
+
+  static std::string ToWkt(ReturnSet const& item);
+
  private:
+  std::string FILE_NAME;
   std::ifstream FILE;
   bool HAS_NEXT;
 
-  LVSParser(std::ifstream&& file_path);
+  LVSParser(std::string const& file_name, std::ifstream&& file_path);
 };
 
 }  // namespace geompp
