@@ -10,13 +10,13 @@
 
 namespace geompp {
 
-double round_to(double x, int decimal_precision) {
+double round(double x, int decimal_precision) {
   double exp = pow(10, decimal_precision);
-  return round(x * exp) / exp;
+  return std::round(x * exp) / exp;
 }
 
-int sign(double x, int decimal_precision) {
-  if (round_to(x, decimal_precision) >= 0) {
+int sign(double x) {
+  if (round(x) >= 0) {
     return 1;
   }
   return -1;
@@ -56,9 +56,10 @@ std::vector<double> tokenize_to_doubles(std::string const& str, char delimiter) 
       try {
         tokens.push_back(std::stod(stoken));
 
-      } catch (const std::invalid_argument& e) {
+      } catch (const std::invalid_argument) {
         throw std::runtime_error("Invalid token encountered: " + stoken);
-      } catch (const std::out_of_range& e) {
+
+      } catch (const std::out_of_range) {
         throw std::runtime_error("Token out of range: " + stoken);
       }
     }

@@ -6,10 +6,11 @@
 #include "ray2d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <algorithm>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <limits>
 #include <numeric>
 #include <ranges>
@@ -23,9 +24,8 @@ namespace geompp {
 
 Polyline2D::Polyline2D(std::vector<Point2D>&& points) : KNOTS{std::move(points)} {}
 
-Polyline2D Polyline2D::Make(std::vector<Point2D> const& points, int decimal_precision) {
-  auto unique_points =
-      Point2D::remove_collinear(Point2D::remove_duplicates(points, decimal_precision), decimal_precision);
+Polyline2D Polyline2D::Make(std::vector<Point2D> const& points) {
+  auto unique_points = remove_collinear(remove_duplicates(points));
 
   if (unique_points.size() < 2) {
     throw std::runtime_error("cannot built polyline with less than 2 unique non-collinear consecutive points");
@@ -36,7 +36,7 @@ Polyline2D Polyline2D::Make(std::vector<Point2D> const& points, int decimal_prec
 
 Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
   if (this != &other) {
-    *this = other;
+    KNOTS = other.KNOTS;
   }
   return *this;
 }
@@ -68,14 +68,14 @@ bool Polyline2D::AlmostEquals(Polyline2D const& other, int decimal_precision) co
   return true;
 }
 
-double Polyline2D::Location(Point2D const& point, int decimal_precision) const {
+double Polyline2D::Location(Point2D const& point) const {
   auto segs = ToSegments();
 
   // check if the point is in the middle of the polyline
   double tot_len = 0;
   for (int i = 0; i < segs.size(); ++i) {
-    if (segs[i].Contains(point, decimal_precision)) {
-      tot_len += segs[i].Location(point, decimal_precision);
+    if (segs[i].Contains(point)) {
+      tot_len += segs[i].Location(point);
       return tot_len;
     }
     tot_len += segs[i].Length();
@@ -83,16 +83,15 @@ double Polyline2D::Location(Point2D const& point, int decimal_precision) const {
   // at this point tot_len == Lenght(), no need to call that loop again
 
   // check if the point is behind the polyline (on the first "line")
-  if (round_to((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First()), decimal_precision) ==
-      0) {  // collinearity check
-    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First()), decimal_precision) *
-           segs[0].First().DistanceTo(point) / tot_len;
+  if (round((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First())) == 0) {  // collinearity check
+    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First())) * segs[0].First().DistanceTo(point) /
+           tot_len;
   }
 
   // check if the point is is beyond the polyline (on the last "line")
   int n = segs.size();
-  if (round_to((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First()),
-               decimal_precision) == 0) {  // collinearity check
+  if (round((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First())) ==
+      0) {  // collinearity check
     return (tot_len + segs[n - 1].Last().DistanceTo(point)) / tot_len;
   }
 
@@ -102,12 +101,12 @@ double Polyline2D::Location(Point2D const& point, int decimal_precision) const {
 
 Point2D Polyline2D::Interpolate(double pct) const {
   // the point is behind the polyline
-  if (round_to(pct, DP_NINE) < 0.0) {
+  if (round(pct) < 0.0) {
     return KNOTS[0];
   }
 
   // the point is beyond the polyline
-  if (round_to(pct, DP_NINE) > 1.0) {
+  if (round(pct) > 1.0) {
     return KNOTS[KNOTS.size() - 1];
   }
 
@@ -115,9 +114,9 @@ Point2D Polyline2D::Interpolate(double pct) const {
   double len_to_i = 0;
   double len_i = 0;
   for (int i = 0; i < KNOTS.size() - 1; ++i) {
-    len_i = KNOTS[i].DistanceTo(KNOTS[i + 1], DP_NINE);
+    len_i = KNOTS[i].DistanceTo(KNOTS[i + 1]);
 
-    if (round_to(pct - (len_to_i + len_i), DP_NINE) <= 0) {
+    if (round(pct - (len_to_i + len_i)) <= 0) {
       double pct_i = pct - len_to_i;
       return KNOTS[i] + pct_i * (KNOTS[i + 1] - KNOTS[i]);
     }
@@ -128,15 +127,15 @@ Point2D Polyline2D::Interpolate(double pct) const {
   return KNOTS[KNOTS.size() - 1];
 }
 
-double Polyline2D::DistanceTo(Point2D const& point, int decimal_precision) const {
+double Polyline2D::DistanceTo(Point2D const& point) const {
   std::vector<double> distances;
   for (auto const& s : ToSegments()) {
-    distances.push_back(s.DistanceTo(point, decimal_precision));
+    distances.push_back(s.DistanceTo(point));
   }
   return *std::min_element(distances.begin(), distances.end());
   // std::vector<double> iterable_range =
   //     ToSegments() | std::ranges::views::transform([&point, decimal_precision](LineSegment2D const& s) {
-  //       return s.DistanceTo(point, decimal_precision);
+  //       return s.DistanceTo(point);
   //     });
   // return std::min_element(iterable_range.begin(), iterable_range.end());
 }
@@ -147,44 +146,48 @@ double Polyline2D::DistanceTo(Point2D const& point, int decimal_precision) const
 
 bool operator==(Polyline2D const& lhs, Polyline2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
+Point2D const& Polyline2D::operator[](size_t i) const {
+  if (i >= Size()) {
+    throw std::out_of_range("Index out of range");
+  }
+  return KNOTS[i];
+}
+
+std::ostream& operator<<(std::ostream& os, Polyline2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Geometrical Operations
 
-bool Polyline2D::Contains(Point2D const& point, int decimal_precision) const {
+bool Polyline2D::Contains(Point2D const& point) const {
   for (auto const& s : ToSegments()) {
-    if (s.Contains(point, decimal_precision)) {
+    if (s.Contains(point)) {
       return true;
     }
   }
   return false;
   // return std::ranges::any_of(ToSegments() |
   //                            std::ranges::views::transform([&point, decimal_precision](LineSegment2D const& s) {
-  //                              return s.Contains(point, decimal_precision);
+  //                              return s.Contains(point);
   //                            }));
 }
 
-bool Polyline2D::Intersects(Line2D const& line, int decimal_precision) const {
-  return Intersection(line, decimal_precision).has_value();
-}
+bool Polyline2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
-bool Polyline2D::Intersects(Ray2D const& ray, int decimal_precision) const {
-  return Intersection(ray, decimal_precision).has_value();
-}
+bool Polyline2D::Intersects(Ray2D const& ray) const { return Intersection(ray).has_value(); }
 
-bool Polyline2D::Intersects(Polyline2D const& other, int decimal_precision) const {
-  return Intersection(other, decimal_precision).has_value();
-}
+bool Polyline2D::Intersects(Polyline2D const& other) const { return Intersection(other).has_value(); }
 
-bool Polyline2D::Intersects(LineSegment2D const& other, int decimal_precision) const {
-  return Intersection(other, decimal_precision).has_value();
-}
+bool Polyline2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line, int decimal_precision) const {
+Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
-    auto inter = line.Intersection(seg, decimal_precision);
+    auto inter = line.Intersection(seg);
 
     if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
       intersections.push_back(std::get<Point2D>(*inter));
@@ -202,11 +205,11 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line, int decimal_p
   return intersections;
 }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray, int decimal_precision) const {
+Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
-    auto inter = ray.Intersection(seg, decimal_precision);
+    auto inter = ray.Intersection(seg);
 
     if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
       intersections.push_back(std::get<Point2D>(*inter));
@@ -224,11 +227,11 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray, int decimal_pre
   return intersections;
 }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment, int decimal_precision) const {
+Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
-    auto inter = segment.Intersection(seg, decimal_precision);
+    auto inter = segment.Intersection(seg);
 
     if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
       intersections.push_back(std::get<Point2D>(*inter));
@@ -246,12 +249,12 @@ Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment, int
   return intersections;
 }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other, int decimal_precision) const {
+Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other) const {
   MultiPoint intersections;
 
   for (auto const& seg : ToSegments()) {
     for (auto const& other_seg : other.ToSegments()) {
-      auto inter = seg.Intersection(other_seg, decimal_precision);
+      auto inter = seg.Intersection(other_seg);
 
       if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
         intersections.push_back(std::get<Point2D>(*inter));
@@ -274,16 +277,17 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other, int deci
 
 #pragma region Formatting
 
-std::string Polyline2D::ToWkt(int decimal_precision) const {
+std::string Polyline2D::ToWkt() const {
   std::ostringstream buf;
   buf << "LINESTRING ";
 
-  if (KNOTS.size() > 0) {
+  int n = KNOTS.size();
+  if (n > 0) {
     buf << "(";
-    for (int i = 0; i < KNOTS.size(); ++i) {
-      buf << std::format("{} {}", round_to(KNOTS[i].x(), decimal_precision), round_to(KNOTS[i].y(), decimal_precision));
+    for (int i = 0; i < n; ++i) {
+      buf << std::format("{} {}", round(KNOTS[i].x()), round(KNOTS[i].y()));
 
-      if (i < KNOTS.size() - 1) {
+      if (i < n - 1) {
         buf << ", ";
       }
     }
@@ -341,18 +345,18 @@ Polyline2D Polyline2D::FromWkt(std::string const& wkt) {
       pt_vec.push_back({nums[0], nums[1]});
     }
 
-    return Make(pt_vec, decimal_precision);
+    return Make(pt_vec);
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Polyline2D::ToFile(std::string const& path, int decimal_precision) const {
+void Polyline2D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);
@@ -367,7 +371,7 @@ void Polyline2D::ToFile(std::string const& path, int decimal_precision) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -396,7 +400,7 @@ Polyline2D Polyline2D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

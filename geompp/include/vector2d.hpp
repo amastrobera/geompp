@@ -2,6 +2,7 @@
 
 #include "utils.hpp"
 
+#include <ostream>
 #include <string>
 
 namespace geompp {
@@ -21,10 +22,10 @@ class Vector2D {
   Point2D ToPoint();
 
   double Length() const;
-  bool AlmostEquals(Vector2D const& other, int decimal_precision = DP_THREE) const;
-  std::string ToWkt(int decimal_precision = DP_THREE) const;
+  bool AlmostEquals(Vector2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  std::string ToWkt() const;
   static Vector2D FromWkt(std::string const& wkt);
-  void ToFile(std::string const& path, int decimal_precision = DP_THREE) const;
+  void ToFile(std::string const& path) const;
   static Vector2D FromFile(std::string const& path);
 
   Vector2D& operator=(Vector2D const& other);
@@ -58,6 +59,8 @@ double operator*(Vector2D const& lhs, Vector2D const& vec);
 
 Vector2D operator/(Vector2D const& lhs, Vector2D const& vec) = delete;
 Vector2D operator/(Vector2D const& lhs, double a);
+
+std::ostream& operator<<(std::ostream& os, Vector2D const& g);
 
 #pragma endregion
 

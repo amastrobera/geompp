@@ -2,15 +2,16 @@
 
 #include "constants.hpp"
 
+#include <concepts>
 #include <sstream>
 #include <string>
 #include <vector>
 
 namespace geompp {
 
-double round_to(double x, int decimal_precision = 0);
+double round(double x, int decimal_precision = DECIMAL_PRECISION);
 
-int sign(double x, int decimal_precision = DP_THREE);
+int sign(double x);
 
 std::string trim(std::string s);
 
@@ -33,5 +34,16 @@ std::string string_join(std::vector<T> const& items, std::string const& delim = 
 }
 
 int count_decimal_places(double number);
+
+template <typename T>
+  requires requires(T t) { { t.ToWkt() } -> std::convertible_to<std::string>; }
+std::string ToWkt(const std::vector<T>& items) {
+  std::string out = "GEOMETRYCOLLECTION(";
+  for (size_t i = 0; i < items.size(); ++i) {
+    if (i > 0) out += ", ";
+    out += items[i].ToWkt();
+  }
+  return out + ")";
+}
 
 }  // namespace geompp

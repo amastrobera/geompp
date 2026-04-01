@@ -4,27 +4,28 @@
 #include "ray2d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <stdexcept>
 
 namespace geompp {
 
 #pragma region Constructors
 
-Line2D Line2D::Make(Point2D const& p0, Point2D const& p1, int decimal_precision) {
-  if (p0.AlmostEquals(p1, decimal_precision)) {
-    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision",
-                                         p0.ToWkt(decimal_precision), p1.ToWkt(decimal_precision), decimal_precision));
+Line2D Line2D::Make(Point2D const& p0, Point2D const& p1) {
+  if (p0.AlmostEquals(p1)) {
+    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", DECIMAL_PRECISION,
+                                         p0.ToWkt(), p1.ToWkt()));
   }
   return {p0, p1};
 }
 
-Line2D Line2D::Make(Point2D const& p0, Vector2D const& dir, int decimal_precision) {
-  if (round_to(dir.Length(), decimal_precision) == 0) {
-    throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", decimal_precision));
+Line2D Line2D::Make(Point2D const& p0, Vector2D const& dir) {
+  if (round(dir.Length()) == 0) {
+    throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
 }
@@ -35,7 +36,9 @@ Line2D::Line2D(Point2D const& orig, Vector2D const& dir) : P0(orig), DIR(dir.Nor
 
 Line2D& Line2D::operator=(Line2D const& other) {
   if (this != &other) {
-    *this = other;
+    P0 = other.P0;
+    P1 = other.P1;
+    DIR = other.DIR;
   }
   return *this;
 }
@@ -44,13 +47,11 @@ bool Line2D::AlmostEquals(Line2D const& other, int decimal_precision) const {
   return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
 }
 
-double Line2D::DistanceTo(Point2D const& point, int decimal_precision) const {
-  return round_to(abs((point - P0).Perp().Dot(DIR)), decimal_precision);
-}
+double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DIR.Cross(point - P0))); }
 
-Point2D Line2D::ProjectOnto(Point2D const& point, int decimal_precision) const {
-  return P0 + (point - P0).Dot(DIR) * DIR;
-}
+Point2D Line2D::ProjectOnto(Point2D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
+
+double Line2D::Location(Point2D const& point) const { return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length(); }
 
 #pragma endregion
 
@@ -58,34 +59,33 @@ Point2D Line2D::ProjectOnto(Point2D const& point, int decimal_precision) const {
 
 bool operator==(Line2D const& lhs, Line2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
+std::ostream& operator<<(std::ostream& os, Line2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Geometrical Operations
 
-bool Line2D::Contains(Point2D const& point, int decimal_precision) const {
-  return round_to((point - P0).Cross(DIR), decimal_precision) == 0.0;
-}
+bool Line2D::Contains(Point2D const& point) const { return round((point - P0).Cross(DIR)) == 0.0; }
 
-bool Line2D::Intersects(Line2D const& other, int decimal_precision) const {
+bool Line2D::Intersects(Line2D const& other) const {
   // very easy to verify in 2D plane
-  return round_to(DIR.Cross(other.DIR), decimal_precision) != 0.0;
+  return round(DIR.Cross(other.DIR)) != 0.0;
 }
 
-bool Line2D::Intersects(Ray2D const& ray, int decimal_precision) const {
-  return ray.Intersects(*this, decimal_precision);
-}
+bool Line2D::Intersects(Ray2D const& ray) const { return ray.Intersects(*this); }
 
-bool Line2D::Intersects(LineSegment2D const& segment, int decimal_precision) const {
-  return segment.Intersects(*this, decimal_precision);
-}
+bool Line2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
-Line2D::ReturnSet Line2D::Intersection(Line2D const& other, int decimal_precision) const {
+Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
   auto u = DIR;
   auto v = other.DIR;
   auto vp = v.Perp();
   auto w = (P0 - other.P0);
 
-  if (round_to(u * vp, decimal_precision) == 0.0) {
+  if (round(u * vp) == 0.0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
@@ -93,21 +93,16 @@ Line2D::ReturnSet Line2D::Intersection(Line2D const& other, int decimal_precisio
   return P0 + t * u;
 }
 
-Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray, int decimal_precision) const {
-  return ray.Intersection(*this, decimal_precision);
-}
+Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }
 
-Line2D::ReturnSet Line2D::Intersection(LineSegment2D const& segment, int decimal_precision) const {
-  return segment.Intersection(*this, decimal_precision);
-}
+Line2D::ReturnSet Line2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 
 #pragma region Formatting
 
-std::string Line2D::ToWkt(int decimal_precision) const {
-  return std::format("LINE ({} {}, {} {})", round_to(P0.x(), decimal_precision), round_to(P0.y(), decimal_precision),
-                     round_to(P1.x(), decimal_precision), round_to(P1.y(), decimal_precision));
+std::string Line2D::ToWkt() const {
+  return std::format("LINE ({} {}, {} {})", round(P0.x()), round(P0.y()), round(P1.x()), round(P1.y()));
 }
 
 Line2D Line2D::FromWkt(std::string const& wkt) {
@@ -124,22 +119,22 @@ Line2D Line2D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_p1 = wkt.substr(end_gtype + 1).find(',');
+    end_p1 = wkt.substr(end_gtype).find(',');
     if (end_p1 == std::string::npos) {
       throw std::runtime_error("brakets");
     }
-    std::string s_nums_p1 = wkt.substr(end_gtype + 1, end_p1);
+    std::string s_nums_p1 = wkt.substr(end_gtype + 1, end_p1 - 1);
 
     auto nums_p1 = geompp::tokenize_to_doubles(s_nums_p1);
     if (nums_p1.size() != 2) {
       throw std::runtime_error("numbers p1");
     }
 
-    end_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1).find(')');
+    end_p2 = wkt.substr(end_gtype + 1 + end_p1).find(')');
     if (end_p2 == std::string::npos) {
       throw std::runtime_error("brakets");
     }
-    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2);
+    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2 - 1);
 
     auto nums_p2 = geompp::tokenize_to_doubles(s_nums_p2);
     if (nums_p2.size() != 2) {
@@ -149,15 +144,15 @@ Line2D Line2D::FromWkt(std::string const& wkt) {
     return Make(Point2D{nums_p1[0], nums_p1[1]}, Point2D{nums_p2[0], nums_p2[1]});
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Line2D::ToFile(std::string const& path, int decimal_precision) const {
+void Line2D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);
@@ -172,7 +167,7 @@ void Line2D::ToFile(std::string const& path, int decimal_precision) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -201,7 +196,7 @@ Line2D Line2D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

@@ -1,6 +1,7 @@
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
-#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -17,7 +18,7 @@ int main(int argc, char** argv) {
   // init static variables
   geompp_tests::test_res_path = fs::absolute(fs::path(argv[0]).parent_path() / "res");
 
-  std::cout << "test_res_path initialized to: " << geompp_tests::test_res_path << std::endl;
+  GEOMPP_LOG(INFO) << "test_res_path initialized to: " << geompp_tests::test_res_path;
 
   return RUN_ALL_TESTS();
 }

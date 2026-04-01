@@ -4,6 +4,8 @@
 #include "point2d.hpp"
 #include "utils.hpp"
 
+#include "geompp_log.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 
@@ -14,7 +16,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Vector2D, Equality) {
+class Vector2DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Vector2DTest, Equality) {
   EXPECT_EQ(g::Vector2D(2.56, 748.1203), g::Vector2D(2.56, 748.1203));
   EXPECT_EQ(g::Vector2D(2, 3), g::Vector2D(2, 3));
   EXPECT_EQ(g::Vector2D(-56.682, 30.56), g::Vector2D(-56.682, 30.56));
@@ -23,7 +31,7 @@ TEST(Vector2D, Equality) {
   EXPECT_EQ(g::Vector2D(672.64560944, -153.5166067079), g::Vector2D(672.64560944, -153.5166067079));
 }
 
-TEST(Vector2D, AddPoint) {
+TEST_F(Vector2DTest, AddPoint) {
   auto p = g::Point2D(1, 2);
   auto v = g::Vector2D(1, 1);
   g::Point2D pv = p + v;
@@ -34,7 +42,7 @@ TEST(Vector2D, AddPoint) {
   EXPECT_EQ(g::Point2D(2, 3), pv);
 }
 
-TEST(Vector2D, AddVector) {
+TEST_F(Vector2DTest, AddVector) {
   auto v1 = g::Vector2D(1.2, 2.12);
   auto v2 = g::Vector2D(1.85, 1.65);
   g::Vector2D v3 = v1 + v2;
@@ -45,19 +53,20 @@ TEST(Vector2D, AddVector) {
   EXPECT_EQ(g::Vector2D(3.05, 3.77), v3);
 }
 
-TEST(Vector2D, PerpDotCross) {
-  int prec = 3;
+TEST_F(Vector2DTest, PerpDotCross) {
   auto v1 = g::Vector2D(1, 0);
   auto v2 = v1.Perp();
-  ASSERT_EQ(0.0, g::round_to(v1.Dot(v2), prec));  // perp is perpendicular
-  EXPECT_EQ(1.0, g::round_to(v1.Cross(v2), prec));
-  EXPECT_EQ(-1.0, g::round_to(v2.Cross(v1), prec));
+  ASSERT_EQ(0.0, g::round(v1.Dot(v2)));  // perp is perpendicular
+  EXPECT_EQ(1.0, g::round(v1.Cross(v2)));
+  EXPECT_EQ(-1.0, g::round(v2.Cross(v1)));
 }
 
-TEST(Vector2D, Wkt) {
+TEST_F(Vector2DTest, Wkt) {
   ASSERT_EQ("VECTOR (0 0)", g::Vector2D().ToWkt());
-  ASSERT_EQ("VECTOR (56491.62 -795.97)", g::Vector2D(56491.6164, -795.97416).ToWkt(2));
+  geompp::DECIMAL_PRECISION = 2;
+  ASSERT_EQ("VECTOR (56491.62 -795.97)", g::Vector2D(56491.6164, -795.97416).ToWkt());
 
+  geompp::DECIMAL_PRECISION = 6;
   EXPECT_EQ(g::Vector2D(256.1343, -684.64971), g::Vector2D::FromWkt("VECTOR (256.1343 -684.64971)"));
   EXPECT_EQ(g::Vector2D(-7.5, -60.7), g::Vector2D::FromWkt("  vector( -7.5    -60.7)"));
   EXPECT_EQ(g::Vector2D(0.645, -1.689741), g::Vector2D::FromWkt("VecTOR   ( 0.645  -1.689741  )"));
@@ -71,12 +80,12 @@ TEST(Vector2D, Wkt) {
   EXPECT_ANY_THROW(g::Vector2D::FromWkt("vector ( -7.5 -64.4 15.5)"));
 }
 
-TEST(Vector2D, ToFile) {
-  int prec = 4;
+TEST_F(Vector2DTest, ToFile) {
+  geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "vector.wkt").string();
   auto v = g::Vector2D(12.32, -61.6164);
 
-  v.ToFile(path, prec);
+  v.ToFile(path);
   ASSERT_TRUE(fs::exists(path));
 
   g::Vector2D v_file = g::Vector2D::FromFile(path);  // TODO make assert no throw for the whole call
@@ -86,7 +95,7 @@ TEST(Vector2D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Vector2D, TestFromFile) {
+TEST_F(Vector2DTest, TestFromFile) {
   std::string path = (test_res_path / "vector2d" / "vector.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));
@@ -95,7 +104,7 @@ TEST(Vector2D, TestFromFile) {
 
   auto p = g::Vector2D::FromFile(path);
 
-  std::cout << "form file = " << p.ToWkt() << std::endl;
+  GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
 }  // namespace geompp_tests

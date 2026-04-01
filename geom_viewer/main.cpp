@@ -1,8 +1,9 @@
-#include "line2d.hpp"
-#include "line_segment2d.hpp"
-#include "lsv_parser.hpp"
-#include "point2d.hpp"
-#include "ray2d.hpp"
+#include <line2d.hpp>
+#include <line_segment2d.hpp>
+#include <lsv_parser.hpp>
+#include <point2d.hpp>
+#include <ray2d.hpp>
+#include <geompp_log.hpp>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -35,7 +36,6 @@ void main()
 )";
 
 namespace g = geompp;
-namespace gv = geom_viewer;
 namespace fs = std::filesystem;
 
 namespace {
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 
   // Parse geometries
   std::string geom_file_path = (geoms_path / "initial_geometries.lsv").string();
-  auto geom_parser = gv::LVSParser::Open(geom_file_path);  // can throw
+  auto geom_parser = g::LVSParser::Open(geom_file_path);  // can throw
 
   // will this stupid hack work ?
   auto normalize_to_viewport = [](float value, float min, float max) -> float {
@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
       if (geom.has_value()) {
         if (std::holds_alternative<g::Point2D>(geom.value())) {
           auto point = std::get<g::Point2D>(geom.value());
-          std::cout << "rendering " << point.ToWkt() << std::endl;
+          GEOMPP_LOG(INFO) << "rendering " << point.ToWkt();
 
           auto geom_vertices = ParseShape(point);
           std::vector<float> vertices;
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
 
         } else if (std::holds_alternative<g::LineSegment2D>(geom.value())) {
           auto seg = std::get<g::LineSegment2D>(geom.value());
-          std::cout << "rendering " << seg.ToWkt() << std::endl;
+          GEOMPP_LOG(INFO) << "rendering " << seg.ToWkt();
 
           auto geom_vertices = ParseShape(seg);
           std::vector<float> vertices;

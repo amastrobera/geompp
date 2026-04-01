@@ -3,10 +3,11 @@
 #include "utils.hpp"
 #include "vector2d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <unordered_set>
 
 namespace geompp {
@@ -16,25 +17,28 @@ Point2D::Point2D(double x, double y) : X(x), Y(y) {}
 Point2D::Point2D(Point2D const& p) : X(p.X), Y(p.Y) {}
 
 bool Point2D::AlmostEquals(Point2D const& other, int decimal_precision) const {
-  return round_to(X - other.X, decimal_precision) == 0.0 && round_to(Y - other.Y, decimal_precision) == 0.0;
+  return round(X - other.X, decimal_precision) == 0.0 && round(Y - other.Y, decimal_precision) == 0.0;
 }
 
 Vector2D Point2D::ToVector() { return {X, Y}; }
 
-double Point2D::DistanceTo(Point2D const& other, int decimal_precision) const {
-  return round_to((other - *this).Length(), decimal_precision);
-}
+double Point2D::DistanceTo(Point2D const& other) const { return (other - *this).Length(); }
 
 Point2D& Point2D::operator=(Point2D const& other) {
   if (this != &other) {
-    *this = other;
+    X = other.X;
+    Y = other.Y;
   }
   return *this;
 }
 
 #pragma region Collection Operations
 
-std::vector<Point2D> Point2D::remove_duplicates(std::vector<Point2D> const& points, int decimal_precision) {
+bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3) {
+  return round((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize())) == 0;
+}
+
+std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points) {
   if (points.size() == 0) {
     return points;
   }
@@ -45,7 +49,7 @@ std::vector<Point2D> Point2D::remove_duplicates(std::vector<Point2D> const& poin
       continue;
     }
     for (int j = i + 1; j < points.size(); ++j) {
-      if (!points[i].AlmostEquals(points[j], decimal_precision)) {
+      if (!points[i].AlmostEquals(points[j])) {
         break;
       }
       duplicates.insert(j);
@@ -62,7 +66,7 @@ std::vector<Point2D> Point2D::remove_duplicates(std::vector<Point2D> const& poin
   return unique_points;
 }
 
-std::vector<Point2D> Point2D::remove_collinear(std::vector<Point2D> const& points, int decimal_precision) {
+std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points) {
   if (points.size() < 3) {
     return points;
   }
@@ -80,13 +84,13 @@ std::vector<Point2D> Point2D::remove_collinear(std::vector<Point2D> const& point
       continue;
     }
 
-    auto u = (points[i2] - points[i1]);
-    auto v = (points[i3] - points[i1]);
+    if (are_collinear(points[i1], points[i2], points[i3])) {  // test of collinearity
 
-    if (round_to(u.Perp().Dot(v), decimal_precision) == 0) {  // test of collinearity
-      if (round_to(u.Dot(v), decimal_precision) >=
-          0) {  // same direction, pick the farthest point in the U-vector's direction
-        if (round_to(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2]), decimal_precision) >= 0) {
+      auto u = (points[i2] - points[i1]);
+      auto v = (points[i3] - points[i1]);
+
+      if (round(u.Dot(v)) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
+        if (round(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2])) >= 0) {
           duplicates.insert(i2);
           ++i2;
           ++i3;
@@ -120,6 +124,38 @@ std::vector<Point2D> Point2D::remove_collinear(std::vector<Point2D> const& point
   return unique_points;
 }
 
+Point2D linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights) {
+  int n = points.size();
+  if (n == 0) {
+    throw std::runtime_error("average of zero points");
+  }
+  if (weights.size() != n) {
+    throw std::runtime_error("weights and points' vectors have different sizes");
+  }
+  double x = 0;
+  double y = 0;
+  for (int i = 0; i < n; ++i) {
+    x += points[i].x() * weights[i];
+    y += points[i].y() * weights[i];
+  }
+
+  return {x, y};
+}
+
+Point2D average(std::vector<Point2D> const& points) {
+  int n = points.size();
+  if (n == 0) {
+    throw std::runtime_error("average of zero points");
+  }
+
+  std::vector<double> weights(points.size());
+  for (int i = 0; i < n; ++i) {
+    weights[i] = 1.0 / n;
+  }
+
+  return linear_combination(points, weights);
+}
+
 #pragma endregion
 
 #pragma region Operator Overloading
@@ -134,13 +170,16 @@ Point2D operator-(Point2D const& lhs, Vector2D const& rhs) { return {lhs.x() - r
 Point2D operator*(Point2D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a}; }
 Point2D operator*(double a, Point2D const& rhs) { return rhs * a; }
 
+std::ostream& operator<<(std::ostream& os, Point2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Formatting
 
-std::string Point2D::ToWkt(int decimal_precision) const {
-  return std::format("POINT ({} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision));
-}
+std::string Point2D::ToWkt() const { return std::format("POINT ({} {})", round(X), round(Y)); }
 
 Point2D Point2D::FromWkt(std::string const& wkt) {
   try {
@@ -170,15 +209,15 @@ Point2D Point2D::FromWkt(std::string const& wkt) {
     return {nums[0], nums[1]};
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Point2D::ToFile(std::string const& path, int decimal_precision) const {
+void Point2D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);
@@ -193,7 +232,7 @@ void Point2D::ToFile(std::string const& path, int decimal_precision) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -222,7 +261,7 @@ Point2D Point2D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");

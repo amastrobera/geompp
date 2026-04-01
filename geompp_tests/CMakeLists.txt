@@ -44,11 +44,23 @@ include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 # Add the executable for tests
 add_executable(${PROJECT_NAME}
     src/test_point2d.cpp
+    src/test_point3d.cpp
     src/test_vector2d.cpp
+    src/test_vector3d.cpp
     src/test_line2d.cpp
+    src/test_line3d.cpp
     src/test_ray2d.cpp
+    src/test_ray3d.cpp
     src/test_line_segment2d.cpp
+    src/test_line_segment3d.cpp
     src/test_polyline2d.cpp
+    src/test_triangle2d.cpp
+
+    src/test_triangle3d.cpp
+    src/test_plane.cpp
+
+    src/test_lsv_parser.cpp
+
     main.cpp
 )
 

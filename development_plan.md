@@ -1,39 +1,5 @@
 # Work in Progress 
 
-## Done
-
-#### Init the repo
-- build on linux
-- build on windows
-- set up a lib folder and a test folder
-
-
-#### 2D geometry
-- Point2D, Vector2D, Line2D, Shape2D for return type of geometrical operations, tests
-- Line2D::contains(p), intersects(line), intersection(line), tests
-- Ray2D, contains(p), intersection(line), intersection(ray), tests
-- LineSegment2D, contains(p), intersection(line), intersection(ray), intersection(line_seg), tests
-- Line2D,Ray2D,LineSegment2D::distance(p), tests
-- LineSegment2D::interpolate(%)->p, location(p)->%, tests
-- Polyline2D, contains(p), distance(p), tests
-- RemoveCollinear points
-- RemoveDuplicate points 
-- Polyline2D::Wkt, tests
-- Polyline2D::interpolate(%)->p, location(p)->%, tests
-- Polyline2D::intersects(line, ray, line_seg, polyline), tests
-
-#### test and build infrastructure
-- github actions: run tests on merge 
-- ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
-- ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
-- test cases possible in `.wkt` files formats in `geompp_tests/res` folder
-- Docker based dev environment: Linux image
-
-
-#### graphic demos
-- Set up a window to display some line segments in OpenGL
-
-
 
 ## Next
 
@@ -45,9 +11,6 @@
 - add an input box to type in a new geometry
 - add a key to delete a geometry 
 
-
-
-
 ## Backlog to do
 
 #### test and build infrastructure 
@@ -55,8 +18,6 @@
 - Build on windows via command line (install cmake and g++ on windows, use PowerShell)
 
 #### 2D geometry
-- Triangle2D, Triangle2D::contains(p), tests
-- Triangle2D::Wkt, tests
 - Triangle2D::intersects(line, ray, line_seg), tests
 - Polygon2D, contains(p), tests
 - Polygon2D::intersects(line, ray, line_seg, triangle, polygon), tests
@@ -67,23 +28,6 @@
 - write interface for python
 - write some sample code
 - write some python tests
-
-#### 3D geometry 
-- Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
-- Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
-- Ray3D, contains(p), intersection(line, ray), tests
-- LineSegment3D, contains(p), ntersection(line, ray, line_seg), tests
-- Line3D, Ray3D, LineSegment3D::distance(p), tests
-- LineSegment3D::interpolate(%)->p, LineSegment3D::location(p)->%, tests
-- Polyline3D, Polyline3D::contains(p), Polyline3D::distance(p), tests
-- Polyline3D::interpolate(%)->p, Polyline3D::locartion(p)->%, tests
-- Polyline3D::intersects(line, ray, line_seg, polyline), tests
-- Plane, signed_distance, distance, project_onto, project_into, tests
-- Triangle3D, Triangle3D::contains(p), tests
-- Triangle3D::intersects(line, ray, line_seg, triangle), tests
-- Polygon3D, Polygon3D::contains(p), tests
-- Polygon3D::intersects(line, ray, line_seg, triangle, polygon), tests
-- List<Point3D>::convex_hull()->polygon, tests
 
 #### more build infrastructure 
 - C# interface for python
@@ -126,3 +70,66 @@
 - Polygon3D::intersection(triangle, polygon), test
 - Triangle3D::overlap(triangle), test
 - Polygon3D::overlap(triangle, polygon), test
+
+
+
+## Done
+
+#### Init the repo
+- build on linux
+- build on windows
+- set up a lib folder and a test folder
+
+
+#### 2D geometry
+- Point2D, Vector2D, Line2D, Shape2D for return type of geometrical operations, tests
+- Line2D::contains(p), intersects(line), intersection(line), tests
+- Ray2D, contains(p), intersection(line), intersection(ray), tests
+- LineSegment2D, contains(p), intersection(line), intersection(ray), intersection(line_seg), tests
+- Line2D,Ray2D,LineSegment2D::distance(p), tests
+- LineSegment2D::interpolate(%)->p, location(p)->%, tests
+- Polyline2D, contains(p), distance(p), tests
+- RemoveCollinear points
+- RemoveDuplicate points 
+- Polyline2D::Wkt, tests
+- Polyline2D::interpolate(%)->p, location(p)->%, tests
+- Polyline2D::intersects(line, ray, line_seg, polyline), tests
+- Triangle2D, Triangle2D::contains(p), tests
+- Triangle2D::Wkt, tests
+- Triangle2D::vertices, area, perimeter
+
+
+#### 3D geometry 
+- Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
+- Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
+- Ray3D, contains(p), intersection(line, ray), tests
+- LineSegment3D, contains(p), ntersection(line, ray, line_seg), tests
+- Line3D, Ray3D, LineSegment3D::distance(p), tests
+- LineSegment3D::interpolate(%)->p, LineSegment3D::location(p)->%, tests
+- Polyline3D, Polyline3D::contains(p), Polyline3D::distance(p), tests
+- Polyline3D::interpolate(%)->p, Polyline3D::locartion(p)->%, tests
+- Polyline3D::intersects(line, ray, line_seg, polyline), tests
+- Plane, signed_distance, distance, project_onto, project_into, tests
+- Triangle3D, Triangle3D::contains(p), tests
+- Triangle3D::intersects(line, ray, line_seg, triangle), tests
+- Polygon3D, Polygon3D::contains(p), tests
+- Polygon3D::intersects(line, ray, line_seg, triangle, polygon), tests
+- List<Point3D>::convex_hull()->polygon, tests
+
+#### utils
+- logger (GLOG to be quick, but it can be improved later)
+- string tokenizer
+- string splitter
+
+
+#### test and build infrastructure
+- github actions: run tests on merge 
+- ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
+- ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
+- test cases possible in `.wkt` files formats in `geompp_tests/res` folder
+- Docker based dev environment: Linux image
+
+
+#### graphic demos
+- Set up a window to display some line segments in OpenGL
+

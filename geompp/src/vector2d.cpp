@@ -2,10 +2,11 @@
 
 #include "point2d.hpp"
 
+#include "geompp_log.hpp"
+
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 
 namespace geompp {
 
@@ -13,7 +14,8 @@ Vector2D::Vector2D(double x, double y) : X(x), Y(y) {}
 
 Vector2D& Vector2D::operator=(Vector2D const& other) {
   if (this != &other) {
-    *this = other;
+    X = other.X;
+    Y = other.Y;
   }
   return *this;
 }
@@ -23,7 +25,7 @@ Point2D Vector2D::ToPoint() { return Point2D(X, Y); }
 double Vector2D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2)); }
 
 bool Vector2D::AlmostEquals(Vector2D const& other, int decimal_precision) const {
-  return round_to(X - other.X, decimal_precision) == 0 && round_to(Y - other.Y, decimal_precision) == 0;
+  return round(X - other.X, decimal_precision) == 0 && round(Y - other.Y, decimal_precision) == 0;
 }
 
 double Vector2D::Dot(Vector2D const& v) const { return (X * v.X + Y * v.Y); }
@@ -57,13 +59,16 @@ double operator*(Vector2D const& lhs, Vector2D const& rhs) { return lhs.Dot(rhs)
 
 Vector2D operator/(Vector2D const& lhs, double a) { return Vector2D(lhs.x() / a, lhs.y() / a); }
 
+std::ostream& operator<<(std::ostream& os, Vector2D const& g) {
+  os << g.ToWkt();
+  return os;
+}
+
 #pragma endregion
 
 #pragma region Formatting
 
-std::string Vector2D::ToWkt(int decimal_precision) const {
-  return std::format("VECTOR ({} {})", round_to(X, decimal_precision), round_to(Y, decimal_precision));
-}
+std::string Vector2D::ToWkt() const { return std::format("VECTOR ({} {})", round(X), round(Y)); }
 
 Vector2D Vector2D::FromWkt(std::string const& wkt) {
   try {
@@ -93,15 +98,15 @@ Vector2D Vector2D::FromWkt(std::string const& wkt) {
     return {nums[0], nums[1]};
 
   } catch (...) {
-    std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad format of str " << wkt;
   }
 
   throw std::runtime_error("failed to parse WKT");
 }
 
-void Vector2D::ToFile(std::string const& path, int decimal_precision) const {
+void Vector2D::ToFile(std::string const& path) const {
   try {
-    std::string content = ToWkt(decimal_precision);
+    std::string content = ToWkt();
 
     // Open the file in write mode (truncates existing content)
     std::ofstream outfile(path);
@@ -116,7 +121,7 @@ void Vector2D::ToFile(std::string const& path, int decimal_precision) const {
     outfile.close();
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 }
 
@@ -145,7 +150,7 @@ Vector2D Vector2D::FromFile(std::string const& path) {
     return FromWkt(content);
 
   } catch (...) {
-    std::cerr << "bad path " << path << std::endl;  // TODO: replace with logger lib
+    GEOMPP_LOG(ERROR) << "bad path " << path;
   }
 
   throw std::runtime_error("failed to parse WKT");
