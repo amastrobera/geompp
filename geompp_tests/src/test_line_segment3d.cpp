@@ -19,7 +19,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(LineSegment3D, Make) {
+class LineSegment3DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(LineSegment3DTest, Make) {
   geompp::DECIMAL_PRECISION = 4;
   auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
 
@@ -30,7 +36,7 @@ TEST(LineSegment3D, Make) {
   EXPECT_ANY_THROW(g::LineSegment3D::Make(g::Point3D(1, 2, 3), g::Point3D(1, 2, 3)));
 }
 
-TEST(LineSegment3D, AlmostEquals) {
+TEST_F(LineSegment3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
   auto s1 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
   auto s2 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
@@ -41,7 +47,7 @@ TEST(LineSegment3D, AlmostEquals) {
   ASSERT_EQ(s1, s1);
 }
 
-TEST(LineSegment3D, Assignment) {
+TEST_F(LineSegment3DTest, Assignment) {
   auto s1 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
   auto s2 = g::LineSegment3D::Make(g::Point3D(1, 2, 0), g::Point3D(4, 5, 0));
 
@@ -52,7 +58,7 @@ TEST(LineSegment3D, Assignment) {
   ASSERT_EQ(g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0)), s1);
 }
 
-TEST(LineSegment3D, Length) {
+TEST_F(LineSegment3DTest, Length) {
   // axis-aligned
   ASSERT_EQ(3.0, g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0)).Length());
   ASSERT_EQ(5.0, g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(0, 5, 0)).Length());
@@ -67,7 +73,7 @@ TEST(LineSegment3D, Length) {
   ASSERT_EQ(s.Length(), s_rev.Length());
 }
 
-TEST(LineSegment3D, ToLine) {
+TEST_F(LineSegment3DTest, ToLine) {
   geompp::DECIMAL_PRECISION = 4;
   auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
   auto l = s.ToLine();
@@ -78,7 +84,7 @@ TEST(LineSegment3D, ToLine) {
   ASSERT_EQ(g::Vector3D(1, 0, 0), l.Direction());
 }
 
-TEST(LineSegment3D, Location) {
+TEST_F(LineSegment3DTest, Location) {
   geompp::DECIMAL_PRECISION = 4;
   auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
 
@@ -93,7 +99,7 @@ TEST(LineSegment3D, Location) {
   ASSERT_EQ(0.25, s.Location(g::Point3D(1, 0, 0)));
 }
 
-TEST(LineSegment3D, Interpolate) {
+TEST_F(LineSegment3DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
   auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
 
@@ -113,7 +119,7 @@ TEST(LineSegment3D, Interpolate) {
   ASSERT_EQ(g::Point3D(1, 1, 0), sd.Interpolate(0.5));
 }
 
-TEST(LineSegment3D, Contains) {
+TEST_F(LineSegment3DTest, Contains) {
   geompp::DECIMAL_PRECISION = 4;
   // NOTE: Contains relies on Line3D::Contains which has a known 3D bug.
   // For segments along the X-axis the underlying Contains always returns true;
@@ -125,7 +131,7 @@ TEST(LineSegment3D, Contains) {
   ASSERT_TRUE(s.Contains(g::Point3D(2, 0, 0)));  // midpoint
 }
 
-TEST(LineSegment3D, IntersectionWithLine3D) {
+TEST_F(LineSegment3DTest, IntersectionWithLine3D) {
   geompp::DECIMAL_PRECISION = 4;
   // Segment along X from 0..4; vertical line through x=2 in XY plane
   auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
@@ -143,7 +149,7 @@ TEST(LineSegment3D, IntersectionWithLine3D) {
   EXPECT_FALSE(s.Intersection(l_parallel).has_value());
 }
 
-TEST(LineSegment3D, Wkt) {
+TEST_F(LineSegment3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
   ASSERT_EQ("LINESTRING (0 0 0, 3 0 0)", s.ToWkt());
@@ -169,7 +175,7 @@ TEST(LineSegment3D, Wkt) {
   EXPECT_ANY_THROW(g::LineSegment3D::FromWkt("LINESTRING (0 0 0 3 0 0)"));
 }
 
-TEST(LineSegment3D, ToFile) {
+TEST_F(LineSegment3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "line_segment3d.wkt").string();
   auto s = g::LineSegment3D::Make(g::Point3D(1, 2, 0), g::Point3D(4, 6, 0));
@@ -182,7 +188,7 @@ TEST(LineSegment3D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(LineSegment3D, TestFromFile) {
+TEST_F(LineSegment3DTest, TestFromFile) {
   std::string path = (test_res_path / "line_segment3d" / "segment.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));

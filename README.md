@@ -1,95 +1,139 @@
-# Geom++ 
+  # Geom++
 
-[![Build / Test (Windows)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml)
+  [![Build / Test (Windows)](https://github.com/amastrobera/geompp/actions/workflows/build_test_window
+  s.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml)
+  [![Build / Test (Linux)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.ym
+  l/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml)
 
-[![Build / Test (Linux)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml)
+  A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
+  thoroughly tested, and designed to eventually be usable from languages beyond C++ (Python, C#).
 
-
-## Geometry library for 2D and 3D calculations
-
-The library offers a set of primitive classes to store geometrical data (Point, Ray, LineSegment, Polygon, ... etc). It also contains functionalities for those primities to interact with each other (+/-/*, Intersection, Overlap, ... etc). 
-
-The aim of the library is to be fast, mathematically-correct, well-tested, easy to use and helpful in a variety of languages other than C++, such as Python or C#. 
-
-It is based on C++20 standard.
-
-This geometry library was born to improve the previous [GeomSharp](https://github.com/amastrobera/geom_sharp) libraray, by creating 
-(1) better algorithsm, 
-(2) faster execution, 
-(3) not being limited to C# and .Net Framework. 
+  This library is a spiritual successor to [GeomSharp](https://github.com/amastrobera/geom_sharp),
+  rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
 
 
-## Build it 
+  ## What it provides
 
-### Docker Dev Environemnt
+  ### Primitives
 
-A Docker image is buildable for development and testing environment, both on linux and windows
+  Both 2D and 3D variants are available for all core types:
 
-To build and work with it 
+  | Primitive      | Description                                              |
+  |----------------|----------------------------------------------------------|
+  | `Point`        | A coordinate in space                                    |
+  | `Vector`       | Direction and magnitude                                  |
+  | `Line`         | An infinite line through two points                      |
+  | `Ray`          | A semi-infinite line from an origin in one direction     |
+  | `LineSegment`  | A finite segment between two endpoints                   |
+  | `Polyline`     | A connected chain of segments                            |
+  | `Triangle`     | Three non-collinear points forming a closed face         |
+  | `Polygon`      | A closed polygon defined by an ordered list of vertices  |
+  | `BBox`         | Axis-aligned bounding box                                |
+  | `Plane`        | A flat surface in 3D defined by a point and a normal     |
 
-```
-cd docker
-.\build.bat -image Linux    # if you are on windows and want to build a linux image
-                            # or .\build.bat -image Windows
-                            # or ./build.sh -image Windows
-                            # or ./build.sh -image Linux
+  ### Operations
 
-.\run.bat -image Linux      # same possibilities 
-```
+  Each primitive supports a consistent set of spatial operations where applicable:
 
-For running the graphics app from within docker you may need this additional like, on your host computer. 
-```
-xhost -local:root 
-```
+  - **Containment** — does a shape contain a given point?
+  - **Intersection** — do two shapes intersect, and what is the resulting geometry?
+  - **Distance** — closest distance from a point to a shape
+  - **Projection** — project a point onto a line, segment, or plane
+  - **Interpolation** — retrieve a point at parameter `t` along a segment or polyline
+  - **Location** — find the parameter `t` for a point already on a shape
+  - **Area / Perimeter / Centroid** — geometric properties for closed shapes
+  - **Signed area** — encodes orientation (clockwise vs. counter-clockwise in 2D, surface normal
+  direction in 3D)
 
-### Download and Install
+  Return types are `std::optional<std::variant<...>>` so callers can match on the exact geometry
+  produced by an intersection without casting.
 
-To download and use the library
+  ### Serialization
 
-##### Linux
-On linux, I have used the `g++13`, you can get it with 
-```
-sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-sudo apt install -y g++-13
+  All primitives support:
+  - **WKT** (Well-Known Text) — `ToWkt()` / `FromWkt()` for standard text interchange
+  - **Binary file I/O** — `ToFile()` / `FromFile()` for compact storage
 
-# remove and recreate symbolic links
-sudo rm -f /usr/bin/g++
-sudo rm -f /usr/bin/c++
-sudo ln -s /usr/bin/g++-13 /usr/bin/g++
-sudo ln -s /usr/bin/c++-13 /usr/bin/c++
-```
+  ### Precision
 
-Then simply build it with cmake
-```
-mkdir buid
-cd build
-cmake ..
-make -j6
-
-# try run test
-./geompp_tests/geompp_tests
-
-# or a specific class / test
-./geompp_tests/geompp_tests --gtest_filter="Point2D*"
-./geompp_tests/geompp_tests --gtest_filter="Point2D.ToFile"
-```
-
-You should see something like this 
-![unit test linux](etc/unit_tests_linux.png)
-
-##### Windows
-I have Windows 11, and use Visual Studio 2022. 
-
-Once you install [VS 2022](https://visualstudio.microsoft.com/downloads/), launch the Visual Studio Installer, click on "Modify" and install the _Desktop Development with C++_. 
-
-Open Visual Studio, then _Open Folder_ and select the `geompp`. 
-
-Use Ctrl+Shift+B to build the whole solution, and click on the "Play button" or F5 to run all tests.
-
-You should see something like this 
-![unit test linux](etc/unit_tests_win_vs.png)
+  Floating-point comparisons use a thread-local `DECIMAL_PRECISION` constant via `AlmostEquals()`
+  methods, making the library robust against rounding errors while remaining configurable per thread.
 
 
-## WIP schedule
+  ## geom_viewer — interactive geometry visualizer (WIP)
 
-follow what's being developed in [work in progress todo list](./WIP.md)
+  `geom_viewer` is a companion OpenGL application intended to let you see and interact with geometric
+  data produced by the library.
+
+  **Current state:**
+  - Opens a window and renders 2D points and line segments loaded from `.lsv` geometry files
+  - Coordinates are normalized to the viewport automatically
+
+  **Planned features:**
+  - Camera controls (pan / zoom via keyboard)
+  - An input box to type in new geometry on the fly (e.g. paste a WKT string)
+  - Key binding to delete selected geometry from the scene
+
+  The goal is a lightweight debugging and demonstration tool — not a full-featured CAD viewer, but
+  enough to visually inspect what the library computes.
+
+  **Stack:** GLFW 3, GLEW, OpenGL 3.3 Core Profile.
+
+
+  ## Roadmap
+
+  See [WIP.md](./WIP.md) for the full task list. High-level:
+
+  | Status | Area |
+  |--------|------|
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic
+  OpenGL viewer |
+  | Next | Docker (Windows), geom_viewer camera/input/delete |
+  | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping, Python
+   bindings, C# bindings |
+
+
+  ## Build it
+
+  ### Docker Dev Environment
+
+  cd docker
+  .\build.bat -image Linux    # or -image Windows
+  .\run.bat   -image Linux    # same possibilities
+
+  To allow the graphics app to display from inside Docker on a Linux host:
+  xhost -local:root
+
+  ### Linux
+
+  Install g++13:
+  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  sudo apt install -y g++-13
+  sudo rm -f /usr/bin/g++ /usr/bin/c++
+  sudo ln -s /usr/bin/g++-13 /usr/bin/g++
+  sudo ln -s /usr/bin/c++-13 /usr/bin/c++
+
+  Build and test:
+  mkdir build && cd build
+  cmake ..
+  make -j6
+
+  ./geompp_tests/geompp_tests
+  ./geompp_tests/geompp_tests --gtest_filter="Point2D*"
+  ./geompp_tests/geompp_tests --gtest_filter="Point2D.ToFile"
+
+  ![unit test linux](etc/unit_tests_linux.png)
+
+  ### Windows
+
+  Install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/), then via the VS
+  Installer enable **Desktop Development with C++**.
+
+  Open VS 2022 → _Open Folder_ → select the `geompp` directory.
+
+  - **Ctrl+Shift+B** — build the whole solution
+  - **F5** — run all tests
+
+  ![unit test windows](etc/unit_tests_win_vs.png)
+
+

@@ -15,7 +15,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Line2D, Constructor) {
+class Line2DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Line2DTest, Constructor) {
   geompp::DECIMAL_PRECISION = 4;
   auto p0 = g::Point2D(1, 2);
   auto p1 = g::Point2D(3, 5);
@@ -34,8 +40,7 @@ TEST(Line2D, Constructor) {
   EXPECT_EQ(l2.Last(), p0 + v);
 }
 
-TEST(Line2D, Contains) {
-  geompp::DECIMAL_PRECISION = 3;
+TEST_F(Line2DTest, Contains) {
   auto l1 = g::Line2D::Make(g::Point2D(0, -1), g::Point2D(0, 1));
   auto p0 = g::Point2D();
   auto p1 = g::Point2D(0, 10);
@@ -46,8 +51,7 @@ TEST(Line2D, Contains) {
   ASSERT_TRUE(!l1.Contains(p2));
 }
 
-TEST(Line2D, Intersection) {
-  geompp::DECIMAL_PRECISION = 3;
+TEST_F(Line2DTest, Intersection) {
   auto l1 = g::Line2D::Make(g::Point2D(0, -1), g::Point2D(0, 1));
   auto l2 = g::Line2D::Make(g::Point2D(-1, 0), g::Point2D(1, 0));
 
@@ -60,7 +64,7 @@ TEST(Line2D, Intersection) {
   EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
 }
 
-TEST(Line2D, Wkt) {
+TEST_F(Line2DTest, Wkt) {
   ASSERT_EQ("LINE (0 0, 1 1)", g::Line2D::Make(g::Point2D(), g::Point2D(1, 1)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("LINE (56491.62 -795.97, -9137.37 10.36)",
@@ -86,7 +90,7 @@ TEST(Line2D, Wkt) {
   EXPECT_ANY_THROW(g::Line2D::FromWkt("LINE ( -7.5 -64.4 15.5, 0 0 0)"));
 }
 
-TEST(Line2D, ToFile) {
+TEST_F(Line2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "line.wkt").string();
   auto v = g::Line2D::Make(g::Point2D(12.32, -61.6164), g::Point2D(-14.64661, -9.1641));
@@ -101,7 +105,7 @@ TEST(Line2D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Line2D, TestFromFile) {
+TEST_F(Line2DTest, TestFromFile) {
   std::string path = (test_res_path / "line2d" / "line.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));
@@ -113,7 +117,7 @@ TEST(Line2D, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
-TEST(Line2D, DistanceTo) {
+TEST_F(Line2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto line = g::Line2D::FromWkt("LINE (0 0, 3 0)");
 

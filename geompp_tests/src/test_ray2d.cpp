@@ -16,7 +16,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Ray2D, Constructor) {
+class Ray2DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Ray2DTest, Constructor) {
   auto r1 = g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 0));
 
   ASSERT_EQ(g::Point2D(), r1.Origin());
@@ -25,7 +31,7 @@ TEST(Ray2D, Constructor) {
   EXPECT_ANY_THROW(g::Ray2D::Make(g::Point2D(), g::Vector2D(0, 0)));  // cannot make a ray going no where
 }
 
-TEST(Ray2D, Contains) {
+TEST_F(Ray2DTest, Contains) {
   auto r1 = g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 0));
   ASSERT_TRUE(r1.Contains(g::Point2D(0, 0)));
   ASSERT_TRUE(r1.Contains(g::Point2D(1, 0)));
@@ -38,7 +44,7 @@ TEST(Ray2D, Contains) {
   ASSERT_FALSE(r1.Contains(g::Point2D(-1, -1)));
 }
 
-TEST(Ray2D, AheadBehind) {
+TEST_F(Ray2DTest, AheadBehind) {
   auto r1 = g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 0));
 
   ASSERT_TRUE(r1.IsAhead(g::Point2D(1, 0)));
@@ -62,7 +68,7 @@ TEST(Ray2D, AheadBehind) {
   ASSERT_FALSE(r1.IsBehind(g::Point2D(0, -1)));
 }
 
-TEST(Ray2D, Intersection) {
+TEST_F(Ray2DTest, Intersection) {
   geompp::DECIMAL_PRECISION = 4;
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
@@ -99,7 +105,7 @@ TEST(Ray2D, Intersection) {
   }
 }
 
-TEST(Ray2D, IntersectionWLine) {
+TEST_F(Ray2DTest, IntersectionWLine) {
   geompp::DECIMAL_PRECISION = 4;
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(1, -1), g::Vector2D(1, 1));  // intersects r1 in (0,0)
@@ -134,7 +140,7 @@ TEST(Ray2D, IntersectionWLine) {
   ASSERT_FALSE(r2.Intersects(y));
 }
 
-TEST(Ray2D, Wkt) {
+TEST_F(Ray2DTest, Wkt) {
   ASSERT_EQ("RAY (0 0, 0.707 0.707)", g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 1)).ToWkt());  // normalized vector!
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("RAY (56491.62 -795.97, -1 0)",
@@ -161,7 +167,7 @@ TEST(Ray2D, Wkt) {
   EXPECT_ANY_THROW(g::Ray2D::FromWkt("ray ( -7.5 -64.4 15.5, 0 0 0)"));
 }
 
-TEST(Ray2D, ToFile) {
+TEST_F(Ray2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "ray.wkt").string();
   auto v = g::Ray2D::Make(g::Point2D(12.32, -61.6164), g::Vector2D(1, 1));
@@ -176,7 +182,7 @@ TEST(Ray2D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Ray2D, TestFromFile) {
+TEST_F(Ray2DTest, TestFromFile) {
   std::string path = (test_res_path / "ray2d" / "ray.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));
@@ -188,7 +194,7 @@ TEST(Ray2D, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
-TEST(Ray2D, DistanceTo) {
+TEST_F(Ray2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto ray = g::Ray2D::FromWkt("RAY (0 0, 1 0)");
 

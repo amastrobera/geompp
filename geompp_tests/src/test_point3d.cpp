@@ -17,7 +17,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Point3D, Equality) {
+class Point3DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Point3DTest, Equality) {
   ASSERT_EQ(g::Point3D(2.56, 748.1203, -3.14), g::Point3D(2.56, 748.1203, -3.14));
   ASSERT_EQ(g::Point3D(2, 3, 4), g::Point3D(2, 3, 4));
   ASSERT_EQ(g::Point3D(-56.682, 30.56, 0.0), g::Point3D(-56.682, 30.56, 0.0));
@@ -31,7 +37,7 @@ TEST(Point3D, Equality) {
   ASSERT_NE(g::Point3D(0, 0, 0), g::Point3D(0, 0, 1));
 }
 
-TEST(Point3D, Assignment) {
+TEST_F(Point3DTest, Assignment) {
   g::Point3D p1(1, 2, 3);
   g::Point3D p2(4, 5, 6);
 
@@ -43,7 +49,7 @@ TEST(Point3D, Assignment) {
   ASSERT_EQ(g::Point3D(1, 2, 3), p1);
 }
 
-TEST(Point3D, Getters) {
+TEST_F(Point3DTest, Getters) {
   auto p = g::Point3D(1.5, -2.3, 7.0);
 
   ASSERT_EQ(1.5, p.x());
@@ -55,7 +61,7 @@ TEST(Point3D, Getters) {
   ASSERT_EQ(p, p_copy);
 }
 
-TEST(Point3D, ToVector) {
+TEST_F(Point3DTest, ToVector) {
   auto p = g::Point3D(3.0, -1.5, 2.7);
   auto v = p.ToVector();
 
@@ -67,7 +73,7 @@ TEST(Point3D, ToVector) {
   ASSERT_EQ(p, v.ToPoint());
 }
 
-TEST(Point3D, SubtractPoint) {
+TEST_F(Point3DTest, SubtractPoint) {
   auto p1 = g::Point3D(1, 2, 3);
   auto p2 = g::Point3D(4, 6, 9);
   g::Vector3D v = p2 - p1;
@@ -83,7 +89,7 @@ TEST(Point3D, SubtractPoint) {
   ASSERT_EQ(g::Vector3D(-3, -4, -6), v_rev);
 }
 
-TEST(Point3D, AddVector) {
+TEST_F(Point3DTest, AddVector) {
   auto p = g::Point3D(1.0, 2.0, 3.0);
   auto v = g::Vector3D(0.5, -1.0, 2.0);
 
@@ -98,7 +104,7 @@ TEST(Point3D, AddVector) {
   ASSERT_EQ(sum, sum2);
 }
 
-TEST(Point3D, ScalarMultiply) {
+TEST_F(Point3DTest, ScalarMultiply) {
   auto p = g::Point3D(2.0, -3.0, 4.0);
 
   ASSERT_EQ(g::Point3D(4.0, -6.0, 8.0), p * 2.0);
@@ -110,7 +116,7 @@ TEST(Point3D, ScalarMultiply) {
   ASSERT_EQ(p * 3.0, 3.0 * p);
 }
 
-TEST(Point3D, DistanceTo) {
+TEST_F(Point3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto origin = g::Point3D();
 
@@ -137,7 +143,7 @@ TEST(Point3D, DistanceTo) {
   ASSERT_EQ(0.0, g::round(p1.DistanceTo(p1)));
 }
 
-TEST(Point3D, AlmostEquals) {
+TEST_F(Point3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 2;  // tolerance ~0.005
 
   auto p = g::Point3D(1.0, 2.0, 3.0);
@@ -152,7 +158,7 @@ TEST(Point3D, AlmostEquals) {
   ASSERT_FALSE(p.AlmostEquals(g::Point3D(1.004, 2.0, 3.0)));  // was OK at DP=2, not at DP=4
 }
 
-TEST(Point3D, Wkt) {
+TEST_F(Point3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   ASSERT_EQ("POINT (0 0 0)", g::Point3D().ToWkt());
   ASSERT_EQ("POINT (1 2 3)", g::Point3D(1, 2, 3).ToWkt());
@@ -180,7 +186,7 @@ TEST(Point3D, Wkt) {
   EXPECT_ANY_THROW(g::Point3D::FromWkt("point (1 2 3 4)"));
 }
 
-TEST(Point3D, ToFile) {
+TEST_F(Point3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "point3d.wkt").string();
   auto p = g::Point3D(15.341, -781.684, 42.0);
@@ -194,7 +200,7 @@ TEST(Point3D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Point3D, TestFromFile) {
+TEST_F(Point3DTest, TestFromFile) {
   std::string path = (test_res_path / "point3d" / "point.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));
@@ -204,9 +210,7 @@ TEST(Point3D, TestFromFile) {
   GEOMPP_LOG(INFO) << "from file = " << p.ToWkt();
 }
 
-TEST(Point3D, AreCollinear) {
-  g::DECIMAL_PRECISION = g::DP_THREE;  // tolerance ~0.005
-
+TEST_F(Point3DTest, AreCollinear) {
   // on the X axis
   ASSERT_TRUE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(2, 0, 0)));
   ASSERT_TRUE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0), g::Point3D(100, 0, 0)));
@@ -220,7 +224,7 @@ TEST(Point3D, AreCollinear) {
   ASSERT_FALSE(g::are_collinear(g::Point3D(-1, 1, 2), g::Point3D(0, -1, 2), g::Point3D(1, 1, 2)));
 }
 
-TEST(Point3D, RemoveDuplicates) {
+TEST_F(Point3DTest, RemoveDuplicates) {
   // clang-format off
   std::vector<g::Point3D> pts{
     g::Point3D(0, 0, 0),
@@ -252,9 +256,7 @@ TEST(Point3D, RemoveDuplicates) {
   ASSERT_EQ(1, g::remove_duplicates({g::Point3D(1, 2, 3)}).size());
 }
 
-TEST(Point3D, RemoveCollinear) {
-  g::DECIMAL_PRECISION = g::DP_THREE;  // tolerance ~0.005
-
+TEST_F(Point3DTest, RemoveCollinear) {
   // clang-format off
   std::vector<g::Point3D> pts{
     g::Point3D(0, 0, 0),
@@ -271,18 +273,17 @@ TEST(Point3D, RemoveCollinear) {
 
   auto compressed = g::remove_collinear(pts);
 
-  ASSERT_EQ(5, compressed.size());
+  ASSERT_EQ(4, compressed.size());
   ASSERT_EQ(g::Point3D(0, 0, 0), compressed[0]);
   ASSERT_EQ(g::Point3D(2, 0, 0), compressed[1]);  // farthest on X run
   ASSERT_EQ(g::Point3D(2, 3, 0), compressed[2]);  // farthest on Y run
-  ASSERT_EQ(g::Point3D(3, 3, 0), compressed[3]);
-  ASSERT_EQ(g::Point3D(5, 3, 0), compressed[4]);  // farthest on X run
+  ASSERT_EQ(g::Point3D(5, 3, 0), compressed[3]);  // farthest on X run
 
   // fewer than 3 points → returned unchanged
   ASSERT_EQ(2, g::remove_collinear({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)}).size());
 }
 
-TEST(Point3D, Average) {
+TEST_F(Point3DTest, Average) {
   // clang-format off
   std::vector<g::Point3D> pts{
     g::Point3D(0, 0, 0),
@@ -306,7 +307,7 @@ TEST(Point3D, Average) {
   EXPECT_ANY_THROW(g::average(std::vector<g::Point3D>{}));
 }
 
-TEST(Point3D, LinearCombination) {
+TEST_F(Point3DTest, LinearCombination) {
   std::vector<g::Point3D> pts{g::Point3D(1, 0, 0), g::Point3D(0, 1, 0), g::Point3D(0, 0, 1)};
   std::vector<double> w{0.5, 0.3, 0.2};
 

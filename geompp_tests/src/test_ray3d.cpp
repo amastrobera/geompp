@@ -19,7 +19,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Ray3D, Make) {
+class Ray3DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Ray3DTest, Make) {
   geompp::DECIMAL_PRECISION = 4;
   auto r = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(3, 0, 0));
 
@@ -31,7 +37,7 @@ TEST(Ray3D, Make) {
   EXPECT_ANY_THROW(g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(0, 0, 0)));
 }
 
-TEST(Ray3D, AlmostEquals) {
+TEST_F(Ray3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
   auto r1 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
   auto r2 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
@@ -46,7 +52,7 @@ TEST(Ray3D, AlmostEquals) {
   ASSERT_EQ(r1, r1);
 }
 
-TEST(Ray3D, Assignment) {
+TEST_F(Ray3DTest, Assignment) {
   auto r1 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
   auto r2 = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(0, 1, 0));
 
@@ -57,7 +63,7 @@ TEST(Ray3D, Assignment) {
   ASSERT_EQ(g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0)), r1);
 }
 
-TEST(Ray3D, IsAheadIsBehind) {
+TEST_F(Ray3DTest, IsAheadIsBehind) {
   geompp::DECIMAL_PRECISION = 4;
   // ray from origin pointing along +X
   auto r = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
@@ -80,7 +86,7 @@ TEST(Ray3D, IsAheadIsBehind) {
   ASSERT_FALSE(r.IsAhead(p_behind));
 }
 
-TEST(Ray3D, ToLine) {
+TEST_F(Ray3DTest, ToLine) {
   geompp::DECIMAL_PRECISION = 4;
   auto r = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(1, 0, 0));
   auto l = r.ToLine();
@@ -90,7 +96,7 @@ TEST(Ray3D, ToLine) {
   ASSERT_EQ(g::Vector3D(1, 0, 0), l.Direction());
 }
 
-TEST(Ray3D, IntersectionWithLine3D) {
+TEST_F(Ray3DTest, IntersectionWithLine3D) {
   geompp::DECIMAL_PRECISION = 4;
   // ray along +X from origin; vertical line at x=3 in XY plane
   auto r = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
@@ -112,7 +118,7 @@ TEST(Ray3D, IntersectionWithLine3D) {
   EXPECT_FALSE(r.Intersection(l_parallel).has_value());
 }
 
-TEST(Ray3D, Wkt) {
+TEST_F(Ray3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   auto r = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
   ASSERT_EQ("RAY (0 0 0, 1 0 0)", r.ToWkt());
@@ -138,7 +144,7 @@ TEST(Ray3D, Wkt) {
   EXPECT_ANY_THROW(g::Ray3D::FromWkt("RAY (0 0 0 1 0 0)"));
 }
 
-TEST(Ray3D, ToFile) {
+TEST_F(Ray3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "ray3d.wkt").string();
   auto r = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(1, 0, 0));
@@ -151,7 +157,7 @@ TEST(Ray3D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Ray3D, TestFromFile) {
+TEST_F(Ray3DTest, TestFromFile) {
   std::string path = (test_res_path / "ray3d" / "ray.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));

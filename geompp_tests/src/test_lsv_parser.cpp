@@ -19,7 +19,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(LsvParser, FromFile) {
+class LsvParserTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(LsvParserTest, FromFile) {
   std::string geom_file_path = (test_res_path / "lsv" / "initial_geometries.lsv").string();
 
   // expected values filling: creating the testw file

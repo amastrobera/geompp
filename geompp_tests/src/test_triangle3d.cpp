@@ -23,7 +23,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Triangle3D, Constructor) {
+class Triangle3DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Triangle3DTest, Constructor) {
   auto t = g::Triangle3D::Make(g::Point3D(-1, 1, 2), g::Point3D(0, -1, 2), g::Point3D(1, 1, 2));
 
   ASSERT_EQ(g::Point3D(0, 0.333, 2), t.Centroid());
@@ -304,7 +310,7 @@ TEST(Triangle3D, Constructor) {
 ////   ASSERT_FALSE(s3.Intersects(r2_rev));
 //// }
 
-TEST(Triangle3D, Wkt) {
+TEST_F(Triangle3DTest, Wkt) {
   ASSERT_EQ("TRIANGLE (0 0, 1 1, 0 2)",
             g::Triangle3D::Make(g::Point3D(0, 0), g::Point3D(1, 1), g::Point3D(0, 2)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
@@ -335,7 +341,7 @@ TEST(Triangle3D, Wkt) {
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle ( -7.5 -64.4 15.5, 0 0 0, 1 1 1)"));
 }
 
-TEST(Triangle3D, ToFile) {
+TEST_F(Triangle3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "triangle.wkt").string();
   auto s = g::Triangle3D::Make(g::Point3D(), g::Point3D(1, 0), g::Point3D(0, 2));
@@ -350,7 +356,7 @@ TEST(Triangle3D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Triangle3D, TestFromFile) {
+TEST_F(Triangle3DTest, TestFromFile) {
   std::string path = (test_res_path / "triangle3d" / "triangle.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));

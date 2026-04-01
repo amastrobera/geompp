@@ -21,8 +21,14 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Plane, Constructor) {}
+class PlaneTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
 
-TEST(Plane, IntersectionWLine) {}
+TEST_F(PlaneTest, Constructor) {}
+
+TEST_F(PlaneTest, IntersectionWLine) {}
 
 }  // namespace geompp_tests

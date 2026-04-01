@@ -17,7 +17,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Vector3D, Equality) {
+class Vector3DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Vector3DTest, Equality) {
   ASSERT_EQ(g::Vector3D(2.56, 748.1203, -3.14), g::Vector3D(2.56, 748.1203, -3.14));
   ASSERT_EQ(g::Vector3D(2, 3, 4), g::Vector3D(2, 3, 4));
   ASSERT_EQ(g::Vector3D(-56.682, 30.56, 0.0), g::Vector3D(-56.682, 30.56, 0.0));
@@ -30,7 +36,7 @@ TEST(Vector3D, Equality) {
   ASSERT_NE(g::Vector3D(0, 0, 0), g::Vector3D(0, 0, 1));
 }
 
-TEST(Vector3D, Assignment) {
+TEST_F(Vector3DTest, Assignment) {
   g::Vector3D v1(1, 2, 3);
   g::Vector3D v2(4, 5, 6);
 
@@ -42,7 +48,7 @@ TEST(Vector3D, Assignment) {
   ASSERT_EQ(g::Vector3D(1, 2, 3), v1);
 }
 
-TEST(Vector3D, Getters) {
+TEST_F(Vector3DTest, Getters) {
   auto v = g::Vector3D(1.5, -2.3, 7.0);
 
   ASSERT_EQ(1.5, v.x());
@@ -54,7 +60,7 @@ TEST(Vector3D, Getters) {
   ASSERT_EQ(v, v_copy);
 }
 
-TEST(Vector3D, Length) {
+TEST_F(Vector3DTest, Length) {
   // axis-aligned
   ASSERT_EQ(3.0, g::Vector3D(3, 0, 0).Length());
   ASSERT_EQ(4.0, g::Vector3D(0, 4, 0).Length());
@@ -67,14 +73,11 @@ TEST(Vector3D, Length) {
   ASSERT_EQ(0.0, g::Vector3D(0, 0, 0).Length());
 
   // space diagonal of unit cube: sqrt(3)
-  geompp::DECIMAL_PRECISION = 3;
-  ASSERT_EQ(g::round(std::sqrt(3.0)), g::Vector3D(1, 1, 1).Length());
-  geompp::DECIMAL_PRECISION = 4;
+  ASSERT_EQ(1.732, g::round(g::Vector3D(1, 1, 1).Length()));
 }
 
-TEST(Vector3D, AlmostEquals) {
+TEST_F(Vector3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 2;
-
   auto v = g::Vector3D(1.0, 2.0, 3.0);
   ASSERT_TRUE(v.AlmostEquals(g::Vector3D(1.004, 2.004, 3.004)));  // within tolerance
   ASSERT_FALSE(v.AlmostEquals(g::Vector3D(1.01, 2.0, 3.0)));      // just outside
@@ -87,7 +90,7 @@ TEST(Vector3D, AlmostEquals) {
   ASSERT_FALSE(v.AlmostEquals(g::Vector3D(1.004, 2.0, 3.0)));  // was OK at DP=2, not at DP=4
 }
 
-TEST(Vector3D, Dot) {
+TEST_F(Vector3DTest, Dot) {
   // orthogonal basis vectors
   ASSERT_EQ(0.0, g::Vector3D(1, 0, 0).Dot(g::Vector3D(0, 1, 0)));
   ASSERT_EQ(0.0, g::Vector3D(1, 0, 0).Dot(g::Vector3D(0, 0, 1)));
@@ -106,7 +109,7 @@ TEST(Vector3D, Dot) {
   ASSERT_EQ(a.Dot(b), b.Dot(a));
 }
 
-TEST(Vector3D, Cross) {
+TEST_F(Vector3DTest, Cross) {
   // BasisX x BasisY == BasisZ
   auto bx = g::Vector3D::BasisX();
   auto by = g::Vector3D::BasisY();
@@ -130,7 +133,7 @@ TEST(Vector3D, Cross) {
   geompp::DECIMAL_PRECISION = 4;
 }
 
-TEST(Vector3D, Perp) {
+TEST_F(Vector3DTest, Perp) {
   // perp is perpendicular to the input
   auto check_perp = [](g::Vector3D const& v) {
     geompp::DECIMAL_PRECISION = 3;
@@ -145,7 +148,7 @@ TEST(Vector3D, Perp) {
   check_perp(g::Vector3D(1, 1, 1));
 }
 
-TEST(Vector3D, Normalize) {
+TEST_F(Vector3DTest, Normalize) {
   // NOTE: Normalize() has a known bug — Z component is not divided by length.
   // Tests below use axis-aligned vectors where z was already 0 to avoid the bug.
   geompp::DECIMAL_PRECISION = 4;
@@ -162,7 +165,7 @@ TEST(Vector3D, Normalize) {
   ASSERT_EQ(g::round(1.0), g::round(nd.Length()));
 }
 
-TEST(Vector3D, Operators) {
+TEST_F(Vector3DTest, Operators) {
   auto a = g::Vector3D(1, 2, 3);
   auto b = g::Vector3D(4, -1, 2);
 
@@ -186,7 +189,7 @@ TEST(Vector3D, Operators) {
   ASSERT_EQ(a, -(-a));
 }
 
-TEST(Vector3D, BasisVectors) {
+TEST_F(Vector3DTest, BasisVectors) {
   ASSERT_EQ(g::Vector3D(1, 0, 0), g::Vector3D::BasisX());
   ASSERT_EQ(g::Vector3D(0, 1, 0), g::Vector3D::BasisY());
 
@@ -195,7 +198,7 @@ TEST(Vector3D, BasisVectors) {
   ASSERT_EQ(1.0, g::Vector3D::BasisY().Length());
 }
 
-TEST(Vector3D, ToPoint) {
+TEST_F(Vector3DTest, ToPoint) {
   auto v = g::Vector3D(3.0, -1.5, 2.7);
   auto p = v.ToPoint();
 
@@ -207,7 +210,7 @@ TEST(Vector3D, ToPoint) {
   ASSERT_EQ(v, p.ToVector());
 }
 
-TEST(Vector3D, Wkt) {
+TEST_F(Vector3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   ASSERT_EQ("VECTOR (0 0 0)", g::Vector3D().ToWkt());
   ASSERT_EQ("VECTOR (1 2 3)", g::Vector3D(1, 2, 3).ToWkt());
@@ -235,7 +238,7 @@ TEST(Vector3D, Wkt) {
   EXPECT_ANY_THROW(g::Vector3D::FromWkt("vector (1 2 3 4)"));
 }
 
-TEST(Vector3D, ToFile) {
+TEST_F(Vector3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "vector3d.wkt").string();
   auto v = g::Vector3D(15.341, -781.684, 42.0);
@@ -249,7 +252,7 @@ TEST(Vector3D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Vector3D, TestFromFile) {
+TEST_F(Vector3DTest, TestFromFile) {
   std::string path = (test_res_path / "vector3d" / "vector.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));

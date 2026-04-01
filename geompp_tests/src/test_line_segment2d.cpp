@@ -20,7 +20,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(LineSegment2D, Constructor) {
+class LineSegment2DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(LineSegment2DTest, Constructor) {
   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
 
   ASSERT_EQ(g::Point2D(), s1.First());
@@ -29,7 +35,7 @@ TEST(LineSegment2D, Constructor) {
   EXPECT_ANY_THROW(g::LineSegment2D::Make(g::Point2D(), g::Point2D()));  // cannot make a segment in 1 sole point
 }
 
-TEST(LineSegment2D, Contains) {
+TEST_F(LineSegment2DTest, Contains) {
   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
   ASSERT_TRUE(s1.Contains(g::Point2D(0, 0)));
   ASSERT_TRUE(s1.Contains(g::Point2D(0.5, 0)));
@@ -44,8 +50,7 @@ TEST(LineSegment2D, Contains) {
   ASSERT_FALSE(s1.Contains(g::Point2D(-0.1, 0)));
 }
 
-TEST(LineSegment2D, Location) {
-  geompp::DECIMAL_PRECISION = 3;
+TEST_F(LineSegment2DTest, Location) {
   auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
 
   ASSERT_EQ(0.2, g::round(s1.Location(g::Point2D(0.2, 0))));
@@ -62,7 +67,7 @@ TEST(LineSegment2D, Location) {
   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, -1))));
 }
 
-TEST(LineSegment2D, Interpolate) {
+TEST_F(LineSegment2DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
   auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
 
@@ -80,7 +85,7 @@ TEST(LineSegment2D, Interpolate) {
   ASSERT_EQ(0.0, g::round(seg.Location(seg.Interpolate(-0.2)), 1));
 }
 
-TEST(LineSegment2D, Intersection) {
+TEST_F(LineSegment2DTest, Intersection) {
   geompp::DECIMAL_PRECISION = 4;
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
@@ -117,7 +122,7 @@ TEST(LineSegment2D, Intersection) {
   }
 }
 
-TEST(LineSegment2D, IntersectionWLine) {
+TEST_F(LineSegment2DTest, IntersectionWLine) {
   geompp::DECIMAL_PRECISION = 4;
   auto s1 = g::LineSegment2D::Make(g::Point2D(-1, -2), g::Point2D(2, 1));   // intersects x, y
   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects y
@@ -161,7 +166,7 @@ TEST(LineSegment2D, IntersectionWLine) {
   ASSERT_FALSE(s3.Intersects(y));
 }
 
-TEST(LineSegment2D, IntersectionWRay) {
+TEST_F(LineSegment2DTest, IntersectionWRay) {
   geompp::DECIMAL_PRECISION = 4;
   auto s1 = g::LineSegment2D::Make(g::Point2D(-1, -2), g::Point2D(2, 1));   // intersects r1, r2
   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects r1
@@ -213,7 +218,7 @@ TEST(LineSegment2D, IntersectionWRay) {
   ASSERT_FALSE(s3.Intersects(r2_rev));
 }
 
-TEST(LineSegment2D, Wkt) {
+TEST_F(LineSegment2DTest, Wkt) {
   ASSERT_EQ("LINESTRING (0 0, 1 1)", g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 1)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("LINESTRING (56491.62 -795.97, -9137.37 10.36)",
@@ -240,7 +245,7 @@ TEST(LineSegment2D, Wkt) {
   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
 }
 
-TEST(LineSegment2D, ToFile) {
+TEST_F(LineSegment2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "line_segment.wkt").string();
   auto s = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
@@ -255,7 +260,7 @@ TEST(LineSegment2D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(LineSegment2D, TestFromFile) {
+TEST_F(LineSegment2DTest, TestFromFile) {
   std::string path = (test_res_path / "line_segment2d" / "line_segment.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));
@@ -267,7 +272,7 @@ TEST(LineSegment2D, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
-TEST(LineSegment2D, DistanceTo) {
+TEST_F(LineSegment2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
 

@@ -22,7 +22,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Polyline2D, Constructor) {
+class Polyline2DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Polyline2DTest, Constructor) {
   geompp::DECIMAL_PRECISION = 4;
   auto polyline = g::Polyline2D::Make({g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)});
   ASSERT_EQ(4, polyline.Size());
@@ -42,7 +48,7 @@ TEST(Polyline2D, Constructor) {
             g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0), g::Point2D(3, 0)}).Size());  // removed collinear point
 }
 
-TEST(Polyline2D, Contains) {
+TEST_F(Polyline2DTest, Contains) {
   geompp::DECIMAL_PRECISION = 4;
   std::vector<g::Point2D> points{g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)};
   auto polyline = g::Polyline2D::Make(points);
@@ -64,8 +70,7 @@ TEST(Polyline2D, Contains) {
   ASSERT_FALSE(polyline.Contains(points[points.size() - 1] + (points[points.size() - 1] - points[points.size() - 2])));
 }
 
-TEST(Polyline2D, Location) {
-  geompp::DECIMAL_PRECISION = 3;
+TEST_F(Polyline2DTest, Location) {
   auto s1 = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)});
 
   ASSERT_EQ(0.2, g::round(s1.Location(g::Point2D(0.2, 0))));
@@ -82,7 +87,7 @@ TEST(Polyline2D, Location) {
   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, -1))));
 }
 
-TEST(Polyline2D, Interpolate) {
+TEST_F(Polyline2DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly = g::Polyline2D::FromWkt("LINESTRING (0 0, 3 0)");
 
@@ -100,7 +105,7 @@ TEST(Polyline2D, Interpolate) {
   ASSERT_EQ(0.0, g::round(poly.Location(poly.Interpolate(-0.2)), 1));
 }
 
-TEST(Polyline2D, IntersectionWLine) {
+TEST_F(Polyline2DTest, IntersectionWLine) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly1 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");  // intersects x (-1 0, 1 0) and y (0 -2)
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");  // intersects y (0 2)
@@ -146,7 +151,7 @@ TEST(Polyline2D, IntersectionWLine) {
   ASSERT_FALSE(poly3.Intersects(y));
 }
 
-TEST(Polyline2D, IntersectionWRay) {
+TEST_F(Polyline2DTest, IntersectionWRay) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly1 = g::Polyline2D::FromWkt(
       "LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");  // intersects x_neg (-1 0), x_pos (1 0) and y_neg (0 -2)
@@ -207,7 +212,7 @@ TEST(Polyline2D, IntersectionWRay) {
   ASSERT_FALSE(poly3.Intersects(y_neg));
 }
 
-TEST(Polyline2D, IntersectionWSegment) {
+TEST_F(Polyline2DTest, IntersectionWSegment) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly1 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");     // intersects s1 (-1 0, 1 0)
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");     // intersects s2 (0 2)
@@ -258,7 +263,7 @@ TEST(Polyline2D, IntersectionWSegment) {
   }
 }
 
-TEST(Polyline2D, Intersection) {
+TEST_F(Polyline2DTest, Intersection) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly1 =
       g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -2, 1 -2, 1 2)");  // intersects poly2 (-1 1, -0.5 -2, 0.5 -2, 1 1)
@@ -281,7 +286,7 @@ TEST(Polyline2D, Intersection) {
   ASSERT_FALSE(poly2.Intersects(poly3));
 }
 
-TEST(Polyline2D, Wkt) {
+TEST_F(Polyline2DTest, Wkt) {
   ASSERT_EQ("LINESTRING (0 0, 1 1)", g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 1)}).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("LINESTRING (56491.62 -795.97, -9137.37 10.36, -10351.52 7.61)",
@@ -310,7 +315,7 @@ TEST(Polyline2D, Wkt) {
   EXPECT_ANY_THROW(g::Polyline2D::FromWkt("linestring ( -7.5 -64.4 15.5, 0 0 0)"));
 }
 
-TEST(Polyline2D, ToFile) {
+TEST_F(Polyline2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "polyline.wkt").string();
   auto s = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)});
@@ -325,7 +330,7 @@ TEST(Polyline2D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Polyline2D, TestFromFile) {
+TEST_F(Polyline2DTest, TestFromFile) {
   std::string path = (test_res_path / "polyline2d" / "polyline.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));
@@ -337,7 +342,7 @@ TEST(Polyline2D, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
-TEST(Polyline2D, DistanceTo) {
+TEST_F(Polyline2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   std::vector<g::Point2D> points{g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)};
   auto polyline = g::Polyline2D::Make(points);

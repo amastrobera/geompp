@@ -23,7 +23,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Triangle2D, Constructor) {
+class Triangle2DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Triangle2DTest, Constructor) {
   auto t = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
 
   ASSERT_EQ(g::Point2D(0, 0.333), t.Centroid());
@@ -33,7 +39,7 @@ TEST(Triangle2D, Constructor) {
   EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D(), g::Point2D(), g::Point2D()));
 }
 
-TEST(Triangle2D, Contains) {
+TEST_F(Triangle2DTest, Contains) {
   std::tuple<g::Point2D, g::Point2D, g::Point2D> points = {g::Point2D(-1, 0), g::Point2D(1, 1), g::Point2D(-1, 1)};
 
   auto t = g::Triangle2D::Make(std::get<0>(points), std::get<1>(points), std::get<2>(points));
@@ -71,7 +77,7 @@ TEST(Triangle2D, Contains) {
                           (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
 }
 
-TEST(Triangle2D, Areas) {
+TEST_F(Triangle2DTest, Areas) {
   geompp::DECIMAL_PRECISION = 4;
   auto t_ccw = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
 
@@ -96,7 +102,7 @@ TEST(Triangle2D, Areas) {
   ASSERT_EQ(-sa_ccw, sa_cw);
 }
 
-TEST(Triangle2D, ToPolygon) {
+TEST_F(Triangle2DTest, ToPolygon) {
   geompp::DECIMAL_PRECISION = 4;
   auto t = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
 
@@ -107,7 +113,7 @@ TEST(Triangle2D, ToPolygon) {
   ASSERT_EQ(poly.ToWkt(), t.ToPolygon().ToWkt());
 }
 
-TEST(Triangle2D, ToAxis) {
+TEST_F(Triangle2DTest, ToAxis) {
   auto t = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
 
   auto axis = t.ToAxis();
@@ -115,7 +121,7 @@ TEST(Triangle2D, ToAxis) {
   ASSERT_EQ(g::Vector2D(-1, 1), std::get<1>(axis));
 }
 
-TEST(Triangle2D, DistanceTo) {
+TEST_F(Triangle2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto t = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
 
@@ -146,7 +152,7 @@ TEST(Triangle2D, DistanceTo) {
   ASSERT_EQ(1.0, g::round(t.DistanceTo(g::Point2D(-2, 0))));
 }
 
-TEST(Triangle2D, Interpolate) {
+TEST_F(Triangle2DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
   auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
 
@@ -163,7 +169,7 @@ TEST(Triangle2D, Interpolate) {
   ASSERT_EQ(c, tri.Interpolate(std::get<0>(loc), std::get<1>(loc)));
 }
 
-TEST(Triangle2D, IntersectionWLine) {
+TEST_F(Triangle2DTest, IntersectionWLine) {
   geompp::DECIMAL_PRECISION = 4;
   auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 1, -1 1)");
 
@@ -301,7 +307,7 @@ TEST(Triangle2D, IntersectionWLine) {
 //   ASSERT_FALSE(s3.Intersects(r2_rev));
 // }
 
-TEST(Triangle2D, Wkt) {
+TEST_F(Triangle2DTest, Wkt) {
   ASSERT_EQ("TRIANGLE (0 0, 1 1, 0 2)",
             g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
@@ -332,7 +338,7 @@ TEST(Triangle2D, Wkt) {
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangle ( -7.5 -64.4 15.5, 0 0 0, 1 1 1)"));
 }
 
-TEST(Triangle2D, ToFile) {
+TEST_F(Triangle2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "triangle.wkt").string();
   auto s = g::Triangle2D::Make(g::Point2D(), g::Point2D(1, 0), g::Point2D(0, 2));
@@ -347,7 +353,7 @@ TEST(Triangle2D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Triangle2D, TestFromFile) {
+TEST_F(Triangle2DTest, TestFromFile) {
   std::string path = (test_res_path / "triangle2d" / "triangle.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));

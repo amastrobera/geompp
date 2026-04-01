@@ -20,7 +20,13 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-TEST(Line3D, MakeFromTwoPoints) {
+class Line3DTest : public ::testing::Test {
+ protected:
+  void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+  void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
+};
+
+TEST_F(Line3DTest, MakeFromTwoPoints) {
   geompp::DECIMAL_PRECISION = 4;
   auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
 
@@ -35,7 +41,7 @@ TEST(Line3D, MakeFromTwoPoints) {
   EXPECT_ANY_THROW(g::Line3D::Make(g::Point3D(1, 2, 3), g::Point3D(1, 2, 3)));
 }
 
-TEST(Line3D, MakeFromPointAndVector) {
+TEST_F(Line3DTest, MakeFromPointAndVector) {
   geompp::DECIMAL_PRECISION = 4;
   auto l = g::Line3D::Make(g::Point3D(1, 2, 0), g::Vector3D(3, 0, 0));
 
@@ -47,7 +53,7 @@ TEST(Line3D, MakeFromPointAndVector) {
   EXPECT_ANY_THROW(g::Line3D::Make(g::Point3D(0, 0, 0), g::Vector3D(0, 0, 0)));
 }
 
-TEST(Line3D, AlmostEquals) {
+TEST_F(Line3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
   auto l1 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
   auto l2 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
@@ -60,7 +66,7 @@ TEST(Line3D, AlmostEquals) {
   ASSERT_EQ(l1, l1);
 }
 
-TEST(Line3D, Assignment) {
+TEST_F(Line3DTest, Assignment) {
   auto l1 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
   auto l2 = g::Line3D::Make(g::Point3D(1, 2, 0), g::Point3D(3, 4, 0));
 
@@ -72,7 +78,7 @@ TEST(Line3D, Assignment) {
   ASSERT_EQ(g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0)), l1);
 }
 
-TEST(Line3D, ProjectOnto) {
+TEST_F(Line3DTest, ProjectOnto) {
   geompp::DECIMAL_PRECISION = 4;
   // horizontal line along X-axis
   auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
@@ -96,7 +102,7 @@ TEST(Line3D, ProjectOnto) {
   geompp::DECIMAL_PRECISION = 4;
 }
 
-TEST(Line3D, Location) {
+TEST_F(Line3DTest, Location) {
   geompp::DECIMAL_PRECISION = 4;
   auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
 
@@ -113,7 +119,7 @@ TEST(Line3D, Location) {
   ASSERT_EQ(-2.0, l.Location(g::Point3D(-2, 0, 0)));
 }
 
-TEST(Line3D, Wkt) {
+TEST_F(Line3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
   ASSERT_EQ("LINE (0 0 0, 3 0 0)", l.ToWkt());
@@ -139,7 +145,7 @@ TEST(Line3D, Wkt) {
   EXPECT_ANY_THROW(g::Line3D::FromWkt("LINE (0 0 0 1 1 0)"));
 }
 
-TEST(Line3D, ToFile) {
+TEST_F(Line3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "line3d.wkt").string();
   auto l = g::Line3D::Make(g::Point3D(1, 2, 0), g::Point3D(4, 6, 0));
@@ -152,7 +158,7 @@ TEST(Line3D, ToFile) {
   EXPECT_NO_THROW(fs::remove(path));
 }
 
-TEST(Line3D, TestFromFile) {
+TEST_F(Line3DTest, TestFromFile) {
   std::string path = (test_res_path / "line3d" / "line.wkt").string();
 
   ASSERT_TRUE(fs::exists(path));
@@ -162,7 +168,7 @@ TEST(Line3D, TestFromFile) {
   GEOMPP_LOG(INFO) << "from file = " << l.ToWkt();
 }
 
-TEST(Line3D, IntersectionWithLine3D) {
+TEST_F(Line3DTest, IntersectionWithLine3D) {
   geompp::DECIMAL_PRECISION = 4;
   // X-axis and vertical line through (3, 3, 0):
   // expected intersection at (3, 0, 0) — but the 3D intersection algorithm
