@@ -1,9 +1,8 @@
   # Geom++
 
-  [![Build / Test (Windows)](https://github.com/amastrobera/geompp/actions/workflows/build_test_window
-  s.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml)
-  [![Build / Test (Linux)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.ym
-  l/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml)
+ [![Build / Test (Windows)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml)
+
+ [![Build / Test (Linux)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml)
 
   A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
   thoroughly tested, and designed to eventually be usable from languages beyond C++ (Python, C#).
