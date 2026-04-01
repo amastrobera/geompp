@@ -311,34 +311,36 @@ TEST_F(Triangle3DTest, Constructor) {
 //// }
 
 TEST_F(Triangle3DTest, Wkt) {
-  ASSERT_EQ("TRIANGLE (0 0, 1 1, 0 2)",
-            g::Triangle3D::Make(g::Point3D(0, 0), g::Point3D(1, 1), g::Point3D(0, 2)).ToWkt());
+  ASSERT_EQ("TRIANGLE (0 0 1, 1 1 1, 0 2 1)",
+            g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 1), g::Point3D(0, 2, 1)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
-  ASSERT_EQ("TRIANGLE (56491.62 -795.97, -9137.37 10.36, 321.13 206.62)",
-            g::Triangle3D::Make(g::Point3D(56491.6164, -795.97416), g::Point3D(-9137.3679, 10.35678),
-                                g::Point3D(321.1302, 206.619749))
+  ASSERT_EQ("TRIANGLE (56491.62 -795.97 1, -9137.37 10.36 2, 321.13 206.62 3)",
+            g::Triangle3D::Make(g::Point3D(56491.6164, -795.97416, 1), g::Point3D(-9137.3679, 10.35678, 2),
+                                g::Point3D(321.1302, 206.619749, 3))
                 .ToWkt());
 
   geompp::DECIMAL_PRECISION = 4;
-  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0), g::Point3D(1, 1), g::Point3D(0, 2)),
-            g::Triangle3D::FromWkt("TRIANGLE (0 0, 1 1, 0 2)"));
-  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0), g::Point3D(1, 1), g::Point3D(0, 2)),
-            g::Triangle3D::FromWkt("  triangle( 0     0 , 1   1  , 0 2   )"));
-  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0), g::Point3D(1, 1), g::Point3D(0, 2)),
-            g::Triangle3D::FromWkt("triANGle   ( 0 0  , 1 1 , 0   2    )"));
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 2, 0)),
+            g::Triangle3D::FromWkt("TRIANGLE (0 0 0, 1 1 1, 0 2 0)"));
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 2, 0)),
+            g::Triangle3D::FromWkt("  triangle( 0     0 0 , 1   1  0, 0 2 0  )"));
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 2), g::Point3D(0, 2, 3)),
+            g::Triangle3D::FromWkt("triANGle   ( 0 0  1, 1 1  2, 0   2  3    )"));
 
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangl ( -7.5 -60.7, 0 0, 1 1)"));
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("tri angle ( -7.5 -60.7, 0 0, 1 1)"));
-  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle -7.5 -64.4, 0 0, 1 1)"));
-  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle (-7.5 -64.4, 0 0, 1 1"));
-  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle (-7.5 -64.4, 0 0, 1 "));
-  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle (-7.5 -64.4, 0 0"));
+  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle -7.5 -64.4 1, 0 0, 1 1 3)"));
+  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle (-7.5 -64.4, 0 0 2, 1 1 2"));
+  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle (-7.5 -64.4, 0 0, 1 1 2"));
+  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle (-7.5 -64.4 3, 0 0 3, 1 3"));
+  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle (-7.5 -64.4 1, 0 0 2"));
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle ( -7.5 )"));
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle ( )"));
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle -7.5 -64.4 15.5)"));
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle ( -7.5 -64.4 15.5)"));
-  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle ( -7.5 -64.4 15.5, 0 0 0, 1 1 1)"));
+  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle ( , -7.5 -64.4 15.5, )"));
+  EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangle ( , ,-7.5 -64.4 15.5)"));
 }
 
 TEST_F(Triangle3DTest, ToFile) {

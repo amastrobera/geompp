@@ -281,12 +281,13 @@ std::string Polyline2D::ToWkt() const {
   std::ostringstream buf;
   buf << "LINESTRING ";
 
-  if (KNOTS.size() > 0) {
+  int n = KNOTS.size();
+  if (n > 0) {
     buf << "(";
-    for (int i = 0; i < KNOTS.size(); ++i) {
+    for (int i = 0; i < n; ++i) {
       buf << std::format("{} {}", round(KNOTS[i].x()), round(KNOTS[i].y()));
 
-      if (i < KNOTS.size() - 1) {
+      if (i < n - 1) {
         buf << ", ";
       }
     }

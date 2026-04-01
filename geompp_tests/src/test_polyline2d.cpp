@@ -289,9 +289,10 @@ TEST_F(Polyline2DTest, Intersection) {
 TEST_F(Polyline2DTest, Wkt) {
   ASSERT_EQ("LINESTRING (0 0, 1 1)", g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 1)}).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
-  ASSERT_EQ("LINESTRING (56491.62 -795.97, -9137.37 10.36, -10351.52 7.61)",
-            g::Polyline2D::Make(
-                {g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678), g::Point2D(-10351.516, 7.61)})
+  ASSERT_EQ("LINESTRING (56491.62 -795.97, -10351.52 7.61)",
+            g::Polyline2D::Make({g::Point2D(56491.6164, -795.97416),
+                                 g::Point2D(-9137.3679, 10.35678),  // collinear point: expected to be removed
+                                 g::Point2D(-10351.516, 7.61)})
                 .ToWkt());
 
   geompp::DECIMAL_PRECISION = 6;

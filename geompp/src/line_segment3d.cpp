@@ -205,7 +205,6 @@ LineSegment3D LineSegment3D::FromWkt(std::string const& wkt) {
     if (g_type != "LINESTRING") {
       throw std::runtime_error("geometry name");
     }
-
     end_p1 = wkt.substr(end_gtype).find(',');
     if (end_p1 == std::string::npos) {
       throw std::runtime_error("brakets");
@@ -217,11 +216,11 @@ LineSegment3D LineSegment3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("numbers p1");
     }
 
-    end_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1).find(')');
+    end_p2 = wkt.substr(end_gtype + 1 + end_p1).find(')');
     if (end_p2 == std::string::npos) {
       throw std::runtime_error("brakets");
     }
-    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2);
+    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2 - 1);
 
     auto nums_p2 = geompp::tokenize_to_doubles(s_nums_p2);
     if (nums_p2.size() != 3) {
