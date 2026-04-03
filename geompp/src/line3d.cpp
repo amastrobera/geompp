@@ -82,12 +82,14 @@ bool Line3D::Intersects(LineSegment3D const& segment) const { return segment.Int
 Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
   auto u = DIR;
   auto v = other.DIR;
+
+  if (u.IsParallel(v)) {
+    return std::nullopt;
+  }
+
   auto vp = v.Perp();
   auto w = (P0 - other.P0);
 
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
-  }
   double t = (-w * vp) / (u * vp);
 
   return P0 + t * u;

@@ -70,36 +70,62 @@ bool Ray3D::Intersects(Ray3D const& other) const { return Intersection(other).ha
 bool Ray3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
 Ray3D::ReturnSet Ray3D::Intersection(Line3D const& line) const {
-  auto u = DIR;
-  auto v = line.Direction();
-  auto vp = v.Perp();
-  auto w = (ORIGIN - line.First());
+  // input parameters: this ray as Q0 + t*DIR, line as P0 + s*line.DIR
+  Point3D P0 = line.First();
+  Point3D Q0 = ORIGIN;
+  Vector3D u = line.Direction();
+  Vector3D v = DIR;
+  Vector3D w0 = P0 - Q0;
 
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
+  // variables
+  double a = u.Dot(u);
+  double b = u.Dot(v);
+  double c = v.Dot(v);
+  double d = u.Dot(w0);
+  double e = v.Dot(w0);
+  double D = a * c - b * b;  // Determinant
+
+  // Check if lines are parallel
+  if (compare(D, 0) == 0) {
+    return std::nullopt;  // Lines are parallel, no intersection
   }
-  double t = (-w * vp) / (u * vp);
 
-  // verify that the intersection is ahead of the ray
-  auto inter_p = ORIGIN + t * u;
-  if (!IsAhead(inter_p)) {
-    return std::nullopt;
+  double sc = (b * e - c * d) / D;
+  double tc = (a * e - b * d) / D;
+
+  // Ray Constraint: if tc < 0, the closest point is the ray origin Q0
+  if (compare(tc, 0.0) < 0) {
+    tc = 0.0;
+    // Recalculate sc for the origin of the ray
+    sc = -d / a;
   }
 
-  return inter_p;
+  // The point on the Line closest to the Ray
+  Point3D Pc = P0 + (u * sc);
+  // The point on the Ray closest to the Line
+  Point3D Qc = Q0 + (v * tc);
+
+  // Check if they actually intersect (distance is near zero)
+  if (compare(Pc.DistanceTo(Qc), 0.0) != 0) {
+    return std::nullopt;  // No intersection, the closest points are not the same
+  }
+
+  return Pc;  // They intersect!
 }
 
 Ray3D::ReturnSet Ray3D::Intersection(Ray3D const& other) const {
   auto u = DIR;
-  auto up = u.Perp();  // equivalent (calc, on the other side)
   auto v = other.DIR;
+
+  // testing on this ray
+  if (u.IsParallel(v)) {
+    return std::nullopt;
+  }
+
+  auto up = u.Perp();  // equivalent (calc, on the other side)
   auto vp = v.Perp();
   auto w = (ORIGIN - other.ORIGIN);
 
-  // testing on this ray
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
-  }
   double t = (-w * vp) / (u * vp);
   auto inter_t = ORIGIN + t * u;
   if (!IsAhead(inter_t)) {
@@ -107,11 +133,13 @@ Ray3D::ReturnSet Ray3D::Intersection(Ray3D const& other) const {
   }
 
   // testing on the other ray
-  if (round(v * up) == 0.0) {
+  if (v.IsParallel(up)) {
     return std::nullopt;
   }
+
   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
   auto inter_s = other.ORIGIN + s * v;
+
   if (!other.IsAhead(inter_s)) {
     return std::nullopt;
   }

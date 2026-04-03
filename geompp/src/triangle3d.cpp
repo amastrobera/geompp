@@ -150,15 +150,17 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 
 // LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray) const {
 //   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = ray.Direction();
+
+//   // testing on this ray
+//   if (u.IsParallel(v)) {
+//     return std::nullopt;
+//   }
+
+//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto vp = v.Perp();
 //   auto w = (P0 - ray.Origin());
 
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
 //   if (!Contains(inter_t)) {
@@ -166,7 +168,7 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 //   }
 
 //   // testing on the other ray
-//   if (round(v * up) == 0.0) {
+//   if (v.IsParallel(up)) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
@@ -180,15 +182,17 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 
 // LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other) const {
 //   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = (other.P1 - other.P0);
+
+//   // testing on this ray
+//   if (u.IsParallel(vp)) {
+//     return std::nullopt;
+//   }
+
+//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto vp = v.Perp();
 //   auto w = (P0 - other.P0);
 
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
 //   if (!Contains(inter_t)) {
@@ -196,7 +200,7 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 //   }
 
 //   // testing on the other ray
-//   if (round(v * up) == 0.0) {
+//   if (v.IsParallel(up)) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)

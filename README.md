@@ -69,13 +69,14 @@
   // run of the program, and it can be modified in later code anytime.
   g::DECIMAL_PRECISION = g::DP_THREE;
 
+  // two line segments intersecting at (0,0,1)
   auto s1 = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(-1, 0, 2));
   auto s2 = g::LineSegment3D::Make(g::Point3D(0, 1, 0), g::Point3D(0, -1, 2));
 
   GEOMPP_LOG(INFO) << "s1 = " << s1.ToWkt();
   GEOMPP_LOG(INFO) << "s2 = " << s2.ToWkt();
 
-  if (s1.Intersects(s2)) {
+  if (s1.Intersects(s2)) { 
     auto result = s1.Intersection(s2);
     if (result.has_value()) {
       auto p = std::get<g::Point3D>(*result);
@@ -88,6 +89,16 @@
     GEOMPP_LOG(INFO) << "no intersection found";
   }
   ```
+
+  will print out 
+
+  ```
+  I20260403] s1 = LINESTRING (1 0 0, -1 0 2)
+  I20260403] s2 = LINESTRING (0 1 0, 0 -1 2)
+  I20260403] intersection found: POINT (0 0 1)
+  I20260403] intersection written to intersection.wkt
+  ```
+
 
   #### Import geometries from a file
   ```
@@ -118,6 +129,8 @@
     GEOMPP_LOG(INFO) << g::LVSParser::ToWkt(entry.value());
   }
   ```
+
+  will print out exactly the list of geometries above.
 
 
   ## geom_viewer — interactive geometry visualizer (WIP)
@@ -187,7 +200,7 @@
 
   Build and test:
   mkdir build && cd build
-  cmake ..
+  cmake .. [-DCMAKE_BUILD_TYPE=Debug]
   make -j6
 
   ./geompp_tests/geompp_tests

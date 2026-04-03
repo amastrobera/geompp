@@ -15,6 +15,16 @@ double round(double x, int decimal_precision) {
   return std::round(x * exp) / exp;
 }
 
+std::partial_ordering compare(double a, double b, double epsilon) {
+  if (std::abs(a - b) <= epsilon) {
+    return std::partial_ordering::equivalent;
+  }
+  if (a < b) {
+    return std::partial_ordering::less;
+  }
+  return std::partial_ordering::greater;
+}
+
 int sign(double x) {
   if (round(x) >= 0) {
     return 1;

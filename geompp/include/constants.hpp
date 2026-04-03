@@ -13,6 +13,8 @@ const int DP_NINE = 9;
 
 extern thread_local int DECIMAL_PRECISION;
 
+extern thread_local double DOUBLE_EPSILON;
+
 #pragma endregion
 
 }  // namespace geompp
