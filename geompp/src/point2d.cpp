@@ -16,8 +16,8 @@ Point2D::Point2D(double x, double y) : X(x), Y(y) {}
 
 Point2D::Point2D(Point2D const& p) : X(p.X), Y(p.Y) {}
 
-bool Point2D::AlmostEquals(Point2D const& other, int decimal_precision) const {
-  return round(X - other.X, decimal_precision) == 0.0 && round(Y - other.Y, decimal_precision) == 0.0;
+bool Point2D::AlmostEquals(Point2D const& other, double epsilon) const {
+  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0;
 }
 
 Vector2D Point2D::ToVector() { return {X, Y}; }
@@ -35,7 +35,22 @@ Point2D& Point2D::operator=(Point2D const& other) {
 #pragma region Collection Operations
 
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3) {
-  return round((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize())) == 0;
+  return compare((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize()), 0) == 0;
+}
+
+std::vector<Point2D> remove_duplicates_from_sorted_list(std::vector<Point2D> const& points) {
+  if (points.size() < 2) {
+    return points;
+  }
+
+  std::vector<Point2D> unique_points{points.front()};
+  for (int i = 1; i < points.size(); ++i) {
+    if (!unique_points.back().AlmostEquals(points[i])) {
+      unique_points.push_back(points[i]);
+    }
+  }
+
+  return unique_points;
 }
 
 std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points) {
@@ -89,8 +104,8 @@ std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points) {
       auto u = (points[i2] - points[i1]);
       auto v = (points[i3] - points[i1]);
 
-      if (round(u.Dot(v)) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
-        if (round(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2])) >= 0) {
+      if (compare(u.Dot(v), 0) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
+        if (compare(points[i1].DistanceTo(points[i3]), points[i1].DistanceTo(points[i2])) >= 0) {
           duplicates.insert(i2);
           ++i2;
           ++i3;

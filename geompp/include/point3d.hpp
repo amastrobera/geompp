@@ -22,7 +22,7 @@ class Point3D {
   inline double z() const { return Z; }
 
   Vector3D ToVector();
-  bool AlmostEquals(Point3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Point3D const& other, double epsilon = DOUBLE_EPSILON) const;
   double DistanceTo(Point3D const& other) const;
 
   std::string ToWkt() const;
@@ -41,6 +41,8 @@ class Point3D {
 #pragma region Collection Operations
 
 bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3);
+
+std::vector<Point3D> remove_duplicates_from_sorted_list(std::vector<Point3D> const& points);
 
 std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points);
 

@@ -21,7 +21,9 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
   auto unique_points = remove_duplicates(points);
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points  are too close with {} decimals precision", DECIMAL_PRECISION));
+    throw std::runtime_error(std::format(
+        "cannot create polygon with less than 3 unique points; points  are too close with {} decimals precision",
+        DECIMAL_PRECISION));
   }
   return {unique_points};
 }
@@ -35,12 +37,12 @@ Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   return *this;
 }
 
-bool Polygon2D::AlmostEquals(Polygon2D const& other, int decimal_precision) const {
+bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
   if (Size() != other.Size()) {
     return false;
   }
   for (int i = 0; i << VERTICES.size(); ++i) {
-    if (!VERTICES[i].AlmostEquals(other[i], decimal_precision)) {
+    if (!VERTICES[i].AlmostEquals(other[i], epsilon)) {
       return false;
     }
   }

@@ -23,7 +23,7 @@ class Vector3D {
   Point3D ToPoint();
 
   double Length() const;
-  bool AlmostEquals(Vector3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Vector3D const& other, double epsilon = DOUBLE_EPSILON) const;
   std::string ToWkt() const;
   static Vector3D FromWkt(std::string const& wkt);
   void ToFile(std::string const& path) const;
@@ -31,15 +31,17 @@ class Vector3D {
 
   Vector3D& operator=(Vector3D const& other);
 
-  double Dot(Vector3D const& v) const;
-  Vector3D Cross(Vector3D const& v) const;
+  double Dot(Vector3D const& other) const;
+  Vector3D Cross(Vector3D const& other) const;
   Vector3D Perp() const;
   Vector3D Normalize() const;
+  bool IsParallel(Vector3D const& other) const;
 
-  Vector3D operator-();
+  Vector3D operator-() const;
 
-  static inline Vector3D BasisX() { return Vector3D(1, 0); }
-  static inline Vector3D BasisY() { return Vector3D(0, 1); }
+  static inline Vector3D BasisX() { return Vector3D(1, 0, 0); }
+  static inline Vector3D BasisY() { return Vector3D(0, 1, 0); }
+  static inline Vector3D BasisZ() { return Vector3D(0, 0, 1); }
 
  private:
   double X, Y, Z;

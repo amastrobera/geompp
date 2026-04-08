@@ -27,7 +27,7 @@ class Line2D {
   inline Point2D const& Last() const { return P1; }
   inline Point2D const& Origin() const { return P0; }
   inline Vector2D const& Direction() const { return DIR; }
-  bool AlmostEquals(Line2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Line2D const& other, double epsilon = DOUBLE_EPSILON) const;
   double DistanceTo(Point2D const& point) const;
   Point2D ProjectOnto(Point2D const& point) const;
   double Location(Point2D const& point) const;
@@ -46,6 +46,7 @@ class Line2D {
   bool Intersects(Ray2D const& ray) const;
   bool Intersects(LineSegment2D const& segment) const;
   bool Intersects(Triangle2D const& t) const;
+  ReturnSet Intersection(Line2D const& other, double& sc, double& tc) const;
   ReturnSet Intersection(Line2D const& other) const;
   ReturnSet Intersection(Ray2D const& ray) const;
   ReturnSet Intersection(LineSegment2D const& segment) const;

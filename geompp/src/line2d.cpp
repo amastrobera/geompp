@@ -17,14 +17,14 @@ namespace geompp {
 
 Line2D Line2D::Make(Point2D const& p0, Point2D const& p1) {
   if (p0.AlmostEquals(p1)) {
-    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", DECIMAL_PRECISION,
-                                         p0.ToWkt(), p1.ToWkt()));
+    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", p0.ToWkt(),
+                                         p1.ToWkt(), DECIMAL_PRECISION));
   }
   return {p0, p1};
 }
 
 Line2D Line2D::Make(Point2D const& p0, Vector2D const& dir) {
-  if (round(dir.Length()) == 0) {
+  if (compare(dir.Length(), 0) == 0) {
     throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
@@ -43,8 +43,8 @@ Line2D& Line2D::operator=(Line2D const& other) {
   return *this;
 }
 
-bool Line2D::AlmostEquals(Line2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+bool Line2D::AlmostEquals(Line2D const& other, double epsilon) const {
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
 }
 
 double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DIR.Cross(point - P0))); }
@@ -68,29 +68,54 @@ std::ostream& operator<<(std::ostream& os, Line2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line2D::Contains(Point2D const& point) const { return round((point - P0).Cross(DIR)) == 0.0; }
+bool Line2D::Contains(Point2D const& point) const { return compare((point - P0).Cross(DIR), 0) == 0; }
 
 bool Line2D::Intersects(Line2D const& other) const {
   // very easy to verify in 2D plane
-  return round(DIR.Cross(other.DIR)) != 0.0;
+  return compare(DIR.Cross(other.DIR), 0) != 0;
 }
 
 bool Line2D::Intersects(Ray2D const& ray) const { return ray.Intersects(*this); }
 
 bool Line2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
-Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
-  auto u = DIR;
-  auto v = other.DIR;
+Line2D::ReturnSet Line2D::Intersection(Line2D const& other, double& sc, double& tc) const {
+  // 2D intersection algorithm based on the perp-product
+  //   Given
+  //    L(s) = P0 + s * u
+  //    L(t) = Q0 + t * v
+  //  let w0 = P0 - Q0, then we can set up the equations
+  //    (w0 + s*u) * perp-v = 0     => s = -(w0 * perp-v) / (u * perp-v)
+  //    (-w0 + t*v) * perp-u = 0    => t = (w0 * perp-u) / (v * perp-u)
+  auto u = P1 - P0;
+  auto v = other.P1 - other.P0;
   auto vp = v.Perp();
-  auto w = (P0 - other.P0);
+  auto up = u.Perp();
+  auto Q0 = other.P0;
+  auto w0 = (P0 - other.P0);
 
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
+  // parallel lines
+  if (compare(u.Dot(vp), 0) == 0 || compare(v.Dot(up), 0) == 0) {
+    sc = tc = std::numeric_limits<double>::quiet_NaN();
+    return std::nullopt;  // Lines are parallel, no intersection
   }
-  double t = (-w * vp) / (u * vp);
 
-  return P0 + t * u;
+  // perp-prod approach (yields the same closed form as Cramer's rule in 2D set of equations - since the determinant,
+  // the cross product and the perp-product are the same thing in 2D)
+  sc = -w0.Dot(vp) / u.Dot(vp);
+  tc = w0.Dot(up) / v.Dot(up);
+
+  // no need to check whether Pc(sc) and Qc(tc) are the same
+  // because in 2D the lines are either parallel or they intersect in a single point
+  // (there is no skew line)
+  auto Pc = P0 + (u * sc);
+
+  return Pc;
+}
+
+Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
+  double sc, tc;
+  return Intersection(other, sc, tc);
 }
 
 Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }

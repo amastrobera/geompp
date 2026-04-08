@@ -17,8 +17,8 @@ namespace geompp {
 
 LineSegment2D LineSegment2D::Make(Point2D const& p0, Point2D const& p1) {
   if (p0.AlmostEquals(p1)) {
-    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", DECIMAL_PRECISION,
-                                         p0.ToWkt(), p1.ToWkt()));
+    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", p0.ToWkt(),
+                                         p1.ToWkt(), DECIMAL_PRECISION));
   }
   return {p0, p1};
 }
@@ -35,8 +35,8 @@ LineSegment2D& LineSegment2D::operator=(LineSegment2D const& other) {
 
 double LineSegment2D::Length() const { return (P1 - P0).Length(); }
 
-bool LineSegment2D::AlmostEquals(LineSegment2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+bool LineSegment2D::AlmostEquals(LineSegment2D const& other, double epsilon) const {
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
 }
 
 Line2D LineSegment2D::ToLine() const { return Line2D::Make(P0, P1); }
@@ -50,12 +50,12 @@ double LineSegment2D::Location(Point2D const& point) const {
 
 Point2D LineSegment2D::Interpolate(double pct) const {
   // the point is behind the polyline
-  if (round(pct) < 0.0) {
+  if (compare(pct, 0) < 0) {
     return P0;
   }
 
   // the point is beyond the polyline
-  if (round(pct) > 1.0) {
+  if (compare(pct, 1.0) > 0) {
     return P1;
   }
 
@@ -67,10 +67,10 @@ double LineSegment2D::DistanceTo(Point2D const& point) const {
   auto proj = line_eqv.ProjectOnto(point);
   double loc = Location(proj);
 
-  if (round(loc) < 0.0) {
+  if (compare(loc, 0) < 0) {
     return P0.DistanceTo(point);
 
-  } else if (round(loc - 1.0) > 0.0) {
+  } else if (compare(loc, 1.0) > 0) {
     return P1.DistanceTo(point);
   }
 
@@ -94,7 +94,7 @@ std::ostream& operator<<(std::ostream& os, LineSegment2D const& g) {
 
 bool LineSegment2D::Contains(Point2D const& point) const {
   double t = Location(point);
-  return round(t) >= 0 && round(t - 1) <= 0;
+  return compare(t, 0) >= 0 && compare(t, 1.0) <= 0;
 }
 
 bool LineSegment2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
@@ -104,83 +104,39 @@ bool LineSegment2D::Intersects(Ray2D const& ray) const { return Intersection(ray
 bool LineSegment2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
 LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line) const {
-  auto u = P1 - P0;
-  auto v = line.Last() - line.First();
-  auto vp = v.Perp();
-  auto w = (P0 - line.First());
+  double sc, tc;
+  auto Pc = ToLine().Intersection(line, sc, tc);
 
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-
-  // verify that the intersection is ahead of the ray
-  auto inter_p = P0 + t * u;
-  if (!Contains(inter_p)) {
+  // respecting constraints: sc should be in the range [0, 1]
+  if (!Pc.has_value() || !is_in_range(sc, 0, 1)) {
     return std::nullopt;
   }
 
-  return inter_p;
+  return Pc;
 }
 
 LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
-  auto u = P1 - P0;
-  auto up = u.Perp();  // equivalent (calc, on the other side)
-  auto v = ray.Direction();
-  auto vp = v.Perp();
-  auto w = (P0 - ray.Origin());
+  double sc, tc;
+  auto Pc = ToLine().Intersection(ray.ToLine(), sc, tc);
 
-  // testing on this ray
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-  auto inter_t = P0 + t * u;
-  if (!Contains(inter_t)) {
+  // respecting constraints: sc should be in the range [0, 1] while tc should be in non negative
+  if (!Pc.has_value() || !is_in_range(sc, 0, 1) || !is_greater_or_equal(tc, 0)) {
     return std::nullopt;
   }
 
-  // testing on the other ray
-  if (round(v * up) == 0.0) {
-    return std::nullopt;
-  }
-  double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-  auto inter_s = ray.Origin() + s * v;
-  if (!ray.IsAhead(inter_s)) {
-    return std::nullopt;
-  }
-
-  return inter_t;
+  return Pc;
 }
 
 LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
-  auto u = P1 - P0;
-  auto up = u.Perp();  // equivalent (calc, on the other side)
-  auto v = (other.P1 - other.P0);
-  auto vp = v.Perp();
-  auto w = (P0 - other.P0);
+  double sc, tc;
+  auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
 
-  // testing on this ray
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-  auto inter_t = P0 + t * u;
-  if (!Contains(inter_t)) {
+  // respecting constraints: sc and tc should be in the range [0, 1]
+  if (!Pc.has_value() || !is_in_range(sc, 0, 1) || !is_in_range(tc, 0, 1)) {
     return std::nullopt;
   }
 
-  // testing on the other ray
-  if (round(v * up) == 0.0) {
-    return std::nullopt;
-  }
-  double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-  auto inter_s = other.P0 + s * v;
-  if (!other.Contains(inter_s)) {
-    return std::nullopt;
-  }
-
-  return inter_t;
+  return Pc;
 }
 
 #pragma endregion

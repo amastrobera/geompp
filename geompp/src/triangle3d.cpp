@@ -22,8 +22,8 @@ namespace geompp {
 namespace {
 
 static bool within_axis_boundary(double s, double t) {
-  return (round(s) >= 0.0 && round(s - 1.0) <= 0.0) &&
-         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 && round(s + t - 1.0) <= 0.0);  // including borders
+  return (compare(s, 0) >= 0 && compare(s, 1.0) <= 0) &&
+         (compare(t, 0) >= 0 && compare(t, 1.0) <= 0 && compare(s + t, 1.0) <= 0);  // including borders
 }
 
 }  // namespace
@@ -34,8 +34,8 @@ Triangle3D Triangle3D::Make(Point3D const& p0, Point3D const& p1, Point3D const&
   auto unique_points = remove_duplicates({p0, p1, p2});
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
-                                         DECIMAL_PRECISION, p0.ToWkt(), p1.ToWkt(), p2.ToWkt()));
+    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision", p0.ToWkt(),
+                                         p1.ToWkt(), p2.ToWkt(), DECIMAL_PRECISION));
   }
   return {p0, p1, p2};
 }
@@ -51,9 +51,8 @@ Triangle3D& Triangle3D::operator=(Triangle3D const& other) {
   return *this;
 }
 
-bool Triangle3D::AlmostEquals(Triangle3D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
-         P2.AlmostEquals(other.P2, decimal_precision);
+bool Triangle3D::AlmostEquals(Triangle3D const& other, double epsilon) const {
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon) && P2.AlmostEquals(other.P2, epsilon);
 }
 
 #pragma endregion
@@ -150,15 +149,17 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 
 // LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray) const {
 //   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = ray.Direction();
+
+//   // testing on this ray
+//   if (u.IsParallel(v)) {
+//     return std::nullopt;
+//   }
+
+//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto vp = v.Perp();
 //   auto w = (P0 - ray.Origin());
 
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
 //   if (!Contains(inter_t)) {
@@ -166,7 +167,7 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 //   }
 
 //   // testing on the other ray
-//   if (round(v * up) == 0.0) {
+//   if (v.IsParallel(up)) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
@@ -180,15 +181,17 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 
 // LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other) const {
 //   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto v = (other.P1 - other.P0);
+
+//   // testing on this ray
+//   if (u.IsParallel(vp)) {
+//     return std::nullopt;
+//   }
+
+//   auto up = u.Perp();  // equivalent (calc, on the other side)
 //   auto vp = v.Perp();
 //   auto w = (P0 - other.P0);
 
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
 //   double t = (-w * vp) / (u * vp);
 //   auto inter_t = P0 + t * u;
 //   if (!Contains(inter_t)) {
@@ -196,7 +199,7 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 //   }
 
 //   // testing on the other ray
-//   if (round(v * up) == 0.0) {
+//   if (v.IsParallel(up)) {
 //     return std::nullopt;
 //   }
 //   double s = (w * up) / (v * up);  // equivalent (calc on the other side)

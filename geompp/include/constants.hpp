@@ -13,6 +13,12 @@ const int DP_NINE = 9;
 
 extern thread_local int DECIMAL_PRECISION;
 
+struct DynamicEpsilon {
+  operator double() const { return pow(10.0, -DECIMAL_PRECISION); }
+};
+
+extern thread_local DynamicEpsilon DOUBLE_EPSILON;
+
 #pragma endregion
 
 }  // namespace geompp

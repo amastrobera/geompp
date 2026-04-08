@@ -16,7 +16,7 @@ namespace geompp {
 #pragma region Constructors
 
 Ray3D Ray3D::Make(Point3D const& p0, Vector3D const& dir) {
-  if (round(dir.Length()) == 0) {
+  if (compare(dir.Length(), 0) == 0) {
     throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
@@ -32,9 +32,9 @@ Ray3D& Ray3D::operator=(Ray3D const& other) {
   return *this;
 }
 
-bool Ray3D::IsAhead(Point3D const& point) const { return round(DIR.Dot(point - ORIGIN)) >= 0.0; }
+bool Ray3D::IsAhead(Point3D const& point) const { return compare(DIR.Dot(point - ORIGIN), 0) >= 0; }
 
-bool Ray3D::IsBehind(Point3D const& point) const { return round(DIR.Dot(point - ORIGIN)) < 0.0; }
+bool Ray3D::IsBehind(Point3D const& point) const { return compare(DIR.Dot(point - ORIGIN), 0) < 0; }
 
 Line3D Ray3D::ToLine() const { return Line3D::Make(ORIGIN, DIR); }
 
@@ -42,8 +42,8 @@ double Ray3D::DistanceTo(Point3D const& point) const {
   return IsAhead(point) ? ToLine().DistanceTo(point) : ORIGIN.DistanceTo(point);
 }
 
-bool Ray3D::AlmostEquals(Ray3D const& other, int decimal_precision) const {
-  return ORIGIN.AlmostEquals(other.ORIGIN, decimal_precision) && DIR.AlmostEquals(other.DIR, decimal_precision);
+bool Ray3D::AlmostEquals(Ray3D const& other, double epsilon) const {
+  return ORIGIN.AlmostEquals(other.ORIGIN, epsilon) && DIR.AlmostEquals(other.DIR, epsilon);
 }
 
 #pragma endregion
@@ -70,53 +70,27 @@ bool Ray3D::Intersects(Ray3D const& other) const { return Intersection(other).ha
 bool Ray3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
 Ray3D::ReturnSet Ray3D::Intersection(Line3D const& line) const {
-  auto u = DIR;
-  auto v = line.Direction();
-  auto vp = v.Perp();
-  auto w = (ORIGIN - line.First());
+  double sc, tc;
+  auto Pc = ToLine().Intersection(line, sc, tc);
 
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-
-  // verify that the intersection is ahead of the ray
-  auto inter_p = ORIGIN + t * u;
-  if (!IsAhead(inter_p)) {
+  // respecting Ray constraints: sc should be positive
+  if (!Pc.has_value() || !is_greater_or_equal(sc, 0)) {
     return std::nullopt;
   }
 
-  return inter_p;
+  return Pc;  // intersection!
 }
 
 Ray3D::ReturnSet Ray3D::Intersection(Ray3D const& other) const {
-  auto u = DIR;
-  auto up = u.Perp();  // equivalent (calc, on the other side)
-  auto v = other.DIR;
-  auto vp = v.Perp();
-  auto w = (ORIGIN - other.ORIGIN);
+  double sc, tc;
+  auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
 
-  // testing on this ray
-  if (round(u * vp) == 0.0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-  auto inter_t = ORIGIN + t * u;
-  if (!IsAhead(inter_t)) {
+  // respecting Ray constraints: sc and tc should be positive
+  if (!Pc.has_value() || !is_greater_or_equal(sc, 0) || !is_greater_or_equal(tc, 0)) {
     return std::nullopt;
   }
 
-  // testing on the other ray
-  if (round(v * up) == 0.0) {
-    return std::nullopt;
-  }
-  double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-  auto inter_s = other.ORIGIN + s * v;
-  if (!other.IsAhead(inter_s)) {
-    return std::nullopt;
-  }
-
-  return inter_t;
+  return Pc;  // intersection!
 }
 
 Ray3D::ReturnSet Ray3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }

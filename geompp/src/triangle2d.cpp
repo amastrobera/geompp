@@ -22,8 +22,8 @@ namespace geompp {
 namespace {
 
 static bool within_axis_boundary(double s, double t) {
-  return (round(s) >= 0.0 && round(s - 1.0) <= 0.0) &&
-         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 && round(s + t - 1.0) <= 0.0);  // including borders
+  return (compare(s, 0) >= 0 && compare(s, 1.0) <= 0) &&
+         (compare(t, 0) >= 0 && compare(t, 1.0) <= 0 && compare(s + t, 1.0) <= 0);  // including borders
 }
 
 }  // namespace
@@ -34,8 +34,8 @@ Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const&
   auto unique_points = remove_duplicates({p0, p1, p2});
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
-                                         DECIMAL_PRECISION, p0.ToWkt(), p1.ToWkt(), p2.ToWkt()));
+    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision", p0.ToWkt(),
+                                         p1.ToWkt(), p2.ToWkt(), DECIMAL_PRECISION));
   }
   return {p0, p1, p2};
 }
@@ -51,9 +51,8 @@ Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
   return *this;
 }
 
-bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
-         P2.AlmostEquals(other.P2, decimal_precision);
+bool Triangle2D::AlmostEquals(Triangle2D const& other, double epsilon) const {
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon) && P2.AlmostEquals(other.P2, epsilon);
 }
 
 Point2D Triangle2D::Centroid() const { return average({P0, P1, P2}); }
@@ -132,34 +131,38 @@ bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line
 // }
 
 Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
-  auto intersections =
-      std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
-                                 LineSegment2D::Make(P2, P0)} |
-      std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line); }) |
-      std::views::filter([](LineSegment2D::ReturnSet const& res) {
-        return res.has_value() && std::holds_alternative<Point2D>(*res);
-      }) |
-      std::views::transform([](LineSegment2D::ReturnSet const& res) { return std::get<Point2D>(*res); });
+  auto points_view = std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
+                                                LineSegment2D::Make(P2, P0)} |
+                     std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line); }) |
+                     std::views::filter([](LineSegment2D::ReturnSet const& res) {
+                       return res.has_value() && std::holds_alternative<Point2D>(*res);
+                     }) |
+                     std::views::transform([](LineSegment2D::ReturnSet const& res) { return std::get<Point2D>(*res); });
 
-  std::vector<Point2D> intersection_points(intersections.begin(), intersections.end());
+  std::vector<Point2D> intersections(points_view.begin(), points_view.end());
 
-  if (intersection_points.empty()) {
+  // all points are the same as the triangle vertices, so we consider it as no intersection but something else (touch,
+  // tangency or overlap)
+  if (std::ranges::all_of(intersections, [&](Point2D const& p) { return p == P0 || p == P1 || p == P2; })) {
     return std::nullopt;
   }
 
-  intersection_points = remove_duplicates(intersection_points);
+  // sort them to get a line in the direction of the intersecting line
+  std::sort(intersections.begin(), intersections.end(), [&](Point2D const& a, Point2D const& b) {
+    return line.Location(a) < line.Location(b);
+  });  // sort intersection points in the direction of the line
 
-  if (intersection_points.size() == 1) {
-    return intersection_points[0];
+  std::vector<Point2D> unique_points = remove_duplicates_from_sorted_list(intersections);
+
+  if (unique_points.empty()) {
+    return std::nullopt;
   }
 
-  // TODO: this makes a stupid error "unknown file: error: SEH exception with code 0xc00000fd thrown in the test body."
-  // std::ranges::sort(intersection_points, [&](Point2D const& a, Point2D const& b) {
-  //  return round(line.Location(a) - line.Location(b),
-  //                  decimal_precision) < 0.0;
-  //});
+  if (unique_points.size() == 1) {
+    return unique_points[0];
+  }
 
-  return LineSegment2D::Make(intersection_points[0], intersection_points[1]);
+  return LineSegment2D::Make(unique_points[0], unique_points[1]);
 }
 
 // LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {

@@ -27,7 +27,7 @@ class Line3D {
   inline Point3D const& Last() const { return P1; }
   inline Point3D const& Origin() const { return P0; }
   inline Vector3D const& Direction() const { return DIR; }
-  bool AlmostEquals(Line3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Line3D const& other, double epsilon = DOUBLE_EPSILON) const;
   double DistanceTo(Point3D const& point) const;
   Point3D ProjectOnto(Point3D const& point) const;
   double Location(Point3D const& point) const;
@@ -47,6 +47,9 @@ class Line3D {
   bool Intersects(LineSegment3D const& segment) const;
   bool Intersects(Triangle3D const& t) const;
   ReturnSet Intersection(Line3D const& other) const;
+  ReturnSet Intersection(
+      Line3D const& other, double& sc,
+      double tc) const;  // used to centralize intersection logic, and used by other geometric objects down the line
   ReturnSet Intersection(Ray3D const& ray) const;
   ReturnSet Intersection(LineSegment3D const& segment) const;
   // TODO make ReturnSet public, and write Intersection(triangle)

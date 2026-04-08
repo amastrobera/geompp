@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 
+#include <compare>
 #include <concepts>
 #include <sstream>
 #include <string>
@@ -10,6 +11,12 @@
 namespace geompp {
 
 double round(double x, int decimal_precision = DECIMAL_PRECISION);
+
+std::partial_ordering compare(double a, double b, double epsilon = DOUBLE_EPSILON);
+
+bool is_in_range(double value, double min, double max, double epsilon = DOUBLE_EPSILON);
+
+bool is_greater_or_equal(double value, double threshold, double epsilon = DOUBLE_EPSILON);
 
 int sign(double x);
 
@@ -36,7 +43,9 @@ std::string string_join(std::vector<T> const& items, std::string const& delim = 
 int count_decimal_places(double number);
 
 template <typename T>
-  requires requires(T t) { { t.ToWkt() } -> std::convertible_to<std::string>; }
+  requires requires(T t) {
+    { t.ToWkt() } -> std::convertible_to<std::string>;
+  }
 std::string ToWkt(const std::vector<T>& items) {
   std::string out = "GEOMETRYCOLLECTION(";
   for (size_t i = 0; i < items.size(); ++i) {

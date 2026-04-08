@@ -97,7 +97,6 @@ TEST_F(Ray3DTest, ToLine) {
 }
 
 TEST_F(Ray3DTest, IntersectionWithLine3D) {
-  geompp::DECIMAL_PRECISION = 4;
   // ray along +X from origin; vertical line at x=3 in XY plane
   auto r = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
   auto l_cross = g::Line3D::Make(g::Point3D(3, -1, 0), g::Point3D(3, 1, 0));

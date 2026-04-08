@@ -73,7 +73,7 @@ void example_2() {
     f << "LINESTRING (0 0 0, 1 1 1)\n";
     f << "LINESTRING (2 0 0, 2 3 4)\n";
     f << "LINE (0 0 0, 1 0 0)\n";
-    f << "RAY (0 0 0, 0 1 0)\n";
+    f << "RAY (0 0 0, 0 1 0)";  // last geom doesn't need a newline
     f.close();
   }
 

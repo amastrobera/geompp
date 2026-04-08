@@ -28,7 +28,7 @@ class Polygon3D {
   inline std::size_t Size() const { return VERTICES.size(); }
   Point3D const& operator[](int i) const;
 
-  bool AlmostEquals(Polygon3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
   // Point3D Centroid() const;
   // Polygon3D ToPolygon () const; // useful for ToWkt() polygon
   // double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise

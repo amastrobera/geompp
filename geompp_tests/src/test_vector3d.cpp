@@ -80,11 +80,11 @@ TEST_F(Vector3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 2;
   auto v = g::Vector3D(1.0, 2.0, 3.0);
   ASSERT_TRUE(v.AlmostEquals(g::Vector3D(1.004, 2.004, 3.004)));  // within tolerance
-  ASSERT_FALSE(v.AlmostEquals(g::Vector3D(1.01, 2.0, 3.0)));      // just outside
+  ASSERT_FALSE(v.AlmostEquals(g::Vector3D(1.02, 2.0, 3.0)));      // just outside
 
   // operator== delegates to AlmostEquals
   ASSERT_EQ(v, g::Vector3D(1.004, 2.004, 3.004));
-  ASSERT_NE(v, g::Vector3D(1.01, 2.0, 3.0));
+  ASSERT_NE(v, g::Vector3D(1.02, 2.0, 3.0));
 
   geompp::DECIMAL_PRECISION = 4;
   ASSERT_FALSE(v.AlmostEquals(g::Vector3D(1.004, 2.0, 3.0)));  // was OK at DP=2, not at DP=4

@@ -87,7 +87,7 @@ Dimention GetDimentionMultiElementCommaSeparated(std::string wkt) {
 
 }  // namespace
 
-bool LVSParser::HasNext() const { return FILE.eof(); }
+bool LVSParser::HasNext() const { return !FILE.eof(); }
 
 LVSParser::ReturnSet LVSParser::Next() {
   std::string line, clean_line;

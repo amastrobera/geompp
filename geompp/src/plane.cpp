@@ -14,17 +14,17 @@ namespace geompp {
 Plane Plane::From3Points(Point3D p1, Point3D p2, Point3D p3) { return FromOriginAndAxes(p1, p2 - p1, p3 - p1); }
 
 Plane Plane::FromOriginAndAxes(Point3D origin, Vector3D u, Vector3D v) {
-  if (round(u.Length()) == 0) {
+  if (compare(u.Length(), 0) == 0) {
     throw new std::runtime_error("zero length axis u");
   }
-  if (round(v.Length()) == 0) {
+  if (compare(v.Length(), 0) == 0) {
     throw new std::runtime_error("zero length axis v");
   }
   return {origin, u, v};
 }
 
 Plane Plane::FromOriginAndNormal(Point3D origin, Vector3D normal) {
-  if (round(normal.Length()) == 0) {
+  if (compare(normal.Length(), 0) == 0) {
     throw new std::runtime_error("zero length normal");
   }
   return {origin, normal};
@@ -44,7 +44,7 @@ Plane::Plane(Point3D origin, Vector3D u, Vector3D v) {
   Normal = AxisU.Cross(AxisV).Normalize();
 }
 
-bool Plane::AlmostEquals(Plane const& other, int decimal_precision) const {
+bool Plane::AlmostEquals(Plane const& other, double epsilon) const {
   throw new std::runtime_error("not implemented");
   // return round(X - other.X) == 0.0 && round(Y - other.Y) == 0.0 &&
   // round(Z - other.Z) == 0.0;
@@ -80,13 +80,13 @@ Point3D Plane::Evaluate(Point2D const& p) const {
   return ProjectOnto(Origin + AxisU * p.x() + AxisV * p.y());
 }
 
-bool Plane::Contains(Point3D const& point) const { return round((point - Origin).Dot(Normal)) == 0; }
+bool Plane::Contains(Point3D const& point) const { return compare((point - Origin).Dot(Normal), 0) == 0; }
 bool Plane::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
   auto V = line.Last() - line.First();
   auto W = line.First() - Origin;
   auto denominator = V.Dot(Normal);
-  if (round(denominator) == 0) {
+  if (compare(denominator, 0) == 0) {
     // parallel or part of the plane
     return std::nullopt;
   }
