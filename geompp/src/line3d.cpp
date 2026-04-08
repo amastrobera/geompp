@@ -90,8 +90,8 @@ Line3D::ReturnSet Line3D::Intersection(Line3D const& other, double& sc, double t
   //  solving system   | u*u u*v | | s |  =  | u*w0 |
   //                   | u*v v*v | | t |     | v*w0 |
   Point3D Q0 = other.P0;
-  Vector3D u = DIR;
-  Vector3D v = other.DIR;
+  Vector3D u = P1 - P0;
+  Vector3D v = other.P1 - other.P0;
   Vector3D w0 = P0 - Q0;
 
   // variables

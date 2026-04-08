@@ -46,6 +46,7 @@ class Line2D {
   bool Intersects(Ray2D const& ray) const;
   bool Intersects(LineSegment2D const& segment) const;
   bool Intersects(Triangle2D const& t) const;
+  ReturnSet Intersection(Line2D const& other, double& sc, double& tc) const;
   ReturnSet Intersection(Line2D const& other) const;
   ReturnSet Intersection(Ray2D const& ray) const;
   ReturnSet Intersection(LineSegment2D const& segment) const;

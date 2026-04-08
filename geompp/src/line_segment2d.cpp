@@ -104,83 +104,39 @@ bool LineSegment2D::Intersects(Ray2D const& ray) const { return Intersection(ray
 bool LineSegment2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
 LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line) const {
-  auto u = P1 - P0;
-  auto v = line.Last() - line.First();
-  auto vp = v.Perp();
-  auto w = (P0 - line.First());
+  double sc, tc;
+  auto Pc = ToLine().Intersection(line, sc, tc);
 
-  if (compare(u * vp, 0) == 0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-
-  // verify that the intersection is ahead of the ray
-  auto inter_p = P0 + t * u;
-  if (!Contains(inter_p)) {
+  // respecting constraints: sc should be in the range [0, 1]
+  if (!Pc.has_value() || !is_in_range(sc, 0, 1)) {
     return std::nullopt;
   }
 
-  return inter_p;
+  return Pc;
 }
 
 LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
-  auto u = P1 - P0;
-  auto up = u.Perp();  // equivalent (calc, on the other side)
-  auto v = ray.Direction();
-  auto vp = v.Perp();
-  auto w = (P0 - ray.Origin());
+  double sc, tc;
+  auto Pc = ToLine().Intersection(ray.ToLine(), sc, tc);
 
-  // testing on this ray
-  if (compare(u * vp, 0) == 0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-  auto inter_t = P0 + t * u;
-  if (!Contains(inter_t)) {
+  // respecting constraints: sc should be in the range [0, 1] while tc should be in non negative
+  if (!Pc.has_value() || !is_in_range(sc, 0, 1) || !is_greater_or_equal(tc, 0)) {
     return std::nullopt;
   }
 
-  // testing on the other ray
-  if (compare(v * up, 0) == 0) {
-    return std::nullopt;
-  }
-  double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-  auto inter_s = ray.Origin() + s * v;
-  if (!ray.IsAhead(inter_s)) {
-    return std::nullopt;
-  }
-
-  return inter_t;
+  return Pc;
 }
 
 LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
-  auto u = P1 - P0;
-  auto up = u.Perp();  // equivalent (calc, on the other side)
-  auto v = (other.P1 - other.P0);
-  auto vp = v.Perp();
-  auto w = (P0 - other.P0);
+  double sc, tc;
+  auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
 
-  // testing on this ray
-  if (compare(u * vp, 0) == 0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-  auto inter_t = P0 + t * u;
-  if (!Contains(inter_t)) {
+  // respecting constraints: sc and tc should be in the range [0, 1]
+  if (!Pc.has_value() || !is_in_range(sc, 0, 1) || !is_in_range(tc, 0, 1)) {
     return std::nullopt;
   }
 
-  // testing on the other ray
-  if (compare(v * up, 0) == 0) {
-    return std::nullopt;
-  }
-  double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-  auto inter_s = other.P0 + s * v;
-  if (!other.Contains(inter_s)) {
-    return std::nullopt;
-  }
-
-  return inter_t;
+  return Pc;
 }
 
 #pragma endregion

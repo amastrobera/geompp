@@ -79,18 +79,43 @@ bool Line2D::Intersects(Ray2D const& ray) const { return ray.Intersects(*this); 
 
 bool Line2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
-Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
-  auto u = DIR;
-  auto v = other.DIR;
+Line2D::ReturnSet Line2D::Intersection(Line2D const& other, double& sc, double& tc) const {
+  // 2D intersection algorithm based on the perp-product
+  //   Given
+  //    L(s) = P0 + s * u
+  //    L(t) = Q0 + t * v
+  //  let w0 = P0 - Q0, then we can set up the equations
+  //    (w0 + s*u) * perp-v = 0     => s = -(w0 * perp-v) / (u * perp-v)
+  //    (-w0 + t*v) * perp-u = 0    => t = (w0 * perp-u) / (v * perp-u)
+  auto u = P1 - P0;
+  auto v = other.P1 - other.P0;
   auto vp = v.Perp();
-  auto w = (P0 - other.P0);
+  auto up = u.Perp();
+  auto Q0 = other.P0;
+  auto w0 = (P0 - other.P0);
 
-  if (compare(u * vp, 0) == 0) {
-    return std::nullopt;
+  // parallel lines
+  if (compare(u.Dot(vp), 0) == 0 || compare(v.Dot(up), 0) == 0) {
+    sc = tc = std::numeric_limits<double>::quiet_NaN();
+    return std::nullopt;  // Lines are parallel, no intersection
   }
-  double t = (-w * vp) / (u * vp);
 
-  return P0 + t * u;
+  // perp-prod approach (yields the same closed form as Cramer's rule in 2D set of equations - since the determinant,
+  // the cross product and the perp-product are the same thing in 2D)
+  sc = -w0.Dot(vp) / u.Dot(vp);
+  tc = w0.Dot(up) / v.Dot(up);
+
+  // no need to check whether Pc(sc) and Qc(tc) are the same
+  // because in 2D the lines are either parallel or they intersect in a single point
+  // (there is no skew line)
+  auto Pc = P0 + (u * sc);
+
+  return Pc;
+}
+
+Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
+  double sc, tc;
+  return Intersection(other, sc, tc);
 }
 
 Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }

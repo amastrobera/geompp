@@ -60,7 +60,9 @@ std::ostream& operator<<(std::ostream& os, Ray2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Ray2D::Contains(Point2D const& point) const { return compare((point - ORIGIN).Cross(DIR), 0) == 0 && IsAhead(point); }
+bool Ray2D::Contains(Point2D const& point) const {
+  return compare((point - ORIGIN).Cross(DIR), 0) == 0 && IsAhead(point);
+}
 
 bool Ray2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
@@ -69,53 +71,27 @@ bool Ray2D::Intersects(Ray2D const& other) const { return Intersection(other).ha
 bool Ray2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
 Ray2D::ReturnSet Ray2D::Intersection(Line2D const& line) const {
-  auto u = DIR;
-  auto v = line.Direction();
-  auto vp = v.Perp();
-  auto w = (ORIGIN - line.First());
+  double sc, tc;
+  auto Pc = ToLine().Intersection(line, sc, tc);
 
-  if (compare(u * vp, 0) == 0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-
-  // verify that the intersection is ahead of the ray
-  auto inter_p = ORIGIN + t * u;
-  if (!IsAhead(inter_p)) {
+  // respecting constraints: sc should be positive
+  if (!Pc.has_value() || !is_greater_or_equal(sc, 0)) {
     return std::nullopt;
   }
 
-  return inter_p;
+  return Pc;
 }
 
 Ray2D::ReturnSet Ray2D::Intersection(Ray2D const& other) const {
-  auto u = DIR;
-  auto up = u.Perp();  // equivalent (calc, on the other side)
-  auto v = other.DIR;
-  auto vp = v.Perp();
-  auto w = (ORIGIN - other.ORIGIN);
+  double sc, tc;
+  auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
 
-  // testing on this ray
-  if (compare(u * vp, 0) == 0) {
-    return std::nullopt;
-  }
-  double t = (-w * vp) / (u * vp);
-  auto inter_t = ORIGIN + t * u;
-  if (!IsAhead(inter_t)) {
+  // respecting constraints: sc and tc should be positive
+  if (!Pc.has_value() || !is_greater_or_equal(sc, 0) || !is_greater_or_equal(tc, 0)) {
     return std::nullopt;
   }
 
-  // testing on the other ray
-  if (compare(v * up, 0) == 0) {
-    return std::nullopt;
-  }
-  double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-  auto inter_s = other.ORIGIN + s * v;
-  if (!other.IsAhead(inter_s)) {
-    return std::nullopt;
-  }
-
-  return inter_t;
+  return Pc;
 }
 
 Ray2D::ReturnSet Ray2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
