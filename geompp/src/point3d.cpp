@@ -16,9 +16,9 @@ Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
 
 Point3D::Point3D(Point3D const& p) : X(p.X), Y(p.Y), Z(p.Z) {}
 
-bool Point3D::AlmostEquals(Point3D const& other, int decimal_precision) const {
-  return round(X - other.X, decimal_precision) == 0.0 && round(Y - other.Y, decimal_precision) == 0.0 &&
-         round(Z - other.Z, decimal_precision) == 0.0;
+bool Point3D::AlmostEquals(Point3D const& other, double epsilon) const {
+  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 &&
+         compare(Z, other.Z, epsilon) == 0;
 }
 
 Vector3D Point3D::ToVector() { return {X, Y, Z}; }
@@ -37,7 +37,7 @@ Point3D& Point3D::operator=(Point3D const& other) {
 #pragma region Collection Operations
 
 bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3) {
-  return round((p2 - p1).Cross(p3 - p1).Length()) == 0;
+  return compare((p2 - p1).Cross(p3 - p1).Length(), 0) == 0;
 }
 
 std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points) {
@@ -89,8 +89,8 @@ std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points) {
     if (are_collinear(points[i1], points[i2], points[i3])) {  // test of collinearity
       auto u = (points[i2] - points[i1]);
       auto v = (points[i3] - points[i1]);
-      if (round(u.Dot(v)) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
-        if (round(points[i1].DistanceTo(points[i3]) - points[i1].DistanceTo(points[i2])) >= 0) {
+      if (compare(u.Dot(v), 0) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
+        if (compare(points[i1].DistanceTo(points[i3]), points[i1].DistanceTo(points[i2])) >= 0) {
           duplicates.insert(i2);
           ++i2;
           ++i3;

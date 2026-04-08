@@ -23,7 +23,7 @@ class Vector3D {
   Point3D ToPoint();
 
   double Length() const;
-  bool AlmostEquals(Vector3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Vector3D const& other, double epsilon = DOUBLE_EPSILON) const;
   std::string ToWkt() const;
   static Vector3D FromWkt(std::string const& wkt);
   void ToFile(std::string const& path) const;

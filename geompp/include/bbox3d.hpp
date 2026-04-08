@@ -30,7 +30,7 @@ class BBox3D {
   inline Point3D min() const { return MIN; }
   inline Point3D max() const { return MAX; }
 
-  bool AlmostEquals(BBox3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(BBox3D const& other, double epsilon = DOUBLE_EPSILON) const;
   BBox3D& operator=(BBox3D const& other);
 
 #pragma region Geometrical Operations

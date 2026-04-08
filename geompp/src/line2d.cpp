@@ -24,7 +24,7 @@ Line2D Line2D::Make(Point2D const& p0, Point2D const& p1) {
 }
 
 Line2D Line2D::Make(Point2D const& p0, Vector2D const& dir) {
-  if (round(dir.Length()) == 0) {
+  if (compare(dir.Length(), 0) == 0) {
     throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
@@ -43,8 +43,8 @@ Line2D& Line2D::operator=(Line2D const& other) {
   return *this;
 }
 
-bool Line2D::AlmostEquals(Line2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+bool Line2D::AlmostEquals(Line2D const& other, double epsilon) const {
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
 }
 
 double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DIR.Cross(point - P0))); }
@@ -68,11 +68,11 @@ std::ostream& operator<<(std::ostream& os, Line2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line2D::Contains(Point2D const& point) const { return round((point - P0).Cross(DIR)) == 0.0; }
+bool Line2D::Contains(Point2D const& point) const { return compare((point - P0).Cross(DIR), 0) == 0; }
 
 bool Line2D::Intersects(Line2D const& other) const {
   // very easy to verify in 2D plane
-  return round(DIR.Cross(other.DIR)) != 0.0;
+  return compare(DIR.Cross(other.DIR), 0) != 0;
 }
 
 bool Line2D::Intersects(Ray2D const& ray) const { return ray.Intersects(*this); }
@@ -85,7 +85,7 @@ Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
   auto vp = v.Perp();
   auto w = (P0 - other.P0);
 
-  if (round(u * vp) == 0.0) {
+  if (compare(u * vp, 0) == 0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);

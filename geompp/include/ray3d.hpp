@@ -23,7 +23,7 @@ class Ray3D {
 
   inline Point3D const& Origin() const { return ORIGIN; }
   inline Vector3D const& Direction() const { return DIR; }
-  bool AlmostEquals(Ray3D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Ray3D const& other, double epsilon = DOUBLE_EPSILON) const;
   bool IsAhead(Point3D const& point) const;
   bool IsBehind(Point3D const& point) const;
   Line3D ToLine() const;

@@ -22,7 +22,7 @@ class Vector2D {
   Point2D ToPoint();
 
   double Length() const;
-  bool AlmostEquals(Vector2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Vector2D const& other, double epsilon = DOUBLE_EPSILON) const;
   std::string ToWkt() const;
   static Vector2D FromWkt(std::string const& wkt);
   void ToFile(std::string const& path) const;

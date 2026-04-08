@@ -21,7 +21,7 @@ class Point2D {
   inline double y() const { return Y; }
 
   Vector2D ToVector();
-  bool AlmostEquals(Point2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Point2D const& other, double epsilon = DOUBLE_EPSILON) const;
   double DistanceTo(Point2D const& other) const;
 
   std::string ToWkt() const;

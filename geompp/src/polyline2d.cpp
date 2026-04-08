@@ -56,12 +56,12 @@ double Polyline2D::Length() const {
   return std::accumulate(iterable_range.begin(), iterable_range.end(), 0);
 }
 
-bool Polyline2D::AlmostEquals(Polyline2D const& other, int decimal_precision) const {
+bool Polyline2D::AlmostEquals(Polyline2D const& other, double epsilon) const {
   if (KNOTS.size() != other.KNOTS.size()) {
     return false;
   }
   for (int i = 0; i < KNOTS.size(); ++i) {
-    if (!KNOTS[i].AlmostEquals(other.KNOTS[i], decimal_precision)) {
+    if (!KNOTS[i].AlmostEquals(other.KNOTS[i], epsilon)) {
       return false;
     }
   }
@@ -83,14 +83,14 @@ double Polyline2D::Location(Point2D const& point) const {
   // at this point tot_len == Lenght(), no need to call that loop again
 
   // check if the point is behind the polyline (on the first "line")
-  if (round((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First())) == 0) {  // collinearity check
+  if (compare((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First()), 0) == 0) {  // collinearity check
     return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First())) * segs[0].First().DistanceTo(point) /
            tot_len;
   }
 
   // check if the point is is beyond the polyline (on the last "line")
   int n = segs.size();
-  if (round((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First())) ==
+  if (compare((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First()), 0) ==
       0) {  // collinearity check
     return (tot_len + segs[n - 1].Last().DistanceTo(point)) / tot_len;
   }
@@ -101,12 +101,12 @@ double Polyline2D::Location(Point2D const& point) const {
 
 Point2D Polyline2D::Interpolate(double pct) const {
   // the point is behind the polyline
-  if (round(pct) < 0.0) {
+  if (compare(pct, 0) < 0) {
     return KNOTS[0];
   }
 
   // the point is beyond the polyline
-  if (round(pct) > 1.0) {
+  if (compare(pct, 1.0) > 0) {
     return KNOTS[KNOTS.size() - 1];
   }
 
@@ -116,7 +116,7 @@ Point2D Polyline2D::Interpolate(double pct) const {
   for (int i = 0; i < KNOTS.size() - 1; ++i) {
     len_i = KNOTS[i].DistanceTo(KNOTS[i + 1]);
 
-    if (round(pct - (len_to_i + len_i)) <= 0) {
+    if (compare(pct, len_to_i + len_i) <= 0) {
       double pct_i = pct - len_to_i;
       return KNOTS[i] + pct_i * (KNOTS[i + 1] - KNOTS[i]);
     }

@@ -22,8 +22,8 @@ namespace geompp {
 namespace {
 
 static bool within_axis_boundary(double s, double t) {
-  return (round(s) >= 0.0 && round(s - 1.0) <= 0.0) &&
-         (round(t) >= 0.0 && round(t - 1.0) <= 0.0 && round(s + t - 1.0) <= 0.0);  // including borders
+  return (compare(s, 0) >= 0 && compare(s, 1.0) <= 0) &&
+         (compare(t, 0) >= 0 && compare(t, 1.0) <= 0 && compare(s + t, 1.0) <= 0);  // including borders
 }
 
 }  // namespace
@@ -51,9 +51,9 @@ Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
   return *this;
 }
 
-bool Triangle2D::AlmostEquals(Triangle2D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision) &&
-         P2.AlmostEquals(other.P2, decimal_precision);
+bool Triangle2D::AlmostEquals(Triangle2D const& other, double epsilon) const {
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon) &&
+         P2.AlmostEquals(other.P2, epsilon);
 }
 
 Point2D Triangle2D::Centroid() const { return average({P0, P1, P2}); }

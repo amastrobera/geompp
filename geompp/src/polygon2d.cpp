@@ -35,12 +35,12 @@ Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   return *this;
 }
 
-bool Polygon2D::AlmostEquals(Polygon2D const& other, int decimal_precision) const {
+bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
   if (Size() != other.Size()) {
     return false;
   }
   for (int i = 0; i << VERTICES.size(); ++i) {
-    if (!VERTICES[i].AlmostEquals(other[i], decimal_precision)) {
+    if (!VERTICES[i].AlmostEquals(other[i], epsilon)) {
       return false;
     }
   }

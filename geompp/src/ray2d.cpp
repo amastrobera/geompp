@@ -15,7 +15,7 @@ namespace geompp {
 #pragma region Constructors
 
 Ray2D Ray2D::Make(Point2D const& p0, Vector2D const& dir) {
-  if (round(dir.Length()) == 0) {
+  if (compare(dir.Length(), 0) == 0) {
     throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
@@ -31,9 +31,9 @@ Ray2D& Ray2D::operator=(Ray2D const& other) {
   return *this;
 }
 
-bool Ray2D::IsAhead(Point2D const& point) const { return round(DIR.Dot(point - ORIGIN)) >= 0.0; }
+bool Ray2D::IsAhead(Point2D const& point) const { return compare(DIR.Dot(point - ORIGIN), 0) >= 0; }
 
-bool Ray2D::IsBehind(Point2D const& point) const { return round(DIR.Dot(point - ORIGIN)) < 0.0; }
+bool Ray2D::IsBehind(Point2D const& point) const { return compare(DIR.Dot(point - ORIGIN), 0) < 0; }
 
 Line2D Ray2D::ToLine() const { return Line2D::Make(ORIGIN, DIR); }
 
@@ -41,8 +41,8 @@ double Ray2D::DistanceTo(Point2D const& point) const {
   return IsAhead(point) ? ToLine().DistanceTo(point) : ORIGIN.DistanceTo(point);
 }
 
-bool Ray2D::AlmostEquals(Ray2D const& other, int decimal_precision) const {
-  return ORIGIN.AlmostEquals(other.ORIGIN, decimal_precision) && DIR.AlmostEquals(other.DIR, decimal_precision);
+bool Ray2D::AlmostEquals(Ray2D const& other, double epsilon) const {
+  return ORIGIN.AlmostEquals(other.ORIGIN, epsilon) && DIR.AlmostEquals(other.DIR, epsilon);
 }
 
 #pragma endregion
@@ -60,7 +60,7 @@ std::ostream& operator<<(std::ostream& os, Ray2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Ray2D::Contains(Point2D const& point) const { return round((point - ORIGIN).Cross(DIR)) == 0.0 && IsAhead(point); }
+bool Ray2D::Contains(Point2D const& point) const { return compare((point - ORIGIN).Cross(DIR), 0) == 0 && IsAhead(point); }
 
 bool Ray2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
@@ -74,7 +74,7 @@ Ray2D::ReturnSet Ray2D::Intersection(Line2D const& line) const {
   auto vp = v.Perp();
   auto w = (ORIGIN - line.First());
 
-  if (round(u * vp) == 0.0) {
+  if (compare(u * vp, 0) == 0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
@@ -96,7 +96,7 @@ Ray2D::ReturnSet Ray2D::Intersection(Ray2D const& other) const {
   auto w = (ORIGIN - other.ORIGIN);
 
   // testing on this ray
-  if (round(u * vp) == 0.0) {
+  if (compare(u * vp, 0) == 0) {
     return std::nullopt;
   }
   double t = (-w * vp) / (u * vp);
@@ -106,7 +106,7 @@ Ray2D::ReturnSet Ray2D::Intersection(Ray2D const& other) const {
   }
 
   // testing on the other ray
-  if (round(v * up) == 0.0) {
+  if (compare(v * up, 0) == 0) {
     return std::nullopt;
   }
   double s = (w * up) / (v * up);  // equivalent (calc on the other side)

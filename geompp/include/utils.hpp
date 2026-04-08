@@ -14,6 +14,10 @@ double round(double x, int decimal_precision = DECIMAL_PRECISION);
 
 std::partial_ordering compare(double a, double b, double epsilon = DOUBLE_EPSILON);
 
+bool is_in_range(double value, double min, double max, double epsilon = DOUBLE_EPSILON);
+
+bool is_greater_or_equal(double value, double threshold, double epsilon = DOUBLE_EPSILON);
+
 int sign(double x);
 
 std::string trim(std::string s);

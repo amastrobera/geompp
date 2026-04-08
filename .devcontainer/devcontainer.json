@@ -1,0 +1,23 @@
+{
+    "name": "Geompp Dev Container",
+    "build": {
+        "dockerfile": "../docker/Dockerfile.lin",
+        "context": ".." 
+    },
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools"
+            ]
+        }
+    },
+    "remoteUser": "developer",
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "configureZshAsDefaultShell": true
+        }
+    }
+}

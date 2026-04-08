@@ -24,7 +24,7 @@ Line3D Line3D::Make(Point3D const& p0, Point3D const& p1) {
 }
 
 Line3D Line3D::Make(Point3D const& p0, Vector3D const& dir) {
-  if (round(dir.Length()) == 0) {
+  if (compare(dir.Length(), 0) == 0) {
     throw std::runtime_error(std::format("the direction is almost zero with {} decimals precision", DECIMAL_PRECISION));
   }
   return {p0, dir};
@@ -43,8 +43,8 @@ Line3D& Line3D::operator=(Line3D const& other) {
   return *this;
 }
 
-bool Line3D::AlmostEquals(Line3D const& other, int decimal_precision) const {
-  return P0.AlmostEquals(other.P0, decimal_precision) && P1.AlmostEquals(other.P1, decimal_precision);
+bool Line3D::AlmostEquals(Line3D const& other, double epsilon) const {
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
 }
 
 double Line3D::DistanceTo(Point3D const& point) const {
@@ -71,7 +71,7 @@ std::ostream& operator<<(std::ostream& os, Line3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line3D::Contains(Point3D const& point) const { return round(DIR.Perp().Dot((point - P0))) == 0.0; }
+bool Line3D::Contains(Point3D const& point) const { return compare(DIR.Perp().Dot((point - P0)), 0) == 0; }
 
 bool Line3D::Intersects(Line3D const& other) const { return Intersection(other).has_value(); }
 
@@ -79,20 +79,56 @@ bool Line3D::Intersects(Ray3D const& ray) const { return ray.Intersects(*this); 
 
 bool Line3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
-Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
-  auto u = DIR;
-  auto v = other.DIR;
+Line3D::ReturnSet Line3D::Intersection(Line3D const& other, double& sc, double tc) const {
+  // input parameters: this line as P0 + s*DIR, other as Q0 + t*DIR
+  //
+  //  3D Line-Line Intersection
+  //      - minimize the (perpendicular) distance between lines
+  //      - and later verify that this distance is nearly zero
+  //        (intersection) or not (skew lines)
+  //
+  //  solving system   | u*u u*v | | s |  =  | u*w0 |
+  //                   | u*v v*v | | t |     | v*w0 |
+  Point3D Q0 = other.P0;
+  Vector3D u = DIR;
+  Vector3D v = other.DIR;
+  Vector3D w0 = P0 - Q0;
 
-  if (u.IsParallel(v)) {
-    return std::nullopt;
+  // variables
+  //  solving system   | a b | | s |  =  | d |
+  //                   | b c | | t |     | e |
+  double a = u.Dot(u);
+  double b = u.Dot(v);
+  double c = v.Dot(v);
+  double d = u.Dot(w0);
+  double e = v.Dot(w0);
+  double D = a * c - b * b;  // Determinant
+
+  // Check if lines are parallel
+  if (compare(D, 0) == 0) {
+    return std::nullopt;  // Lines are parallel, no intersection
   }
 
-  auto vp = v.Perp();
-  auto w = (P0 - other.P0);
+  // Cramer's rule
+  sc = (b * e - c * d) / D;
+  tc = (a * e - b * d) / D;
 
-  double t = (-w * vp) / (u * vp);
+  // The point on the Line closest to the Ray
+  Point3D Pc = P0 + (u * sc);
+  // The point on the Ray closest to the Line
+  Point3D Qc = Q0 + (v * tc);
 
-  return P0 + t * u;
+  // Check if they actually intersect (distance is near zero)
+  if (compare(Pc.DistanceTo(Qc), 0.0) != 0) {
+    return std::nullopt;  // No intersection, the closest points are not the same
+  }
+
+  return Pc;  // They intersect!
+}
+
+Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
+  double sc, tc;
+  return Intersection(other, sc, tc);
 }
 
 Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray) const { return ray.Intersection(*this); }

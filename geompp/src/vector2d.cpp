@@ -24,8 +24,8 @@ Point2D Vector2D::ToPoint() { return Point2D(X, Y); }
 
 double Vector2D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2)); }
 
-bool Vector2D::AlmostEquals(Vector2D const& other, int decimal_precision) const {
-  return round(X - other.X, decimal_precision) == 0 && round(Y - other.Y, decimal_precision) == 0;
+bool Vector2D::AlmostEquals(Vector2D const& other, double epsilon) const {
+  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0;
 }
 
 double Vector2D::Dot(Vector2D const& v) const { return (X * v.X + Y * v.Y); }

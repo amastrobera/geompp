@@ -35,12 +35,12 @@ Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   return *this;
 }
 
-bool Polygon3D::AlmostEquals(Polygon3D const& other, int decimal_precision) const {
+bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   if (Size() != other.Size()) {
     return false;
   }
   for (int i = 0; i << VERTICES.size(); ++i) {
-    if (!VERTICES[i].AlmostEquals(other[i], decimal_precision)) {
+    if (!VERTICES[i].AlmostEquals(other[i], epsilon)) {
       return false;
     }
   }

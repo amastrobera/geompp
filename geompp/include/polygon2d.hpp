@@ -28,7 +28,7 @@ class Polygon2D {
   inline std::size_t Size() const { return VERTICES.size(); }
   Point2D const& operator[](int i) const;
 
-  bool AlmostEquals(Polygon2D const& other, int decimal_precision = DECIMAL_PRECISION) const;
+  bool AlmostEquals(Polygon2D const& other, double epsilon = DOUBLE_EPSILON) const;
   // Point2D Centroid() const;
   // Polygon2D ToPolygon () const; // useful for ToWkt() polygon
   // double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
