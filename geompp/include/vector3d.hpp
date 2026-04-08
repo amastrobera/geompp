@@ -37,7 +37,7 @@ class Vector3D {
   Vector3D Normalize() const;
   bool IsParallel(Vector3D const& other) const;
 
-  Vector3D operator-();
+  Vector3D operator-() const;
 
   static inline Vector3D BasisX() { return Vector3D(1, 0, 0); }
   static inline Vector3D BasisY() { return Vector3D(0, 1, 0); }

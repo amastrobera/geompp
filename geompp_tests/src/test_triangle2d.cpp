@@ -173,49 +173,41 @@ TEST_F(Triangle2DTest, IntersectionWLine) {
   geompp::DECIMAL_PRECISION = 4;
   auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 1, -1 1)");
 
-  auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0));
-  auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1));
+  // no intersection: only one point touch
+  ASSERT_FALSE(tri.Intersects(g::Line2D::Make(g::Point2D(-1, 0), g::Vector2D::BasisY())));
+  ASSERT_FALSE(tri.Intersects(g::Line2D::Make(g::Point2D(1, 0), g::Vector2D::BasisY())));
+  ASSERT_FALSE(tri.Intersects(g::Line2D::Make(g::Point2D(0, -1), g::Vector2D::BasisX())));
 
-  auto px = g::Line2D::Make(g::Point2D(0, -1), g::Vector2D(1, -1));
-  auto py = g::Line2D::Make(g::Point2D(1, 1), g::Vector2D(1, 2));
+  // no intersection: edge overlap
+  ASSERT_FALSE(tri.Intersects(g::Line2D::Make(g::Point2D(-2, 1), g::Vector2D::BasisX())));
+  ASSERT_FALSE(tri.Intersects(g::Line2D::FromWkt("LINE (0 -1, 1 1)")));
+  ASSERT_FALSE(tri.Intersects(g::Line2D::FromWkt("LINE (-2 2, 1 1)")));
 
-  auto pax = g::Line2D::Make(g::Point2D(0, 2), g::Vector2D(1, 2));
-  auto pay = g::Line2D::Make(g::Point2D(2, 0), g::Vector2D(2, 1));
+  // no intersection: outside of the triangle
+  ASSERT_FALSE(tri.Intersects(g::Line2D::Make(g::Point2D(-2, 0), g::Vector2D(1, 2))));
+  ASSERT_FALSE(tri.Intersects(g::Line2D::Make(g::Point2D(-1, -1), g::Vector2D(1, -1))));
+  ASSERT_FALSE(tri.Intersects(g::Line2D::Make(g::Point2D(2, 0), g::Vector2D::BasisY())));
 
-  ASSERT_TRUE(tri.Intersects(x));
+  // actual intersect
+  auto line_int = g::Line2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 2));
+  ASSERT_TRUE(tri.Intersects(line_int));
   {
-    auto inter = tri.Intersection(x);
+    auto inter = tri.Intersection(line_int);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::LineSegment2D>(*inter));
-    EXPECT_EQ(g::LineSegment2D::Make({-0.5, 0}, {0.5, 0}), std::get<g::LineSegment2D>(*inter));
+    EXPECT_EQ(g::LineSegment2D::Make({-0.5, 0}, {0, 1}), std::get<g::LineSegment2D>(*inter));
   }
 
-  ASSERT_TRUE(tri.Intersects(y));
+  auto line_int_rev = g::Line2D::Make(line_int.First(), -line_int.Direction());
+  ASSERT_TRUE(tri.Intersects(line_int));
   {
-    auto inter = tri.Intersection(y);
+    auto inter = tri.Intersection(line_int_rev);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::LineSegment2D>(*inter));
-    EXPECT_EQ(g::LineSegment2D::Make({0, -1}, {0, 1}), std::get<g::LineSegment2D>(*inter));
+    EXPECT_EQ(g::LineSegment2D::Make({0, 1}, {-0.5, 0}), std::get<g::LineSegment2D>(*inter));
   }
 
-  ASSERT_TRUE(tri.Intersects(px));
-  {
-    auto inter = tri.Intersection(px);
-    ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, -1), std::get<g::Point2D>(*inter));
-  }
-
-  ASSERT_TRUE(tri.Intersects(py));
-  {
-    auto inter = tri.Intersection(py);
-    ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(1, 1), std::get<g::Point2D>(*inter));
-  }
-
-  ASSERT_FALSE(tri.Intersects(pax));
-  ASSERT_FALSE(tri.Intersects(pay));
+  // actual intersect (reverse order)
 }
 
 // TEST(Triangle2D, IntersectionWRay) {

@@ -78,7 +78,6 @@ TEST_F(Vector3DTest, Length) {
 
 TEST_F(Vector3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 2;
-  geompp::DOUBLE_EPSILON = pow(10, -geompp::DECIMAL_PRECISION);  // 0.01
   auto v = g::Vector3D(1.0, 2.0, 3.0);
   ASSERT_TRUE(v.AlmostEquals(g::Vector3D(1.004, 2.004, 3.004)));  // within tolerance
   ASSERT_FALSE(v.AlmostEquals(g::Vector3D(1.02, 2.0, 3.0)));      // just outside
@@ -88,7 +87,6 @@ TEST_F(Vector3DTest, AlmostEquals) {
   ASSERT_NE(v, g::Vector3D(1.02, 2.0, 3.0));
 
   geompp::DECIMAL_PRECISION = 4;
-  geompp::DOUBLE_EPSILON = pow(10, -geompp::DECIMAL_PRECISION);  // 0.0001 — tighter tolerance
   ASSERT_FALSE(v.AlmostEquals(g::Vector3D(1.004, 2.0, 3.0)));  // was OK at DP=2, not at DP=4
 }
 

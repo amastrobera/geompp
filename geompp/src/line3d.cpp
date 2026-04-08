@@ -17,8 +17,8 @@ namespace geompp {
 
 Line3D Line3D::Make(Point3D const& p0, Point3D const& p1) {
   if (p0.AlmostEquals(p1)) {
-    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", DECIMAL_PRECISION,
-                                         p0.ToWkt(), p1.ToWkt()));
+    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", p0.ToWkt(),
+                                         p1.ToWkt(), DECIMAL_PRECISION));
   }
   return {p0, p1};
 }

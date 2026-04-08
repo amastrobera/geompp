@@ -34,8 +34,8 @@ Triangle3D Triangle3D::Make(Point3D const& p0, Point3D const& p1, Point3D const&
   auto unique_points = remove_duplicates({p0, p1, p2});
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision",
-                                         DECIMAL_PRECISION, p0.ToWkt(), p1.ToWkt(), p2.ToWkt()));
+    throw std::runtime_error(std::format("points {}, {}, {} are too close with {} decimals precision", p0.ToWkt(),
+                                         p1.ToWkt(), p2.ToWkt(), DECIMAL_PRECISION));
   }
   return {p0, p1, p2};
 }
@@ -52,8 +52,7 @@ Triangle3D& Triangle3D::operator=(Triangle3D const& other) {
 }
 
 bool Triangle3D::AlmostEquals(Triangle3D const& other, double epsilon) const {
-  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon) &&
-         P2.AlmostEquals(other.P2, epsilon);
+  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon) && P2.AlmostEquals(other.P2, epsilon);
 }
 
 #pragma endregion

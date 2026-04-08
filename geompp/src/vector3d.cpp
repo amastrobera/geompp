@@ -74,7 +74,7 @@ bool Vector3D::IsParallel(Vector3D const& other) const {
 
 #pragma region Operator Overloading
 
-Vector3D Vector3D::operator-() { return {-X, -Y, -Z}; }
+Vector3D Vector3D::operator-() const { return {-X, -Y, -Z}; }
 
 bool operator==(Vector3D const& lhs, Vector3D const& rhs) { return lhs.AlmostEquals(rhs); }
 

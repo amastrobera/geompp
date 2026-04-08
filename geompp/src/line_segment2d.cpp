@@ -17,8 +17,8 @@ namespace geompp {
 
 LineSegment2D LineSegment2D::Make(Point2D const& p0, Point2D const& p1) {
   if (p0.AlmostEquals(p1)) {
-    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", DECIMAL_PRECISION,
-                                         p0.ToWkt(), p1.ToWkt()));
+    throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision", p0.ToWkt(),
+                                         p1.ToWkt(), DECIMAL_PRECISION));
   }
   return {p0, p1};
 }

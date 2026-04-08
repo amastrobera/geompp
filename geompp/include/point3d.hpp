@@ -42,6 +42,8 @@ class Point3D {
 
 bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3);
 
+std::vector<Point3D> remove_duplicates_from_sorted_list(std::vector<Point3D> const& points);
+
 std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points);
 
 std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points);

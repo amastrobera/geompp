@@ -41,7 +41,7 @@ Vector2D Vector2D::Normalize() const {
 
 #pragma region Operator Overloading
 
-Vector2D Vector2D::operator-() { return {-X, -Y}; }
+Vector2D Vector2D::operator-() const { return {-X, -Y}; }
 
 bool operator==(Vector2D const& lhs, Vector2D const& rhs) { return lhs.AlmostEquals(rhs); }
 

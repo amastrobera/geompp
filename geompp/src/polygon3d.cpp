@@ -21,7 +21,9 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
   auto unique_points = remove_duplicates(points);
 
   if (unique_points.size() < 3) {
-    throw std::runtime_error(std::format("points are too close with {} decimals precision", DECIMAL_PRECISION));
+    throw std::runtime_error(std::format(
+        "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
+        DECIMAL_PRECISION));
   }
   return {unique_points};
 }

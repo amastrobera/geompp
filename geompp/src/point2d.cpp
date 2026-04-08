@@ -38,6 +38,21 @@ bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3) {
   return compare((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize()), 0) == 0;
 }
 
+std::vector<Point2D> remove_duplicates_from_sorted_list(std::vector<Point2D> const& points) {
+  if (points.size() < 2) {
+    return points;
+  }
+
+  std::vector<Point2D> unique_points{points.front()};
+  for (int i = 1; i < points.size(); ++i) {
+    if (!unique_points.back().AlmostEquals(points[i])) {
+      unique_points.push_back(points[i]);
+    }
+  }
+
+  return unique_points;
+}
+
 std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points) {
   if (points.size() == 0) {
     return points;

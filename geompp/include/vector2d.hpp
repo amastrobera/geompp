@@ -35,7 +35,7 @@ class Vector2D {
   Vector2D Perp() const;
   Vector2D Normalize() const;
 
-  Vector2D operator-();
+  Vector2D operator-() const;
 
   static inline Vector2D BasisX() { return Vector2D(1, 0); }
   static inline Vector2D BasisY() { return Vector2D(0, 1); }

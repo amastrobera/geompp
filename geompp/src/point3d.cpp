@@ -17,8 +17,7 @@ Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
 Point3D::Point3D(Point3D const& p) : X(p.X), Y(p.Y), Z(p.Z) {}
 
 bool Point3D::AlmostEquals(Point3D const& other, double epsilon) const {
-  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 &&
-         compare(Z, other.Z, epsilon) == 0;
+  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
 }
 
 Vector3D Point3D::ToVector() { return {X, Y, Z}; }
@@ -38,6 +37,21 @@ Point3D& Point3D::operator=(Point3D const& other) {
 
 bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3) {
   return compare((p2 - p1).Cross(p3 - p1).Length(), 0) == 0;
+}
+
+std::vector<Point3D> remove_duplicates_from_sorted_list(std::vector<Point3D> const& points) {
+  if (points.size() < 2) {
+    return points;
+  }
+
+  std::vector<Point3D> unique_points{points.front()};
+  for (int i = 1; i < points.size(); ++i) {
+    if (!unique_points.back().AlmostEquals(points[i])) {
+      unique_points.push_back(points[i]);
+    }
+  }
+
+  return unique_points;
 }
 
 std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points) {
