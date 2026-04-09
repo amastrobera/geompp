@@ -26,8 +26,7 @@ Point3D Vector3D::ToPoint() { return Point3D(X, Y, Z); }
 double Vector3D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z, 2)); }
 
 bool Vector3D::AlmostEquals(Vector3D const& other, double epsilon) const {
-  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 &&
-         compare(Z, other.Z, epsilon) == 0;
+  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
 }
 
 double Vector3D::Dot(Vector3D const& other) const { return (X * other.X + Y * other.Y + Z * other.Z); }
@@ -38,7 +37,7 @@ Vector3D Vector3D::Cross(Vector3D const& other) const {
 
 Vector3D Vector3D::Perp() const {
   bool is_z_biggest = compare(Z, Y) >= 0 && compare(Z, X) >= 0;
-  if (is_z_biggest) {                                    // yaw around Z axis, so X and Y swap and one is negated (ccw rotation)
+  if (is_z_biggest) {  // yaw around Z axis, so X and Y swap and one is negated (ccw rotation)
     if (compare(X, 0) == 0 && compare(Y, 0) == 0) {  // if the vector is along Z axis provide the X basis
       return {Z, 0, 0};
     }
@@ -46,7 +45,7 @@ Vector3D Vector3D::Perp() const {
   }
 
   bool is_x_biggest = compare(X, Y) >= 0 && compare(X, Z) >= 0;
-  if (is_x_biggest) {                                    // roll around X axis, so Y and Z swap and one is negated (ccw rotation)
+  if (is_x_biggest) {  // roll around X axis, so Y and Z swap and one is negated (ccw rotation)
     if (compare(Y, 0) == 0 && compare(Z, 0) == 0) {  // if the vector is along X axis provide the Y basis
       return {0, X, 0};
     }
@@ -64,7 +63,7 @@ Vector3D Vector3D::Perp() const {
 
 Vector3D Vector3D::Normalize() const {
   double len = Length();
-  return {X / len, Y / len};
+  return {X / len, Y / len, Z / len};
 }
 
 bool Vector3D::IsParallel(Vector3D const& other) const {

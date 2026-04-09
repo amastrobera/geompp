@@ -1,10 +1,10 @@
 name: Publish NuGet
 
-# Triggers on version tags: v1.0.0, v1.2.3, etc.
+# Triggers on C# version tags: csharp-v1.0.0, csharp-v1.2.3, etc.
 on:
   push:
     tags:
-      - "v*"
+      - "csharp-v*"
 
 jobs:
   build-and-publish:
@@ -53,12 +53,12 @@ jobs:
             /p:Platform=x64 `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
-      # Strip the leading 'v' from the tag (v1.2.3 -> 1.2.3) for NuGet versioning
+      # Strip the leading 'csharp-v' from the tag (csharp-v1.2.3 -> 1.2.3) for NuGet versioning
       - name: Extract version from tag
         id: ver
         shell: pwsh
         run: |
-          $v = "${{ github.ref_name }}" -replace '^v', ''
+          $v = "${{ github.ref_name }}" -replace '^csharp-v', ''
           "VERSION=$v" | Out-File -Append $env:GITHUB_OUTPUT
 
       # Pack: reads GeomPP.nuspec which picks up both DLLs —

@@ -30,19 +30,17 @@ Plane Plane::FromOriginAndNormal(Point3D origin, Vector3D normal) {
   return {origin, normal};
 }
 
-Plane::Plane(Point3D origin, Vector3D normal) {
-  Origin = origin;
-  Normal = normal;
-  AxisU = normal.Perp().Normalize();
-  AxisV = normal.Cross(AxisU).Normalize();
-}
+Plane::Plane(Point3D origin, Vector3D normal)
+    : Origin(origin),
+      Normal(normal),
+      AxisU(normal.Perp().Normalize()),
+      AxisV(normal.Cross(AxisU).Normalize()) {}
 
-Plane::Plane(Point3D origin, Vector3D u, Vector3D v) {
-  Origin = origin;
-  AxisU = u;
-  AxisV = v;
-  Normal = AxisU.Cross(AxisV).Normalize();
-}
+Plane::Plane(Point3D origin, Vector3D u, Vector3D v)
+    : Origin(origin),
+      Normal(u.Cross(v).Normalize()),
+      AxisU(u),
+      AxisV(v) {}
 
 bool Plane::AlmostEquals(Plane const& other, double epsilon) const {
   throw new std::runtime_error("not implemented");
