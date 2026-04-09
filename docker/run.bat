@@ -1,7 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-
 REM Parse the input parameter
 set image=
 if "%1"=="-image" (
@@ -11,10 +10,8 @@ if "%1"=="-image" (
     goto usage
 )
 
-REM common parameters for running
-set swd=%~dp0%
-set local_vol=%swd%..
-set image_vol=/home/developer/workspace/geompp
+REM Resolve absolute path to the repo root (one level up from docker\)
+for %%I in ("%~dp0..") do set local_vol=%%~fI
 
 REM Check if the image parameter is provided and valid
 if "%image%"=="" (
@@ -31,57 +28,37 @@ if /I "%image%"=="Windows" (
 )
 
 
-
-REM Run commands
 :run_windows
-set image_tag=geompp-win
-set image_name=geompp-win
-
-echo "> Running Windows"
-goto run
-
-:run_linux
-set image_tag=geompp-lin
-set image_name=geompp-lin
-
-echo "> Running Linux"
-goto run
-
-
-:run
-echo "    > tag %image_tag%"
-echo "    > shared volume %local_vol%"
+echo ^> Running Windows container
+echo ^>   shared volume: %local_vol% -^> C:\Users\developer\workspace
+REM No --entrypoint override: Dockerfile CMD sets up the VS x64 environment via VsDevCmd.bat
 docker run ^
     --rm ^
-    --name %image_name% ^
+    --name geompp-win ^
+    --interactive ^
+    --tty ^
+    --volume "%local_vol%:C:\Users\developer\workspace" ^
+    geompp-win:latest
+exit /B 0
+
+
+:run_linux
+echo ^> Running Linux container
+echo ^>   shared volume: %local_vol% -^> /home/developer/workspace/geompp
+docker run ^
+    --rm ^
+    --name geompp-lin ^
     --publish 3232:3232 ^
     --interactive ^
     --tty ^
-    --env DISPLAY=$DISPLAY ^
+    --env DISPLAY=%DISPLAY% ^
     --volume /tmp/.X11-unix:/tmp/.X11-unix ^
     --entrypoint /bin/bash ^
-    --volume %local_vol%:%image_vol% ^
-    %image_tag%:latest
+    --volume "%local_vol%:/home/developer/workspace/geompp" ^
+    geompp-lin:latest
 exit /B 0
 
-REM #---- notes ------
-REM # to run on WSL 
-REM   replace
-REM    --net host ^
-REM   with
-REM    --publish 8000:8000 ^
 
-REM # to run interactively
-REM    --interactive ^
-REM    --tty ^
-REM    --entrypoint /bin/bash ^
-REM    --volume %local_vol%:%image_vol% ^
-
-
-REM Function to display usage information
 :usage
 echo Usage: %0 -image ^<Windows^|Linux^>
 exit /B 1
-
-:end
-endlocal

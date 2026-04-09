@@ -2,7 +2,7 @@
 
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
-#include "polyline3d.hpp"
+#include <polyline3d.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {

@@ -1,60 +1,38 @@
-# Use a Windows Server Core as the base image
+# Windows Server Core — requires Docker Desktop in Windows containers mode
 FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
-# Set the DNS servers
-RUN netsh interface ip set dns name="Ethernet" source=static addr=8.8.8.8 register=primary
-RUN netsh interface ip add dns name="Ethernet" addr=8.8.4.4 index=2
+SHELL ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 
-# Debugging DNS and network issues
-RUN @powershell -NoProfile -ExecutionPolicy Bypass -Command " \
-    Write-Output 'Testing DNS Resolution...'; \
-    Resolve-DnsName chocolatey.org; \
-    Write-Output 'Testing Network Connectivity...'; \
-    Test-Connection -ComputerName chocolatey.org -Count 1 -Verbose; \
-    Write-Output 'Network Tests Complete.'"
+# Install Chocolatey
+RUN [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    Invoke-WebRequest -Uri https://community.chocolatey.org/install.ps1 -UseBasicParsing | Invoke-Expression
 
-# Install Chocolatey package manager
-RUN @powershell -NoProfile -ExecutionPolicy Bypass -Command " \
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    if (Test-Connection -ComputerName chocolatey.org -Count 1 -Quiet) { \
-        Invoke-WebRequest -Uri https://chocolatey.org/install.ps1 -UseBasicParsing -OutFile install.ps1; \
-        iex .\install.ps1 \
-    } else { \
-        Write-Error 'Could not resolve chocolatey.org'; exit 1 \
-    }"
-
-# Install CMake, Visual Studio 2022 Build Tools, and Git using Chocolatey
-RUN choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' 
-RUN choco install -y visualstudio2022buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --quiet --norestart' 
+# Install build tools and utilities
+RUN choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+RUN choco install -y ninja
 RUN choco install -y git
+RUN choco install -y nuget.commandline
+RUN choco install -y dotnet-8.0-sdk
+RUN choco install -y vim
 
+# Install VS 2022 Build Tools:
+#   VCTools       — MSVC compiler, linker, CMake integration, C++/CLI support
+#   ManagedDesktop — MSBuild + .NET desktop targeting packs
+#   Net48Pack     — .NET Framework 4.8 targeting pack (for GeomPP_Net48.vcxproj)
+RUN choco install -y visualstudio2022buildtools --package-parameters \
+    "'--add Microsoft.VisualStudio.Workload.VCTools \
+      --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools \
+      --add Microsoft.Net.Component.4.8.TargetingPack \
+      --includeRecommended --quiet --norestart'"
 
-# Install Google Test
-RUN mkdir C:\gtest \
-    && cd C:\gtest \
-    && git clone https://github.com/google/googletest.git \
-    && mkdir C:\gtest\googletest\build \
-    && cd C:\gtest\googletest\build \
-    && cmake .. \
-    && cmake --build . --config Release \
-    && cmake --build . --target install
-
-
-# Create a new user 'developer'
+# Create developer user and workspace
 RUN net user developer /add /passwordreq:no
+RUN mkdir C:\Users\developer\workspace
 
-# Grant 'developer' user permissions for 'C:\Users\developer'
-RUN mkdir C:\Users\developer \
-    && icacls C:\Users\developer /grant developer:(OI)(CI)F /T
+WORKDIR C:/Users/developer/workspace
 
-# Set the working directory to 'C:\Users\developer\app'
-WORKDIR C:\Users\developer\workspace
-
-# Set the user to 'developer'
 USER developer
 
-# Set the PATH to include Visual Studio Build Tools
-#RUN setx /M PATH "%PATH%;C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin"
-
-# Command to run when the container starts
-CMD ["powershell"]
+# Start an interactive cmd session with the VS x64 environment pre-loaded.
+# This puts cl.exe, msbuild, cmake (VS-bundled), ninja on PATH automatically.
+CMD ["cmd", "/k", "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\Common7\\Tools\\VsDevCmd.bat -arch=amd64"]

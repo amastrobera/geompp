@@ -2,7 +2,7 @@
 
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
-#include "ray3d.hpp"
+#include <ray3d.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {

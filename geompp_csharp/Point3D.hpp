@@ -2,7 +2,7 @@
 
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
-#include "point3d.hpp"
+#include <point3d.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {

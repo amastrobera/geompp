@@ -16,7 +16,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include(FetchContent)
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/release-1.11.0.zip
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -32,10 +33,6 @@ enable_testing()
 
 #find_package(GTest REQUIRED)
 #include_directories(${GTEST_INCLUDE_DIRS})
-
-# copy resources
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/temp DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Include directories for library and GoogleTest
 include_directories(${CMAKE_SOURCE_DIR}/../geompp/include)
@@ -69,6 +66,14 @@ add_executable(${PROJECT_NAME}
 
 # Link the library to the test executable
 target_link_libraries(${PROJECT_NAME} gtest gtest_main geompp) # pthread
+
+# Copy resources next to the executable after build.
+# $<TARGET_FILE_DIR> resolves correctly for both Ninja (flat) and VS generator (Release/ subdir)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/res
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+)
 
 # Add test cases
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

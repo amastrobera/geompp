@@ -2,7 +2,7 @@
 
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
-#include "plane.hpp"
+#include <plane.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {

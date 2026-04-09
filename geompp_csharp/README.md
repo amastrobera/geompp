@@ -26,38 +26,28 @@ or in your `.csproj`:
 
 ### Example 1 — LineSegment3D intersection
 
-```csharp
-using GeomPP;
+The code: 
+  ```csharp
+    using G = GeomPP;
 
-// Set precision used by all comparisons (thread-local)
-Precision.DECIMAL_PRECISION = Precision.DP_THREE;
+    G.Precision.DecimalPrecision = G.Precision.DP_THREE;
 
-// Two segments forming an X, meeting at (0, 0, 1)
-var s1 = LineSegment3D.Make(new Point3D(1, 0, 0), new Point3D(-1, 0, 2));
-var s2 = LineSegment3D.Make(new Point3D(0, 1, 0), new Point3D(0, -1, 2));
+    var s1 = G.LineSegment3D.Make(new G.Point3D(1, 0, 0), new G.Point3D(-1, 0, 2));
+    var s2 = G.LineSegment3D.Make(new G.Point3D(0, 1, 0), new G.Point3D(0, -1, 2));
 
-Console.WriteLine($"s1 = {s1}");
-Console.WriteLine($"s2 = {s2}");
+    Console.WriteLine($"s1 = {s1}");
+    Console.WriteLine($"s2 = {s2}");
 
-if (s1.Intersects(s2))
-{
     var result = s1.Intersection(s2);
-    if (result is Point3D p)
-    {
-        Console.WriteLine($"intersection found: {p}");
-
-        p.ToFile("intersection.wkt");
-        Console.WriteLine("intersection written to intersection.wkt");
+    if (result is G.Point3D p) {
+        Console.WriteLine("OK: " + p.ToWkt());  // expects POINT (0 0 1)
+    } else {
+        Console.WriteLine("FAIL: no intersection");
     }
-}
-else
-{
-    Console.WriteLine("no intersection found");
-}
-```
+
+  ```
 
 Output:
-
 ```
 s1 = LINESTRING (1 0 0, -1 0 2)
 s2 = LINESTRING (0 1 0, 0 -1 2)
@@ -81,11 +71,11 @@ RAY (0 0 0, 0 1 0)
 ```
 
 ```csharp
-using GeomPP;
+using G = GeomPP;
 
-Precision.DECIMAL_PRECISION = Precision.DP_THREE;
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;
 
-var parser = LVSParser.Open("sample_geometries.lsv");
+var parser = G.LVSParser.Open("sample_geometries.lsv");
 
 if (!parser.HasNext())
 {
@@ -101,7 +91,7 @@ while (parser.HasNext())
         Console.WriteLine("skipped unrecognised line");
         continue;
     }
-    Console.WriteLine(LVSParser.ToWkt(item));
+    Console.WriteLine(G.LVSParser.ToWkt(item));
 }
 ```
 
@@ -123,11 +113,11 @@ RAY (0 0 0, 0 1 0)
 All floating-point comparisons go through a thread-local precision setting:
 
 ```csharp
-Precision.DECIMAL_PRECISION = Precision.DP_THREE;   // 3 decimal places (default)
-Precision.DECIMAL_PRECISION = Precision.DP_SIX;     // 6 decimal places
-Precision.DECIMAL_PRECISION = Precision.DP_NINE;    // 9 decimal places
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;   // 3 decimal places (default)
+G.Precision.DecimalPrecision = G.Precision.DP_SIX;     // 6 decimal places
+G.Precision.DecimalPrecision = G.Precision.DP_NINE;    // 9 decimal places
 
-double eps = Precision.Epsilon;  // current epsilon (10^-N)
+double eps = G.Precision.Epsilon;  // current epsilon (10^-N)
 ```
 
 ---
@@ -156,8 +146,8 @@ to extract the result type:
 
 ```csharp
 var result = line.Intersection(segment);
-if (result is Point2D p)      { /* point intersection */ }
-if (result is LineSegment2D s) { /* overlap */ }
+if (result is G.Point2D p)      { /* point intersection */ }
+if (result is G.LineSegment2D s) { /* overlap */ }
 ```
 
 ---

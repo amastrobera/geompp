@@ -2,7 +2,7 @@
 
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
-#include "triangle2d.hpp"
+#include <triangle2d.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {

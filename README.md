@@ -66,7 +66,7 @@
   Here is an example of code. You can also look at the [test directory](./geompp_tests/) or [sample code](./geompp_sample/sample.cpp) to see more.
 
   #### Create geometries programmatically
-  ```
+  ```cpp
   // This will be the precision used by all functions, in all threads, for this
   // run of the program, and it can be modified in later code anytime.
   g::DECIMAL_PRECISION = g::DP_THREE;
@@ -103,7 +103,7 @@
 
 
   #### Import geometries from a file
-  ```
+  ```cpp
   std::string const lsv_path = "sample_geometries.lsv";
   //   POINT (1 2 3)
   //   POINT (4 5 6)
@@ -181,10 +181,11 @@
   ## Build it
 
   ### Docker Dev Environment
-
+  ```
   cd docker
   .\build.bat -image Linux    # or -image Windows
   .\run.bat   -image Linux    # same possibilities
+  ```
 
   To allow the graphics app to display from inside Docker on a Linux host:
   xhost -local:root
@@ -192,26 +193,66 @@
   ### Linux
 
   Install g++13:
-  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  sudo apt install -y g++-13
-  sudo rm -f /usr/bin/g++ /usr/bin/c++
-  sudo ln -s /usr/bin/g++-13 /usr/bin/g++
-  sudo ln -s /usr/bin/c++-13 /usr/bin/c++
+  ```
+    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    sudo apt install -y g++-13
+    sudo rm -f /usr/bin/g++ /usr/bin/c++
+    sudo ln -s /usr/bin/g++-13 /usr/bin/g++
+    sudo ln -s /usr/bin/c++-13 /usr/bin/c++
+  ```
 
-  Build and test:
-  mkdir build && cd build
-  cmake .. [-DCMAKE_BUILD_TYPE=Debug]
-  make -j6
+  Build
+  ```
+    mkdir build && cd build
+    cmake .. [-DCMAKE_BUILD_TYPE=Debug]
+    make -j6
+  ```
 
-  ./geompp_tests/geompp_tests
-  ./geompp_tests/geompp_tests --gtest_filter="Point2D*"
-  ./geompp_tests/geompp_tests --gtest_filter="Point2D.ToFile"
+  Run tests
+  ```
+    ./geompp_tests/geompp_tests
+    ./geompp_tests/geompp_tests --gtest_filter="Point2D*"
+    ./geompp_tests/geompp_tests --gtest_filter="Point2D.ToFile"
+  ```
+
 
   ![unit test linux](etc/unit_tests_linux.png)
 
   ### Windows
 
-  Install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/), then via the VS
+  #### via command line
+
+  Provided that you have installed cmake, visual studio, msbuild and nuget
+
+  Build the library
+  ```powershell
+    mkdir build_win
+    cd build_win
+    cmake -S .. -G "Visual Studio 18 2026" -A x64
+    cmake --build . --config Release --target geompp
+  ```
+
+  Build and run the tests
+  ```powershell
+    cmake --build . --config Release --target geompp_tests
+    .\geompp_tests\Release\geompp_tests.exe
+  ```
+
+  Build the C# DLL
+  ```powershell
+    # get out of the build_win directory
+    cd ..
+
+    # if you want to build for .Net 8
+    msbuild geompp_csharp\GeomPP.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+
+    # if you want to build for .Net Framework 4.8
+    msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+  ```
+
+  #### via Visual Studio
+
+  Install [Visual Studio 2026](https://visualstudio.microsoft.com/downloads/), then via the VS
   Installer enable **Desktop Development with C++**.
 
   Open VS 2022 → _Open Folder_ → select the `geompp` directory.

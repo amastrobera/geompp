@@ -2,7 +2,7 @@
 
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
-#include "polygon2d.hpp"
+#include <polygon2d.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {

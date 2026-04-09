@@ -19,6 +19,7 @@ include(FetchContent)
 FetchContent_Declare(
   glog
   URL https://github.com/google/glog/archive/refs/tags/v0.7.1.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 set(WITH_GFLAGS     OFF CACHE BOOL "" FORCE)
 set(WITH_GTEST      OFF CACHE BOOL "" FORCE)
