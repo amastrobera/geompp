@@ -62,7 +62,7 @@ TEST_F(Vector2DTest, PerpDotCross) {
 }
 
 TEST_F(Vector2DTest, Wkt) {
-  ASSERT_EQ("VECTOR (0 0)", g::Vector2D().ToWkt());
+  ASSERT_EQ("VECTOR (0 0)", g::Vector2D(0, 0).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("VECTOR (56491.62 -795.97)", g::Vector2D(56491.6164, -795.97416).ToWkt());
 

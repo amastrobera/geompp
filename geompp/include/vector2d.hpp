@@ -11,7 +11,7 @@ class Point2D;
 
 class Vector2D {
  public:
-  Vector2D(double x = 0.0, double y = 0.0);
+  Vector2D(double x, double y);
   Vector2D(Vector2D const&) = default;
   Vector2D(Vector2D&&) = default;
   ~Vector2D() = default;

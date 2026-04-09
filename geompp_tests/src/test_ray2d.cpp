@@ -23,16 +23,16 @@ class Ray2DTest : public ::testing::Test {
 };
 
 TEST_F(Ray2DTest, Constructor) {
-  auto r1 = g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 0));
+  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
 
-  ASSERT_EQ(g::Point2D(), r1.Origin());
+  ASSERT_EQ(g::Point2D::Zero(), r1.Origin());
   ASSERT_EQ(g::Vector2D(1, 0), r1.Direction());
 
-  EXPECT_ANY_THROW(g::Ray2D::Make(g::Point2D(), g::Vector2D(0, 0)));  // cannot make a ray going no where
+  EXPECT_ANY_THROW(g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(0, 0)));  // cannot make a ray going no where
 }
 
 TEST_F(Ray2DTest, Contains) {
-  auto r1 = g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 0));
+  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
   ASSERT_TRUE(r1.Contains(g::Point2D(0, 0)));
   ASSERT_TRUE(r1.Contains(g::Point2D(1, 0)));
   ASSERT_TRUE(r1.Contains(g::Point2D(30, 0)));
@@ -45,7 +45,7 @@ TEST_F(Ray2DTest, Contains) {
 }
 
 TEST_F(Ray2DTest, AheadBehind) {
-  auto r1 = g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 0));
+  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
 
   ASSERT_TRUE(r1.IsAhead(g::Point2D(1, 0)));
   ASSERT_TRUE(r1.IsAhead(g::Point2D(1, 1)));
@@ -110,8 +110,8 @@ TEST_F(Ray2DTest, IntersectionWLine) {
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(1, -1), g::Vector2D(1, 1));  // intersects r1 in (0,0)
 
-  auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0));
-  auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1));
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
+  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(0, 1));
 
   ASSERT_TRUE(r1.Intersects(x));
   {
@@ -141,7 +141,7 @@ TEST_F(Ray2DTest, IntersectionWLine) {
 }
 
 TEST_F(Ray2DTest, Wkt) {
-  ASSERT_EQ("RAY (0 0, 0.707 0.707)", g::Ray2D::Make(g::Point2D(), g::Vector2D(1, 1)).ToWkt());  // normalized vector!
+  ASSERT_EQ("RAY (0 0, 0.707 0.707)", g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(1, 1)).ToWkt());  // normalized vector!
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("RAY (56491.62 -795.97, -1 0)",
             g::Ray2D::Make(g::Point2D(56491.6164, -795.97416), g::Vector2D(-9137.3679, 10.35678))
@@ -199,7 +199,7 @@ TEST_F(Ray2DTest, DistanceTo) {
   auto ray = g::Ray2D::FromWkt("RAY (0 0, 1 0)");
 
   // on segment
-  auto p1 = g::Point2D();
+  auto p1 = g::Point2D::Zero();
   EXPECT_EQ(0, g::round(ray.DistanceTo(p1)));
 
   auto p2 = g::Point2D(3, 0);

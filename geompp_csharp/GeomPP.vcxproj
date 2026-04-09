@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <RootNamespace>GeomPP</RootNamespace>
+    <Keyword>ManagedCProj</Keyword>
+    <!--
+      Targets .NET 8 (LTS). Change to net6.0-windows if needed.
+      Requires Visual Studio 2022 with ".NET desktop development" workload installed.
+    -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CLRSupport>NetCore</CLRSupport>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CLRSupport>NetCore</CLRSupport>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <!--
+    GeomppBuildRoot: root of the CMake Ninja build directory.
+    Defaults to the VS CMake integration paths from CMakeSettings.json.
+    Override from CI or command line: /p:GeomppBuildRoot="D:\a\geompp\geompp\build"
+    The Condition ensures command-line /p: values always win.
+  -->
+  <PropertyGroup>
+    <GeomppBuildRoot Condition="'$(GeomppBuildRoot)'=='' AND '$(Configuration)'=='Debug'">$(ProjectDir)..\out\build\x64-Debug</GeomppBuildRoot>
+    <GeomppBuildRoot Condition="'$(GeomppBuildRoot)'=='' AND '$(Configuration)'=='Release'">$(ProjectDir)..\out\build\x64-Release</GeomppBuildRoot>
+  </PropertyGroup>
+
+  <!-- ── Debug ─────────────────────────────────────────────────────────── -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>
+        $(GeomppBuildRoot)\geompp;
+        $(GeomppBuildRoot)\_deps\glog-build;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>geompp.lib;glogd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!-- ── Release ───────────────────────────────────────────────────────── -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>
+        $(GeomppBuildRoot)\geompp;
+        $(GeomppBuildRoot)\_deps\glog-build;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>geompp.lib;glog.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!-- ── Source files ──────────────────────────────────────────────────── -->
+  <ItemGroup>
+    <ClCompile Include="Precision.cpp" />
+    <ClCompile Include="Point2D.cpp" />
+    <ClCompile Include="Vector2D.cpp" />
+    <ClCompile Include="Point3D.cpp" />
+    <ClCompile Include="Vector3D.cpp" />
+    <ClCompile Include="Line2D.cpp" />
+    <ClCompile Include="Ray2D.cpp" />
+    <ClCompile Include="LineSegment2D.cpp" />
+    <ClCompile Include="Line3D.cpp" />
+    <ClCompile Include="Ray3D.cpp" />
+    <ClCompile Include="LineSegment3D.cpp" />
+    <ClCompile Include="Polyline2D.cpp" />
+    <ClCompile Include="Polyline3D.cpp" />
+    <ClCompile Include="Polygon2D.cpp" />
+    <ClCompile Include="Polygon3D.cpp" />
+    <ClCompile Include="Triangle2D.cpp" />
+    <ClCompile Include="Triangle3D.cpp" />
+    <ClCompile Include="BBox2D.cpp" />
+    <ClCompile Include="BBox3D.cpp" />
+    <ClCompile Include="Plane.cpp" />
+    <ClCompile Include="LVSParser.cpp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClInclude Include="Precision.hpp" />
+    <ClInclude Include="Point2D.hpp" />
+    <ClInclude Include="Vector2D.hpp" />
+    <ClInclude Include="Point3D.hpp" />
+    <ClInclude Include="Vector3D.hpp" />
+    <ClInclude Include="Line2D.hpp" />
+    <ClInclude Include="Ray2D.hpp" />
+    <ClInclude Include="LineSegment2D.hpp" />
+    <ClInclude Include="Line3D.hpp" />
+    <ClInclude Include="Ray3D.hpp" />
+    <ClInclude Include="LineSegment3D.hpp" />
+    <ClInclude Include="Polyline2D.hpp" />
+    <ClInclude Include="Polyline3D.hpp" />
+    <ClInclude Include="Polygon2D.hpp" />
+    <ClInclude Include="Polygon3D.hpp" />
+    <ClInclude Include="Triangle2D.hpp" />
+    <ClInclude Include="Triangle3D.hpp" />
+    <ClInclude Include="BBox2D.hpp" />
+    <ClInclude Include="BBox3D.hpp" />
+    <ClInclude Include="Plane.hpp" />
+    <ClInclude Include="LVSParser.hpp" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+</Project>

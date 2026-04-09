@@ -11,6 +11,29 @@
 - add an input box to type in a new geometry
 - add a key to delete a geometry 
 
+#### more build infrastructure 
+- write interface for Python
+
+
+#### 3D geometry 
+- Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
+- Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
+- Ray3D, contains(p), intersection(line, ray), tests
+- LineSegment3D, contains(p), ntersection(line, ray, line_seg), tests
+- Line3D, Ray3D, LineSegment3D::distance(p), tests
+- LineSegment3D::interpolate(%)->p, LineSegment3D::location(p)->%, tests
+- Polyline3D, Polyline3D::contains(p), Polyline3D::distance(p), tests
+- Polyline3D::interpolate(%)->p, Polyline3D::locartion(p)->%, tests
+- Polyline3D::intersects(line, ray, line_seg, polyline), tests
+- Plane, signed_distance, distance, project_onto, project_into, tests
+- Triangle3D, Triangle3D::contains(p), tests
+- Triangle3D::intersects(line, ray, line_seg, triangle), tests
+- Polygon3D, Polygon3D::contains(p), tests
+- Polygon3D::intersects(line, ray, line_seg, triangle, polygon), tests
+- List<Point3D>::convex_hull()->polygon, tests
+
+
+
 ## Backlog to do
 
 #### test and build infrastructure 
@@ -30,8 +53,7 @@
 - write some python tests
 
 #### more build infrastructure 
-- C# interface for python
-- write some sample code
+- write some c# sample code
 - write some c# tests
 
 #### more geometrical operations 2D, 3D
@@ -103,18 +125,8 @@
 - Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
 - Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
 - Ray3D, contains(p), intersection(line, ray), tests
-- LineSegment3D, contains(p), ntersection(line, ray, line_seg), tests
-- Line3D, Ray3D, LineSegment3D::distance(p), tests
-- LineSegment3D::interpolate(%)->p, LineSegment3D::location(p)->%, tests
-- Polyline3D, Polyline3D::contains(p), Polyline3D::distance(p), tests
-- Polyline3D::interpolate(%)->p, Polyline3D::locartion(p)->%, tests
-- Polyline3D::intersects(line, ray, line_seg, polyline), tests
-- Plane, signed_distance, distance, project_onto, project_into, tests
-- Triangle3D, Triangle3D::contains(p), tests
-- Triangle3D::intersects(line, ray, line_seg, triangle), tests
-- Polygon3D, Polygon3D::contains(p), tests
-- Polygon3D::intersects(line, ray, line_seg, triangle, polygon), tests
-- List<Point3D>::convex_hull()->polygon, tests
+- LineSegment3D, contains(p), intersection(line, ray, line_seg), tests
+
 
 #### utils
 - logger (GLOG to be quick, but it can be improved later)
@@ -133,3 +145,6 @@
 #### graphic demos
 - Set up a window to display some line segments in OpenGL
 
+
+#### more build infrastructure 
+- write interface for C#

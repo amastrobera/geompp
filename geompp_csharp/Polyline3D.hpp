@@ -1,0 +1,65 @@
+#pragma once
+
+// Keep native headers out of managed compilation
+#pragma managed(push, off)
+#include "polyline3d.hpp"
+#pragma managed(pop)
+
+namespace GeomPP {
+
+ref class Point3D;
+ref class Line3D;
+ref class Ray3D;
+ref class LineSegment3D;
+
+public ref class Polyline3D {
+public:
+    ~Polyline3D();
+    !Polyline3D();
+
+    // Factory method (private constructor — use Make)
+    static Polyline3D^ Make(array<Point3D^>^ points);
+
+    int Size();
+    property Point3D^ default[int] { Point3D^ get(int i); }
+
+    bool AlmostEquals(Polyline3D^ other);
+    bool AlmostEquals(Polyline3D^ other, double epsilon);
+
+    array<LineSegment3D^>^ ToSegments();
+    double   Length();
+    double   DistanceTo(Point3D^ point);
+    double   Location(Point3D^ point);
+    Point3D^ Interpolate(double pct);
+
+    System::String^  ToWkt();
+    static Polyline3D^ FromWkt(System::String^ wkt);
+    void               ToFile(System::String^ path);
+    static Polyline3D^ FromFile(System::String^ path);
+
+    bool Contains(Point3D^ point);
+
+    // Intersects
+    bool Intersects(Line3D^ line);
+    bool Intersects(Ray3D^ ray);
+    bool Intersects(LineSegment3D^ segment);
+    bool Intersects(Polyline3D^ other);
+
+    // Intersection — optional<variant<Point3D, vector<Point3D>>> → System::Object^
+    // (Point3D^ or array<Point3D^>^ or nullptr)
+    System::Object^ Intersection(Line3D^ line);
+    System::Object^ Intersection(Ray3D^ ray);
+    System::Object^ Intersection(LineSegment3D^ segment);
+    System::Object^ Intersection(Polyline3D^ other);
+
+    // Operator
+    static bool operator==(Polyline3D^ lhs, Polyline3D^ rhs);
+
+    virtual System::String^ ToString() override;
+
+internal:
+    Polyline3D(geompp::Polyline3D* native);
+    geompp::Polyline3D* _native;
+};
+
+}  // namespace GeomPP

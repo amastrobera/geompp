@@ -11,7 +11,7 @@ class Point3D;
 
 class Vector3D {
  public:
-  Vector3D(double x = 0.0, double y = 0.0, double z = 0.0);
+  Vector3D(double x, double y, double z);
   Vector3D(Vector3D const&) = default;
   Vector3D(Vector3D&&) = default;
   ~Vector3D() = default;

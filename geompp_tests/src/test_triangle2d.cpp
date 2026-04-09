@@ -36,7 +36,7 @@ TEST_F(Triangle2DTest, Constructor) {
 
   EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(0, -1)));
   EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(-1, 1), g::Point2D(0, -1)));
-  EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D(), g::Point2D(), g::Point2D()));
+  EXPECT_ANY_THROW(g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D::Zero(), g::Point2D::Zero()));
 }
 
 TEST_F(Triangle2DTest, Contains) {
@@ -333,7 +333,7 @@ TEST_F(Triangle2DTest, Wkt) {
 TEST_F(Triangle2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "triangle.wkt").string();
-  auto s = g::Triangle2D::Make(g::Point2D(), g::Point2D(1, 0), g::Point2D(0, 2));
+  auto s = g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(0, 2));
 
   s.ToFile(path);
   ASSERT_TRUE(fs::exists(path));

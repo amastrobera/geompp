@@ -42,7 +42,7 @@ TEST_F(Line2DTest, Constructor) {
 
 TEST_F(Line2DTest, Contains) {
   auto l1 = g::Line2D::Make(g::Point2D(0, -1), g::Point2D(0, 1));
-  auto p0 = g::Point2D();
+  auto p0 = g::Point2D::Zero();
   auto p1 = g::Point2D(0, 10);
   auto p2 = g::Point2D(-10, 0);
 
@@ -65,7 +65,7 @@ TEST_F(Line2DTest, Intersection) {
 }
 
 TEST_F(Line2DTest, Wkt) {
-  ASSERT_EQ("LINE (0 0, 1 1)", g::Line2D::Make(g::Point2D(), g::Point2D(1, 1)).ToWkt());
+  ASSERT_EQ("LINE (0 0, 1 1)", g::Line2D::Make(g::Point2D::Zero(), g::Point2D(1, 1)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("LINE (56491.62 -795.97, -9137.37 10.36)",
             g::Line2D::Make(g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678)).ToWkt());
@@ -73,7 +73,7 @@ TEST_F(Line2DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   EXPECT_EQ(g::Line2D::Make(g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)),
             g::Line2D::FromWkt("LINE (256.1343 -684.64971, -601.674503 7.361975)"));
-  EXPECT_EQ(g::Line2D::Make(g::Point2D(-7.5, -60.7), g::Point2D()),
+  EXPECT_EQ(g::Line2D::Make(g::Point2D(-7.5, -60.7), g::Point2D::Zero()),
             g::Line2D::FromWkt("  LINE( -7.5    -60.7, 0   0)"));
   EXPECT_EQ(g::Line2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
             g::Line2D::FromWkt("LINE   ( 0.645  -1.689741  , 1 0  )"));
@@ -122,7 +122,7 @@ TEST_F(Line2DTest, DistanceTo) {
   auto line = g::Line2D::FromWkt("LINE (0 0, 3 0)");
 
   // on segment
-  auto p1 = g::Point2D();
+  auto p1 = g::Point2D::Zero();
   EXPECT_EQ(0, g::round(line.DistanceTo(p1)));
 
   auto p2 = g::Point2D(3, 0);
