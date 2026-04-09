@@ -74,7 +74,7 @@ BBox2D::BBox2D(Polygon2D const& s) {
 
 BBox2D::BBox2D(Triangle2D const& s) : BBox2D(s.ToPolygon()) {}
 
-BBox2D::BBox2D(BBox2D const& b) : MIN(b.MAX), MAX(b.MAX) {}
+BBox2D::BBox2D(BBox2D const& b) : MIN(b.MIN), MAX(b.MAX) {}
 
 bool BBox2D::AlmostEquals(BBox2D const& other, double epsilon) const {
   return MIN.AlmostEquals(other.MIN, epsilon) && MAX.AlmostEquals(other.MAX, epsilon);

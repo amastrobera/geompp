@@ -12,7 +12,7 @@ class Vector2D;
 
 class Point2D {
  public:
-  Point2D(double x = 0.0, double y = 0.0);
+  Point2D(double x, double y);
   Point2D(Point2D const&);
   Point2D(Point2D&&) = default;
   ~Point2D() = default;
@@ -31,7 +31,7 @@ class Point2D {
 
   Point2D& operator=(Point2D const& other);
 
-  static inline Point2D Origin() { return Point2D(); }
+  static inline Point2D Zero() { return Point2D(0, 0); }
 
  private:
   double X, Y;

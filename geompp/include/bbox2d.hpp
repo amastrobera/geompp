@@ -40,7 +40,7 @@ class BBox2D {
 #pragma endregion
 
  private:
-  Point2D MIN, MAX;
+  Point2D MIN{0.0, 0.0}, MAX{0.0, 0.0};
 };
 
 #pragma region Operators Overloading

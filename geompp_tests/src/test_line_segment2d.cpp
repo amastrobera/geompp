@@ -27,16 +27,16 @@ class LineSegment2DTest : public ::testing::Test {
 };
 
 TEST_F(LineSegment2DTest, Constructor) {
-  auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+  auto s1 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
 
-  ASSERT_EQ(g::Point2D(), s1.First());
+  ASSERT_EQ(g::Point2D::Zero(), s1.First());
   ASSERT_EQ(g::Point2D(1, 0), s1.Last());
 
-  EXPECT_ANY_THROW(g::LineSegment2D::Make(g::Point2D(), g::Point2D()));  // cannot make a segment in 1 sole point
+  EXPECT_ANY_THROW(g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D::Zero()));  // cannot make a segment in 1 sole point
 }
 
 TEST_F(LineSegment2DTest, Contains) {
-  auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+  auto s1 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
   ASSERT_TRUE(s1.Contains(g::Point2D(0, 0)));
   ASSERT_TRUE(s1.Contains(g::Point2D(0.5, 0)));
   ASSERT_TRUE(s1.Contains(g::Point2D(1, 0)));
@@ -51,7 +51,7 @@ TEST_F(LineSegment2DTest, Contains) {
 }
 
 TEST_F(LineSegment2DTest, Location) {
-  auto s1 = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+  auto s1 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
 
   ASSERT_EQ(0.2, g::round(s1.Location(g::Point2D(0.2, 0))));
   ASSERT_EQ(0.5, g::round(s1.Location(g::Point2D(0.5, 0))));
@@ -128,8 +128,8 @@ TEST_F(LineSegment2DTest, IntersectionWLine) {
   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects y
   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1));  // intersects x
 
-  auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0));
-  auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1));
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
+  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(0, 1));
 
   ASSERT_TRUE(s1.Intersects(x));
   {
@@ -219,7 +219,7 @@ TEST_F(LineSegment2DTest, IntersectionWRay) {
 }
 
 TEST_F(LineSegment2DTest, Wkt) {
-  ASSERT_EQ("LINESTRING (0 0, 1 1)", g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 1)).ToWkt());
+  ASSERT_EQ("LINESTRING (0 0, 1 1)", g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 1)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("LINESTRING (56491.62 -795.97, -9137.37 10.36)",
             g::LineSegment2D::Make(g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678)).ToWkt());
@@ -227,7 +227,7 @@ TEST_F(LineSegment2DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)),
             g::LineSegment2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)"));
-  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(-7.5, -60.7), g::Point2D()),
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(-7.5, -60.7), g::Point2D::Zero()),
             g::LineSegment2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
   EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
             g::LineSegment2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0  )"));
@@ -248,7 +248,7 @@ TEST_F(LineSegment2DTest, Wkt) {
 TEST_F(LineSegment2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "line_segment.wkt").string();
-  auto s = g::LineSegment2D::Make(g::Point2D(), g::Point2D(1, 0));
+  auto s = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
 
   s.ToFile(path);
   ASSERT_TRUE(fs::exists(path));
@@ -277,7 +277,7 @@ TEST_F(LineSegment2DTest, DistanceTo) {
   auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");
 
   // on segment
-  auto p1 = g::Point2D();
+  auto p1 = g::Point2D::Zero();
   EXPECT_EQ(0, g::round(seg.DistanceTo(p1)));
 
   auto p2 = g::Point2D(3, 0);

@@ -284,7 +284,7 @@ std::string Polyline3D::ToWkt() const {
   if (KNOTS.size() > 0) {
     buf << "(";
     for (int i = 0; i < KNOTS.size(); ++i) {
-      buf << std::format("{} {}", round(KNOTS[i].x()), round(KNOTS[i].y()));
+      buf << std::format("{} {} {}", round(KNOTS[i].x()), round(KNOTS[i].y()), round(KNOTS[i].z()));
 
       if (i < KNOTS.size() - 1) {
         buf << ", ";
@@ -328,7 +328,7 @@ Polyline3D Polyline3D::FromWkt(std::string const& wkt) {
       pt_trimmed = geompp::trim(p_str);
 
       auto nums = geompp::tokenize_to_doubles(pt_trimmed, ' ');
-      if (nums.size() != 2) {
+      if (nums.size() != 3) {
         throw std::runtime_error("numbers");
       }
 
@@ -340,8 +340,12 @@ Polyline3D Polyline3D::FromWkt(std::string const& wkt) {
       if (num_dec > decimal_precision) {
         decimal_precision = num_dec;
       }
+      num_dec = count_decimal_places(nums[2]);
+      if (num_dec > decimal_precision) {
+        decimal_precision = num_dec;
+      }
 
-      pt_vec.push_back({nums[0], nums[1]});
+      pt_vec.push_back({nums[0], nums[1], nums[2]});
     }
 
     return Make(pt_vec);

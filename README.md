@@ -5,10 +5,12 @@
  [![Build / Test (Linux)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml)
 
   A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
-  thoroughly tested, and designed to eventually be usable from languages beyond C++ (Python, C#).
+  thoroughly tested, and usable from C++ and C#.
 
   This library is a spiritual successor to [GeomSharp](https://github.com/amastrobera/geom_sharp),
   rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
+
+  **Language bindings:** [C# / NuGet](./geompp_csharp/README.md)
 
 
   ## What it provides
@@ -159,11 +161,9 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic
-  OpenGL viewer |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md) |
   | Next | Docker (Windows), geom_viewer camera/input/delete |
-  | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping, Python
-   bindings, C# bindings |
+  | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping, Python bindings |
 
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).

@@ -28,9 +28,8 @@ TEST_F(Point3DTest, Equality) {
   ASSERT_EQ(g::Point3D(2, 3, 4), g::Point3D(2, 3, 4));
   ASSERT_EQ(g::Point3D(-56.682, 30.56, 0.0), g::Point3D(-56.682, 30.56, 0.0));
 
-  // default constructor is the origin
-  ASSERT_EQ(g::Point3D(), g::Point3D(0, 0, 0));
-  ASSERT_EQ(g::Point3D::Origin(), g::Point3D());
+  // Zero() is the origin
+  ASSERT_EQ(g::Point3D::Zero(), g::Point3D(0, 0, 0));
 
   // inequality
   ASSERT_NE(g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
@@ -118,7 +117,7 @@ TEST_F(Point3DTest, ScalarMultiply) {
 
 TEST_F(Point3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
-  auto origin = g::Point3D();
+  auto origin = g::Point3D::Zero();
 
   // axis-aligned
   ASSERT_EQ(1.0, g::round(origin.DistanceTo(g::Point3D(1, 0, 0))));
@@ -160,7 +159,7 @@ TEST_F(Point3DTest, AlmostEquals) {
 
 TEST_F(Point3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
-  ASSERT_EQ("POINT (0 0 0)", g::Point3D().ToWkt());
+  ASSERT_EQ("POINT (0 0 0)", g::Point3D::Zero().ToWkt());
   ASSERT_EQ("POINT (1 2 3)", g::Point3D(1, 2, 3).ToWkt());
 
   geompp::DECIMAL_PRECISION = 2;

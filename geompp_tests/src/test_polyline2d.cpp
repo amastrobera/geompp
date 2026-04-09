@@ -36,16 +36,16 @@ TEST_F(Polyline2DTest, Constructor) {
 
   // static assert (won't compile)
   EXPECT_ANY_THROW(g::Polyline2D::Make({}));                            // cannot make a segment in 0 points
-  EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D()}));                // cannot make a segment in 1 sole point
-  EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D(), g::Point2D()}));  // cannot make a segment in 1 sole unique point
+  EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D::Zero()}));                // cannot make a segment in 1 sole point
+  EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D::Zero()}));  // cannot make a segment in 1 sole unique point
 
   EXPECT_NO_THROW(g::Polyline2D::Make(
-      {g::Point2D(), g::Point2D(1, 0), g::Point2D(1, 0)}));  // cannot make a segment in 1 sole unique point
+      {g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 0)}));  // cannot make a segment in 1 sole unique point
   EXPECT_EQ(
-      2, g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0), g::Point2D(1, 0)}).Size());  // removed non-unique point
+      2, g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 0)}).Size());  // removed non-unique point
 
   EXPECT_EQ(2,
-            g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0), g::Point2D(3, 0)}).Size());  // removed collinear point
+            g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(3, 0)}).Size());  // removed collinear point
 }
 
 TEST_F(Polyline2DTest, Contains) {
@@ -71,7 +71,7 @@ TEST_F(Polyline2DTest, Contains) {
 }
 
 TEST_F(Polyline2DTest, Location) {
-  auto s1 = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)});
+  auto s1 = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0)});
 
   ASSERT_EQ(0.2, g::round(s1.Location(g::Point2D(0.2, 0))));
   ASSERT_EQ(0.5, g::round(s1.Location(g::Point2D(0.5, 0))));
@@ -111,8 +111,8 @@ TEST_F(Polyline2DTest, IntersectionWLine) {
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");  // intersects y (0 2)
   auto poly3 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -1, -2 -2, -1 -3)");  // intersects x (-1 0)
 
-  auto x = g::Line2D::Make(g::Point2D(), g::Vector2D(1, 0));
-  auto y = g::Line2D::Make(g::Point2D(), g::Vector2D(0, 1));
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
+  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(0, 1));
 
   ASSERT_TRUE(poly1.Intersects(x));
   {
@@ -158,10 +158,10 @@ TEST_F(Polyline2DTest, IntersectionWRay) {
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");     // intersects y_pos (0 2)
   auto poly3 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -1, -2 -2, -1 -3)");  // intersects x_neg (-1 0)
 
-  auto x_pos = g::Ray2D::Make(g::Point2D::Origin(), g::Vector2D::BasisX());
-  auto x_neg = g::Ray2D::Make(g::Point2D::Origin(), -g::Vector2D::BasisX());
-  auto y_pos = g::Ray2D::Make(g::Point2D::Origin(), g::Vector2D::BasisY());
-  auto y_neg = g::Ray2D::Make(g::Point2D::Origin(), -g::Vector2D::BasisY());
+  auto x_pos = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto x_neg = g::Ray2D::Make(g::Point2D::Zero(), -g::Vector2D::BasisX());
+  auto y_pos = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisY());
+  auto y_neg = g::Ray2D::Make(g::Point2D::Zero(), -g::Vector2D::BasisY());
 
   ASSERT_TRUE(poly1.Intersects(x_neg));
   {
@@ -287,7 +287,7 @@ TEST_F(Polyline2DTest, Intersection) {
 }
 
 TEST_F(Polyline2DTest, Wkt) {
-  ASSERT_EQ("LINESTRING (0 0, 1 1)", g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 1)}).ToWkt());
+  ASSERT_EQ("LINESTRING (0 0, 1 1)", g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 1)}).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("LINESTRING (56491.62 -795.97, -10351.52 7.61)",
             g::Polyline2D::Make({g::Point2D(56491.6164, -795.97416),
@@ -298,7 +298,7 @@ TEST_F(Polyline2DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 6;
   EXPECT_EQ(g::Polyline2D::Make({g::Point2D(256.1343, -684.64971), g::Point2D(-601.674503, 7.361975)}),
             g::Polyline2D::FromWkt("LINESTRING (256.1343 -684.64971, -601.674503 7.361975)"));
-  EXPECT_EQ(g::Polyline2D::Make({g::Point2D(-7.5, -60.7), g::Point2D()}),
+  EXPECT_EQ(g::Polyline2D::Make({g::Point2D(-7.5, -60.7), g::Point2D::Zero()}),
             g::Polyline2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
   EXPECT_EQ(g::Polyline2D::Make({g::Point2D(0.645, -1.689741), g::Point2D(1, 0), g::Point2D(7, 41.365197)}),
             g::Polyline2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0 , 7 41.365197 )"));
@@ -319,7 +319,7 @@ TEST_F(Polyline2DTest, Wkt) {
 TEST_F(Polyline2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "polyline.wkt").string();
-  auto s = g::Polyline2D::Make({g::Point2D(), g::Point2D(1, 0)});
+  auto s = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0)});
 
   s.ToFile(path);
   ASSERT_TRUE(fs::exists(path));

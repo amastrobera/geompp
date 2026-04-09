@@ -40,7 +40,7 @@ class BBox3D {
 #pragma endregion
 
  private:
-  Point3D MIN, MAX;
+  Point3D MIN{0.0, 0.0, 0.0}, MAX{0.0, 0.0, 0.0};
 };
 
 #pragma region Operators Overloading

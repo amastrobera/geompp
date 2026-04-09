@@ -12,7 +12,7 @@ class Vector3D;
 
 class Point3D {
  public:
-  Point3D(double x = 0.0, double y = 0.0, double z = 0.0);
+  Point3D(double x, double y, double z);
   Point3D(Point3D const&);
   Point3D(Point3D&&) = default;
   ~Point3D() = default;
@@ -32,7 +32,7 @@ class Point3D {
 
   Point3D& operator=(Point3D const& other);
 
-  static inline Point3D Origin() { return Point3D(); }
+  static inline Point3D Zero() { return Point3D(0, 0, 0); }
 
  private:
   double X, Y, Z;

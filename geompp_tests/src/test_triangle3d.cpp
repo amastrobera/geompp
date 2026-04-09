@@ -36,7 +36,7 @@ TEST_F(Triangle3DTest, Constructor) {
 
   EXPECT_ANY_THROW(g::Triangle3D::Make(g::Point3D(-1, 1, 0), g::Point3D(0, -1, 0), g::Point3D(0, -1, 0)));
   EXPECT_ANY_THROW(g::Triangle3D::Make(g::Point3D(-1, 1, 2), g::Point3D(-1, 1, 2), g::Point3D(0, -1, 2)));
-  EXPECT_ANY_THROW(g::Triangle3D::Make(g::Point3D(), g::Point3D(), g::Point3D()));
+  EXPECT_ANY_THROW(g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D::Zero(), g::Point3D::Zero()));
 }
 
 ////TEST(Triangle3D, Contains) {
@@ -346,7 +346,7 @@ TEST_F(Triangle3DTest, Wkt) {
 TEST_F(Triangle3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "triangle.wkt").string();
-  auto s = g::Triangle3D::Make(g::Point3D(), g::Point3D(1, 0), g::Point3D(0, 2));
+  auto s = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(0, 2, 0));
 
   s.ToFile(path);
   ASSERT_TRUE(fs::exists(path));

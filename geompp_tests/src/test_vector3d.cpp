@@ -28,8 +28,8 @@ TEST_F(Vector3DTest, Equality) {
   ASSERT_EQ(g::Vector3D(2, 3, 4), g::Vector3D(2, 3, 4));
   ASSERT_EQ(g::Vector3D(-56.682, 30.56, 0.0), g::Vector3D(-56.682, 30.56, 0.0));
 
-  // default constructor is the zero vector
-  ASSERT_EQ(g::Vector3D(), g::Vector3D(0, 0, 0));
+  // Vector3D(0,0,0) is the zero vector
+  ASSERT_EQ(g::Vector3D(0, 0, 0), g::Vector3D(0, 0, 0));
 
   // inequality
   ASSERT_NE(g::Vector3D(1, 0, 0), g::Vector3D(0, 1, 0));
@@ -212,7 +212,7 @@ TEST_F(Vector3DTest, ToPoint) {
 
 TEST_F(Vector3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
-  ASSERT_EQ("VECTOR (0 0 0)", g::Vector3D().ToWkt());
+  ASSERT_EQ("VECTOR (0 0 0)", g::Vector3D(0, 0, 0).ToWkt());
   ASSERT_EQ("VECTOR (1 2 3)", g::Vector3D(1, 2, 3).ToWkt());
 
   geompp::DECIMAL_PRECISION = 2;

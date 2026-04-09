@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>GeomPP</id>
+    <version>0.1.0</version>
+    <authors>Angelo Mastro</authors>
+    <owners>Angelo Mastro</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/amastrobera/geompp</projectUrl>
+    <description>
+      C# bindings for geompp, a C++20 geometry library.
+      Provides Point2D/3D, Vector2D/3D, Line2D/3D, Ray2D/3D, LineSegment2D/3D,
+      Polyline2D/3D, Triangle2D/3D, Polygon2D/3D, BBox2D/3D, Plane — with full
+      operator support, intersection queries, WKT serialization, and file I/O.
+      Built with C++/CLI for Windows x64. Targets both .NET 8 and .NET Framework 4.8.
+    </description>
+    <releaseNotes>Initial release: Almost all 2D primitives and some 3D primitives. Intersections among important types (line, ray, line-segment). ToFile() and ToWkt() serialization.</releaseNotes>
+    <tags>geometry 3d 2d computational-geometry gis math csharp dotnet</tags>
+    <repository type="git" url="https://github.com/amastrobera/geompp" />
+    <!--
+      C++/CLI mixed-mode assemblies are Windows-only.
+      Consumers must target net8.0-windows (or later) OR net48 accordingly.
+    -->
+    <dependencies>
+      <group targetFramework="net8.0-windows" />
+      <group targetFramework="net48" />
+    </dependencies>
+  </metadata>
+
+  <files>
+    <!--
+      Build both projects in Release|x64 before running:
+        nuget pack GeomPP.nuspec
+      GeomPP.vcxproj       → x64\Release\GeomPP.dll        (.NET 8)
+      GeomPP_Net48.vcxproj → x64\Release_Net48\GeomPP.dll  (.NET Framework 4.8)
+    -->
+    <file src="x64\Release\GeomPP.dll"       target="lib\net8.0-windows\GeomPP.dll" />
+    <file src="x64\Release_Net48\GeomPP.dll" target="lib\net48\GeomPP.dll" />
+  </files>
+</package>

@@ -55,7 +55,7 @@ TEST_F(Point2DTest, AddVector) {
 }
 
 TEST_F(Point2DTest, Wkt) {
-  ASSERT_EQ("POINT (0 0)", g::Point2D().ToWkt());
+  ASSERT_EQ("POINT (0 0)", g::Point2D::Zero().ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("POINT (56491.62 -795.97)", g::Point2D(56491.6164, -795.97416).ToWkt());
 
@@ -101,7 +101,7 @@ TEST_F(Point2DTest, TestFromFile) {
 
 TEST_F(Point2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
-  auto p1 = g::Point2D();
+  auto p1 = g::Point2D::Zero();
   auto p2 = g::Point2D(1, 0);
 
   ASSERT_EQ(1, g::round(p1.DistanceTo(p2)));

@@ -1,0 +1,80 @@
+name: Publish NuGet
+
+# Triggers on C# version tags: csharp-v1.0.0, csharp-v1.2.3, etc.
+on:
+  push:
+    tags:
+      - "csharp-v*"
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sets up MSVC compiler + linker on PATH so Ninja can find cl.exe
+      - name: Set up MSVC environment (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # Puts MSBuild on PATH (needed for the C++/CLI vcxproj)
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # Puts nuget.exe on PATH
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      # Build only the geompp static library (skips tests and samples)
+      # Ninja is single-config, so the output goes directly to build/geompp/
+      # matching the $(GeomppBuildRoot)\geompp path in GeomPP.vcxproj.
+      - name: Build geompp (C++ static library)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target geompp
+
+      # Build the C++/CLI wrapper DLL targeting .NET 8 (CoreCLR, /clr:netcore).
+      # Output: geompp_csharp\x64\Release\GeomPP.dll
+      - name: Build GeomPP.dll (.NET 8)
+        run: |
+          msbuild geompp_csharp\GeomPP.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:GeomppBuildRoot="${{ github.workspace }}\build"
+
+      # Build the same sources targeting .NET Framework 4.8 (classic CLR, /clr).
+      # Output: geompp_csharp\x64\Release_Net48\GeomPP.dll
+      - name: Build GeomPP.dll (.NET Framework 4.8)
+        run: |
+          msbuild geompp_csharp\GeomPP_Net48.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:GeomppBuildRoot="${{ github.workspace }}\build"
+
+      # Strip the leading 'csharp-v' from the tag (csharp-v1.2.3 -> 1.2.3) for NuGet versioning
+      - name: Extract version from tag
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}" -replace '^csharp-v', ''
+          "VERSION=$v" | Out-File -Append $env:GITHUB_OUTPUT
+
+      # Pack: reads GeomPP.nuspec which picks up both DLLs —
+      #   lib\net8.0-windows\GeomPP.dll  (from x64\Release\)
+      #   lib\net48\GeomPP.dll           (from x64\Release_Net48\)
+      - name: Pack NuGet package
+        run: |
+          nuget pack geompp_csharp\GeomPP.nuspec `
+            -Version ${{ steps.ver.outputs.VERSION }} `
+            -OutputDirectory nupkgs
+
+      # Push to NuGet.org. -SkipDuplicate makes re-runs of the same tag safe.
+      # Add NUGET_API_KEY in: repo Settings → Secrets → Actions
+      - name: Push to NuGet.org
+        run: |
+          nuget push nupkgs\*.nupkg `
+            -Source https://api.nuget.org/v3/index.json `
+            -ApiKey ${{ secrets.NUGET_API_KEY }} `
+            -SkipDuplicate
