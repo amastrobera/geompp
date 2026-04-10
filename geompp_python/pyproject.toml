@@ -1,0 +1,59 @@
+[build-system]
+requires = ["scikit-build-core>=0.9", "pybind11>=2.11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "geompp"
+version = "1.0.0"
+description = "Python bindings for geompp — a C++ 2D/3D geometry library"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+keywords = ["geometry", "2d", "3d", "math", "computational-geometry", "cad"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+]
+
+[project.urls]
+Homepage   = "https://github.com/amastrobera/geompp"
+Repository = "https://github.com/amastrobera/geompp"
+
+# ─── scikit-build-core configuration ─────────────────────────────────────────
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+
+# The Python package directory to include in the wheel
+wheel.packages = ["geompp"]
+
+# Include geompp C++ sources in the source distribution
+sdist.include = [
+    "../geompp/include/**",
+    "../geompp/src/**",
+    "../geompp/CMakeLists.txt",
+]
+
+[tool.scikit-build.cmake.define]
+# Silence glog's own tests/examples during build
+WITH_GFLAGS   = "OFF"
+WITH_GTEST    = "OFF"
+BUILD_TESTING = "OFF"
+
+# ─── cibuildwheel (optional, for CI wheel building) ──────────────────────────
+[tool.cibuildwheel]
+build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
+skip  = "*-win32 *_i686 *-musllinux*"
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+manylinux-x86_64-image = "manylinux_2_28"

@@ -10,7 +10,7 @@
   This library is a spiritual successor to [GeomSharp](https://github.com/amastrobera/geom_sharp),
   rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
 
-  **Language bindings:** [C# / NuGet](./geompp_csharp/README.md)
+  **Language bindings:** [C# / NuGet](./geompp_csharp/README.md) and [Python 3](./geompp_python/README.md)
 
 
   ## What it provides
