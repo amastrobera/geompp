@@ -25,6 +25,11 @@ LVSParser LVSParser::Open(std::string const& file_path) {
 LVSParser::LVSParser(std::string const& file_name, std::ifstream&& file)
     : FILE_NAME(file_name), FILE(std::move(file)), HAS_NEXT(true) {}
 
+LVSParser::LVSParser(LVSParser&& other) noexcept
+    : FILE_NAME(std::move(other.FILE_NAME)),
+      FILE(std::move(other.FILE)),
+      HAS_NEXT(other.HAS_NEXT) {}
+
 LVSParser::~LVSParser() { FILE.close(); }
 
 namespace {

@@ -12,15 +12,42 @@
 - add a key to delete a geometry 
 
 #### more build infrastructure 
-- write interface for Python
+- write c# smoke tests
+- write python smoke tests
+
+#### 2D geometry
+- Shape2D for return type of geometrical operations, tests
+- ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
+
+#### 3D geometry 
+- Shape3D for return type of geometrical operations, tests
+- ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
+
+
+
+## Backlog to do
+
+#### build infrastructure 
+- On Visual Studio, use the test runner to run specific tests
+- Build on windows via command line (install cmake and g++ on windows, use PowerShell)
+- write some python tests
+
+#### 2D geometry
+- Triangle2D::intersects(line, ray, line_seg), tests
+- Polygon2D, contains(p), tests
+- Polygon2D::intersects(line, ray, line_seg, triangle, polygon), tests
+- List<Point2D>::convex_hull()->polygon, tests
+- Line2D::overlaps(line), Line2D::overlap(line), tests
+- Ray2D::overlaps(line, ray), tests
+- LineSegment2D::overlaps(line, ray, line_seg), tests
+- Polyline2D::overlaps(line, ray, line_seg, polyline), tests
+- Triangle2D::overlaps(line, ray, line_seg, polyline, triangle), tests (overlap for triangle is "adjacency")
+- Polygon2D::overlaps(line, ray, line_seg, polyline, triangle, polygon), tests (overlap for polygon is "adjacency")
+- Triangle2D::adjacent(line, ray, line_seg, polyline, triangle), tests (same as overlap)
+- Polygon2D::adjacent(line, ray, line_seg, polyline, triangle, polygon), tests (same as overlap)
 
 
 #### 3D geometry 
-- Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
-- Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
-- Ray3D, contains(p), intersection(line, ray), tests
-- LineSegment3D, contains(p), ntersection(line, ray, line_seg), tests
-- Line3D, Ray3D, LineSegment3D::distance(p), tests
 - LineSegment3D::interpolate(%)->p, LineSegment3D::location(p)->%, tests
 - Polyline3D, Polyline3D::contains(p), Polyline3D::distance(p), tests
 - Polyline3D::interpolate(%)->p, Polyline3D::locartion(p)->%, tests
@@ -31,41 +58,6 @@
 - Polygon3D, Polygon3D::contains(p), tests
 - Polygon3D::intersects(line, ray, line_seg, triangle, polygon), tests
 - List<Point3D>::convex_hull()->polygon, tests
-
-
-
-## Backlog to do
-
-#### test and build infrastructure 
-- On Visual Studio, use the test runner to run specific tests
-- Build on windows via command line (install cmake and g++ on windows, use PowerShell)
-
-#### 2D geometry
-- Triangle2D::intersects(line, ray, line_seg), tests
-- Polygon2D, contains(p), tests
-- Polygon2D::intersects(line, ray, line_seg, triangle, polygon), tests
-- List<Point2D>::convex_hull()->polygon, tests
-
-#### more build infrastructure 
-- python bindings 
-- write interface for python
-- write some sample code
-- write some python tests
-
-#### more build infrastructure 
-- write some c# sample code
-- write some c# tests
-
-#### more geometrical operations 2D, 3D
-- Line2D::overlaps(line), Line2D::overlap(line), tests
-- Ray2D::overlaps(line, ray), tests
-- LineSegment2D::overlaps(line, ray, line_seg), tests
-- Polyline2D::overlaps(line, ray, line_seg, polyline), tests
-- Triangle2D::overlaps(line, ray, line_seg, polyline, triangle), tests (overlap for triangle is "adjacency")
-- Polygon2D::overlaps(line, ray, line_seg, polyline, triangle, polygon), tests (overlap for polygon is "adjacency")
-- Triangle2D::adjacent(line, ray, line_seg, polyline, triangle), tests (same as overlap)
-- Polygon2D::adjacent(line, ray, line_seg, polyline, triangle, polygon), tests (same as overlap)
-
 - Line3D::overlaps(line), Line3D::overlap(line), tests
 - Ray3D::overlaps(line, ray), tests
 - LineSegment3D::overlaps(line, ray, line_seg), tests
@@ -104,7 +96,7 @@
 
 
 #### 2D geometry
-- Point2D, Vector2D, Line2D, Shape2D for return type of geometrical operations, tests
+- Point2D, Vector2D, Line2D
 - Line2D::contains(p), intersects(line), intersection(line), tests
 - Ray2D, contains(p), intersection(line), intersection(ray), tests
 - LineSegment2D, contains(p), intersection(line), intersection(ray), intersection(line_seg), tests
@@ -122,10 +114,11 @@
 
 
 #### 3D geometry 
-- Point3D, Vector3D, Line3D, Shape3D for return type of geometrical operations, tests
+- Point3D, Vector3D, Line3D
 - Line3D::contains(p), Line3D::intersects(line), Line3D::intersection(line), tests
 - Ray3D, contains(p), intersection(line, ray), tests
-- LineSegment3D, contains(p), intersection(line, ray, line_seg), tests
+- LineSegment3D, contains(p), ntersection(line, ray, line_seg), tests
+- Line3D, Ray3D, LineSegment3D::distance(p), tests
 
 
 #### utils
@@ -134,17 +127,17 @@
 - string splitter
 
 
-#### test and build infrastructure
-- github actions: run tests on merge 
-- ::FromWkt(str)->Shape2D, ::ToWkt()->str parsing and serializing 
-- ::FromFile(wkb)->Shape2D, ::ToFile()->wkb parsing and serializing 
-- test cases possible in `.wkt` files formats in `geompp_tests/res` folder
-- Docker based dev environment: Linux image
-
-
 #### graphic demos
 - Set up a window to display some line segments in OpenGL
 
 
-#### more build infrastructure 
+#### build infrastructure 
+- github actions: run tests on merge 
+- test cases possible in `.wkt` files formats in `geompp_tests/res` folder
+- Docker based dev environment: Linux image
+- create workflow to update version of c++, python and c#
+- write some sample code
 - write interface for C#
+- write some c# sample code
+- write interface for Python
+- write some python sample code

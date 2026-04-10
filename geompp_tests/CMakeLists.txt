@@ -76,7 +76,10 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 )
 
 # Add test cases
-add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+# WORKING_DIRECTORY ensures the test runs from the executable's directory,
+# where the res/ folder is copied, so argv[0]-based path resolution works on all platforms.
+add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME}
+         WORKING_DIRECTORY $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
 # Print the summary of tests
 include(CTest)

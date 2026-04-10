@@ -12,20 +12,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install C++ dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake
+          sudo apt-get install -y build-essential cmake libgtest-dev git
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get install -y g++-13
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
           sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 100
 
-      - name: Configure CMake
-        run: cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python build tools
+        run: pip install scikit-build-core pybind11 pytest
+
+      - name: Configure CMake (C++ + Python bindings)
+        run: cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON=ON
 
       - name: Build
         run: cmake --build build -j$(nproc)
 
-      - name: Run tests
-        run: ./build/geompp_tests/geompp_tests
+      - name: Run C++ tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Install Python bindings
+        run: pip install "./geompp_python[dev]"
+
+      - name: Run Python tests
+        run: pytest geompp_python/tests/ -v

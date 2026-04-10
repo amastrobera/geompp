@@ -20,6 +20,7 @@ namespace geompp {
 class LVSParser {
  public:
   static LVSParser Open(std::string const& fle_path);
+  LVSParser(LVSParser&&) noexcept;
   ~LVSParser();
 
   using ReturnSet =

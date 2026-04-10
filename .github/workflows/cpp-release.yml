@@ -1,0 +1,93 @@
+name: Release C++ (GitHub)
+
+# Triggers on C++ version tags: v0.1.0, v1.2.3, etc.
+# Creates a GitHub Release with prebuilt static-library archives for Linux and Windows.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  # ─── Linux: libgeompp.a + headers ────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git
+
+      - name: Build (Release)
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target geompp -j$(nproc)
+
+      - name: Package
+        run: |
+          VERSION="${{ github.ref_name }}"
+          STAGEDIR="geompp-${VERSION}-linux-x86_64"
+          mkdir -p "${STAGEDIR}/lib" "${STAGEDIR}/include"
+          cp build/geompp/libgeompp.a "${STAGEDIR}/lib/"
+          cp -r geompp/include/.        "${STAGEDIR}/include/"
+          tar -czf "${STAGEDIR}.tar.gz" "${STAGEDIR}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-archive
+          path: geompp-*-linux-x86_64.tar.gz
+
+  # ─── Windows: geompp.lib + headers ───────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build (Release)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target geompp -j $env:NUMBER_OF_PROCESSORS
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $stage   = "geompp-${version}-windows-x64"
+          New-Item -ItemType Directory -Path "${stage}/lib", "${stage}/include" | Out-Null
+          Copy-Item "build/geompp/libgeompp.a"  "${stage}/lib/geompp.lib"
+          Copy-Item "geompp/include/*"          "${stage}/include/" -Recurse
+          Compress-Archive -Path $stage -DestinationPath "${stage}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-archive
+          path: geompp-*-windows-x64.zip
+
+  # ─── Create GitHub Release ────────────────────────────────────────────────────
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to create releases and upload assets
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-archive"
+          merge-multiple: true
+          path: dist
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo   "${{ github.repository }}" \
+            --title  "geompp ${{ github.ref_name }}" \
+            --generate-notes \
+            dist/*

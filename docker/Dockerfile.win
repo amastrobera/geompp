@@ -14,6 +14,7 @@ RUN choco install -y git
 RUN choco install -y nuget.commandline
 RUN choco install -y dotnet-8.0-sdk
 RUN choco install -y vim
+RUN choco install -y python --version 3.12.0
 
 # Install VS 2022 Build Tools:
 #   VCTools       — MSVC compiler, linker, CMake integration, C++/CLI support
@@ -24,6 +25,9 @@ RUN choco install -y visualstudio2022buildtools --package-parameters \
       --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools \
       --add Microsoft.Net.Component.4.8.TargetingPack \
       --includeRecommended --quiet --norestart'"
+
+# Install Python build tools for the Python bindings
+RUN pip install scikit-build-core pybind11
 
 # Create developer user and workspace
 RUN net user developer /add /passwordreq:no

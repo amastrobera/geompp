@@ -2,41 +2,40 @@ name: Build / Test (Windows)
 
 on:
   pull_request:
+  push:
+    branches: [master]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Create build directory
-        run: mkdir build
-
-      - name: Configure CMake (replace with your options)
-        working-directory: build
-        run: cmake -S .. -B . -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build lib
-        working-directory: build
-        run: msbuild /m:Build.sln /p:Configuration=Release
-        
-      - name: Build successful annotation
-        if: success()  # This step only runs if the previous step succeeds
-        run: |
-          echo "::set-annotation name=Win_Build_Status::success"
-
-  test:  # New job for running tests
-    runs-on: windows-latest
-    needs: build  # This job depends on the successful completion of "build" job
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Run Google Tests
-        working-directory: build\x64-Debug\geompp_tests  # Change directory to test location
-        run: ./geompp_tests.exe  # Assuming the executable is directly in the folder
-        
-      - name: Test successful annotation
-        if: success()  # This step only runs if the previous step succeeds
-        run: |
-          echo "::set-annotation name=Win_Tests_Status::success"
+      - name: Set up MSVC environment (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python build tools
+        run: pip install scikit-build-core pybind11 pytest
+
+      - name: Configure CMake (C++ + Python bindings)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON=ON
+
+      - name: Build
+        run: cmake --build build -j $env:NUMBER_OF_PROCESSORS
+
+      - name: Run C++ tests
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+      - name: Install Python bindings
+        run: pip install "./geompp_python[dev]"
+
+      - name: Run Python tests
+        run: pytest geompp_python/tests/ -v

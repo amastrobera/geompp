@@ -59,3 +59,6 @@ add_library(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC glog::glog)
+
+# Required when geompp is linked into a shared library (e.g. Python extension .so)
+set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
