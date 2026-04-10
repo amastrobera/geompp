@@ -8,3 +8,14 @@ geompp_csharp/GeomPP/
 geompp_csharp/GeomPP_Net48/
 geompp_csharp/x64/
 nupkgs
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+venv/
+.venv/
+dist/
+wheelhouse/
+*.egg-info/

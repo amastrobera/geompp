@@ -21,6 +21,13 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+
 [project.urls]
 Homepage   = "https://github.com/amastrobera/geompp"
 Repository = "https://github.com/amastrobera/geompp"

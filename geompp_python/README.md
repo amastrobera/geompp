@@ -1,14 +1,24 @@
+[← back](../README.md)
+
 # geompp
 
 Python bindings for [geompp](https://github.com/amastrobera/geompp) — a C++ 2D/3D geometry library.
 
-## Install from source
+## Install
 
 ```bash
-pip install ./geompp_python
+pip install geompp
 ```
 
-Requires CMake ≥ 3.15, a C++20-capable compiler, and Python ≥ 3.8.
+Pre-built wheels are available for:
+
+| Platform | Python versions |
+|---|---|
+| Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 |
+| Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 |
+
+If your platform or Python version is not in the table above, pip will compile
+from source — you will need CMake ≥ 3.15 and a C++20-capable compiler.
 
 ## Quick start
 
