@@ -49,7 +49,7 @@ class Line3D {
   ReturnSet Intersection(Line3D const& other) const;
   ReturnSet Intersection(
       Line3D const& other, double& sc,
-      double tc) const;  // used to centralize intersection logic, and used by other geometric objects down the line
+      double& tc) const;  // used to centralize intersection logic, and used by other geometric objects down the line
   ReturnSet Intersection(Ray3D const& ray) const;
   ReturnSet Intersection(LineSegment3D const& segment) const;
   // TODO make ReturnSet public, and write Intersection(triangle)

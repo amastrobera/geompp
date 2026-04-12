@@ -71,7 +71,7 @@
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>
@@ -92,7 +92,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>
@@ -110,51 +110,51 @@
 
   <!-- ── Source files (shared with GeomPP.vcxproj) ────────────────────── -->
   <ItemGroup>
-    <ClCompile Include="Precision.cpp" />
-    <ClCompile Include="Point2D.cpp" />
-    <ClCompile Include="Vector2D.cpp" />
-    <ClCompile Include="Point3D.cpp" />
-    <ClCompile Include="Vector3D.cpp" />
-    <ClCompile Include="Line2D.cpp" />
-    <ClCompile Include="Ray2D.cpp" />
-    <ClCompile Include="LineSegment2D.cpp" />
-    <ClCompile Include="Line3D.cpp" />
-    <ClCompile Include="Ray3D.cpp" />
-    <ClCompile Include="LineSegment3D.cpp" />
-    <ClCompile Include="Polyline2D.cpp" />
-    <ClCompile Include="Polyline3D.cpp" />
-    <ClCompile Include="Polygon2D.cpp" />
-    <ClCompile Include="Polygon3D.cpp" />
-    <ClCompile Include="Triangle2D.cpp" />
-    <ClCompile Include="Triangle3D.cpp" />
-    <ClCompile Include="BBox2D.cpp" />
-    <ClCompile Include="BBox3D.cpp" />
-    <ClCompile Include="Plane.cpp" />
-    <ClCompile Include="LVSParser.cpp" />
+    <ClCompile Include="src\Precision.cpp" />
+    <ClCompile Include="src\Point2D.cpp" />
+    <ClCompile Include="src\Vector2D.cpp" />
+    <ClCompile Include="src\Point3D.cpp" />
+    <ClCompile Include="src\Vector3D.cpp" />
+    <ClCompile Include="src\Line2D.cpp" />
+    <ClCompile Include="src\Ray2D.cpp" />
+    <ClCompile Include="src\LineSegment2D.cpp" />
+    <ClCompile Include="src\Line3D.cpp" />
+    <ClCompile Include="src\Ray3D.cpp" />
+    <ClCompile Include="src\LineSegment3D.cpp" />
+    <ClCompile Include="src\Polyline2D.cpp" />
+    <ClCompile Include="src\Polyline3D.cpp" />
+    <ClCompile Include="src\Polygon2D.cpp" />
+    <ClCompile Include="src\Polygon3D.cpp" />
+    <ClCompile Include="src\Triangle2D.cpp" />
+    <ClCompile Include="src\Triangle3D.cpp" />
+    <ClCompile Include="src\BBox2D.cpp" />
+    <ClCompile Include="src\BBox3D.cpp" />
+    <ClCompile Include="src\Plane.cpp" />
+    <ClCompile Include="src\LVSParser.cpp" />
   </ItemGroup>
 
   <ItemGroup>
-    <ClInclude Include="Precision.hpp" />
-    <ClInclude Include="Point2D.hpp" />
-    <ClInclude Include="Vector2D.hpp" />
-    <ClInclude Include="Point3D.hpp" />
-    <ClInclude Include="Vector3D.hpp" />
-    <ClInclude Include="Line2D.hpp" />
-    <ClInclude Include="Ray2D.hpp" />
-    <ClInclude Include="LineSegment2D.hpp" />
-    <ClInclude Include="Line3D.hpp" />
-    <ClInclude Include="Ray3D.hpp" />
-    <ClInclude Include="LineSegment3D.hpp" />
-    <ClInclude Include="Polyline2D.hpp" />
-    <ClInclude Include="Polyline3D.hpp" />
-    <ClInclude Include="Polygon2D.hpp" />
-    <ClInclude Include="Polygon3D.hpp" />
-    <ClInclude Include="Triangle2D.hpp" />
-    <ClInclude Include="Triangle3D.hpp" />
-    <ClInclude Include="BBox2D.hpp" />
-    <ClInclude Include="BBox3D.hpp" />
-    <ClInclude Include="Plane.hpp" />
-    <ClInclude Include="LVSParser.hpp" />
+    <ClInclude Include="src\Precision.hpp" />
+    <ClInclude Include="src\Point2D.hpp" />
+    <ClInclude Include="src\Vector2D.hpp" />
+    <ClInclude Include="src\Point3D.hpp" />
+    <ClInclude Include="src\Vector3D.hpp" />
+    <ClInclude Include="src\Line2D.hpp" />
+    <ClInclude Include="src\Ray2D.hpp" />
+    <ClInclude Include="src\LineSegment2D.hpp" />
+    <ClInclude Include="src\Line3D.hpp" />
+    <ClInclude Include="src\Ray3D.hpp" />
+    <ClInclude Include="src\LineSegment3D.hpp" />
+    <ClInclude Include="src\Polyline2D.hpp" />
+    <ClInclude Include="src\Polyline3D.hpp" />
+    <ClInclude Include="src\Polygon2D.hpp" />
+    <ClInclude Include="src\Polygon3D.hpp" />
+    <ClInclude Include="src\Triangle2D.hpp" />
+    <ClInclude Include="src\Triangle3D.hpp" />
+    <ClInclude Include="src\BBox2D.hpp" />
+    <ClInclude Include="src\BBox3D.hpp" />
+    <ClInclude Include="src\Plane.hpp" />
+    <ClInclude Include="src\LVSParser.hpp" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

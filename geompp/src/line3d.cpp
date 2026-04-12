@@ -79,7 +79,7 @@ bool Line3D::Intersects(Ray3D const& ray) const { return ray.Intersects(*this); 
 
 bool Line3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
-Line3D::ReturnSet Line3D::Intersection(Line3D const& other, double& sc, double tc) const {
+Line3D::ReturnSet Line3D::Intersection(Line3D const& other, double& sc, double& tc) const {
   // input parameters: this line as P0 + s*DIR, other as Q0 + t*DIR
   //
   //  3D Line-Line Intersection

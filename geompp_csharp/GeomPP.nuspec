@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>GeomPP</id>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
     <authors>Angelo Mastro</authors>
     <owners>Angelo Mastro</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -15,7 +15,7 @@
       operator support, intersection queries, WKT serialization, and file I/O.
       Built with C++/CLI for Windows x64. Targets both .NET 10 and .NET Framework 4.8.
     </description>
-    <releaseNotes>Initial release: Almost all 2D primitives and some 3D primitives. Intersections among important types (line, ray, line-segment). ToFile() and ToWkt() serialization.</releaseNotes>
+    <releaseNotes>0.1.1: Bug fix — Line3D::Intersection(sc, tc) parameter tc was passed by value instead of by reference, leaving the caller's variable uninitialized in Debug builds.</releaseNotes>
     <tags>geometry 3d 2d computational-geometry gis math csharp dotnet</tags>
     <repository type="git" url="https://github.com/amastrobera/geompp" />
     <!--

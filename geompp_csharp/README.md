@@ -12,7 +12,7 @@ Supports **.NET 8** (and later) and **.NET Framework 4.8**.
 
 ## Install
 
-```
+```bash
 dotnet add package GeomPP
 ```
 
@@ -30,27 +30,26 @@ or in your `.csproj`:
 
 The code: 
   ```csharp
-    using G = GeomPP;
+using G = GeomPP;
 
-    G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;
 
-    var s1 = G.LineSegment3D.Make(new G.Point3D(1, 0, 0), new G.Point3D(-1, 0, 2));
-    var s2 = G.LineSegment3D.Make(new G.Point3D(0, 1, 0), new G.Point3D(0, -1, 2));
+var s1 = G.LineSegment3D.Make(new G.Point3D(1, 0, 0), new G.Point3D(-1, 0, 2));
+var s2 = G.LineSegment3D.Make(new G.Point3D(0, 1, 0), new G.Point3D(0, -1, 2));
 
-    Console.WriteLine($"s1 = {s1}");
-    Console.WriteLine($"s2 = {s2}");
+Console.WriteLine($"s1 = {s1}");
+Console.WriteLine($"s2 = {s2}");
 
-    var result = s1.Intersection(s2);
-    if (result is G.Point3D p) {
-        Console.WriteLine("OK: " + p.ToWkt());  // expects POINT (0 0 1)
-    } else {
-        Console.WriteLine("FAIL: no intersection");
-    }
-
-  ```
+var result = s1.Intersection(s2);
+if (result is G.Point3D p) {
+    Console.WriteLine("OK: " + p.ToWkt());  // expects POINT (0 0 1)
+} else {
+    Console.WriteLine("FAIL: no intersection");
+}
+```
 
 Output:
-```
+```bash
 s1 = LINESTRING (1 0 0, -1 0 2)
 s2 = LINESTRING (0 1 0, 0 -1 2)
 intersection found: POINT (0 0 1)
@@ -63,7 +62,7 @@ intersection written to intersection.wkt
 
 An `.lsv` file is a plain-text list of WKT geometries, one per line:
 
-```
+```bash
 POINT (1 2 3)
 POINT (4 5 6)
 LINESTRING (0 0 0, 1 1 1)
@@ -79,17 +78,14 @@ G.Precision.DecimalPrecision = G.Precision.DP_THREE;
 
 var parser = G.LVSParser.Open("sample_geometries.lsv");
 
-if (!parser.HasNext())
-{
+if (!parser.HasNext()) {
     Console.WriteLine("no geometries found");
     return;
 }
 
-while (parser.HasNext())
-{
+while (parser.HasNext()) {
     var item = parser.Next();
-    if (item == null)
-    {
+    if (item == null) {
         Console.WriteLine("skipped unrecognised line");
         continue;
     }
@@ -99,7 +95,7 @@ while (parser.HasNext())
 
 Output:
 
-```
+```bash
 POINT (1 2 3)
 POINT (4 5 6)
 LINESTRING (0 0 0, 1 1 1)
@@ -164,30 +160,30 @@ GeomPP is built with C++/CLI and is **Windows x64 only**. It will not run on Lin
 
 If you want to built from this source files, use these commands
 
-  Build the library
-  ```powershell
-    # from the main directory, geompp
-    mkdir build_win
-    cd build_win
-    cmake -S .. -G "Visual Studio 18 2026" -A x64
-    cmake --build .  --target geompp [--config Release]
-  ```
+Build the library
+```powershell
+# from the main directory, geompp
+mkdir build_win
+cd build_win
+cmake -S .. -G "Visual Studio 18 2026" -A x64
+cmake --build .  --target geompp [--config Release]
+```
 
-  Build and run the tests
-  ```powershell
-    # from the main directory, geompp
-    cd build_win
-    cmake --build . --target geompp_tests [--config Release]
-    .\geompp_tests\Release\geompp_tests.exe
-  ```
+Build and run the tests
+```powershell
+# from the main directory, geompp
+cd build_win
+cmake --build . --target geompp_tests [--config Release]
+.\geompp_tests\Release\geompp_tests.exe
+```
 
-  Build the C# DLL
-  ```powershell
-    # from the main directory, geompp
+Build the C# DLL
+```powershell
+# from the main directory, geompp
 
-    # if you want to build for .Net 8
-    msbuild geompp_csharp\GeomPP.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+# if you want to build for .Net 8
+msbuild geompp_csharp\GeomPP.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
 
-    # if you want to build for .Net Framework 4.8
-    msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
-  ```
+# if you want to build for .Net Framework 4.8
+msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+```
