@@ -1,0 +1,31 @@
+#include "bind_helpers.hpp"
+
+void bind_vector3d(py::module_& m) {
+    py::class_<geompp::Vector3D>(m, "Vector3D", "3D vector (x, y, z).")
+        .def(py::init<double, double, double>(),  "x"_a, "y"_a, "z"_a)
+        .def(py::init<const geompp::Vector3D&>())
+        .def_property_readonly("x", &geompp::Vector3D::x)
+        .def_property_readonly("y", &geompp::Vector3D::y)
+        .def_property_readonly("z", &geompp::Vector3D::z)
+        .def("to_point",    &geompp::Vector3D::ToPoint)
+        .def("length",      &geompp::Vector3D::Length)
+        .def("dot",         &geompp::Vector3D::Dot,         "other"_a)
+        .def("cross",       &geompp::Vector3D::Cross,       "other"_a)
+        .def("perp",        &geompp::Vector3D::Perp)
+        .def("normalize",   &geompp::Vector3D::Normalize)
+        .def("is_parallel", &geompp::Vector3D::IsParallel, "other"_a)
+        BIND_ALMOST_EQUALS(Vector3D)
+        BIND_SERIALIZATION(Vector3D)
+        .def_static("basis_x", &geompp::Vector3D::BasisX)
+        .def_static("basis_y", &geompp::Vector3D::BasisY)
+        .def_static("basis_z", &geompp::Vector3D::BasisZ)
+        .def("__eq__",      [](const geompp::Vector3D& a, const geompp::Vector3D& b) { return a == b; })
+        .def("__neg__",     [](const geompp::Vector3D& v) { return -v; })
+        .def("__add__",     [](const geompp::Vector3D& a, const geompp::Vector3D& b)  -> geompp::Vector3D { return a + b; }, "v"_a)
+        .def("__add__",     [](const geompp::Vector3D& v, const geompp::Point3D& p)   -> geompp::Point3D  { return v + p; }, "p"_a)
+        .def("__sub__",     [](const geompp::Vector3D& a, const geompp::Vector3D& b)  -> geompp::Vector3D { return a - b; }, "v"_a)
+        .def("__mul__",     [](const geompp::Vector3D& v, double a)                   -> geompp::Vector3D { return v * a; }, "scalar"_a)
+        .def("__mul__",     [](const geompp::Vector3D& a, const geompp::Vector3D& b)  -> double           { return a * b; }, "v"_a)
+        .def("__rmul__",    [](const geompp::Vector3D& v, double a)                   -> geompp::Vector3D { return a * v; }, "scalar"_a)
+        .def("__truediv__", [](const geompp::Vector3D& v, double a)                   -> geompp::Vector3D { return v / a; }, "scalar"_a);
+}

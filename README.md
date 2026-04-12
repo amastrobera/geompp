@@ -75,29 +75,29 @@
 
   #### Create geometries programmatically
   ```cpp
-  // This will be the precision used by all functions, in all threads, for this
-  // run of the program, and it can be modified in later code anytime.
-  g::DECIMAL_PRECISION = g::DP_THREE;
+    // This will be the precision used by all functions, in all threads, for this
+    // run of the program, and it can be modified in later code anytime.
+    g::DECIMAL_PRECISION = g::DP_THREE;
 
-  // two line segments intersecting at (0,0,1)
-  auto s1 = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(-1, 0, 2));
-  auto s2 = g::LineSegment3D::Make(g::Point3D(0, 1, 0), g::Point3D(0, -1, 2));
+    // two line segments intersecting at (0,0,1)
+    auto s1 = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(-1, 0, 2));
+    auto s2 = g::LineSegment3D::Make(g::Point3D(0, 1, 0), g::Point3D(0, -1, 2));
 
-  GEOMPP_LOG(INFO) << "s1 = " << s1.ToWkt();
-  GEOMPP_LOG(INFO) << "s2 = " << s2.ToWkt();
+    GEOMPP_LOG(INFO) << "s1 = " << s1.ToWkt();
+    GEOMPP_LOG(INFO) << "s2 = " << s2.ToWkt();
 
-  if (s1.Intersects(s2)) { 
-    auto result = s1.Intersection(s2);
-    if (result.has_value()) {
-      auto p = std::get<g::Point3D>(*result);
-      GEOMPP_LOG(INFO) << "intersection found: " << p.ToWkt();
+    if (s1.Intersects(s2)) { 
+      auto result = s1.Intersection(s2);
+      if (result.has_value()) {
+        auto p = std::get<g::Point3D>(*result);
+        GEOMPP_LOG(INFO) << "intersection found: " << p.ToWkt();
 
-      p.ToFile("intersection.wkt");
-      GEOMPP_LOG(INFO) << "intersection written to intersection.wkt";
+        p.ToFile("intersection.wkt");
+        GEOMPP_LOG(INFO) << "intersection written to intersection.wkt";
+      }
+    } else {
+      GEOMPP_LOG(INFO) << "no intersection found";
     }
-  } else {
-    GEOMPP_LOG(INFO) << "no intersection found";
-  }
   ```
 
   will print out 
@@ -189,10 +189,10 @@
   ## Build it
 
   ### Docker Dev Environment
-  ```
-  cd docker
-  .\build.bat -image Linux    # or -image Windows
-  .\run.bat   -image Linux    # same possibilities
+  ```bash
+    cd docker
+    .\build.bat -image Linux    # or -image Windows
+    .\run.bat   -image Linux    # same possibilities
   ```
 
   To allow the graphics app to display from inside Docker on a Linux host:
@@ -201,7 +201,7 @@
   ### Linux
 
   Install g++13:
-  ```
+  ```bash
     sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
     sudo apt install -y g++-13
     sudo rm -f /usr/bin/g++ /usr/bin/c++
@@ -210,14 +210,16 @@
   ```
 
   Build
-  ```
+  ```bash
     mkdir build && cd build
-    cmake .. [-DCMAKE_BUILD_TYPE=Debug]
+    cmake .. [-DCMAKE_BUILD_TYPE=Release] [-DBUILD_PYTHON=ON]
     make -j6
   ```
 
+  The `-DBUILD_PYTHON=ON` will build locally the python bindings and run the smoke tests immediately. 
+
   Run tests
-  ```
+  ```bash
     ./geompp_tests/geompp_tests
     ./geompp_tests/geompp_tests --gtest_filter="Point2D*"
     ./geompp_tests/geompp_tests --gtest_filter="Point2D.ToFile"
@@ -237,12 +239,13 @@
     mkdir build_win
     cd build_win
     cmake -S .. -G "Visual Studio 18 2026" -A x64
-    cmake --build . --config Release --target geompp
+    cmake --build . --target geompp [--config Release] [-DBUILD_PYTHON=ON]
   ```
+  The `-DBUILD_PYTHON=ON` will build locally the python bindings and run the smoke tests immediately. 
 
   Build and run the tests
   ```powershell
-    cmake --build . --config Release --target geompp_tests
+    cmake --build . --target geompp_tests [--config Release]
     .\geompp_tests\Release\geompp_tests.exe
   ```
 

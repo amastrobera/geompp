@@ -158,3 +158,36 @@ if (result is G.LineSegment2D s) { /* overlap */ }
 
 GeomPP is built with C++/CLI and is **Windows x64 only**. It will not run on Linux, macOS, or
 32-bit processes.
+
+
+## Build on Windows x64 manually
+
+If you want to built from this source files, use these commands
+
+  Build the library
+  ```powershell
+    # from the main directory, geompp
+    mkdir build_win
+    cd build_win
+    cmake -S .. -G "Visual Studio 18 2026" -A x64
+    cmake --build .  --target geompp [--config Release]
+  ```
+
+  Build and run the tests
+  ```powershell
+    # from the main directory, geompp
+    cd build_win
+    cmake --build . --target geompp_tests [--config Release]
+    .\geompp_tests\Release\geompp_tests.exe
+  ```
+
+  Build the C# DLL
+  ```powershell
+    # from the main directory, geompp
+
+    # if you want to build for .Net 8
+    msbuild geompp_csharp\GeomPP.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+
+    # if you want to build for .Net Framework 4.8
+    msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+  ```
