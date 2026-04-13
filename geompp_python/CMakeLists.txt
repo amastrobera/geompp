@@ -122,33 +122,13 @@ if(WIN32)
     target_compile_definitions(_geompp PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
 
-# ─── Post-build: copy extension + run smoke tests ────────────────────────────
-# Copy first; then run pytest if it is importable in Python_EXECUTABLE.
-# A test failure makes `cmake --build` exit non-zero.
-execute_process(
-    COMMAND ${Python_EXECUTABLE} -c "import pytest"
-    RESULT_VARIABLE _pytest_found
-    OUTPUT_QUIET ERROR_QUIET
+# ─── Post-build: copy extension into package directory ───────────────────────
+add_custom_command(TARGET _geompp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:_geompp>
+        "${CMAKE_CURRENT_SOURCE_DIR}/geompp/$<TARGET_FILE_NAME:_geompp>"
+    COMMENT "Copying _geompp into geompp_python/geompp/"
 )
-
-if(_pytest_found EQUAL 0)
-    add_custom_command(TARGET _geompp POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_FILE:_geompp>
-            "${CMAKE_CURRENT_SOURCE_DIR}/geompp/$<TARGET_FILE_NAME:_geompp>"
-        COMMAND ${Python_EXECUTABLE} -m pytest tests/ -v
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Running Python smoke tests"
-    )
-else()
-    message(STATUS "pytest not found in ${Python_EXECUTABLE} — smoke tests skipped (pip install pytest)")
-    add_custom_command(TARGET _geompp POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_FILE:_geompp>
-            "${CMAKE_CURRENT_SOURCE_DIR}/geompp/$<TARGET_FILE_NAME:_geompp>"
-        COMMENT "Copying _geompp into geompp_python/geompp/"
-    )
-endif()
 
 # ─── Install ─────────────────────────────────────────────────────────────────
 # pip/scikit-build-core: installs _geompp.so|pyd into the `geompp` package dir.

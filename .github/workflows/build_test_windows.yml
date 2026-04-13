@@ -27,10 +27,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set up .NET 10
+      - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '8.0.x'
 
       - name: Install Python build tools
         run: pip install scikit-build-core pybind11 pytest
@@ -45,15 +45,15 @@ jobs:
         run: ctest --test-dir build/geompp_tests --build-config Release --output-on-failure
 
       # ── C# smoke tests ───────────────────────────────────────────────────────
-      - name: Build GeomPP.dll (.NET 10)
+      - name: Build GeomPP.dll (.NET Framework 4.8)
         run: |
-          msbuild geompp_csharp\GeomPP.vcxproj `
+          msbuild geompp_csharp\GeomPP_Net48.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
       - name: Run C# smoke tests
-        run: dotnet run --project geompp_csharp\tests\GeomPPTests.csproj -p:GeomPPConfiguration=Release
+        run: dotnet run --project geompp_csharp\tests\GeomPPTests.csproj -p:GeomPPConfiguration=Release_Net48
 
       # ── Python smoke tests ───────────────────────────────────────────────────
       - name: Install Python bindings
