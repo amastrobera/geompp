@@ -186,7 +186,7 @@
   More on [test coverage](./test_coverage_report.md).
 
 
-  ## Build it
+  ## For developers
 
   ### Docker Dev Environment
   ```bash
@@ -209,14 +209,13 @@
   sudo ln -s /usr/bin/c++-13 /usr/bin/c++
   ```
 
-  Build
+  Build the library and (optionally) the Python bindings
   ```bash
   mkdir build && cd build
   cmake .. [-DCMAKE_BUILD_TYPE=Release] [-DBUILD_PYTHON=ON]
   make -j6
   ```
-
-  The `-DBUILD_PYTHON=ON` will build locally the python bindings and run the smoke tests immediately. 
+  The `-DBUILD_PYTHON=ON` will build locally the python bindings and be ready to run the smoke tests
 
   Run tests
   ```bash
@@ -234,21 +233,30 @@
 
   Provided that you have installed cmake, visual studio, msbuild and nuget
 
-  Build the library
+  Build the library and (optionally) the Python bindings
   ```powershell
   # from the main directory, geompp
   mkdir build_win
-  cmake -S . -B build_win -G "Visual Studio 18 2026" -A x64
+  cmake -S . -B build_win -G "Visual Studio 18 2026" -A x64 [-DBUILD_PYTHON=ON]
   cmake --build build_win --target geompp [--config Release]
-  ```
+  ```  
+  The `-DBUILD_PYTHON=ON` will build locally the python bindings and be ready to run the smoke tests
+
 
   Build and run the tests
   ```powershell
+  # tests on c++ library
+
   # from the main directory, geompp
   cmake --build build_win --target geompp_tests [--config Release]
-  .\build_win\geompp_tests\Release\geompp_tests.exe
+  .\build_win\geompp_tests\Debug[|Release]\geompp_tests.exe [--gtest_filter="Point2D*"]
   # alternatively
-  ctest --test-dir build_win/geompp_tests --build-config Release
+  ctest --test-dir build_win/geompp_tests --build-config Debug [|Release]
+
+  # smoke tests on python bindings 
+  pip install pytest # useful only the first time
+  pip install --no-build-isolation -e ./geompp_python # faster iteration while tweaking bindings
+  pytest geompp_python/tests/ -v [-k "BBox3D"]
   ```
 
   Build the C# DLL
@@ -262,7 +270,7 @@
   msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
   # run smoke tests, after build from the main directory geompp
-  dotnet run --project geompp_csharp\tests\GeomPPTests.csproj [-p:GeomPPConfiguration=Release]
+  dotnet run --project geompp_csharp\tests\GeomPPTests.csproj [-c Release]
   ```
 
   #### via Visual Studio

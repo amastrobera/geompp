@@ -11,6 +11,57 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.1.3] - 2026-04-13
+
+> C++ library — tagged `v0.1.3`
+
+### Fixed
+
+- `Polygon2D::AlmostEquals` and `Polygon2D::ToWkt`: bit-shift (`<<`) typo in loop
+  conditions corrected to less-than (`<`); loops now iterate over all vertices.
+- `Polygon2D::ToWkt`: ring now closes correctly — first vertex repeated at the end,
+  producing valid WKT (`POLYGON ((x0 y0, …, x0 y0))`).
+- `Polygon3D`: same loop and ring-closure fixes; `ToWkt` now also includes the z
+  coordinate (`"{} {} {}"` format instead of `"{} {}"`).
+- `BBox3D` copy constructor: was initialising `MIN` from `b.MAX` instead of `b.MIN`;
+  all `BBox3D` copies were silently corrupt.
+- `BBox3D::Contains`: z-axis bounds check was missing; added.
+- `BBox2D::operator=` and `BBox3D::operator=`: declared but never defined; linker
+  error on any code using assignment; implementations added.
+- `Line3D::Contains` and `Polyline3D::Contains`: used `Vector3D::Perp()` for the
+  collinearity check, which is incorrect in 3D — a single perpendicular dot product
+  being zero does not guarantee the point lies on the geometry. Both functions now
+  use the cross-product magnitude check. `Contains` and `Location` are public API
+  exposed in the C# and Python bindings, so callers may have received wrong results.
+
+### Tests
+- Added full test suites for `Plane`, `BBox2D`, `BBox3D`, `Polygon2D`, `Polygon3D`.
+- Extended coverage for `Triangle3D`, `Polyline2D`, `LineSegment3D`.
+
+---
+
+## [0.1.2] - 2026-04-13
+
+> C# / NuGet — tagged `csharp-v0.1.2` · Python / PyPI — tagged `python-v0.1.2`
+
+### Fixed
+
+**C# / NuGet**
+- Rebuilt against geompp core 0.1.3. Inherits all C++ bugfixes: `Polygon2D`/`Polygon3D`
+  loop and ring-closure corrections, `BBox3D` copy-constructor MIN/MAX fix,
+  `BBox3D::Contains` z-check, `BBox2D`/`BBox3D` assignment operator.
+- `Line3D.Contains`, `Line3D.Location`, `Polyline3D.Contains`, `Polyline3D.Location`:
+  fixed incorrect 3D collinearity check (see C++ entry above).
+
+**Python / PyPI**
+- Rebuilt against geompp core 0.1.3. Same bugfixes as C# above.
+- `line3d.contains()`, `line3d.location()`, `polyline3d.contains()`,
+  `polyline3d.location()`: fixed incorrect 3D collinearity check (see C++ entry above).
+- `pypi-publish.yml` now stamps `pyproject.toml` version from the git tag at build
+  time — no manual file edits needed before releasing.
+
+---
+
 ## [0.1.1] - 2026-04-13
 
 ### Fixed

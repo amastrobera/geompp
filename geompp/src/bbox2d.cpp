@@ -61,11 +61,22 @@ BBox2D::BBox2D(Polygon2D const& s) {
   double min_y = s[0].y();
 
   for (int i = 1; i < s.Size(); ++i) {
-    max_x = compare(s[i].x(), max_x) >= 0 ? s[i].x() : max_x;
-    max_y = compare(s[i].y(), max_y) >= 0 ? s[i].y() : max_y;
+    double x = s[i].x();
+    double y = s[i].y();
 
-    min_x = compare(s[i].x(), min_x) <= 0 ? s[i].x() : min_x;
-    min_x = compare(s[i].x(), min_y) <= 0 ? s[i].y() : min_y;
+    if (compare(x, max_x) > 0) {
+      max_x = x;
+    }
+    if (compare(y, max_y) > 0) {
+      max_y = y;
+    }
+
+    if (compare(x, min_x) < 0) {
+      min_x = x;
+    }
+    if (compare(y, min_y) < 0) {
+      min_y = y;
+    }
   }
 
   MIN = {min_x, min_y};
@@ -75,6 +86,14 @@ BBox2D::BBox2D(Polygon2D const& s) {
 BBox2D::BBox2D(Triangle2D const& s) : BBox2D(s.ToPolygon()) {}
 
 BBox2D::BBox2D(BBox2D const& b) : MIN(b.MIN), MAX(b.MAX) {}
+
+BBox2D& BBox2D::operator=(BBox2D const& other) {
+  if (this != &other) {
+    MIN = other.MIN;
+    MAX = other.MAX;
+  }
+  return *this;
+}
 
 bool BBox2D::AlmostEquals(BBox2D const& other, double epsilon) const {
   return MIN.AlmostEquals(other.MIN, epsilon) && MAX.AlmostEquals(other.MAX, epsilon);

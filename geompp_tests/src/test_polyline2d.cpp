@@ -354,7 +354,7 @@ TEST_F(Polyline2DTest, DistanceTo) {
   }
 
   // mid points
-  for (int i = 0; i < points.size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(points.size()) - 1; ++i) {
     auto avg = ((points[i].ToVector() + points[i + 1].ToVector()) / 2.0).ToPoint();
     ASSERT_EQ(0, g::round(polyline.DistanceTo(avg)));
   }
@@ -362,6 +362,41 @@ TEST_F(Polyline2DTest, DistanceTo) {
   // before the polyline
   ASSERT_EQ(1, g::round(polyline.DistanceTo(g::Point2D(-3, -4))));
   ASSERT_EQ(1, g::round(polyline.DistanceTo(g::Point2D(0, -2))));
+}
+
+TEST_F(Polyline2DTest, AlmostEquals) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto p1 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)});
+  auto p2 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)});
+  auto p3 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2)});
+
+  ASSERT_TRUE(p1.AlmostEquals(p2));
+  ASSERT_FALSE(p1.AlmostEquals(p3));
+  ASSERT_EQ(p1, p2);
+  ASSERT_NE(p1, p3);
+
+  // different number of knots → not equal
+  auto p4 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  ASSERT_FALSE(p1.AlmostEquals(p4));
+}
+
+TEST_F(Polyline2DTest, ToSegments) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto poly = g::Polyline2D::Make(
+      {g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+
+  auto segs = poly.ToSegments();
+  ASSERT_EQ(3, segs.size());
+
+  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0)), segs[0]);
+  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(1, 1)), segs[1]);
+  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1)), segs[2]);
+
+  // two-knot polyline → one segment
+  auto p2 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(3, 4)});
+  auto segs2 = p2.ToSegments();
+  ASSERT_EQ(1, segs2.size());
+  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(3, 4)), segs2[0]);
 }
 
 }  // namespace geompp_tests

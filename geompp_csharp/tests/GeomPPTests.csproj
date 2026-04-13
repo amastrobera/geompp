@@ -11,7 +11,8 @@
       Defaults to Release_Net48. Override at the command line:
         dotnet run -p:GeomPPConfiguration=Release_Net48
     -->
-    <GeomPPConfiguration Condition="'$(GeomPPConfiguration)'==''">Release_Net48</GeomPPConfiguration>
+    <GeomPPConfiguration Condition="'$(GeomPPConfiguration)'=='' AND '$(Configuration)'=='Debug'">Debug_Net48</GeomPPConfiguration>
+    <GeomPPConfiguration Condition="'$(GeomPPConfiguration)'=='' AND '$(Configuration)'=='Release'">Release_Net48</GeomPPConfiguration>
     <GeomPPDllDir>$(MSBuildProjectDirectory)\..\x64\$(GeomPPConfiguration)</GeomPPDllDir>
   </PropertyGroup>
 

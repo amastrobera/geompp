@@ -47,14 +47,16 @@ bool Line3D::AlmostEquals(Line3D const& other, double epsilon) const {
   return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
 }
 
-double Line3D::DistanceTo(Point3D const& point) const {
-  throw std::runtime_error("not implemented");
-  // return round(std::abs(DIR.Cross(point - P0)));
-}
+double Line3D::DistanceTo(Point3D const& point) const { return (point - ProjectOnto(point)).Length(); }
 
 Point3D Line3D::ProjectOnto(Point3D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
 
-double Line3D::Location(Point3D const& point) const { return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length(); }
+double Line3D::Location(Point3D const& point) const {
+  if (!Contains(point)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length();
+}
 
 #pragma endregion
 
@@ -71,7 +73,7 @@ std::ostream& operator<<(std::ostream& os, Line3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line3D::Contains(Point3D const& point) const { return compare(DIR.Perp().Dot((point - P0)), 0) == 0; }
+bool Line3D::Contains(Point3D const& point) const { return compare(DIR.Cross((point - P0)).Length(), 0) == 0; }
 
 bool Line3D::Intersects(Line3D const& other) const { return Intersection(other).has_value(); }
 

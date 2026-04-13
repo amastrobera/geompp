@@ -17,64 +17,133 @@ namespace geompp {
 
 BBox3D::BBox3D(Point3D const& min, Point3D const& max) : MIN(min), MAX(max) {}
 
-// BBox3D::BBox3D(LineSegment3D const& s) {
-//   double max_x = round(s.First().x() - s.Last().x()) >= 0 ? s.First().x() : s.Last().x();
-//   double max_y = round(s.First().y() - s.Last().y()) >= 0 ? s.First().y() : s.Last().y();
-//
-//   double min_x = round(s.First().x() - s.Last().x()) <= 0 ? s.First().x() : s.Last().x();
-//   double min_y = round(s.First().y() - s.Last().y()) <= 0 ? s.First().y() : s.Last().y();
-//
-//   MIN = {min_x, min_y};
-//   MAX = {max_x, max_y};
-// }
-//
-// BBox3D::BBox3D(Polyline3D const& s) {
-//   if (s.Size() == 0) {
-//     throw new std::runtime_error("cannot make bounding box of empty polyline");
-//   }
-//
-//   double max_x = s[0].x();
-//   double max_y = s[0].y();
-//   double min_x = s[0].x();
-//   double min_y = s[0].y();
-//
-//   for (int i = 1; i < s.Size(); ++i) {
-//     max_x = round(s[i].x() - max_x) >= 0 ? s[i].x() : max_x;
-//     max_y = round(s[i].y() - max_y) >= 0 ? s[i].y() : max_y;
-//
-//     min_x = round(s[i].x() - min_x) <= 0 ? s[i].x() : min_x;
-//     min_x = round(s[i].x() - min_y) <= 0 ? s[i].y() : min_y;
-//   }
-//
-//   MIN = {min_x, min_y};
-//   MAX = {max_x, max_y};
-// }
-//
-// BBox3D::BBox3D(Polygon3D const& s) {
-//   if (s.Size() == 0) {
-//     throw new std::runtime_error("cannot make bounding box of empty polyline");
-//   }
-//
-//   double max_x = s[0].x();
-//   double max_y = s[0].y();
-//   double min_x = s[0].x();
-//   double min_y = s[0].y();
-//
-//   for (int i = 1; i < s.Size(); ++i) {
-//     max_x = round(s[i].x() - max_x) >= 0 ? s[i].x() : max_x;
-//     max_y = round(s[i].y() - max_y) >= 0 ? s[i].y() : max_y;
-//
-//     min_x = round(s[i].x() - min_x) <= 0 ? s[i].x() : min_x;
-//     min_x = round(s[i].x() - min_y) <= 0 ? s[i].y() : min_y;
-//   }
-//
-//   MIN = {min_x, min_y};
-//   MAX = {max_x, max_y};
-// }
-//
-// BBox3D::BBox3D(Triangle3D const& s) : BBox3D(s.ToPolygon()) {}
+BBox3D::BBox3D(LineSegment3D const& s) {
+  double ax = s.First().x(), bx = s.Last().x();
+  double ay = s.First().y(), by = s.Last().y();
+  double az = s.First().z(), bz = s.Last().z();
 
-BBox3D::BBox3D(BBox3D const& b) : MIN(b.MAX), MAX(b.MAX) {}
+  MIN = {compare(ax, bx) < 0 ? ax : bx, compare(ay, by) < 0 ? ay : by, compare(az, bz) < 0 ? az : bz};
+  MAX = {compare(ax, bx) > 0 ? ax : bx, compare(ay, by) > 0 ? ay : by, compare(az, bz) > 0 ? az : bz};
+}
+
+BBox3D::BBox3D(Polyline3D const& s) {
+  if (s.Size() == 0) {
+    throw std::runtime_error("cannot make bounding box of empty polyline");
+  }
+
+  double max_x = s[0].x(), min_x = s[0].x();
+  double max_y = s[0].y(), min_y = s[0].y();
+  double max_z = s[0].z(), min_z = s[0].z();
+
+  for (int i = 1; i < s.Size(); ++i) {
+    double x = s[i].x(), y = s[i].y(), z = s[i].z();
+
+    if (compare(x, max_x) > 0) {
+      max_x = x;
+    }
+    if (compare(y, max_y) > 0) {
+      max_y = y;
+    }
+    if (compare(z, max_z) > 0) {
+      max_z = z;
+    }
+
+    if (compare(x, min_x) < 0) {
+      min_x = x;
+    }
+    if (compare(y, min_y) < 0) {
+      min_y = y;
+    }
+    if (compare(z, min_z) < 0) {
+      min_z = z;
+    }
+  }
+
+  MIN = {min_x, min_y, min_z};
+  MAX = {max_x, max_y, max_z};
+}
+
+BBox3D::BBox3D(Polygon3D const& s) {
+  if (s.Size() == 0) {
+    throw std::runtime_error("cannot make bounding box of empty polygon");
+  }
+
+  double max_x = s[0].x(), min_x = s[0].x();
+  double max_y = s[0].y(), min_y = s[0].y();
+  double max_z = s[0].z(), min_z = s[0].z();
+
+  for (std::size_t i = 1; i < s.Size(); ++i) {
+    double x = s[i].x(), y = s[i].y(), z = s[i].z();
+
+    if (compare(x, max_x) > 0) {
+      max_x = x;
+    }
+    if (compare(y, max_y) > 0) {
+      max_y = y;
+    }
+    if (compare(z, max_z) > 0) {
+      max_z = z;
+    }
+
+    if (compare(x, min_x) < 0) {
+      min_x = x;
+    }
+    if (compare(y, min_y) < 0) {
+      min_y = y;
+    }
+    if (compare(z, min_z) < 0) {
+      min_z = z;
+    }
+  }
+
+  MIN = {min_x, min_y, min_z};
+  MAX = {max_x, max_y, max_z};
+}
+
+BBox3D::BBox3D(Triangle3D const& s) {
+  auto [p0, p1, p2] = s.Vertices();
+
+  double max_x = p0.x(), min_x = p0.x();
+  double max_y = p0.y(), min_y = p0.y();
+  double max_z = p0.z(), min_z = p0.z();
+
+  for (Point3D const& p : {p1, p2}) {
+    double x = p.x(), y = p.y(), z = p.z();
+
+    if (compare(x, max_x) > 0) {
+      max_x = x;
+    }
+    if (compare(y, max_y) > 0) {
+      max_y = y;
+    }
+    if (compare(z, max_z) > 0) {
+      max_z = z;
+    }
+
+    if (compare(x, min_x) < 0) {
+      min_x = x;
+    }
+    if (compare(y, min_y) < 0) {
+      min_y = y;
+    }
+    if (compare(z, min_z) < 0) {
+      min_z = z;
+    }
+  }
+
+  MIN = {min_x, min_y, min_z};
+  MAX = {max_x, max_y, max_z};
+}
+
+BBox3D::BBox3D(BBox3D const& b) : MIN(b.MIN), MAX(b.MAX) {}
+
+BBox3D& BBox3D::operator=(BBox3D const& other) {
+  if (this != &other) {
+    MIN = other.MIN;
+    MAX = other.MAX;
+  }
+  return *this;
+}
 
 bool BBox3D::AlmostEquals(BBox3D const& other, double epsilon) const {
   return MIN.AlmostEquals(other.MIN, epsilon) && MAX.AlmostEquals(other.MAX, epsilon);
@@ -84,7 +153,7 @@ bool BBox3D::AlmostEquals(BBox3D const& other, double epsilon) const {
 
 bool BBox3D::Contains(Point3D const& p) const {
   return compare(p.x(), MIN.x()) >= 0 && compare(p.x(), MAX.x()) <= 0 && compare(p.y(), MIN.y()) >= 0 &&
-         compare(p.y(), MAX.y()) <= 0;
+         compare(p.y(), MAX.y()) <= 0 && compare(p.z(), MIN.z()) >= 0 && compare(p.z(), MAX.z()) <= 0;
 }
 
 #pragma endregion
