@@ -63,7 +63,7 @@
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PreprocessorDefinitions>GEOMPP_NO_THREAD_LOCAL;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;$(GeomppBuildRoot)\_deps\glog-src\src;$(GeomppBuildRoot)\_deps\glog-build;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\geompp\include;$(ProjectDir)src;$(GeomppBuildRoot)\_deps\glog-src\src;$(GeomppBuildRoot)\_deps\glog-build;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>
@@ -84,7 +84,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PreprocessorDefinitions>GEOMPP_NO_THREAD_LOCAL;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;$(GeomppBuildRoot)\_deps\glog-src\src;$(GeomppBuildRoot)\_deps\glog-build;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\geompp\include;$(ProjectDir)src;$(GeomppBuildRoot)\_deps\glog-src\src;$(GeomppBuildRoot)\_deps\glog-build;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>
