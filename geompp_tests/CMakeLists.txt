@@ -55,8 +55,14 @@ add_executable(${PROJECT_NAME}
 
     src/test_triangle3d.cpp
     src/test_plane.cpp
+    src/test_bbox2d.cpp
+    src/test_bbox3d.cpp
+    src/test_polygon2d.cpp
+    src/test_polygon3d.cpp
 
     src/test_lsv_parser.cpp
+    src/test_polyline3d.cpp
+    src/test_utils.cpp
 
     main.cpp
 )

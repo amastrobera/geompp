@@ -3,17 +3,14 @@
 
 ## Next
 
-#### test and build infrastructure
-- Docker based dev enviroment: Windows image
+#### build infrastructure 
+- more test coverage for all classes under 40%
 
 #### graphic demos
 - add keys to move around with the camera
 - add an input box to type in a new geometry
 - add a key to delete a geometry 
 
-#### more build infrastructure 
-- write c# smoke tests
-- write python smoke tests
 
 #### 2D geometry
 - Shape2D for return type of geometrical operations, tests
@@ -29,8 +26,7 @@
 
 #### build infrastructure 
 - On Visual Studio, use the test runner to run specific tests
-- Build on windows via command line (install cmake and g++ on windows, use PowerShell)
-- write some python tests
+
 
 #### 2D geometry
 - Triangle2D::intersects(line, ray, line_seg), tests
@@ -141,3 +137,7 @@
 - write some c# sample code
 - write interface for Python
 - write some python sample code
+- Build on windows via command line (install cmake and g++ on windows, use PowerShell)
+- Docker based dev enviroment: Windows image
+- write c# smoke tests
+- write python smoke tests

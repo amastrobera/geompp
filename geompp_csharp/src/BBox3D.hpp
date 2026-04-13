@@ -8,10 +8,18 @@
 namespace GeomPP {
 
 ref class Point3D;
+ref class LineSegment3D;
+ref class Polyline3D;
+ref class Polygon3D;
+ref class Triangle3D;
 
 public ref class BBox3D {
 public:
     BBox3D(Point3D^ min, Point3D^ max);
+    BBox3D(LineSegment3D^ s);
+    BBox3D(Polyline3D^ s);
+    BBox3D(Polygon3D^ s);
+    BBox3D(Triangle3D^ s);
     ~BBox3D();
     !BBox3D();
 

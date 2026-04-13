@@ -1,5 +1,9 @@
 #include "BBox3D.hpp"
 #include "Point3D.hpp"
+#include "LineSegment3D.hpp"
+#include "Polyline3D.hpp"
+#include "Polygon3D.hpp"
+#include "Triangle3D.hpp"
 
 namespace GeomPP {
 
@@ -10,6 +14,18 @@ BBox3D::BBox3D(geompp::BBox3D* native)
 
 BBox3D::BBox3D(Point3D^ min, Point3D^ max)
     : _native(new geompp::BBox3D(*min->_native, *max->_native)) {}
+
+BBox3D::BBox3D(LineSegment3D^ s)
+    : _native(new geompp::BBox3D(*s->_native)) {}
+
+BBox3D::BBox3D(Polyline3D^ s)
+    : _native(new geompp::BBox3D(*s->_native)) {}
+
+BBox3D::BBox3D(Polygon3D^ s)
+    : _native(new geompp::BBox3D(*s->_native)) {}
+
+BBox3D::BBox3D(Triangle3D^ s)
+    : _native(new geompp::BBox3D(*s->_native)) {}
 
 BBox3D::~BBox3D() {
     delete _native;

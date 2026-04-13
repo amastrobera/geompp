@@ -244,6 +244,57 @@ Test("Contains_PointBeyondEnd_False", () => {
   IsFalse(LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(5, 0)));
 });
 
+// ── BBox3D ────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBBox3D");
+
+Test("FromPoints_MinMax", () => {
+  var bb = new BBox3D(new Point3D(0, 0, 0), new Point3D(1, 2, 3));
+  Eq(0.0, bb.Min().X); Eq(0.0, bb.Min().Y); Eq(0.0, bb.Min().Z);
+  Eq(1.0, bb.Max().X); Eq(2.0, bb.Max().Y); Eq(3.0, bb.Max().Z);
+});
+
+Test("Contains_InsidePoint_True", () => {
+  var bb = new BBox3D(new Point3D(0, 0, 0), new Point3D(5, 5, 5));
+  IsTrue(bb.Contains(new Point3D(1, 1, 1)));
+  IsFalse(bb.Contains(new Point3D(6, 1, 1)));
+});
+
+Test("FromLineSegment_SpansEndpoints", () => {
+  var bb = new BBox3D(LineSegment3D.Make(new Point3D(-1, -2, -3), new Point3D(3, 4, 5)));
+  Eq(-1.0, bb.Min().X); Eq(-2.0, bb.Min().Y); Eq(-3.0, bb.Min().Z);
+  Eq( 3.0, bb.Max().X); Eq( 4.0, bb.Max().Y); Eq( 5.0, bb.Max().Z);
+});
+
+Test("FromLineSegment_ReversedEndpoints_SameResult", () => {
+  var bb = new BBox3D(LineSegment3D.Make(new Point3D(3, 4, 5), new Point3D(-1, -2, -3)));
+  Eq(-1.0, bb.Min().X); Eq(-3.0, bb.Min().Z);
+  Eq( 3.0, bb.Max().X); Eq( 5.0, bb.Max().Z);
+});
+
+Test("FromPolyline_SpansAllKnots", () => {
+  var pts = new Point3D[] { new Point3D(0, 5, 1), new Point3D(3, 0, 4), new Point3D(1, 2, 0) };
+  var bb = new BBox3D(Polyline3D.Make(pts));
+  Eq(0.0, bb.Min().X); Eq(0.0, bb.Min().Y); Eq(0.0, bb.Min().Z);
+  Eq(3.0, bb.Max().X); Eq(5.0, bb.Max().Y); Eq(4.0, bb.Max().Z);
+});
+
+Test("FromPolygon_SpansAllVertices", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 1), new Point3D(4, 0, 1),
+    new Point3D(4, 3, 5), new Point3D(0, 0, 1),
+  };
+  var bb = new BBox3D(Polygon3D.Make(pts));
+  Eq(0.0, bb.Min().X); Eq(1.0, bb.Min().Z);
+  Eq(4.0, bb.Max().X); Eq(5.0, bb.Max().Z);
+});
+
+Test("FromTriangle_SpansAllVertices", () => {
+  var bb = new BBox3D(Triangle3D.Make(
+    new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 3, 4)));
+  Eq(0.0, bb.Min().X); Eq(0.0, bb.Min().Y); Eq(0.0, bb.Min().Z);
+  Eq(2.0, bb.Max().X); Eq(3.0, bb.Max().Y); Eq(4.0, bb.Max().Z);
+});
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 Console.WriteLine($"\n{passed} passed, {failed} failed out of {passed + failed} tests.");
 return failed > 0 ? 1 : 0;

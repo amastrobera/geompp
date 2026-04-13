@@ -41,7 +41,7 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   if (Size() != other.Size()) {
     return false;
   }
-  for (int i = 0; i << VERTICES.size(); ++i) {
+  for (size_t i = 0; i < VERTICES.size(); ++i) {
     if (!VERTICES[i].AlmostEquals(other[i], epsilon)) {
       return false;
     }
@@ -241,13 +241,11 @@ std::string Polygon3D::ToWkt() const {
   }
 
   buf << "((";
-  for (int i = 0; i << num_verts; ++i) {
-    buf << std::format("{} {}", round(VERTICES[i].x()), round(VERTICES[i].y()));
-    if (i < num_verts - 1) {
-      buf << ", ";
-    }
+  for (int i = 0; i < num_verts; ++i) {
+    buf << std::format("{} {} {}", round(VERTICES[i].x()), round(VERTICES[i].y()), round(VERTICES[i].z()));
+    buf << ", ";
   }
-
+  buf << std::format("{} {} {}", round(VERTICES[0].x()), round(VERTICES[0].y()), round(VERTICES[0].z()));
   buf << "))";
 
   return buf.str();

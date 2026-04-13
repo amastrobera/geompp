@@ -4,48 +4,47 @@
 
 | Status | Count | % |
 |---|---|---|
-| Tested | ~220 | 63% |
-| Untested | ~110 | 31% |
-| Commented-only | ~20 | 6% |
-| **Total** | **~350** | |
+| Tested | ~323 | ~90% |
+| Untested | ~37 | ~10% |
+| **Total** | **~360** | |
 
 ---
 
-## By Class
+## By Class (sorted lowest → highest coverage)
 
-| Class | Tested | Untested | Commented-only | Coverage |
-|---|---|---|---|---|
-| `Point2D` | 19 | 1 (`linear_combination`) | 0 | ~95% |
-| `Point3D` | 20 | 0 | 0 | 100% |
-| `Vector2D` | 14 | 6 (`Length`, `Normalize`, `AlmostEquals`, unary `-`, `operator-`, `operator/`) | 0 | ~70% |
-| `Vector3D` | 22 | 0 | 0 | 100% |
-| `Line2D` | 11 | 7 (`AlmostEquals`, `ProjectOnto`, `Location`, `Intersects/Intersection` ×Ray2D + ×LineSegment2D) | 0 | ~60% |
-| `Line3D` | 14 | 5 (`DistanceTo`, `Intersects/Intersection` ×Ray3D + ×LineSegment3D) | 0 | ~75% |
-| `LineSegment2D` | 14 | 2 (`Length`, `ToLine`) | 0 | ~87% |
-| `LineSegment3D` | 13 | 3 (`DistanceTo`, `Intersects/Intersection` ×Ray3D + ×LineSegment3D) | 0 | ~81% |
-| `Ray2D` | 16 | 2 (`AlmostEquals`, `ToLine`) | 0 | ~89% |
-| `Ray3D` | 12 | 6 (`Contains`, `DistanceTo`, `Intersects/Intersection` ×Ray3D + ×LineSegment3D) | 0 | ~67% |
-| `Triangle2D` | 16 | 1 (`AlmostEquals`) | 6 (Ray/Segment/Triangle intersections) | ~94% active |
-| `Triangle3D` | 5 | 9 (`Area`, `Perimeter`, `Contains`, `DistanceTo`, `ToAxis`, `Location`, `Interpolate`, `AlmostEquals`, `Intersects/Intersection ×Line3D`) | 9 (Ray/Segment/Triangle intersections) | ~35% active |
-| `Polyline2D` | 19 | 1 (`AlmostEquals`, `ToSegments`) | 0 | ~90% |
-| `Polyline3D` | 0 | 20 | 0 | **0%** |
-| `Polygon2D` | 4 | 4 (`AlmostEquals`, `FromWkt`, `ToFile`, `FromFile`) | 0 | ~50% |
-| `Polygon3D` | 0 | 10 | 0 | **0%** |
-| `BBox2D` | 0 | 8 | 0 | **0%** |
-| `BBox3D` | 0 | 8 | 0 | **0%** |
-| `Plane` | 0 | 18 | 0 | **0%** |
-| `LVSParser` | 4 | 0 | 0 | 100% |
-| `utils.hpp` | 1 (`round`) | 8 | 0 | ~11% |
+| Class | Tested | Untested | Coverage |
+|---|---|---|---|
+| `Line2D` | 11 | 7 (`AlmostEquals`, `ProjectOnto`, `Location`, `Intersects`/`Intersection` ×`Ray2D`, `Intersects`/`Intersection` ×`LineSegment2D`) | ~61% |
+| `Ray3D` | 12 | 6 (`Contains`, `DistanceTo`, `Intersects`/`Intersection` ×`Ray3D`, `Intersects`/`Intersection` ×`LineSegment3D`) | ~67% |
+| `Vector2D` | 14 | 6 (`Length`, `Normalize`, `AlmostEquals`, unary `-`, `operator-`, `operator/`) | ~70% |
+| `Line3D` | 14 | 5 (`DistanceTo`, `Intersects`/`Intersection` ×`Ray3D`, `Intersects`/`Intersection` ×`LineSegment3D`) | ~75% |
+| `BBox2D` | 9 | 2 (`BBox2D(Polyline2D)`, `BBox2D(Polygon2D)`) | ~82% |
+| `LineSegment2D` | 14 | 2 (`Length`, `ToLine`) | ~87% |
+| `Ray2D` | 16 | 2 (`AlmostEquals`, `ToLine`) | ~89% |
+| `Triangle3D` | 19 | 2 (`operator=`, `operator<<`) | ~90% |
+| `Polygon2D` | 10 | 1 (`operator<<`) | ~91% |
+| `Polygon3D` | 10 | 1 (`operator<<`) | ~91% |
+| `Polyline2D` | 23 | 2 (`operator=`, `operator<<`) | ~92% |
+| `Polyline3D` | 23 | 2 (`operator=`, `operator<<`) | ~92% |
+| `Triangle2D` | 21 | 1 (`AlmostEquals`) | ~94% |
+| `Plane` | 16 | 1 (`operator==`) | ~94% |
+| `Point2D` | 19 | 1 (`linear_combination`) | ~95% |
+| `LineSegment3D` | 22 | 1 (`operator<<`) | ~96% |
+| `BBox3D` | 12 | 0 | **100%** |
+| `Point3D` | 20 | 0 | **100%** |
+| `Vector3D` | 22 | 0 | **100%** |
+| `utils.hpp` | 12 | 0 | **100%** |
+| `LVSParser` | 4 | 0 | **100%** |
 
 ---
 
 ## Key Takeaways
 
-- **5 classes at 0%**: `Polyline3D`, `Polygon3D`, `BBox2D`, `BBox3D`, `Plane` — these alone account for most of the gap.
-- **`Triangle3D`** is the worst among partially-tested classes — only the constructor, WKT, and file I/O work; the geometry methods are all dark.
-- **`utils.hpp`** is nearly untested despite being called internally by every `FromWkt` parser.
-- **2D side** is in good shape overall — most classes are ≥ 87% with only isolated gaps.
-- **3D side** is systematically weaker, mirroring the fact that the `feature/geom_3d` branch is still in progress.
+- **No class is at 0%** — all geometry classes and utilities have at least some test coverage.
+- **`Line2D`, `Ray3D`, `Vector2D`, `Line3D`** remain the weakest — all lack several geometric operations (intersections, distance, normalization).
+- **`operator<<` and `operator=`** are the most common "last mile" gaps — they appear across `Triangle3D`, `Polygon2D`, `Polygon3D`, `Polyline2D`, `Polyline3D`, and `LineSegment3D`.
+- **`BBox3D`, `Point3D`, `Vector3D`, `utils.hpp`, `LVSParser`** are at **100%**.
+- **2D side** continues to be strong overall; the biggest remaining gaps are in the 2D intersection/distance helpers (`Line2D`, `Vector2D`, `Ray3D`).
 
 ---
 

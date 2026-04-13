@@ -83,7 +83,8 @@ double Polyline3D::Location(Point3D const& point) const {
   // at this point tot_len == Lenght(), no need to call that loop again
 
   // check if the point is behind the polyline (on the first "line")
-  if (compare((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First()), 0) == 0) {  // collinearity check
+  if (compare((segs[0].Last() - segs[0].First()).Cross(point - segs[0].First()).Length(), 0) ==
+      0) {  // collinearity check
     return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First())) * segs[0].First().DistanceTo(point) /
            tot_len;
   }

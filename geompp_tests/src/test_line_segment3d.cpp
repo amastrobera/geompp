@@ -3,6 +3,7 @@
 #include "constants.hpp"
 #include "line3d.hpp"
 #include "point3d.hpp"
+#include "ray3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -196,6 +197,70 @@ TEST_F(LineSegment3DTest, TestFromFile) {
 
   auto s = g::LineSegment3D::FromFile(path);
   GEOMPP_LOG(INFO) << "from file = " << s.ToWkt();
+}
+
+TEST_F(LineSegment3DTest, DistanceTo) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
+
+  // on segment: distance = 0
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(g::Point3D(0, 0, 0))));
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(g::Point3D(4, 0, 0))));
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(g::Point3D(2, 0, 0))));
+
+  // perpendicular above midpoint
+  EXPECT_EQ(3.0, g::round(seg.DistanceTo(g::Point3D(2, 3, 0))));
+  EXPECT_EQ(5.0, g::round(seg.DistanceTo(g::Point3D(2, 0, 5))));
+
+  // beyond endpoints → distance to nearest endpoint
+  EXPECT_EQ(5.0, g::round(seg.DistanceTo(g::Point3D(-3, 4, 0))));  // dist to P0
+  EXPECT_EQ(3.0, g::round(seg.DistanceTo(g::Point3D(7, 0, 0))));   // dist to P1
+}
+
+TEST_F(LineSegment3DTest, IntersectionWithRay3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  // segment along Y from (0,-2,0) to (0,2,0)
+  auto seg = g::LineSegment3D::Make(g::Point3D(0, -2, 0), g::Point3D(0, 2, 0));
+
+  // ray pointing left from (2,0,0) — hits x=0 at (0,0,0), which is on the segment
+  auto ray_hit = g::Ray3D::Make(g::Point3D(2, 0, 0), g::Vector3D(-1, 0, 0));
+  ASSERT_TRUE(seg.Intersects(ray_hit));
+  {
+    auto inter = seg.Intersection(ray_hit);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(0, 0, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // ray pointing right — goes away from segment
+  auto ray_miss = g::Ray3D::Make(g::Point3D(2, 0, 0), g::Vector3D(1, 0, 0));
+  ASSERT_FALSE(seg.Intersects(ray_miss));
+  ASSERT_FALSE(seg.Intersection(ray_miss).has_value());
+}
+
+TEST_F(LineSegment3DTest, IntersectionWithSegment3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  // cross at origin: vertical and horizontal segments in XY plane
+  auto seg_v = g::LineSegment3D::Make(g::Point3D(0, -2, 0), g::Point3D(0, 2, 0));
+  auto seg_h = g::LineSegment3D::Make(g::Point3D(-2, 0, 0), g::Point3D(2, 0, 0));
+
+  ASSERT_TRUE(seg_v.Intersects(seg_h));
+  {
+    auto inter = seg_v.Intersection(seg_h);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(0, 0, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // parallel segments — no intersection
+  auto seg_par = g::LineSegment3D::Make(g::Point3D(1, -2, 0), g::Point3D(1, 2, 0));
+  ASSERT_FALSE(seg_v.Intersects(seg_par));
+  ASSERT_FALSE(seg_v.Intersection(seg_par).has_value());
+
+  // short segment that doesn't reach the crossing point
+  auto seg_short = g::LineSegment3D::Make(g::Point3D(-2, 0, 0), g::Point3D(-1, 0, 0));
+  ASSERT_FALSE(seg_v.Intersects(seg_short));
+  ASSERT_FALSE(seg_v.Intersection(seg_short).has_value());
 }
 
 }  // namespace geompp_tests

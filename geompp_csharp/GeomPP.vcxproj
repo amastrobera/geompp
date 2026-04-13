@@ -68,10 +68,12 @@
     <Link>
       <AdditionalLibraryDirectories>
         $(GeomppBuildRoot)\geompp;
+        $(GeomppBuildRoot)\geompp\Debug;
         $(GeomppBuildRoot)\_deps\glog-build;
+        $(GeomppBuildRoot)\_deps\glog-build\Debug;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>glogd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glogd.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 

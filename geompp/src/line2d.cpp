@@ -51,7 +51,12 @@ double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DI
 
 Point2D Line2D::ProjectOnto(Point2D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
 
-double Line2D::Location(Point2D const& point) const { return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length(); }
+double Line2D::Location(Point2D const& point) const {
+  if (!Contains(point)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length();
+}
 
 #pragma endregion
 

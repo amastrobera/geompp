@@ -521,6 +521,35 @@ class TestBBox3D:
         assert bb.contains(geompp.Point3D(1, 1, 1))
         assert not bb.contains(geompp.Point3D(6, 1, 1))
 
+    def test_from_line_segment(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(-1, -2, -3), geompp.Point3D(3, 4, 5))
+        bb = geompp.BBox3D(s)
+        assert approx(bb.min.x, -1) and approx(bb.min.y, -2) and approx(bb.min.z, -3)
+        assert approx(bb.max.x,  3) and approx(bb.max.y,  4) and approx(bb.max.z,  5)
+
+    def test_from_polyline(self):
+        pts = [geompp.Point3D(0, 5, 1), geompp.Point3D(3, 0, 4), geompp.Point3D(1, 2, 0)]
+        bb = geompp.BBox3D(geompp.Polyline3D.make(pts))
+        assert approx(bb.min.x, 0) and approx(bb.min.y, 0) and approx(bb.min.z, 0)
+        assert approx(bb.max.x, 3) and approx(bb.max.y, 5) and approx(bb.max.z, 4)
+
+    def test_from_polygon(self):
+        pts = [
+            geompp.Point3D(0, 0, 1), geompp.Point3D(4, 0, 1),
+            geompp.Point3D(4, 3, 5), geompp.Point3D(0, 0, 1),
+        ]
+        bb = geompp.BBox3D(geompp.Polygon3D.make(pts))
+        assert approx(bb.min.x, 0) and approx(bb.min.z, 1)
+        assert approx(bb.max.x, 4) and approx(bb.max.z, 5)
+
+    def test_from_triangle(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(0, 3, 4)
+        )
+        bb = geompp.BBox3D(tri)
+        assert approx(bb.min.x, 0) and approx(bb.min.y, 0) and approx(bb.min.z, 0)
+        assert approx(bb.max.x, 2) and approx(bb.max.y, 3) and approx(bb.max.z, 4)
+
 
 # ─── Plane ───────────────────────────────────────────────────────────────────
 

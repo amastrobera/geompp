@@ -2,6 +2,10 @@ build
 out
 .vs
 CMakeSettings.json
+
+# C#
+*bin/
+*obj/
 Testing
 build_win
 geompp_csharp/GeomPP/
