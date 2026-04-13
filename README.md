@@ -178,10 +178,9 @@
 
   | Status | Count | % |
   |---|---|---|
-  | Tested | ~220 | 63% |
-  | Untested | ~110 | 31% |
-  | Commented-only | ~20 | 6% |
-  | **Total** | **~350** | |
+  | Tested | ~323 | ~90% |
+  | Untested | ~37 | ~10% |
+  | **Total** | **~360** | |
 
   More on [test coverage](./test_coverage_report.md).
 

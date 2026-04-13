@@ -141,7 +141,9 @@ genhtml coverage.info --output-directory coverage_html
 These classes have only `operator=` and/or `operator<<` untested — low-value gaps.
 
 - [ ] `Triangle3D::operator=` — assign one triangle to another; self-assign is safe
+- [ ] `Triangle3D::operator<<` — stream output matches `ToWkt()`
 - [ ] `Polyline2D::operator=` — assign one polyline to another; self-assign is safe
+- [ ] `Polyline2D::operator<<` — stream output matches `ToWkt()`
 
 ---
 
