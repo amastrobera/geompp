@@ -30,7 +30,7 @@ jobs:
       # cibuildwheel spins up manylinux containers on Linux and uses the
       # host MSVC toolchain on Windows; config lives in pyproject.toml
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2
+        uses: pypa/cibuildwheel@v2.22.0
         with:
           package-dir: geompp_python
           output-dir:  wheelhouse
