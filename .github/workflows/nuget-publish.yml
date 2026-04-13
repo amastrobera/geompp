@@ -1,14 +1,23 @@
 name: Publish NuGet
 
-# Triggers on C# version tags: csharp-v1.0.0, csharp-v1.2.3, etc.
+# Triggers on C# version tags: csharp-v0.1.1, csharp-v1.2.3, etc.
+# Can also be triggered manually from the Actions tab.
 on:
   push:
     tags:
       - "csharp-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. csharp-v0.1.1)'
+        required: true
+        type: string
 
 jobs:
   build-and-publish:
     runs-on: windows-latest
+    permissions:
+      contents: write   # needed to create GitHub Release
 
     steps:
       - uses: actions/checkout@v4
@@ -28,8 +37,6 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       # Build only the geompp static library (skips tests and samples)
-      # Ninja is single-config, so the output goes directly to build/geompp/
-      # matching the $(GeomppBuildRoot)\geompp path in GeomPP.vcxproj.
       - name: Build geompp (C++ static library)
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -53,17 +60,39 @@ jobs:
             /p:Platform=x64 `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
-      # Strip the leading 'csharp-v' from the tag (csharp-v1.2.3 -> 1.2.3) for NuGet versioning
+      # Resolve tag and version (supports both push-tag and manual dispatch)
       - name: Extract version from tag
         id: ver
         shell: pwsh
         run: |
-          $v = "${{ github.ref_name }}" -replace '^csharp-v', ''
+          $tag = "${{ inputs.tag || github.ref_name }}"
+          $v   = $tag -replace '^csharp-v', ''
+          "TAG=$tag" | Out-File -Append $env:GITHUB_OUTPUT
           "VERSION=$v" | Out-File -Append $env:GITHUB_OUTPUT
 
-      # Pack: reads GeomPP.nuspec which picks up both DLLs —
-      #   lib\net8.0-windows\GeomPP.dll  (from x64\Release\)
-      #   lib\net48\GeomPP.dll           (from x64\Release_Net48\)
+      # Pull the matching section out of CHANGELOG.md
+      - name: Extract changelog notes
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.VERSION }}"
+          $text    = Get-Content CHANGELOG.md -Raw
+          $escaped = [regex]::Escape($version)
+          $m = [regex]::Match($text, "(?s)## \[$escaped\][^\n]*\n(.*?)(?=\n## \[|\z)")
+          if ($m.Success) {
+              $m.Groups[1].Value.Trim() | Set-Content notes.txt
+          } else {
+              "Release $version" | Set-Content notes.txt
+          }
+
+      # Inject the extracted notes into the nuspec before packing
+      - name: Inject release notes into nuspec
+        shell: pwsh
+        run: |
+          [xml]$nuspec = Get-Content geompp_csharp\GeomPP.nuspec
+          $nuspec.package.metadata.releaseNotes = (Get-Content notes.txt -Raw).Trim()
+          $nuspec.Save((Resolve-Path geompp_csharp\GeomPP.nuspec).Path)
+
+      # Pack: reads GeomPP.nuspec which picks up both DLLs.
       - name: Pack NuGet package
         run: |
           nuget pack geompp_csharp\GeomPP.nuspec `
@@ -78,3 +107,15 @@ jobs:
             -Source https://api.nuget.org/v3/index.json `
             -ApiKey ${{ secrets.NUGET_API_KEY }} `
             -SkipDuplicate
+
+      # Create a GitHub Release on the csharp-v* tag with the nupkg as asset
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.ver.outputs.TAG }}" \
+            --repo  "${{ github.repository }}" \
+            --title "GeomPP (C#) ${{ steps.ver.outputs.TAG }}" \
+            --notes-file notes.txt \
+            nupkgs/*.nupkg

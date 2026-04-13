@@ -62,8 +62,8 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>GEOMPP_NO_THREAD_LOCAL;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;$(GeomppBuildRoot)\_deps\glog-src\src;$(GeomppBuildRoot)\_deps\glog-build;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>
@@ -71,7 +71,7 @@
         $(GeomppBuildRoot)\_deps\glog-build;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>geompp.lib;glogd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glogd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 
@@ -83,8 +83,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>GEOMPP_NO_THREAD_LOCAL;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)..\geompp\include;$(GeomppBuildRoot)\_deps\glog-src\src;$(GeomppBuildRoot)\_deps\glog-build;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>
@@ -94,7 +94,7 @@
         $(GeomppBuildRoot)\_deps\glog-build\Release;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>geompp.lib;glog.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glog.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
@@ -147,6 +147,104 @@
     <ClInclude Include="src\BBox3D.hpp" />
     <ClInclude Include="src\Plane.hpp" />
     <ClInclude Include="src\LVSParser.hpp" />
+  </ItemGroup>
+
+  <!-- ── geompp native core (compiled without /clr so that GEOMPP_NO_THREAD_LOCAL ── -->
+  <!-- ── makes DECIMAL_PRECISION / DOUBLE_EPSILON plain globals instead of TLS.  ── -->
+  <!-- ── All 23 source files are compiled here; geompp.lib is not linked.        ── -->
+  <ItemGroup>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\bbox2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\bbox3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\constants.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\geompp_log.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\line2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\line3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\line_segment2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\line_segment3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\lsv_parser.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\plane.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\point2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\point3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\polygon2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\polygon3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\polyline2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\polyline3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\ray2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\ray3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\triangle2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\triangle3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\utils.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\vector2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\vector3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -7,6 +7,8 @@ project(geompp_proj)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+enable_testing()
+
 include_directories(${CMAKE_SOURCE_DIR}/geompp/include)
 
 add_subdirectory(geompp)

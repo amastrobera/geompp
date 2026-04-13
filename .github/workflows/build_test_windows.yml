@@ -17,10 +17,18 @@ jobs:
         with:
           arch: x64
 
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
       - name: Install Python build tools
         run: pip install scikit-build-core pybind11 pytest
@@ -32,8 +40,20 @@ jobs:
         run: cmake --build build -j $env:NUMBER_OF_PROCESSORS
 
       - name: Run C++ tests
-        run: ctest --test-dir build --build-config Release --output-on-failure
+        run: ctest --test-dir build/geompp_tests --build-config Release --output-on-failure
 
+      # ── C# smoke tests ───────────────────────────────────────────────────────
+      - name: Build GeomPP.dll (.NET 10)
+        run: |
+          msbuild geompp_csharp\GeomPP.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:GeomppBuildRoot="${{ github.workspace }}\build"
+
+      - name: Run C# smoke tests
+        run: dotnet run --project geompp_csharp\tests\GeomPPTests.csproj -p:GeomPPConfiguration=Release
+
+      # ── Python smoke tests ───────────────────────────────────────────────────
       - name: Install Python bindings
         run: pip install "./geompp_python[dev]"
 

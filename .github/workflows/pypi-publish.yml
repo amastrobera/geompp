@@ -1,12 +1,19 @@
 name: Publish Python (PyPI)
 
-# Triggers on Python version tags: python-v1.0.0, python-v1.2.3, etc.
+# Triggers on Python version tags: python-v0.1.1, python-v1.2.3, etc.
+# Can also be triggered manually from the Actions tab.
 # Make sure the version in geompp_python/pyproject.toml matches the tag before pushing.
 # Add PYPI_API_TOKEN in: repo Settings → Secrets → Actions
 on:
   push:
     tags:
       - "python-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. python-v0.1.1)'
+        required: true
+        type: string
 
 jobs:
   # ─── Binary wheels (Linux + Windows, Python 3.8–3.12) ────────────────────────
@@ -57,11 +64,39 @@ jobs:
 
   # ─── Publish ──────────────────────────────────────────────────────────────────
   publish:
-    name: Publish to PyPI
+    name: Publish to PyPI + GitHub Release
     needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to create GitHub Release
 
     steps:
+      - uses: actions/checkout@v4   # needed for CHANGELOG.md
+
+      # Resolve tag and version (supports both push-tag and manual dispatch)
+      - name: Extract tag and version
+        id: ver
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          VERSION="${TAG#python-v}"
+          echo "TAG=$TAG"           >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION"   >> $GITHUB_OUTPUT
+
+      # Pull the matching section out of CHANGELOG.md
+      - name: Extract changelog notes
+        run: |
+          VERSION="${{ steps.ver.outputs.VERSION }}"
+          cat > /tmp/extract.py << 'PYEOF'
+          import re, sys
+          version = sys.argv[1]
+          text = open('CHANGELOG.md').read()
+          m = re.search(
+              r'## \[' + re.escape(version) + r'\][^\n]*\n(.*?)(?=\n## \[|\Z)',
+              text, re.DOTALL)
+          sys.stdout.write(m.group(1).strip() if m else f'Release {version}')
+          PYEOF
+          python3 /tmp/extract.py "$VERSION" > notes.txt
+
       - uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
@@ -78,3 +113,13 @@ jobs:
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.ver.outputs.TAG }}" \
+            --repo  "${{ github.repository }}" \
+            --title "geompp (Python) ${{ steps.ver.outputs.TAG }}" \
+            --notes-file notes.txt \
+            dist/*.whl dist/*.tar.gz

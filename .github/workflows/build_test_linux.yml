@@ -36,7 +36,7 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Run C++ tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build/geompp_tests --output-on-failure
 
       - name: Install Python bindings
         run: pip install "./geompp_python[dev]"

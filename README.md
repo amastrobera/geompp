@@ -169,9 +169,9 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md) |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md) |
   | Next | Docker (Windows), geom_viewer camera/input/delete |
-  | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping, Python bindings |
+  | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping |
 
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).
@@ -236,29 +236,33 @@
 
   Build the library
   ```powershell
+  # from the main directory, geompp
   mkdir build_win
-  cd build_win
-  cmake -S .. -G "Visual Studio 18 2026" -A x64
-  cmake --build . --target geompp [--config Release] [-DBUILD_PYTHON=ON]
+  cmake -S . -B build_win -G "Visual Studio 18 2026" -A x64
+  cmake --build build_win --target geompp [--config Release]
   ```
-  The `-DBUILD_PYTHON=ON` will build locally the python bindings and run the smoke tests immediately. 
 
   Build and run the tests
   ```powershell
-  cmake --build . --target geompp_tests [--config Release]
-  .\geompp_tests\Release\geompp_tests.exe
+  # from the main directory, geompp
+  cmake --build build_win --target geompp_tests [--config Release]
+  .\build_win\geompp_tests\Release\geompp_tests.exe
+  # alternatively
+  ctest --test-dir build_win/geompp_tests --build-config Release
   ```
 
   Build the C# DLL
   ```powershell
-  # get out of the build_win directory
-  cd ..
+  # from the main directory, geompp
 
-  # if you want to build for .Net 8
-  msbuild geompp_csharp\GeomPP.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+  # if you want to build for .Net 10
+  msbuild geompp_csharp\GeomPP.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
   # if you want to build for .Net Framework 4.8
-  msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Configuration=Release /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win"
+  msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
+
+  # run smoke tests, after build from the main directory geompp
+  dotnet run --project geompp_csharp\tests\GeomPPTests.csproj [-p:GeomPPConfiguration=Release]
   ```
 
   #### via Visual Studio
@@ -266,7 +270,7 @@
   Install [Visual Studio 2026](https://visualstudio.microsoft.com/downloads/), then via the VS
   Installer enable **Desktop Development with C++**.
 
-  Open VS 2022 → _Open Folder_ → select the `geompp` directory.
+  Open VS 2022+ → _Open Folder_ → select the `geompp` directory.
 
   - **Ctrl+Shift+B** — build the whole solution
   - **F5** — run all tests
@@ -274,3 +278,20 @@
   ![unit test windows](etc/unit_tests_win_vs.png)
 
 
+## Versioning 
+
+I maintain three versions, one for each language. Tagging and pushing to github triggers the deployment of several packages. 
+
+```bash
+# C++ release archive
+git tag v0.1.1
+git push origin v0.1.1
+
+# NuGet
+git tag csharp-v0.1.1
+git push origin csharp-v0.1.1
+
+# PyPI
+git tag python-v0.1.1
+git push origin python-v0.1.1
+```
