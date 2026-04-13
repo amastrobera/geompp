@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      GeomPPConfiguration: which build of GeomPP.dll to reference.
+      Defaults to Release_Net48. Override at the command line:
+        dotnet run -p:GeomPPConfiguration=Release_Net48
+    -->
+    <GeomPPConfiguration Condition="'$(GeomPPConfiguration)'==''">Release_Net48</GeomPPConfiguration>
+    <GeomPPDllDir>$(MSBuildProjectDirectory)\..\x64\$(GeomPPConfiguration)</GeomPPDllDir>
+  </PropertyGroup>
+
+  <!--
+    Reference GeomPP.dll (C++/CLI mixed-mode assembly, .NET Framework 4.8).
+    Private=true (CopyLocal) copies it to the output directory.
+  -->
+  <ItemGroup>
+    <Reference Include="GeomPP">
+      <HintPath>$(GeomPPDllDir)\GeomPP.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+
+</Project>

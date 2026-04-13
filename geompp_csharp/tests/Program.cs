@@ -1,0 +1,249 @@
+using GeomPP;
+
+// ── Tiny test harness ─────────────────────────────────────────────────────────
+
+int passed = 0, failed = 0;
+
+void Test(string name, Action body) {
+  try {
+    body();
+    Console.WriteLine($"  PASS  {name}");
+    passed++;
+  } catch (Exception e) {
+    Console.WriteLine($"  FAIL  {name}");
+    Console.WriteLine($"        {e.Message}");
+    failed++;
+  }
+}
+
+void Eq(double expected, double actual, int decimals = 3) {
+  double tol = 0.5 * Math.Pow(10, -decimals);
+  if (Math.Abs(expected - actual) >= tol)
+    throw new Exception($"expected {expected}, got {actual} (tolerance {tol})");
+}
+
+void IsTrue(bool value, string msg = "expected true") {
+  if (!value) throw new Exception(msg);
+}
+
+void IsFalse(bool value, string msg = "expected false") {
+  if (value) throw new Exception(msg);
+}
+
+void NotNull(object? value, string msg = "expected non-null") {
+  if (value is null) throw new Exception(msg);
+}
+
+void IsNull(object? value, string msg = "expected null") {
+  if (value is not null) throw new Exception(msg);
+}
+
+// ── Precision ─────────────────────────────────────────────────────────────────
+Console.WriteLine("Precision");
+
+Test("DefaultPrecision_IsThree", () => Eq(3, Precision.DecimalPrecision, 0));
+
+Test("SetPrecision_RoundTrips", () => {
+  int orig = Precision.DecimalPrecision;
+  Precision.DecimalPrecision = Precision.DP_SIX;
+  Eq(6, Precision.DecimalPrecision, 0);
+  Precision.DecimalPrecision = orig;
+});
+
+// ── Point2D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPoint2D");
+
+Test("Create_AccessXY", () => {
+  var p = new Point2D(3.0, 4.0);
+  Eq(3.0, p.X);
+  Eq(4.0, p.Y);
+});
+
+Test("ToWkt_ContainsCoordinates", () => {
+  var wkt = new Point2D(1.0, 2.0).ToWkt();
+  IsTrue(wkt.Contains("POINT"), "no POINT keyword");
+  IsTrue(wkt.Contains("1"), "no 1");
+  IsTrue(wkt.Contains("2"), "no 2");
+});
+
+Test("AlmostEquals_SamePoint", () => {
+  IsTrue(new Point2D(1.0, 2.0).AlmostEquals(new Point2D(1.0, 2.0)));
+});
+
+Test("AlmostEquals_DifferentPoint", () => {
+  IsFalse(new Point2D(0.0, 0.0).AlmostEquals(new Point2D(1.0, 0.0)));
+});
+
+Test("DistanceTo_KnownValue", () => {
+  Eq(5.0, new Point2D(0.0, 0.0).DistanceTo(new Point2D(3.0, 4.0)));
+});
+
+Test("Zero_IsOrigin", () => {
+  var z = Point2D.Zero();
+  Eq(0.0, z.X);
+  Eq(0.0, z.Y);
+});
+
+// ── Point3D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPoint3D");
+
+Test("Create_AccessXYZ", () => {
+  var p = new Point3D(1.0, 2.0, 3.0);
+  Eq(1.0, p.X);
+  Eq(2.0, p.Y);
+  Eq(3.0, p.Z);
+});
+
+Test("DistanceTo_KnownValue", () => {
+  Eq(1.0, new Point3D(0, 0, 0).DistanceTo(new Point3D(1, 0, 0)));
+});
+
+// ── Vector3D ──────────────────────────────────────────────────────────────────
+Console.WriteLine("\nVector3D");
+
+Test("Create_AccessXYZ", () => {
+  var v = new Vector3D(1.0, 2.0, 3.0);
+  Eq(1.0, v.X);
+  Eq(2.0, v.Y);
+  Eq(3.0, v.Z);
+});
+
+Test("Length_UnitVector", () => Eq(1.0, new Vector3D(1, 0, 0).Length()));
+
+Test("Dot_PerpendicularVectors_IsZero", () => {
+  Eq(0.0, new Vector3D(1, 0, 0).Dot(new Vector3D(0, 1, 0)));
+});
+
+Test("Dot_ParallelVectors_IsOne", () => {
+  var v = new Vector3D(1, 0, 0);
+  Eq(1.0, v.Dot(v));
+});
+
+Test("Cross_BasisVectors_IsThird", () => {
+  var vz = new Vector3D(1, 0, 0).Cross(new Vector3D(0, 1, 0));
+  Eq(0.0, vz.X);
+  Eq(0.0, vz.Y);
+  Eq(1.0, vz.Z);
+});
+
+Test("Normalize_ProducesUnitVector", () => {
+  Eq(1.0, new Vector3D(3, 4, 0).Normalize().Length());
+});
+
+Test("BasisVectors_AreUnitLength", () => {
+  Eq(1.0, Vector3D.BasisX().Length());
+  Eq(1.0, Vector3D.BasisY().Length());
+  Eq(1.0, Vector3D.BasisZ().Length());
+});
+
+// ── Line2D ────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nLine2D");
+
+Test("Make_TwoPoints", () => NotNull(Line2D.Make(new Point2D(0, 0), new Point2D(1, 0))));
+
+Test("Intersects_CrossingLines_True", () => {
+  var l1 = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var l2 = Line2D.Make(new Point2D(2, -2), new Point2D(2, 2));
+  IsTrue(l1.Intersects(l2));
+});
+
+Test("Intersects_ParallelLines_False", () => {
+  var l1 = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var l2 = Line2D.Make(new Point2D(0, 1), new Point2D(4, 1));
+  IsFalse(l1.Intersects(l2));
+});
+
+Test("Intersection_CrossingLines_ReturnsCorrectPoint", () => {
+  var pt = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0))
+                 .Intersection(Line2D.Make(new Point2D(2, -2), new Point2D(2, 2)));
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Intersection_ParallelLines_ReturnsNull", () => {
+  var result = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0))
+                     .Intersection(Line2D.Make(new Point2D(0, 1), new Point2D(4, 1)));
+  IsNull(result);
+});
+
+Test("Contains_PointOnLine", () => {
+  IsTrue(Line2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(2, 0)));
+});
+
+Test("Contains_PointOffLine", () => {
+  IsFalse(Line2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(2, 1)));
+});
+
+// ── Line3D ────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nLine3D");
+
+Test("Make_TwoPoints", () => NotNull(Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0))));
+
+Test("Intersects_CrossingLines_True", () => {
+  var l1 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var l2 = Line3D.Make(new Point3D(2, -2, 0), new Point3D(2, 2, 0));
+  IsTrue(l1.Intersects(l2));
+});
+
+Test("Intersects_ParallelLines_False", () => {
+  var l1 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var l2 = Line3D.Make(new Point3D(0, 1, 0), new Point3D(4, 1, 0));
+  IsFalse(l1.Intersects(l2));
+});
+
+Test("Intersects_SkewLines_False", () => {
+  var l1 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var l2 = Line3D.Make(new Point3D(0, 0, 1), new Point3D(0, 4, 1));
+  IsFalse(l1.Intersects(l2));
+});
+
+Test("Intersection_CrossingLines_ReturnsCorrectPoint", () => {
+  var pt = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0))
+                 .Intersection(Line3D.Make(new Point3D(2, -2, 0), new Point3D(2, 2, 0)));
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("ProjectOnto_PointAboveLine", () => {
+  var proj = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0))
+                   .ProjectOnto(new Point3D(2, 3, 0));
+  Eq(2.0, proj.X);
+  Eq(0.0, proj.Y);
+  Eq(0.0, proj.Z);
+});
+
+// ── LineSegment2D ─────────────────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment2D");
+
+Test("Make_AndLength", () => {
+  Eq(5.0, LineSegment2D.Make(new Point2D(0, 0), new Point2D(3, 4)).Length());
+});
+
+Test("Intersects_WithLine", () => {
+  var seg = LineSegment2D.Make(new Point2D(1, -1), new Point2D(1, 1));
+  var line = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  IsTrue(seg.Intersects(line));
+});
+
+Test("Intersection_WithLine_ReturnsCorrectPoint", () => {
+  var pt = LineSegment2D.Make(new Point2D(1, -1), new Point2D(1, 1))
+                        .Intersection(Line2D.Make(new Point2D(0, 0), new Point2D(4, 0)));
+  NotNull(pt);
+  Eq(1.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Contains_PointOnSegment", () => {
+  IsTrue(LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(2, 0)));
+});
+
+Test("Contains_PointBeyondEnd_False", () => {
+  IsFalse(LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(5, 0)));
+});
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+Console.WriteLine($"\n{passed} passed, {failed} failed out of {passed + failed} tests.");
+return failed > 0 ? 1 : 0;

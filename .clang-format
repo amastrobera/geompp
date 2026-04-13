@@ -14,3 +14,6 @@ DerivePointerAlignment: false
 # It is default under Google style, but CLion does not pick it up
 IncludeBlocks: Preserve
 
+---
+Language: CSharp
+AlignAfterOpenBracket:     Align

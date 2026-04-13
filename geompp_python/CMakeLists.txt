@@ -47,6 +47,33 @@ set(GEOMPP_SOURCES
     ${GEOMPP_ROOT}/src/bbox3d.cpp
 )
 
+# ─── Binding sources (one file per class) ─────────────────────────────────────
+set(BINDING_SOURCES
+    src/bindings.cpp
+    src/bind_precision.cpp
+    src/bind_point2d.cpp
+    src/bind_point3d.cpp
+    src/bind_vector2d.cpp
+    src/bind_vector3d.cpp
+    src/bind_line_segment2d.cpp
+    src/bind_line_segment3d.cpp
+    src/bind_line2d.cpp
+    src/bind_line3d.cpp
+    src/bind_ray2d.cpp
+    src/bind_ray3d.cpp
+    src/bind_polygon2d.cpp
+    src/bind_polygon3d.cpp
+    src/bind_polyline2d.cpp
+    src/bind_polyline3d.cpp
+    src/bind_triangle2d.cpp
+    src/bind_triangle3d.cpp
+    src/bind_bbox2d.cpp
+    src/bind_bbox3d.cpp
+    src/bind_plane.cpp
+    src/bind_lvsparser.cpp
+    src/bind_free_functions.cpp
+)
+
 # ─── Python extension module ─────────────────────────────────────────────────
 # Two modes:
 #
@@ -62,8 +89,8 @@ if(TARGET geompp)
     # ── parent mode ──────────────────────────────────────────────────────────
     message(STATUS "geompp_python: linking against existing `geompp` target")
 
-    pybind11_add_module(_geompp NO_EXTRAS src/bindings.cpp)
-    target_include_directories(_geompp PRIVATE ${GEOMPP_ROOT}/include)
+    pybind11_add_module(_geompp NO_EXTRAS ${BINDING_SOURCES})
+    target_include_directories(_geompp PRIVATE ${GEOMPP_ROOT}/include src)
     # glog is transitively pulled in through geompp's PUBLIC link deps
     target_link_libraries(_geompp PRIVATE geompp)
 
@@ -84,8 +111,8 @@ else()
         FetchContent_MakeAvailable(glog)
     endif()
 
-    pybind11_add_module(_geompp NO_EXTRAS src/bindings.cpp ${GEOMPP_SOURCES})
-    target_include_directories(_geompp PRIVATE ${GEOMPP_ROOT}/include)
+    pybind11_add_module(_geompp NO_EXTRAS ${BINDING_SOURCES} ${GEOMPP_SOURCES})
+    target_include_directories(_geompp PRIVATE ${GEOMPP_ROOT}/include src)
     target_link_libraries(_geompp PRIVATE glog::glog)
 
 endif()
@@ -94,6 +121,14 @@ endif()
 if(WIN32)
     target_compile_definitions(_geompp PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
+
+# ─── Post-build: copy extension into package directory ───────────────────────
+add_custom_command(TARGET _geompp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:_geompp>
+        "${CMAKE_CURRENT_SOURCE_DIR}/geompp/$<TARGET_FILE_NAME:_geompp>"
+    COMMENT "Copying _geompp into geompp_python/geompp/"
+)
 
 # ─── Install ─────────────────────────────────────────────────────────────────
 # pip/scikit-build-core: installs _geompp.so|pyd into the `geompp` package dir.
