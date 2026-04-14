@@ -11,7 +11,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/geompp.svg)](https://pypi.org/project/geompp)
 
   A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
-  thoroughly tested, and usable from C++ and C#.
+  thoroughly tested, and usable from C++, C# (.Net 10 or .Net Framework 4.8), and Python 3.
 
   This library is a spiritual successor to [GeomSharp](https://github.com/amastrobera/geom_sharp),
   rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
