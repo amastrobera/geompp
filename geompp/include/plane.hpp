@@ -46,9 +46,9 @@ class Plane {
 
 #pragma endregion
 
-  static inline Plane XY() { return Plane(Point3D{0, 0, 0}, Vector3D{0, 0, 1}); }
-  static inline Plane YZ() { return Plane(Point3D{0, 0, 0}, Vector3D{1, 0, 0}); }
-  static inline Plane ZX() { return Plane(Point3D{0, 0, 0}, Vector3D{0, 1, 0}); }
+  static inline Plane XY() { return Plane(Point3D::Zero(), Vector3D::BasisZ()); }
+  static inline Plane YZ() { return Plane(Point3D::Zero(), Vector3D::BasisX()); }
+  static inline Plane ZX() { return Plane(Point3D::Zero(), Vector3D::BasisY()); }
 
  private:
   Point3D Origin;

@@ -222,7 +222,7 @@ TEST_F(Triangle2DTest, IntersectionWLine) {
 //     auto inter = r1.Intersection(r2);
 //     ASSERT_TRUE(inter.has_value());
 //     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+//     EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
 //   }
 
 //   ASSERT_FALSE(r1.Intersects(r3));
@@ -301,7 +301,7 @@ TEST_F(Triangle2DTest, IntersectionWLine) {
 
 TEST_F(Triangle2DTest, Wkt) {
   ASSERT_EQ("TRIANGLE (0 0, 1 1, 0 2)",
-            g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)).ToWkt());
+            g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 1), g::Point2D(0, 2)).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
   ASSERT_EQ("TRIANGLE (56491.62 -795.97, -9137.37 10.36, 321.13 206.62)",
             g::Triangle2D::Make(g::Point2D(56491.6164, -795.97416), g::Point2D(-9137.3679, 10.35678),
@@ -309,11 +309,11 @@ TEST_F(Triangle2DTest, Wkt) {
                 .ToWkt());
 
   geompp::DECIMAL_PRECISION = 4;
-  EXPECT_EQ(g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)),
+  EXPECT_EQ(g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 1), g::Point2D(0, 2)),
             g::Triangle2D::FromWkt("TRIANGLE (0 0, 1 1, 0 2)"));
-  EXPECT_EQ(g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)),
+  EXPECT_EQ(g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 1), g::Point2D(0, 2)),
             g::Triangle2D::FromWkt("  triangle( 0     0 , 1   1  , 0 2   )"));
-  EXPECT_EQ(g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)),
+  EXPECT_EQ(g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 1), g::Point2D(0, 2)),
             g::Triangle2D::FromWkt("triANGle   ( 0 0  , 1 1 , 0   2    )"));
 
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("angelo"));

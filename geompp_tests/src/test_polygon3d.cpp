@@ -22,10 +22,10 @@ class Polygon3DTest : public ::testing::Test {
 };
 
 TEST_F(Polygon3DTest, Constructor) {
-  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto p = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
   ASSERT_EQ(4, p.Size());
 
-  ASSERT_EQ(g::Point3D(0, 0, 0), p[0]);
+  ASSERT_EQ(g::Point3D::Zero(), p[0]);
   ASSERT_EQ(g::Point3D(1, 0, 0), p[1]);
   ASSERT_EQ(g::Point3D(1, 1, 0), p[2]);
   ASSERT_EQ(g::Point3D(0, 1, 0), p[3]);
@@ -34,14 +34,14 @@ TEST_F(Polygon3DTest, Constructor) {
 
   // fewer than 3 unique points throws
   EXPECT_ANY_THROW(g::Polygon3D::Make({}));
-  EXPECT_ANY_THROW(g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0, 0, 0)}));
-  EXPECT_ANY_THROW(g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)}));
+  EXPECT_ANY_THROW(g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D::Zero(), g::Point3D::Zero()}));
+  EXPECT_ANY_THROW(g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0)}));
 }
 
 TEST_F(Polygon3DTest, AlmostEquals) {
-  auto p1 = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
-  auto p2 = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
-  auto p3 = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0)});
+  auto p1 = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
+  auto p2 = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
+  auto p3 = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0)});
 
   ASSERT_TRUE(p1.AlmostEquals(p2));
   ASSERT_FALSE(p1.AlmostEquals(p3));
@@ -49,12 +49,12 @@ TEST_F(Polygon3DTest, AlmostEquals) {
   ASSERT_NE(p1, p3);
 
   // different sizes are not equal
-  auto p4 = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto p4 = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
   ASSERT_FALSE(p1.AlmostEquals(p4));
 }
 
 TEST_F(Polygon3DTest, Assignment) {
-  auto p1 = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
+  auto p1 = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
   auto p2 = g::Polygon3D::Make({g::Point3D(5, 5, 5), g::Point3D(6, 5, 5), g::Point3D(6, 6, 5)});
   p2 = p1;
   ASSERT_EQ(p1, p2);
@@ -62,7 +62,7 @@ TEST_F(Polygon3DTest, Assignment) {
 
 TEST_F(Polygon3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
-  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto p = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
   ASSERT_EQ("POLYGON ((0 0 0, 1 0 0, 1 1 0, 0 1 0, 0 0 0))", p.ToWkt());
 
   geompp::DECIMAL_PRECISION = 2;
@@ -78,7 +78,7 @@ TEST_F(Polygon3DTest, Wkt) {
 TEST_F(Polygon3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "polygon3d.wkt").string();
-  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto p = g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
 
   p.ToFile(path);
   ASSERT_TRUE(fs::exists(path));

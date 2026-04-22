@@ -320,9 +320,9 @@ TEST_F(Triangle3DTest, Wkt) {
                 .ToWkt());
 
   geompp::DECIMAL_PRECISION = 4;
-  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 2, 0)),
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(1, 1, 1), g::Point3D(0, 2, 0)),
             g::Triangle3D::FromWkt("TRIANGLE (0 0 0, 1 1 1, 0 2 0)"));
-  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 2, 0)),
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(1, 1, 0), g::Point3D(0, 2, 0)),
             g::Triangle3D::FromWkt("  triangle( 0     0 0 , 1   1  0, 0 2 0  )"));
   EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 2), g::Point3D(0, 2, 3)),
             g::Triangle3D::FromWkt("triANGle   ( 0 0  1, 1 1  2, 0   2  3    )"));
@@ -371,16 +371,16 @@ TEST_F(Triangle3DTest, TestFromFile) {
 }
 
 TEST_F(Triangle3DTest, Vertices) {
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto [p0, p1, p2] = t.Vertices();
-  ASSERT_EQ(g::Point3D(0, 0, 0), p0);
+  ASSERT_EQ(g::Point3D::Zero(), p0);
   ASSERT_EQ(g::Point3D(2, 0, 0), p1);
   ASSERT_EQ(g::Point3D(0, 2, 0), p2);
 }
 
 TEST_F(Triangle3DTest, AlmostEquals) {
-  auto t1 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
-  auto t2 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t1 = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t2 = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto t3 = g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(2, 0, 1), g::Point3D(0, 2, 1));
 
   ASSERT_TRUE(t1.AlmostEquals(t2));
@@ -392,11 +392,11 @@ TEST_F(Triangle3DTest, AlmostEquals) {
 TEST_F(Triangle3DTest, Perimeter) {
   geompp::DECIMAL_PRECISION = 4;
   // right-isosceles triangle with legs of length 2: perimeter = 2 + 2 + 2*sqrt(2)
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   ASSERT_EQ(6.8284, g::round(t.Perimeter()));
 
   // equilateral triangle with side 2: perimeter = 6
-  auto t2 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0));
+  auto t2 = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0));
   // degenerate — use a proper equilateral
   auto t3 = g::Triangle3D::Make(g::Point3D(-1, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 0, 2));
   ASSERT_TRUE(t3.Perimeter() > 0);
@@ -404,7 +404,7 @@ TEST_F(Triangle3DTest, Perimeter) {
 
 TEST_F(Triangle3DTest, ToAxis) {
   geompp::DECIMAL_PRECISION = 4;
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto [u, v] = t.ToAxis();
   ASSERT_EQ(g::Vector3D(2, 0, 0), u);  // P1 - P0
   ASSERT_EQ(g::Vector3D(0, 2, 0), v);  // P2 - P0
@@ -412,10 +412,10 @@ TEST_F(Triangle3DTest, ToAxis) {
 
 TEST_F(Triangle3DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
 
   // vertices
-  ASSERT_EQ(g::Point3D(0, 0, 0), t.Interpolate(0, 0));
+  ASSERT_EQ(g::Point3D::Zero(), t.Interpolate(0, 0));
   ASSERT_EQ(g::Point3D(2, 0, 0), t.Interpolate(1, 0));
   ASSERT_EQ(g::Point3D(0, 2, 0), t.Interpolate(0, 1));
 
@@ -431,32 +431,32 @@ TEST_F(Triangle3DTest, Interpolate) {
 
 TEST_F(Triangle3DTest, SignedArea) {
   // SignedArea is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   EXPECT_ANY_THROW(t.SignedArea());
   EXPECT_ANY_THROW(t.Area());
 }
 
 TEST_F(Triangle3DTest, DistanceTo) {
   // DistanceTo is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   EXPECT_ANY_THROW(t.DistanceTo(g::Point3D(0.5, 0.5, 0)));
 }
 
 TEST_F(Triangle3DTest, Location) {
   // Location is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   EXPECT_ANY_THROW(t.Location(g::Point3D(0.5, 0.5, 0)));
 }
 
 TEST_F(Triangle3DTest, Contains) {
   // Contains is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   EXPECT_ANY_THROW(t.Contains(g::Point3D(0.5, 0.5, 0)));
 }
 
 TEST_F(Triangle3DTest, IntersectionWLine) {
   // Intersection(Line3D) is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto line = g::Line3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1));
   EXPECT_ANY_THROW(t.Intersection(line));
   EXPECT_ANY_THROW(t.Intersects(line));

@@ -20,21 +20,21 @@ class BBox3DTest : public ::testing::Test {
 };
 
 TEST_F(BBox3DTest, Constructor) {
-  auto bb = g::BBox3D(g::Point3D(0, 0, 0), g::Point3D(3, 4, 5));
-  ASSERT_EQ(g::Point3D(0, 0, 0), bb.min());
+  auto bb = g::BBox3D(g::Point3D::Zero(), g::Point3D(3, 4, 5));
+  ASSERT_EQ(g::Point3D::Zero(), bb.min());
   ASSERT_EQ(g::Point3D(3, 4, 5), bb.max());
 }
 
 TEST_F(BBox3DTest, CopyConstructor) {
-  auto bb1 = g::BBox3D(g::Point3D(0, 0, 0), g::Point3D(3, 4, 5));
+  auto bb1 = g::BBox3D(g::Point3D::Zero(), g::Point3D(3, 4, 5));
   g::BBox3D bb2(bb1);
-  ASSERT_EQ(g::Point3D(0, 0, 0), bb2.min());
+  ASSERT_EQ(g::Point3D::Zero(), bb2.min());
   ASSERT_EQ(g::Point3D(3, 4, 5), bb2.max());
 }
 
 TEST_F(BBox3DTest, AlmostEquals) {
-  auto bb1 = g::BBox3D(g::Point3D(0, 0, 0), g::Point3D(3, 4, 5));
-  auto bb2 = g::BBox3D(g::Point3D(0, 0, 0), g::Point3D(3, 4, 5));
+  auto bb1 = g::BBox3D(g::Point3D::Zero(), g::Point3D(3, 4, 5));
+  auto bb2 = g::BBox3D(g::Point3D::Zero(), g::Point3D(3, 4, 5));
   auto bb3 = g::BBox3D(g::Point3D(1, 1, 1), g::Point3D(5, 6, 7));
 
   ASSERT_TRUE(bb1.AlmostEquals(bb2));
@@ -44,7 +44,7 @@ TEST_F(BBox3DTest, AlmostEquals) {
 }
 
 TEST_F(BBox3DTest, Assignment) {
-  auto bb1 = g::BBox3D(g::Point3D(0, 0, 0), g::Point3D(3, 4, 5));
+  auto bb1 = g::BBox3D(g::Point3D::Zero(), g::Point3D(3, 4, 5));
   auto bb2 = g::BBox3D(g::Point3D(1, 1, 1), g::Point3D(5, 6, 7));
   bb2 = bb1;
   ASSERT_EQ(bb1, bb2);
@@ -87,10 +87,10 @@ TEST_F(BBox3DTest, ConstructorFromTriangle) {
 
 TEST_F(BBox3DTest, Contains) {
   geompp::DECIMAL_PRECISION = 4;
-  auto bb = g::BBox3D(g::Point3D(0, 0, 0), g::Point3D(3, 4, 5));
+  auto bb = g::BBox3D(g::Point3D::Zero(), g::Point3D(3, 4, 5));
 
   // corners
-  ASSERT_TRUE(bb.Contains(g::Point3D(0, 0, 0)));
+  ASSERT_TRUE(bb.Contains(g::Point3D::Zero()));
   ASSERT_TRUE(bb.Contains(g::Point3D(3, 4, 5)));
   ASSERT_TRUE(bb.Contains(g::Point3D(3, 0, 0)));
   ASSERT_TRUE(bb.Contains(g::Point3D(0, 4, 5)));

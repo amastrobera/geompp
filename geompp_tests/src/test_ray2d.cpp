@@ -23,17 +23,17 @@ class Ray2DTest : public ::testing::Test {
 };
 
 TEST_F(Ray2DTest, Constructor) {
-  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
+  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
 
   ASSERT_EQ(g::Point2D::Zero(), r1.Origin());
-  ASSERT_EQ(g::Vector2D(1, 0), r1.Direction());
+  ASSERT_EQ(g::Vector2D::BasisX(), r1.Direction());
 
   EXPECT_ANY_THROW(g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(0, 0)));  // cannot make a ray going no where
 }
 
 TEST_F(Ray2DTest, Contains) {
-  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
-  ASSERT_TRUE(r1.Contains(g::Point2D(0, 0)));
+  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  ASSERT_TRUE(r1.Contains(g::Point2D::Zero()));
   ASSERT_TRUE(r1.Contains(g::Point2D(1, 0)));
   ASSERT_TRUE(r1.Contains(g::Point2D(30, 0)));
 
@@ -45,7 +45,7 @@ TEST_F(Ray2DTest, Contains) {
 }
 
 TEST_F(Ray2DTest, AheadBehind) {
-  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
+  auto r1 = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
 
   ASSERT_TRUE(r1.IsAhead(g::Point2D(1, 0)));
   ASSERT_TRUE(r1.IsAhead(g::Point2D(1, 1)));
@@ -73,14 +73,14 @@ TEST_F(Ray2DTest, Intersection) {
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
   auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1));  // intersects r2 in (-0.5,-0.5)
-  auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D(0, 1));   // intersects r2 in (1,1)
+  auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D::BasisY());   // intersects r2 in (1,1)
 
   ASSERT_TRUE(r1.Intersects(r2));
   {
     auto inter = r1.Intersection(r2);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
   }
 
   ASSERT_FALSE(r1.Intersects(r3));
@@ -110,15 +110,15 @@ TEST_F(Ray2DTest, IntersectionWLine) {
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(1, -1), g::Vector2D(1, 1));  // intersects r1 in (0,0)
 
-  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
-  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(0, 1));
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisY());
 
   ASSERT_TRUE(r1.Intersects(x));
   {
     auto inter = r1.Intersection(x);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
   }
 
   ASSERT_TRUE(r1.Intersects(y));
@@ -126,7 +126,7 @@ TEST_F(Ray2DTest, IntersectionWLine) {
     auto inter = r1.Intersection(y);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
   }
 
   ASSERT_TRUE(r2.Intersects(x));
@@ -150,9 +150,9 @@ TEST_F(Ray2DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   EXPECT_EQ(g::Ray2D::Make(g::Point2D(256.1343, -684.64971), g::Vector2D(-601.674503, 7.361975)),
             g::Ray2D::FromWkt("RAY (256.1343 -684.64971, -601.674503 7.361975)"));
-  EXPECT_EQ(g::Ray2D::Make(g::Point2D(-7.5, -60.7), g::Vector2D(1, 0)),
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(-7.5, -60.7), g::Vector2D::BasisX()),
             g::Ray2D::FromWkt("  ray( -7.5    -60.7, 1   0)"));
-  EXPECT_EQ(g::Ray2D::Make(g::Point2D(0.645, -1.689741), g::Vector2D(1, 0)),
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(0.645, -1.689741), g::Vector2D::BasisX()),
             g::Ray2D::FromWkt("ray   ( 0.645  -1.689741  , 1 0  )"));
 
   EXPECT_ANY_THROW(g::Ray2D::FromWkt("angelo"));

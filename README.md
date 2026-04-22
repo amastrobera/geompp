@@ -248,9 +248,11 @@
 
   # from the main directory, geompp
   cmake --build build_win --target geompp_tests [--config Release]
-  .\build_win\geompp_tests\Debug[|Release]\geompp_tests.exe [--gtest_filter="Point2D*"]
+  .\build_win\geompp_tests\Debug\geompp_tests.exe [--gtest_filter="Point2D*"]
+  [.\build_win\geompp_tests\Release\geompp_tests.exe [--gtest_filter="Point2D*"] ]
   # alternatively
-  ctest --test-dir build_win/geompp_tests --build-config Debug [|Release]
+  ctest --test-dir build_win/geompp_tests --build-config Debug
+  [ctest --test-dir build_win/geompp_tests --build-config Release]
 
   # smoke tests on python bindings 
   pip install pytest # useful only the first time

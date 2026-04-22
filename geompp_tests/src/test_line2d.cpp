@@ -33,7 +33,7 @@ TEST_F(Line2DTest, Constructor) {
   EXPECT_EQ(l1.Last(), p1);
   EXPECT_EQ(l1.Direction(), (p1 - p0).Normalize());
 
-  auto v = g::Vector2D(0, 1);
+  auto v = g::Vector2D::BasisY();
   auto l2 = g::Line2D::Make(p0, v);
   EXPECT_EQ(l2.Origin(), p0);
   EXPECT_EQ(l2.Direction(), v);
@@ -61,7 +61,7 @@ TEST_F(Line2DTest, Intersection) {
   ASSERT_TRUE(inter.has_value());
   ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
 
-  EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+  EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
 }
 
 TEST_F(Line2DTest, Wkt) {

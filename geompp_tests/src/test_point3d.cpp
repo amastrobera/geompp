@@ -29,11 +29,11 @@ TEST_F(Point3DTest, Equality) {
   ASSERT_EQ(g::Point3D(-56.682, 30.56, 0.0), g::Point3D(-56.682, 30.56, 0.0));
 
   // Zero() is the origin
-  ASSERT_EQ(g::Point3D::Zero(), g::Point3D(0, 0, 0));
+  ASSERT_EQ(g::Point3D::Zero(), g::Point3D::Zero());
 
   // inequality
   ASSERT_NE(g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
-  ASSERT_NE(g::Point3D(0, 0, 0), g::Point3D(0, 0, 1));
+  ASSERT_NE(g::Point3D::Zero(), g::Point3D(0, 0, 1));
 }
 
 TEST_F(Point3DTest, Assignment) {
@@ -211,14 +211,14 @@ TEST_F(Point3DTest, TestFromFile) {
 
 TEST_F(Point3DTest, AreCollinear) {
   // on the X axis
-  ASSERT_TRUE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(2, 0, 0)));
-  ASSERT_TRUE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0), g::Point3D(100, 0, 0)));
+  ASSERT_TRUE(g::are_collinear(g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(2, 0, 0)));
+  ASSERT_TRUE(g::are_collinear(g::Point3D::Zero(), g::Point3D(5, 0, 0), g::Point3D(100, 0, 0)));
   // 3D diagonal
-  ASSERT_TRUE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(1, 1, 1), g::Point3D(2, 2, 2)));
+  ASSERT_TRUE(g::are_collinear(g::Point3D::Zero(), g::Point3D(1, 1, 1), g::Point3D(2, 2, 2)));
 
   // non-collinear
-  ASSERT_FALSE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0)));
-  ASSERT_FALSE(g::are_collinear(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 0, 1)));
+  ASSERT_FALSE(g::are_collinear(g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0)));
+  ASSERT_FALSE(g::are_collinear(g::Point3D::Zero(), g::Point3D(1, 1, 0), g::Point3D(0, 0, 1)));
   // triangle vertices
   ASSERT_FALSE(g::are_collinear(g::Point3D(-1, 1, 2), g::Point3D(0, -1, 2), g::Point3D(1, 1, 2)));
 }
@@ -226,9 +226,9 @@ TEST_F(Point3DTest, AreCollinear) {
 TEST_F(Point3DTest, RemoveDuplicates) {
   // clang-format off
   std::vector<g::Point3D> pts{
-    g::Point3D(0, 0, 0),
-    g::Point3D(0, 0, 0),  // duplicate
-    g::Point3D(0, 0, 0),  // duplicate
+    g::Point3D::Zero(),
+    g::Point3D::Zero(),  // duplicate
+    g::Point3D::Zero(),  // duplicate
     g::Point3D(1, 0, 0),
     g::Point3D(2, 0, 0),
     g::Point3D(2, 2, 0),
@@ -242,7 +242,7 @@ TEST_F(Point3DTest, RemoveDuplicates) {
   auto unique = g::remove_duplicates(pts);
 
   ASSERT_EQ(5, unique.size());
-  ASSERT_EQ(g::Point3D(0, 0, 0), unique[0]);
+  ASSERT_EQ(g::Point3D::Zero(), unique[0]);
   ASSERT_EQ(g::Point3D(1, 0, 0), unique[1]);
   ASSERT_EQ(g::Point3D(2, 0, 0), unique[2]);
   ASSERT_EQ(g::Point3D(2, 2, 0), unique[3]);
@@ -258,7 +258,7 @@ TEST_F(Point3DTest, RemoveDuplicates) {
 TEST_F(Point3DTest, RemoveCollinear) {
   // clang-format off
   std::vector<g::Point3D> pts{
-    g::Point3D(0, 0, 0),
+    g::Point3D::Zero(),
     g::Point3D(1, 0, 0),
     g::Point3D(2, 0, 0),  // collinear — X axis run
     g::Point3D(2, 1, 0),
@@ -273,19 +273,19 @@ TEST_F(Point3DTest, RemoveCollinear) {
   auto compressed = g::remove_collinear(pts);
 
   ASSERT_EQ(4, compressed.size());
-  ASSERT_EQ(g::Point3D(0, 0, 0), compressed[0]);
+  ASSERT_EQ(g::Point3D::Zero(), compressed[0]);
   ASSERT_EQ(g::Point3D(2, 0, 0), compressed[1]);  // farthest on X run
   ASSERT_EQ(g::Point3D(2, 3, 0), compressed[2]);  // farthest on Y run
   ASSERT_EQ(g::Point3D(5, 3, 0), compressed[3]);  // farthest on X run
 
   // fewer than 3 points → returned unchanged
-  ASSERT_EQ(2, g::remove_collinear({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)}).size());
+  ASSERT_EQ(2, g::remove_collinear({g::Point3D::Zero(), g::Point3D(1, 0, 0)}).size());
 }
 
 TEST_F(Point3DTest, Average) {
   // clang-format off
   std::vector<g::Point3D> pts{
-    g::Point3D(0, 0, 0),
+    g::Point3D::Zero(),
     g::Point3D(1, 0, 0),
     g::Point3D(2, -3, 6),
     g::Point3D(-5, 6, -3),

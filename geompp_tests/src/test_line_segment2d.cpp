@@ -37,7 +37,7 @@ TEST_F(LineSegment2DTest, Constructor) {
 
 TEST_F(LineSegment2DTest, Contains) {
   auto s1 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
-  ASSERT_TRUE(s1.Contains(g::Point2D(0, 0)));
+  ASSERT_TRUE(s1.Contains(g::Point2D::Zero()));
   ASSERT_TRUE(s1.Contains(g::Point2D(0.5, 0)));
   ASSERT_TRUE(s1.Contains(g::Point2D(1, 0)));
 
@@ -90,14 +90,14 @@ TEST_F(LineSegment2DTest, Intersection) {
   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
   auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1));  // intersects r2 in (-0.5,-0.5)
-  auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D(0, 1));   // intersects r2 in (1,1)
+  auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D::BasisY());   // intersects r2 in (1,1)
 
   ASSERT_TRUE(r1.Intersects(r2));
   {
     auto inter = r1.Intersection(r2);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, 0), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
   }
 
   ASSERT_FALSE(r1.Intersects(r3));
@@ -128,8 +128,8 @@ TEST_F(LineSegment2DTest, IntersectionWLine) {
   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects y
   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1));  // intersects x
 
-  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
-  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(0, 1));
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisY());
 
   ASSERT_TRUE(s1.Intersects(x));
   {
@@ -172,8 +172,8 @@ TEST_F(LineSegment2DTest, IntersectionWRay) {
   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects r1
   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1));  // intersects r2
 
-  auto r1 = g::Ray2D::Make(g::Point2D(0.5, -2), g::Vector2D(0, 1));
-  auto r2 = g::Ray2D::Make(g::Point2D(-2, -0.5), g::Vector2D(1, 0));
+  auto r1 = g::Ray2D::Make(g::Point2D(0.5, -2), g::Vector2D::BasisY());
+  auto r2 = g::Ray2D::Make(g::Point2D(-2, -0.5), g::Vector2D::BasisX());
   auto r1_rev = g::Ray2D::Make(g::Point2D(0.5, -2), g::Vector2D(0, -1));   // no intersections
   auto r2_rev = g::Ray2D::Make(g::Point2D(-2, -0.5), g::Vector2D(-1, 0));  // no intersections
 

@@ -54,7 +54,7 @@ TEST_F(Vector2DTest, AddVector) {
 }
 
 TEST_F(Vector2DTest, PerpDotCross) {
-  auto v1 = g::Vector2D(1, 0);
+  auto v1 = g::Vector2D::BasisX();
   auto v2 = v1.Perp();
   ASSERT_EQ(0.0, g::round(v1.Dot(v2)));  // perp is perpendicular
   EXPECT_EQ(1.0, g::round(v1.Cross(v2)));

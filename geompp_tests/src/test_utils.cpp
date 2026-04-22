@@ -152,14 +152,14 @@ TEST_F(UtilsTest, StringJoin) {
 }
 
 TEST_F(UtilsTest, ToWktCollection) {
-  std::vector<g::Point3D> pts{g::Point3D(0, 0, 0), g::Point3D(1, 1, 1)};
+  std::vector<g::Point3D> pts{g::Point3D::Zero(), g::Point3D(1, 1, 1)};
   std::string wkt = g::ToWkt(pts);
   EXPECT_NE(std::string::npos, wkt.find("GEOMETRYCOLLECTION"));
   EXPECT_NE(std::string::npos, wkt.find("0 0 0"));
   EXPECT_NE(std::string::npos, wkt.find("1 1 1"));
 
   // works for Point2D too
-  std::vector<g::Point2D> pts2d{g::Point2D(0, 0), g::Point2D(1, 1)};
+  std::vector<g::Point2D> pts2d{g::Point2D::Zero(), g::Point2D(1, 1)};
   EXPECT_NE(std::string::npos, g::ToWkt(pts2d).find("GEOMETRYCOLLECTION"));
 }
 

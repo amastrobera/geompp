@@ -28,9 +28,9 @@ class LineSegment3DTest : public ::testing::Test {
 
 TEST_F(LineSegment3DTest, Make) {
   geompp::DECIMAL_PRECISION = 4;
-  auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
+  auto s = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
 
-  ASSERT_EQ(g::Point3D(0, 0, 0), s.First());
+  ASSERT_EQ(g::Point3D::Zero(), s.First());
   ASSERT_EQ(g::Point3D(3, 0, 0), s.Last());
 
   // coincident endpoints throw
@@ -39,9 +39,9 @@ TEST_F(LineSegment3DTest, Make) {
 
 TEST_F(LineSegment3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
-  auto s1 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
-  auto s2 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
-  auto s3 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(0, 3, 0));
+  auto s1 = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
+  auto s2 = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
+  auto s3 = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(0, 3, 0));
 
   ASSERT_EQ(s1, s2);
   ASSERT_NE(s1, s3);
@@ -49,24 +49,24 @@ TEST_F(LineSegment3DTest, AlmostEquals) {
 }
 
 TEST_F(LineSegment3DTest, Assignment) {
-  auto s1 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
+  auto s1 = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
   auto s2 = g::LineSegment3D::Make(g::Point3D(1, 2, 0), g::Point3D(4, 5, 0));
 
   s2 = s1;
   ASSERT_EQ(s1, s2);
 
   s1 = s1;
-  ASSERT_EQ(g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0)), s1);
+  ASSERT_EQ(g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0)), s1);
 }
 
 TEST_F(LineSegment3DTest, Length) {
   // axis-aligned
-  ASSERT_EQ(3.0, g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0)).Length());
-  ASSERT_EQ(5.0, g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(0, 5, 0)).Length());
-  ASSERT_EQ(4.0, g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(0, 0, 4)).Length());
+  ASSERT_EQ(3.0, g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0)).Length());
+  ASSERT_EQ(5.0, g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(0, 5, 0)).Length());
+  ASSERT_EQ(4.0, g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(0, 0, 4)).Length());
 
   // 3-4-5 triangle hypotenuse in XY
-  ASSERT_EQ(5.0, g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 4, 0)).Length());
+  ASSERT_EQ(5.0, g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 4, 0)).Length());
 
   // symmetry: length is the same regardless of direction
   auto s = g::LineSegment3D::Make(g::Point3D(1, 2, 3), g::Point3D(4, 6, 3));
@@ -76,21 +76,21 @@ TEST_F(LineSegment3DTest, Length) {
 
 TEST_F(LineSegment3DTest, ToLine) {
   geompp::DECIMAL_PRECISION = 4;
-  auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
+  auto s = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
   auto l = s.ToLine();
 
   // the resulting Line3D passes through both endpoints
-  ASSERT_EQ(g::Point3D(0, 0, 0), l.First());
+  ASSERT_EQ(g::Point3D::Zero(), l.First());
   ASSERT_EQ(g::Point3D(4, 0, 0), l.Last());
-  ASSERT_EQ(g::Vector3D(1, 0, 0), l.Direction());
+  ASSERT_EQ(g::Vector3D::BasisX(), l.Direction());
 }
 
 TEST_F(LineSegment3DTest, Location) {
   geompp::DECIMAL_PRECISION = 4;
-  auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
+  auto s = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
 
   // start = 0, end = 1
-  ASSERT_EQ(0.0, s.Location(g::Point3D(0, 0, 0)));
+  ASSERT_EQ(0.0, s.Location(g::Point3D::Zero()));
   ASSERT_EQ(1.0, s.Location(g::Point3D(4, 0, 0)));
 
   // midpoint = 0.5
@@ -102,21 +102,21 @@ TEST_F(LineSegment3DTest, Location) {
 
 TEST_F(LineSegment3DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
-  auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
+  auto s = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
 
   // t=0 → First(), t=1 → Last()
-  ASSERT_EQ(g::Point3D(0, 0, 0), s.Interpolate(0.0));
+  ASSERT_EQ(g::Point3D::Zero(), s.Interpolate(0.0));
   ASSERT_EQ(g::Point3D(4, 0, 0), s.Interpolate(1.0));
 
   // midpoint
   ASSERT_EQ(g::Point3D(2, 0, 0), s.Interpolate(0.5));
 
   // clamped: t < 0 → First(), t > 1 → Last()
-  ASSERT_EQ(g::Point3D(0, 0, 0), s.Interpolate(-1.0));
+  ASSERT_EQ(g::Point3D::Zero(), s.Interpolate(-1.0));
   ASSERT_EQ(g::Point3D(4, 0, 0), s.Interpolate(2.0));
 
   // diagonal segment
-  auto sd = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 2, 0));
+  auto sd = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(2, 2, 0));
   ASSERT_EQ(g::Point3D(1, 1, 0), sd.Interpolate(0.5));
 }
 
@@ -125,9 +125,9 @@ TEST_F(LineSegment3DTest, Contains) {
   // NOTE: Contains relies on Line3D::Contains which has a known 3D bug.
   // For segments along the X-axis the underlying Contains always returns true;
   // we therefore only verify points that ARE on the segment (expected true).
-  auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
+  auto s = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
 
-  ASSERT_TRUE(s.Contains(g::Point3D(0, 0, 0)));  // start
+  ASSERT_TRUE(s.Contains(g::Point3D::Zero()));  // start
   ASSERT_TRUE(s.Contains(g::Point3D(4, 0, 0)));  // end
   ASSERT_TRUE(s.Contains(g::Point3D(2, 0, 0)));  // midpoint
 }
@@ -135,7 +135,7 @@ TEST_F(LineSegment3DTest, Contains) {
 TEST_F(LineSegment3DTest, IntersectionWithLine3D) {
   geompp::DECIMAL_PRECISION = 4;
   // Segment along X from 0..4; vertical line through x=2 in XY plane
-  auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
+  auto s = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
   auto l_cross = g::Line3D::Make(g::Point3D(2, -1, 0), g::Point3D(2, 1, 0));
 
   EXPECT_TRUE(s.Intersects(l_cross));
@@ -152,7 +152,7 @@ TEST_F(LineSegment3DTest, IntersectionWithLine3D) {
 
 TEST_F(LineSegment3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
-  auto s = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
+  auto s = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
   ASSERT_EQ("LINESTRING (0 0 0, 3 0 0)", s.ToWkt());
 
   geompp::DECIMAL_PRECISION = 2;
@@ -201,10 +201,10 @@ TEST_F(LineSegment3DTest, TestFromFile) {
 
 TEST_F(LineSegment3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
-  auto seg = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0));
+  auto seg = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
 
   // on segment: distance = 0
-  EXPECT_EQ(0.0, g::round(seg.DistanceTo(g::Point3D(0, 0, 0))));
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(g::Point3D::Zero())));
   EXPECT_EQ(0.0, g::round(seg.DistanceTo(g::Point3D(4, 0, 0))));
   EXPECT_EQ(0.0, g::round(seg.DistanceTo(g::Point3D(2, 0, 0))));
 
@@ -229,11 +229,11 @@ TEST_F(LineSegment3DTest, IntersectionWithRay3D) {
     auto inter = seg.Intersection(ray_hit);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D(0, 0, 0), std::get<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D::Zero(), std::get<g::Point3D>(*inter));
   }
 
   // ray pointing right — goes away from segment
-  auto ray_miss = g::Ray3D::Make(g::Point3D(2, 0, 0), g::Vector3D(1, 0, 0));
+  auto ray_miss = g::Ray3D::Make(g::Point3D(2, 0, 0), g::Vector3D::BasisX());
   ASSERT_FALSE(seg.Intersects(ray_miss));
   ASSERT_FALSE(seg.Intersection(ray_miss).has_value());
 }
@@ -249,7 +249,7 @@ TEST_F(LineSegment3DTest, IntersectionWithSegment3D) {
     auto inter = seg_v.Intersection(seg_h);
     ASSERT_TRUE(inter.has_value());
     ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D(0, 0, 0), std::get<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D::Zero(), std::get<g::Point3D>(*inter));
   }
 
   // parallel segments — no intersection

@@ -92,7 +92,7 @@ TEST_F(Polyline2DTest, Interpolate) {
   auto poly = g::Polyline2D::FromWkt("LINESTRING (0 0, 3 0)");
 
   // on segment
-  ASSERT_EQ(g::Point2D(0, 0), poly.Interpolate(0));
+  ASSERT_EQ(g::Point2D::Zero(), poly.Interpolate(0));
 
   ASSERT_EQ(g::Point2D(3, 0), poly.Interpolate(1));
 
@@ -111,8 +111,8 @@ TEST_F(Polyline2DTest, IntersectionWLine) {
   auto poly2 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -0.5 2, 1 2, 2 1)");  // intersects y (0 2)
   auto poly3 = g::Polyline2D::FromWkt("LINESTRING (-1 2, -1 -1, -2 -2, -1 -3)");  // intersects x (-1 0)
 
-  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(1, 0));
-  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D(0, 1));
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisY());
 
   ASSERT_TRUE(poly1.Intersects(x));
   {
@@ -366,9 +366,9 @@ TEST_F(Polyline2DTest, DistanceTo) {
 
 TEST_F(Polyline2DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
-  auto p1 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)});
-  auto p2 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)});
-  auto p3 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2)});
+  auto p1 = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1)});
+  auto p2 = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1)});
+  auto p3 = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(2, 0), g::Point2D(2, 2)});
 
   ASSERT_TRUE(p1.AlmostEquals(p2));
   ASSERT_FALSE(p1.AlmostEquals(p3));
@@ -376,27 +376,27 @@ TEST_F(Polyline2DTest, AlmostEquals) {
   ASSERT_NE(p1, p3);
 
   // different number of knots → not equal
-  auto p4 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p4 = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   ASSERT_FALSE(p1.AlmostEquals(p4));
 }
 
 TEST_F(Polyline2DTest, ToSegments) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly = g::Polyline2D::Make(
-      {g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+      {g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
 
   auto segs = poly.ToSegments();
   ASSERT_EQ(3, segs.size());
 
-  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0)), segs[0]);
+  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0)), segs[0]);
   ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(1, 1)), segs[1]);
   ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1)), segs[2]);
 
   // two-knot polyline → one segment
-  auto p2 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(3, 4)});
+  auto p2 = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(3, 4)});
   auto segs2 = p2.ToSegments();
   ASSERT_EQ(1, segs2.size());
-  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(3, 4)), segs2[0]);
+  ASSERT_EQ(g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(3, 4)), segs2[0]);
 }
 
 }  // namespace geompp_tests

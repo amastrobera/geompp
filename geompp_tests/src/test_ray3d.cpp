@@ -31,18 +31,18 @@ TEST_F(Ray3DTest, Make) {
 
   ASSERT_EQ(g::Point3D(1, 2, 0), r.Origin());
   // direction is normalised
-  ASSERT_EQ(g::Vector3D(1, 0, 0), r.Direction());
+  ASSERT_EQ(g::Vector3D::BasisX(), r.Direction());
 
   // zero direction throws
-  EXPECT_ANY_THROW(g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(0, 0, 0)));
+  EXPECT_ANY_THROW(g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(0, 0, 0)));
 }
 
 TEST_F(Ray3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
-  auto r1 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
-  auto r2 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
-  auto r3 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(0, 1, 0));
-  auto r4 = g::Ray3D::Make(g::Point3D(1, 0, 0), g::Vector3D(1, 0, 0));
+  auto r1 = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+  auto r2 = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+  auto r3 = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisY());
+  auto r4 = g::Ray3D::Make(g::Point3D(1, 0, 0), g::Vector3D::BasisX());
 
   ASSERT_EQ(r1, r2);
   ASSERT_NE(r1, r3);  // different direction
@@ -53,25 +53,25 @@ TEST_F(Ray3DTest, AlmostEquals) {
 }
 
 TEST_F(Ray3DTest, Assignment) {
-  auto r1 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
-  auto r2 = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(0, 1, 0));
+  auto r1 = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+  auto r2 = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D::BasisY());
 
   r2 = r1;
   ASSERT_EQ(r1, r2);
 
   r1 = r1;
-  ASSERT_EQ(g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0)), r1);
+  ASSERT_EQ(g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX()), r1);
 }
 
 TEST_F(Ray3DTest, IsAheadIsBehind) {
   geompp::DECIMAL_PRECISION = 4;
   // ray from origin pointing along +X
-  auto r = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
+  auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
 
   // points ahead (same direction as DIR)
   ASSERT_TRUE(r.IsAhead(g::Point3D(1, 0, 0)));
   ASSERT_TRUE(r.IsAhead(g::Point3D(5, 3, 0)));  // off-axis but ahead in X
-  ASSERT_TRUE(r.IsAhead(g::Point3D(0, 0, 0)));  // at origin: on the boundary (ahead)
+  ASSERT_TRUE(r.IsAhead(g::Point3D::Zero()));  // at origin: on the boundary (ahead)
 
   // points behind
   ASSERT_TRUE(r.IsBehind(g::Point3D(-1, 0, 0)));
@@ -88,17 +88,17 @@ TEST_F(Ray3DTest, IsAheadIsBehind) {
 
 TEST_F(Ray3DTest, ToLine) {
   geompp::DECIMAL_PRECISION = 4;
-  auto r = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(1, 0, 0));
+  auto r = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D::BasisX());
   auto l = r.ToLine();
 
   // the resulting Line3D passes through the ray's origin in the same direction
   ASSERT_EQ(g::Point3D(1, 2, 0), l.Origin());
-  ASSERT_EQ(g::Vector3D(1, 0, 0), l.Direction());
+  ASSERT_EQ(g::Vector3D::BasisX(), l.Direction());
 }
 
 TEST_F(Ray3DTest, IntersectionWithLine3D) {
   // ray along +X from origin; vertical line at x=3 in XY plane
-  auto r = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
+  auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
   auto l_cross = g::Line3D::Make(g::Point3D(3, -1, 0), g::Point3D(3, 1, 0));
 
   EXPECT_TRUE(r.Intersects(l_cross));
@@ -119,16 +119,16 @@ TEST_F(Ray3DTest, IntersectionWithLine3D) {
 
 TEST_F(Ray3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
-  auto r = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
+  auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
   ASSERT_EQ("RAY (0 0 0, 1 0 0)", r.ToWkt());
 
   geompp::DECIMAL_PRECISION = 2;
-  auto r2 = g::Ray3D::Make(g::Point3D(1.126, 2.354, 0.0), g::Vector3D(1, 0, 0));
+  auto r2 = g::Ray3D::Make(g::Point3D(1.126, 2.354, 0.0), g::Vector3D::BasisX());
   ASSERT_EQ("RAY (1.13 2.35 0, 1 0 0)", r2.ToWkt());
 
   geompp::DECIMAL_PRECISION = 4;
   // round-trip
-  auto r3 = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(0, 1, 0));
+  auto r3 = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D::BasisY());
   EXPECT_EQ(r3, g::Ray3D::FromWkt(r3.ToWkt()));
 
   // invalid: wrong geometry type
@@ -146,7 +146,7 @@ TEST_F(Ray3DTest, Wkt) {
 TEST_F(Ray3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "ray3d.wkt").string();
-  auto r = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D(1, 0, 0));
+  auto r = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D::BasisX());
 
   r.ToFile(path);
   ASSERT_TRUE(fs::exists(path));
