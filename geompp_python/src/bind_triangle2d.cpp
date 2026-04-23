@@ -13,6 +13,7 @@ void bind_triangle2d(py::module_& m) {
         .def("centroid",    &geompp::Triangle2D::Centroid)
         .def("to_polygon",  &geompp::Triangle2D::ToPolygon)
         .def("signed_area", &geompp::Triangle2D::SignedArea)
+        .def("is_ccw",      &geompp::Triangle2D::IsCCW)
         .def("area",        &geompp::Triangle2D::Area)
         .def("perimeter",   &geompp::Triangle2D::Perimeter)
         .def("distance_to", &geompp::Triangle2D::DistanceTo, "point"_a)

@@ -62,6 +62,10 @@ double Triangle2D::SignedArea() {
     return _native->SignedArea();
 }
 
+bool Triangle2D::IsCCW() {
+    return _native->IsCCW();
+}
+
 double Triangle2D::Area() {
     return _native->Area();
 }

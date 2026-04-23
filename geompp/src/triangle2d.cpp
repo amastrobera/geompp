@@ -59,11 +59,15 @@ Point2D Triangle2D::Centroid() const { return average({P0, P1, P2}); }
 
 Polygon2D Triangle2D::ToPolygon() const { return Polygon2D::Make({P0, P1, P2}); }
 
-double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
+double Triangle2D::SignedArea() const {
+  return ((P1 - P0).Cross(P2 - P0)) / 2.0;  // same as 1/2 perp-prod
+}
 
 double Triangle2D::Area() const { return std::abs(SignedArea()); }
 
 double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
+
+bool Triangle2D::IsCCW() const { return SignedArea() > 0; }
 
 double Triangle2D::DistanceTo(Point2D const& point) const {
   if (Contains(point)) {
@@ -122,14 +126,6 @@ bool Triangle2D::Contains(Point2D const& point) const {
 
 bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
-// bool LineSegment2D::Intersects(Ray2D const& ray) const {
-//   return Intersection(ray).has_value();
-// }
-
-// bool LineSegment2D::Intersects(LineSegment2D const& other) const {
-//   return Intersection(other).has_value();
-// }
-
 Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto points_view = std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
                                                 LineSegment2D::Make(P2, P0)} |
@@ -164,66 +160,6 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
 
   return LineSegment2D::Make(unique_points[0], unique_points[1]);
 }
-
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = ray.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - ray.Origin());
-
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
-
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = (other.P1 - other.P0);
-//   auto vp = v.Perp();
-//   auto w = (P0 - other.P0);
-
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
 
 // #pragma endregion
 

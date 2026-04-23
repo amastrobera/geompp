@@ -1,6 +1,7 @@
 #include "polygon3d.hpp"
 
 #include "line3d.hpp"
+#include "line_segment3d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
 
@@ -49,59 +50,19 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   return true;
 }
 
-// Point3D Triangle3D::Centroid() const {
-//   return {
-//       (P0.x() + P1.x() + P2.x()) / 3.0,
-//       (P0.y() + P1.y() + P2.y()) / 3.0,
-//   };
-// }
+Point3D Polygon3D::Centroid() const { throw std::runtime_error("not implemented"); }
 
-// Polygon3D Triangle3D::ToPolygon() const {
-// TODO
-// }
+double Polygon3D::SignedArea() const { throw std::runtime_error("not implemented"); }
 
-// double Triangle3D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
+double Polygon3D::Area() const { throw std::runtime_error("not implemented"); }
 
-// double Triangle3D::Area() const { return std::abs(SignedArea()); }
+double Polygon3D::Perimeter() const { throw std::runtime_error("not implemented"); }
 
-// double Triangle3D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
+double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
-// double LineSegment3D::Location(Point3D const& point) const {
-//   if (!ToLine().Contains(point)) {
-//     return std::numeric_limits<double>::infinity();
-//   }
-//   return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length() / Length();
-// }
+double Polygon3D::Location(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
-// Point3D LineSegment3D::Interpolate(double pct) const {
-//   // the point is behind the polyline
-//   if (round(pct) < 0.0) {
-//     return P0;
-//   }
-
-//   // the point is beyond the polyline
-//   if (round(pct) > 1.0) {
-//     return P1;
-//   }
-
-//   return P0 + pct * (P1 - P0);
-// }
-
-// double LineSegment3D::DistanceTo(Point3D const& point) const {
-//   auto line_eqv = ToLine(decimal_precision);
-//   auto proj = line_eqv.ProjectOnto(point);
-//   double loc = Location(proj);
-//   if (round(loc) < 0) {
-//     return P0.DistanceTo(point);
-
-//   } else if (round(loc) > 1) {
-//     return P1.DistanceTo(point);
-//   }
-
-//   return line_eqv.DistanceTo(point);
-// }
-
-// #pragma endregion
+Point3D Polygon3D::Interpolate(double pct) const { throw std::runtime_error("not implemented"); }
 
 #pragma region Operator Overloading
 
@@ -121,113 +82,25 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 
 #pragma endregion
 
-// #pragma region Geometrical Operations
+#pragma region Geometrical Operations
 
-// bool Triangle3D::Contains(Point3D const& point) const {
-//   auto u = (P1 - P0);
-//   auto v = (P2 - P0);
-//   auto w = (point - P0);
+bool Polygon3D::Contains(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
-//   double wu = w.Dot(u) / u.Dot(u);
-//   double wv = w.Dot(v) / v.Dot(v);
+bool Polygon3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 
-//   return (round(wu) >= 0 && round(wu - 1) <= 0) &&
-//          (round(wv) >= 0 && round(wv - 1) <= 0);
-// }
+bool Polygon3D::Intersects(Ray3D const& ray) const { return Intersection(ray).has_value(); }
 
-// bool LineSegment3D::Intersects(Line3D const& line) const {
-//   return Intersection(line).has_value();
-// }
+bool Polygon3D::Intersects(LineSegment3D const& segment) const { return Intersection(segment).has_value(); }
 
-// bool LineSegment3D::Intersects(Ray3D const& ray) const {
-//   return Intersection(ray).has_value();
-// }
+Polygon3D::ReturnSet Polygon3D::Intersection(Line3D const& line) const { throw std::runtime_error("not implemented"); }
 
-// bool LineSegment3D::Intersects(LineSegment3D const& other) const {
-//   return Intersection(other).has_value();
-// }
+Polygon3D::ReturnSet Polygon3D::Intersection(Ray3D const& ray) const { throw std::runtime_error("not implemented"); }
 
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(Line3D const& line) const {
-//   auto u = P1 - P0;
-//   auto v = line.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - line.First());
+Polygon3D::ReturnSet Polygon3D::Intersection(LineSegment3D const& other) const {
+  throw std::runtime_error("not implemented");
+}
 
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-
-//   // verify that the intersection is ahead of the ray
-//   auto inter_p = P0 + t * u;
-//   if (!Contains(inter_p)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_p;
-// }
-
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = ray.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - ray.Origin());
-
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
-
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = (other.P1 - other.P0);
-//   auto vp = v.Perp();
-//   auto w = (P0 - other.P0);
-
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
-
-// #pragma endregion
+#pragma endregion
 
 // #pragma region Formatting
 

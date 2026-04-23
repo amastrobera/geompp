@@ -20,7 +20,7 @@ Vector2D& Vector2D::operator=(Vector2D const& other) {
   return *this;
 }
 
-Point2D Vector2D::ToPoint() { return Point2D(X, Y); }
+Point2D Vector2D::ToPoint() const { return Point2D(X, Y); }
 
 double Vector2D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2)); }
 
@@ -30,7 +30,9 @@ bool Vector2D::AlmostEquals(Vector2D const& other, double epsilon) const {
 
 double Vector2D::Dot(Vector2D const& v) const { return (X * v.X + Y * v.Y); }
 
-double Vector2D::Cross(Vector2D const& v) const { return (-Y * v.X + X * v.Y); }
+double Vector2D::Cross(Vector2D const& v) const {
+  return (-Y * v.X + X * v.Y);  // same as perp-product: Perp().Dot(other)
+}
 
 Vector2D Vector2D::Perp() const { return {-Y, X}; }
 

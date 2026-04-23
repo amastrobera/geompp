@@ -20,7 +20,7 @@ bool Point2D::AlmostEquals(Point2D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0;
 }
 
-Vector2D Point2D::ToVector() { return {X, Y}; }
+Vector2D Point2D::ToVector() const { return {X, Y}; }
 
 double Point2D::DistanceTo(Point2D const& other) const { return (other - *this).Length(); }
 

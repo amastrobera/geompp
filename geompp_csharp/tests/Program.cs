@@ -295,6 +295,87 @@ Test("FromTriangle_SpansAllVertices", () => {
   Eq(2.0, bb.Max().X); Eq(3.0, bb.Max().Y); Eq(4.0, bb.Max().Z);
 });
 
+// ── Triangle3D ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nTriangle3D");
+
+Test("Area_RightTriangleLegs1x1", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  Eq(0.5, t.Area());
+});
+
+Test("SignedArea_CCW_Positive", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var refN = new Vector3D(0, 0, 1);
+  IsTrue(t.SignedArea(refN) > 0, "CCW triangle should have positive signed area");
+});
+
+Test("SignedArea_CW_Negative", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(0, 1, 0), new Point3D(1, 0, 0));
+  var refN = new Vector3D(0, 0, 1);
+  IsTrue(t.SignedArea(refN) < 0, "CW triangle should have negative signed area");
+});
+
+Test("SignedArea_FlippedRef_FlipsSign", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var refN = new Vector3D(0, 0, 1);
+  IsTrue(t.SignedArea(refN) > 0, "positive with +Z ref");
+  IsTrue(t.SignedArea(new Vector3D(0, 0, -1)) < 0, "negative with -Z ref");
+});
+
+Test("AreaVector_PointsInZ_LengthEqualsArea", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var av = t.AreaVector();
+  NotNull(av);
+  Eq(0.5, av!.Length());
+  Eq(t.Area(), av.Length());
+});
+
+Test("ToPlane_NormalPointsInZ", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var pl = t.ToPlane();
+  NotNull(pl);
+  Eq(1.0, Math.Abs(pl!.Normal().Z));
+});
+
+Test("IsCCW_CCW_ReturnsTrue", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var refN = new Vector3D(0, 0, 1);
+  IsTrue(t.IsCCW(refN), "CCW triangle should return true");
+  IsTrue(t.SignedArea(refN) > 0, "CCW triangle should have positive signed area");
+  IsTrue(t.IsCCW(refN) == (t.SignedArea(refN) > 0), "IsCCW must match sign of SignedArea");
+});
+
+Test("IsCCW_CW_ReturnsFalse", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(0, 1, 0), new Point3D(1, 0, 0));
+  var refN = new Vector3D(0, 0, 1);
+  IsFalse(t.IsCCW(refN), "CW triangle should return false");
+  IsTrue(t.SignedArea(refN) < 0, "CW triangle should have negative signed area");
+  IsTrue(t.IsCCW(refN) == (t.SignedArea(refN) > 0), "IsCCW must match sign of SignedArea");
+});
+
+Test("IsCCW_FlippedRef_FlipsResult", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  IsTrue(t.IsCCW(new Vector3D(0, 0, 1)),   "CCW with +Z ref");
+  IsFalse(t.IsCCW(new Vector3D(0, 0, -1)), "CW when ref is flipped");
+});
+
+// ── Triangle2D ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nTriangle2D");
+
+Test("IsCCW_CCW_ReturnsTrue_2D", () => {
+  var t = Triangle2D.Make(new Point2D(-1, 1), new Point2D(0, -1), new Point2D(1, 1));
+  IsTrue(t.IsCCW(), "CCW triangle should return true");
+  IsTrue(t.SignedArea() > 0, "CCW triangle should have positive signed area");
+  IsTrue(t.IsCCW() == (t.SignedArea() > 0), "IsCCW must match sign of SignedArea");
+});
+
+Test("IsCCW_CW_ReturnsFalse_2D", () => {
+  var t = Triangle2D.Make(new Point2D(-1, 1), new Point2D(1, 1), new Point2D(0, -1));
+  IsFalse(t.IsCCW(), "CW triangle should return false");
+  IsTrue(t.SignedArea() < 0, "CW triangle should have negative signed area");
+  IsTrue(t.IsCCW() == (t.SignedArea() > 0), "IsCCW must match sign of SignedArea");
+});
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 Console.WriteLine($"\n{passed} passed, {failed} failed out of {passed + failed} tests.");
 return failed > 0 ? 1 : 0;

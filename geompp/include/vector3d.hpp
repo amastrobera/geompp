@@ -20,7 +20,7 @@ class Vector3D {
   double inline const y() const { return Y; }
   double inline const z() const { return Z; }
 
-  Point3D ToPoint();
+  Point3D ToPoint() const;
 
   double Length() const;
   bool AlmostEquals(Vector3D const& other, double epsilon = DOUBLE_EPSILON) const;

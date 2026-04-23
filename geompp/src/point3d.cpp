@@ -20,7 +20,7 @@ bool Point3D::AlmostEquals(Point3D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
 }
 
-Vector3D Point3D::ToVector() { return {X, Y, Z}; }
+Vector3D Point3D::ToVector() const { return {X, Y, Z}; }
 
 double Point3D::DistanceTo(Point3D const& other) const { return round((other - *this).Length()); }
 

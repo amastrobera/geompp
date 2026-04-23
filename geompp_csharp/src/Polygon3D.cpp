@@ -1,5 +1,8 @@
 #include "Polygon3D.hpp"
 #include "Point3D.hpp"
+#include "Line3D.hpp"
+#include "Ray3D.hpp"
+#include "LineSegment3D.hpp"
 
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
@@ -49,6 +52,38 @@ bool Polygon3D::AlmostEquals(Polygon3D^ other, double epsilon) {
     return _native->AlmostEquals(*other->_native, epsilon);
 }
 
+Point3D^ Polygon3D::Centroid() {
+    return gcnew Point3D(new geompp::Point3D(_native->Centroid()));
+}
+
+double Polygon3D::SignedArea() {
+    return _native->SignedArea();
+}
+
+double Polygon3D::Area() {
+    return _native->Area();
+}
+
+double Polygon3D::Perimeter() {
+    return _native->Perimeter();
+}
+
+double Polygon3D::DistanceTo(Point3D^ point) {
+    return _native->DistanceTo(*point->_native);
+}
+
+double Polygon3D::Location(Point3D^ point) {
+    return _native->Location(*point->_native);
+}
+
+Point3D^ Polygon3D::Interpolate(double pct) {
+    return gcnew Point3D(new geompp::Point3D(_native->Interpolate(pct)));
+}
+
+bool Polygon3D::Contains(Point3D^ point) {
+    return _native->Contains(*point->_native);
+}
+
 System::String^ Polygon3D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }
@@ -65,6 +100,40 @@ void Polygon3D::ToFile(System::String^ path) {
 Polygon3D^ Polygon3D::FromFile(System::String^ path) {
     return gcnew Polygon3D(
         new geompp::Polygon3D(geompp::Polygon3D::FromFile(marshal_as<std::string>(path))));
+}
+
+// ── Intersects ────────────────────────────────────────────────────────────────
+
+bool Polygon3D::Intersects(Line3D^ line) {
+    return _native->Intersects(*line->_native);
+}
+
+bool Polygon3D::Intersects(Ray3D^ ray) {
+    return _native->Intersects(*ray->_native);
+}
+
+bool Polygon3D::Intersects(LineSegment3D^ segment) {
+    return _native->Intersects(*segment->_native);
+}
+
+// ── Intersection ──────────────────────────────────────────────────────────────
+
+Point3D^ Polygon3D::Intersection(Line3D^ line) {
+    auto result = _native->Intersection(*line->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+}
+
+Point3D^ Polygon3D::Intersection(Ray3D^ ray) {
+    auto result = _native->Intersection(*ray->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+}
+
+Point3D^ Polygon3D::Intersection(LineSegment3D^ segment) {
+    auto result = _native->Intersection(*segment->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

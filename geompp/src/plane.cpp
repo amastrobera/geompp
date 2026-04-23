@@ -31,21 +31,17 @@ Plane Plane::FromOriginAndNormal(Point3D origin, Vector3D normal) {
 }
 
 Plane::Plane(Point3D origin, Vector3D normal)
-    : Origin(origin),
-      Normal(normal),
-      AxisU(normal.Perp().Normalize()),
-      AxisV(normal.Cross(AxisU).Normalize()) {}
+    : Origin(origin), Normal(normal), AxisU(normal.Perp().Normalize()), AxisV(normal.Cross(AxisU).Normalize()) {}
 
 Plane::Plane(Point3D origin, Vector3D u, Vector3D v)
-    : Origin(origin),
-      Normal(u.Cross(v).Normalize()),
-      AxisU(u),
-      AxisV(v) {}
+    : Origin(origin), Normal(u.Cross(v).Normalize()), AxisU(u), AxisV(v) {}
 
 bool Plane::AlmostEquals(Plane const& other, double epsilon) const {
-  throw new std::runtime_error("not implemented");
-  // return round(X - other.X) == 0.0 && round(Y - other.Y) == 0.0 &&
-  // round(Z - other.Z) == 0.0;
+  return (
+      // same normal (or parallel)
+      (Normal.AlmostEquals(other.Normal, epsilon) || Normal.AlmostEquals(-other.Normal, epsilon)) &&
+      // same offset from the origin
+      (compare(Normal.Dot(Origin.ToVector()), other.Normal.Dot(other.Origin.ToVector()), epsilon) == 0));
 }
 
 Plane& Plane::operator=(Plane const& other) {

@@ -20,7 +20,7 @@ class Point2D {
   inline double x() const { return X; }
   inline double y() const { return Y; }
 
-  Vector2D ToVector();
+  Vector2D ToVector() const;
   bool AlmostEquals(Point2D const& other, double epsilon = DOUBLE_EPSILON) const;
   double DistanceTo(Point2D const& other) const;
 

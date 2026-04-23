@@ -5,9 +5,29 @@ void bind_polygon2d(py::module_& m) {
         "2D polygon (ordered vertex list, open/closed by convention).")
         .def_static("make", &geompp::Polygon2D::Make, "points"_a)
         .def(py::init<const geompp::Polygon2D&>())
-        .def("size", &geompp::Polygon2D::Size)
+        .def("size",        &geompp::Polygon2D::Size)
+        .def("centroid",    &geompp::Polygon2D::Centroid)
+        .def("signed_area", &geompp::Polygon2D::SignedArea)
+        .def("area",        &geompp::Polygon2D::Area)
+        .def("perimeter",   &geompp::Polygon2D::Perimeter)
+        .def("distance_to", &geompp::Polygon2D::DistanceTo,  "point"_a)
+        .def("location",    &geompp::Polygon2D::Location,    "point"_a)
+        .def("interpolate", &geompp::Polygon2D::Interpolate, "pct"_a)
+        .def("contains",    &geompp::Polygon2D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Polygon2D)
         BIND_SERIALIZATION(Polygon2D)
+        .def("intersects",
+             [](const geompp::Polygon2D& p, const geompp::Line2D& l) { return p.Intersects(l); }, "line"_a)
+        .def("intersects",
+             [](const geompp::Polygon2D& p, const geompp::Ray2D& r) { return p.Intersects(r); }, "ray"_a)
+        .def("intersects",
+             [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) { return p.Intersects(s); }, "segment"_a)
+        .def("intersection",
+             [](const geompp::Polygon2D& p, const geompp::Line2D& l) { return opt_variant_to_py(p.Intersection(l)); }, "line"_a)
+        .def("intersection",
+             [](const geompp::Polygon2D& p, const geompp::Ray2D& r) { return opt_variant_to_py(p.Intersection(r)); }, "ray"_a)
+        .def("intersection",
+             [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
         .def("__len__",     &geompp::Polygon2D::Size)
         .def("__getitem__", [](const geompp::Polygon2D& p, int i) -> geompp::Point2D {
             if (i < 0) i += static_cast<int>(p.Size());

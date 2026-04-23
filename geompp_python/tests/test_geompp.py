@@ -458,6 +458,21 @@ class TestTriangle2D:
         hit = tri.intersection(l)
         assert hit is not None
 
+    def test_is_ccw(self, tri):
+        # fixture is CCW → IsCCW True and SignedArea positive
+        assert tri.is_ccw()
+        assert tri.signed_area() > 0
+
+        # reversed winding → CW
+        v0, v1, v2 = tri.vertices
+        t_cw = geompp.Triangle2D.make(v0, v2, v1)
+        assert not t_cw.is_ccw()
+        assert t_cw.signed_area() < 0
+
+        # invariant: is_ccw() == (signed_area() > 0)
+        assert tri.is_ccw() == (tri.signed_area() > 0)
+        assert t_cw.is_ccw() == (t_cw.signed_area() > 0)
+
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle2D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
@@ -480,10 +495,49 @@ class TestTriangle3D:
         c = tri.centroid()
         assert isinstance(c, geompp.Point3D)
 
-    def test_area_raises(self, tri):
-        # Triangle3D::Area() is deliberately not implemented in C++ source
-        with pytest.raises(Exception):
-            tri.area()
+    def test_area(self, tri):
+        # Right triangle with legs 1, 1 → area = 0.5
+        assert approx(tri.area(), 0.5)
+
+    def test_signed_area(self, tri):
+        ref = geompp.Vector3D(0, 0, 1)
+        # CCW winding in XY plane → positive signed area
+        assert tri.signed_area(ref) > 0
+        v0, v1, v2 = tri.vertices
+        t_cw = geompp.Triangle3D.make(v0, v2, v1)
+        assert t_cw.signed_area(ref) < 0
+        # flipping ref reverses the sign
+        assert tri.signed_area(geompp.Vector3D(0, 0, -1)) < 0
+
+    def test_area_vector(self, tri):
+        av = tri.area_vector()
+        assert isinstance(av, geompp.Vector3D)
+        assert approx(av.z, 0.5)
+        assert approx(tri.area(), av.length())
+
+    def test_to_plane(self, tri):
+        pl = tri.to_plane()
+        assert isinstance(pl, geompp.Plane)
+        assert approx(abs(pl.normal.z), 1.0)
+
+    def test_is_ccw(self, tri):
+        ref = geompp.Vector3D(0, 0, 1)
+        # fixture is CCW in XY plane → IsCCW True and SignedArea positive
+        assert tri.is_ccw(ref)
+        assert tri.signed_area(ref) > 0
+
+        # reversed winding → CW
+        v0, v1, v2 = tri.vertices
+        t_cw = geompp.Triangle3D.make(v0, v2, v1)
+        assert not t_cw.is_ccw(ref)
+        assert t_cw.signed_area(ref) < 0
+
+        # invariant: is_ccw(ref) == (signed_area(ref) > 0)
+        assert tri.is_ccw(ref) == (tri.signed_area(ref) > 0)
+        assert t_cw.is_ccw(ref) == (t_cw.signed_area(ref) > 0)
+
+        # flipping ref flips the result
+        assert not tri.is_ccw(geompp.Vector3D(0, 0, -1))
 
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle3D.from_wkt(tri.to_wkt())

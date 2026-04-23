@@ -1,9 +1,9 @@
 #include "triangle3d.hpp"
 
 #include "line3d.hpp"
-// #include "line_segment3d.hpp"
-// #include "polygon3d.hpp"
-// #include "ray3d.hpp"
+#include "line_segment3d.hpp"
+#include "polygon3d.hpp"
+#include "ray3d.hpp"
 #include "utils.hpp"
 
 #include "geompp_log.hpp"
@@ -61,28 +61,23 @@ bool Triangle3D::AlmostEquals(Triangle3D const& other, double epsilon) const {
 
 Point3D Triangle3D::Centroid() const { return average({P0, P1, P2}); }
 
-////Polygon3D Triangle3D::ToPolygon() const {
-//  return Polygon3D::Make({P0, P1, P2});
-//}
+Polygon3D Triangle3D::ToPolygon() const { return Polygon3D::Make({P0, P1, P2}); }
 
-double Triangle3D::SignedArea() const {
-  throw std::runtime_error("not implemented");
-  // return ((P1 - P0).Cross(P2 - P0)) / 2.0;
-}
+Plane Triangle3D::ToPlane() const { return Plane::From3Points(P0, P1, P2); }
 
-double Triangle3D::Area() const { return std::abs(SignedArea()); }
+Vector3D Triangle3D::Normal() const { return AreaVector().Normalize(); }
+
+Vector3D Triangle3D::AreaVector() const { return (P1 - P0).Cross(P2 - P0) / 2.0; }
+
+double Triangle3D::SignedArea(Vector3D const& ref_normal) const { return ref_normal.Dot(AreaVector()); }
+
+double Triangle3D::Area() const { return AreaVector().Length(); }
 
 double Triangle3D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
 
-double Triangle3D::DistanceTo(Point3D const& point) const {
-  throw new std::runtime_error("not implemented");
-  // if (Contains(point)) {
-  //  return 0;
-  //}
-  // return std::min(std::min(LineSegment3D::Make(P0, P1).DistanceTo(point),
-  //                         LineSegment3D::Make(P1, P2).DistanceTo(point)),
-  //                LineSegment3D::Make(P2, P0).DistanceTo(point));
-}
+bool Triangle3D::IsCCW(Vector3D const& ref_normal) const { return SignedArea(ref_normal) > 0; }
+
+double Triangle3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
 std::tuple<Vector3D, Vector3D> Triangle3D::ToAxis() const { return {P1 - P0, P2 - P0}; }
 
@@ -125,91 +120,31 @@ std::tuple<double, double> Triangle3D::Location(Point3D const& point) const {
   // return {s, t};
 }
 
-bool Triangle3D::Contains(Point3D const& point) const {
-  throw new std::runtime_error("not implemented");
-
-  /*auto loc = Location(point);
-
-return within_axis_boundary(std::get<0>(loc), std::get<1>(loc));*/
-}
+bool Triangle3D::Contains(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
 bool Triangle3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 
-// bool LineSegment3D::Intersects(Ray3D const& ray) const {
-//   return Intersection(ray).has_value();
-// }
+bool Triangle3D::Intersects(Ray3D const& ray) const { return Intersection(ray).has_value(); }
 
-// bool LineSegment3D::Intersects(LineSegment3D const& other) const {
-//   return Intersection(other).has_value();
-// }
+bool Triangle3D::Intersects(LineSegment3D const& segment) const { return Intersection(segment).has_value(); }
+
+Triangle3D::ReturnSet Triangle3D::Intersects(Triangle3D const& other) const {
+  throw std::runtime_error("not implemented");
+}
 
 Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
   throw std::runtime_error("not implemented");
 }
 
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray) const {
-//   auto u = P1 - P0;
-//   auto v = ray.Direction();
+Triangle3D::ReturnSet Triangle3D::Intersection(Ray3D const& ray) const { throw std::runtime_error("not implemented"); }
 
-//   // testing on this ray
-//   if (u.IsParallel(v)) {
-//     return std::nullopt;
-//   }
+Triangle3D::ReturnSet Triangle3D::Intersection(LineSegment3D const& other) const {
+  throw std::runtime_error("not implemented");
+}
 
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto vp = v.Perp();
-//   auto w = (P0 - ray.Origin());
-
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (v.IsParallel(up)) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
-
-// LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other) const {
-//   auto u = P1 - P0;
-//   auto v = (other.P1 - other.P0);
-
-//   // testing on this ray
-//   if (u.IsParallel(vp)) {
-//     return std::nullopt;
-//   }
-
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto vp = v.Perp();
-//   auto w = (P0 - other.P0);
-
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (v.IsParallel(up)) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
+Triangle3D::ReturnSet Triangle3D::Intersection(Triangle3D const& other) const {
+  throw std::runtime_error("not implemented");
+}
 
 #pragma endregion
 

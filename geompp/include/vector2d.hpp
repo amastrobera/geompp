@@ -19,7 +19,7 @@ class Vector2D {
   double inline const x() const { return X; }
   double inline const y() const { return Y; }
 
-  Point2D ToPoint();
+  Point2D ToPoint() const;
 
   double Length() const;
   bool AlmostEquals(Vector2D const& other, double epsilon = DOUBLE_EPSILON) const;
@@ -31,7 +31,7 @@ class Vector2D {
   Vector2D& operator=(Vector2D const& other);
 
   double Dot(Vector2D const& v) const;
-  double Cross(Vector2D const& v) const;
+  double Cross(Vector2D const& v) const;  // aka perp-product
   Vector2D Perp() const;
   Vector2D Normalize() const;
 

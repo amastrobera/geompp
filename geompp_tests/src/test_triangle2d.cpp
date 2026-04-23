@@ -113,6 +113,23 @@ TEST_F(Triangle2DTest, ToPolygon) {
   ASSERT_EQ(poly.ToWkt(), t.ToPolygon().ToWkt());
 }
 
+TEST_F(Triangle2DTest, IsCCW) {
+  // CCW winding → SignedArea > 0 → IsCCW == true
+  auto t_ccw = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
+  ASSERT_TRUE(t_ccw.SignedArea() > 0);
+  ASSERT_TRUE(t_ccw.IsCCW());
+
+  // CW winding → SignedArea < 0 → IsCCW == false
+  auto [p0, p1, p2] = t_ccw.Vertices();
+  auto t_cw = g::Triangle2D::Make(p0, p2, p1);
+  ASSERT_TRUE(t_cw.SignedArea() < 0);
+  ASSERT_FALSE(t_cw.IsCCW());
+
+  // IsCCW is consistent with sign of SignedArea
+  ASSERT_EQ(t_ccw.IsCCW(), t_ccw.SignedArea() > 0);
+  ASSERT_EQ(t_cw.IsCCW(),  t_cw.SignedArea()  > 0);
+}
+
 TEST_F(Triangle2DTest, ToAxis) {
   auto t = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
 

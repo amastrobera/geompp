@@ -1,5 +1,8 @@
 #include "Polygon2D.hpp"
 #include "Point2D.hpp"
+#include "Line2D.hpp"
+#include "Ray2D.hpp"
+#include "LineSegment2D.hpp"
 
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
@@ -49,6 +52,38 @@ bool Polygon2D::AlmostEquals(Polygon2D^ other, double epsilon) {
     return _native->AlmostEquals(*other->_native, epsilon);
 }
 
+Point2D^ Polygon2D::Centroid() {
+    return gcnew Point2D(new geompp::Point2D(_native->Centroid()));
+}
+
+double Polygon2D::SignedArea() {
+    return _native->SignedArea();
+}
+
+double Polygon2D::Area() {
+    return _native->Area();
+}
+
+double Polygon2D::Perimeter() {
+    return _native->Perimeter();
+}
+
+double Polygon2D::DistanceTo(Point2D^ point) {
+    return _native->DistanceTo(*point->_native);
+}
+
+double Polygon2D::Location(Point2D^ point) {
+    return _native->Location(*point->_native);
+}
+
+Point2D^ Polygon2D::Interpolate(double pct) {
+    return gcnew Point2D(new geompp::Point2D(_native->Interpolate(pct)));
+}
+
+bool Polygon2D::Contains(Point2D^ point) {
+    return _native->Contains(*point->_native);
+}
+
 System::String^ Polygon2D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }
@@ -65,6 +100,40 @@ void Polygon2D::ToFile(System::String^ path) {
 Polygon2D^ Polygon2D::FromFile(System::String^ path) {
     return gcnew Polygon2D(
         new geompp::Polygon2D(geompp::Polygon2D::FromFile(marshal_as<std::string>(path))));
+}
+
+// ── Intersects ────────────────────────────────────────────────────────────────
+
+bool Polygon2D::Intersects(Line2D^ line) {
+    return _native->Intersects(*line->_native);
+}
+
+bool Polygon2D::Intersects(Ray2D^ ray) {
+    return _native->Intersects(*ray->_native);
+}
+
+bool Polygon2D::Intersects(LineSegment2D^ segment) {
+    return _native->Intersects(*segment->_native);
+}
+
+// ── Intersection ──────────────────────────────────────────────────────────────
+
+Point2D^ Polygon2D::Intersection(Line2D^ line) {
+    auto result = _native->Intersection(*line->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+}
+
+Point2D^ Polygon2D::Intersection(Ray2D^ ray) {
+    auto result = _native->Intersection(*ray->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+}
+
+Point2D^ Polygon2D::Intersection(LineSegment2D^ segment) {
+    auto result = _native->Intersection(*segment->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────
