@@ -59,11 +59,24 @@ TEST_F(Line3DTest, AlmostEquals) {
   auto l2 = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0));
   auto l3 = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(0, 1, 0));
 
+  // identical construction
   ASSERT_EQ(l1, l2);
+  ASSERT_EQ(l1, l1);
+
+  // different direction: not equal
   ASSERT_NE(l1, l3);
 
-  // self-equality
-  ASSERT_EQ(l1, l1);
+  // same infinite line, different origin — geometrically equal
+  auto l4 = g::Line3D::Make(g::Point3D(5, 0, 0), g::Point3D(8, 0, 0));
+  ASSERT_EQ(l1, l4);
+
+  // same infinite line, reversed direction — geometrically equal
+  auto l5 = g::Line3D::Make(g::Point3D(1, 0, 0), g::Point3D::Zero());
+  ASSERT_EQ(l1, l5);
+
+  // parallel but offset — NOT equal
+  auto l6 = g::Line3D::Make(g::Point3D(0, 1, 0), g::Point3D(5, 1, 0));
+  ASSERT_NE(l1, l6);
 }
 
 TEST_F(Line3DTest, Assignment) {
@@ -166,6 +179,26 @@ TEST_F(Line3DTest, TestFromFile) {
 
   auto l = g::Line3D::FromFile(path);
   GEOMPP_LOG(INFO) << "from file = " << l.ToWkt();
+}
+
+TEST_F(Line3DTest, DistanceTo) {
+  geompp::DECIMAL_PRECISION = 4;
+  // horizontal line along X-axis
+  auto line = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(5, 0, 0));
+
+  // on the line: distance = 0
+  ASSERT_EQ(0.0, g::round(line.DistanceTo(g::Point3D::Zero())));
+  ASSERT_EQ(0.0, g::round(line.DistanceTo(g::Point3D(3, 0, 0))));
+  ASSERT_EQ(0.0, g::round(line.DistanceTo(g::Point3D(-2, 0, 0))));  // behind origin, still on line
+
+  // perpendicular offset in Y
+  ASSERT_EQ(3.0, g::round(line.DistanceTo(g::Point3D(2, 3, 0))));
+
+  // perpendicular offset in Z
+  ASSERT_EQ(4.0, g::round(line.DistanceTo(g::Point3D(1, 0, 4))));
+
+  // offset in both Y and Z: 3-4-5 triple
+  ASSERT_EQ(5.0, g::round(line.DistanceTo(g::Point3D(0, 3, 4))));
 }
 
 TEST_F(Line3DTest, IntersectionWithLine3D) {

@@ -125,6 +125,9 @@ bool Triangle2D::Contains(Point2D const& point) const {
 }
 
 bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
+bool Triangle2D::Intersects(Ray2D const& ray) const { return Intersection(ray).has_value(); }
+bool Triangle2D::Intersects(LineSegment2D const& segment) const { return Intersection(segment).has_value(); }
+bool Triangle2D::Intersects(Triangle2D const& other) const { throw std::runtime_error("not implemented"); }
 
 Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto points_view = std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
@@ -137,8 +140,8 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
 
   std::vector<Point2D> intersections(points_view.begin(), points_view.end());
 
-  // all points are the same as the triangle vertices, so we consider it as no intersection but something else (touch,
-  // tangency or overlap)
+  // all points are the same as the triangle vertices,
+  // so we consider it as no intersection but something else (touch, tangency or overlap)
   if (std::ranges::all_of(intersections, [&](Point2D const& p) { return p == P0 || p == P1 || p == P2; })) {
     return std::nullopt;
   }
@@ -159,6 +162,106 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   }
 
   return LineSegment2D::Make(unique_points[0], unique_points[1]);
+}
+
+Triangle2D::ReturnSet Triangle2D::Intersection(Ray2D const& ray) const {
+  auto line_result = Intersection(ray.ToLine());
+
+  if (!line_result.has_value()) {
+    return std::nullopt;
+  }
+
+  // all points are the same as the triangle vertices,
+  // so we consider it as no intersection but something else (touch, tangency or overlap)
+  // --> already tested in line intersection, so we can skip it here
+
+  // case: 1 intersection, a point
+  if (std::holds_alternative<Point2D>(*line_result)) {
+    Point2D const& p = std::get<Point2D>(*line_result);
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    if (ray.IsAhead(p)) {
+      return p;
+    }
+    return std::nullopt;
+  }
+
+  // case 2: 2 intersections, a line segment
+  if (std::holds_alternative<LineSegment2D>(*line_result)) {
+    LineSegment2D const& seg = std::get<LineSegment2D>(*line_result);
+    auto line_points = std::vector<Point2D>{seg.First(), seg.Last()};
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    line_points.erase(
+        std::remove_if(line_points.begin(), line_points.end(), [&](Point2D const& p) { return !ray.IsAhead(p); }),
+        line_points.end());
+
+    if (line_points.empty()) {
+      return std::nullopt;
+    }
+
+    // case 2.1: only 1 point is ahead of the ray, so we consider it as a point intersection
+    if (line_points.size() == 1) {
+      return line_points[0];
+    }
+
+    // case 2.2: both points are ahead of the ray, so we consider it as a line segment intersection (already sorted in
+    // the direction of the ray from Line::Intersection)
+    return seg;
+  }
+
+  // case 3: undefined
+  throw std::runtime_error("unexpected result from line intersection");
+}
+
+Triangle2D::ReturnSet Triangle2D::Intersection(LineSegment2D const& segment) const {
+  auto line_result = Intersection(segment.ToLine());
+
+  if (!line_result.has_value()) {
+    return std::nullopt;
+  }
+
+  // all points are the same as the triangle vertices,
+  // so we consider it as no intersection but something else (touch, tangency or overlap)
+  // --> already tested in line intersection, so we can skip it here
+
+  // case: 1 intersection, a point
+  if (std::holds_alternative<Point2D>(*line_result)) {
+    Point2D const& p = std::get<Point2D>(*line_result);
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    if (segment.Contains(p)) {
+      return p;
+    }
+    return std::nullopt;
+  }
+
+  // case 2: 2 intersections, a line segment
+  if (std::holds_alternative<LineSegment2D>(*line_result)) {
+    LineSegment2D const& seg = std::get<LineSegment2D>(*line_result);
+    auto line_points = std::vector<Point2D>{seg.First(), seg.Last()};
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    line_points.erase(
+        std::remove_if(line_points.begin(), line_points.end(), [&](Point2D const& p) { return !segment.Contains(p); }),
+        line_points.end());
+
+    if (line_points.empty()) {
+      return std::nullopt;
+    }
+
+    // case 2.1: only 1 point is ahead of the ray, so we consider it as a point intersection
+    if (line_points.size() == 1) {
+      return line_points[0];
+    }
+
+    // case 2.2: both points are ahead of the ray, so we consider it as a line segment intersection (already sorted in
+    // the direction of the ray from Line::Intersection)
+    return seg;
+  }
+
+  // case 3: undefined
+  throw std::runtime_error("unexpected result from line intersection");
+}
+
+Triangle2D::ReturnSet Triangle2D::Intersection(Triangle2D const& other) const {
+  throw std::runtime_error("not implemented");
 }
 
 // #pragma endregion

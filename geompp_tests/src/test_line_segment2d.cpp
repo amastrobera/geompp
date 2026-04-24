@@ -26,6 +26,27 @@ class LineSegment2DTest : public ::testing::Test {
   void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
 };
 
+TEST_F(LineSegment2DTest, AlmostEquals) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto s1 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(3, 0));
+  auto s2 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(3, 0));
+  auto s3 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(0, 3));
+
+  // forward match
+  ASSERT_TRUE(s1.AlmostEquals(s2));
+  ASSERT_EQ(s1, s2);
+  ASSERT_EQ(s1, s1);
+
+  // different segment: not equal
+  ASSERT_FALSE(s1.AlmostEquals(s3));
+  ASSERT_NE(s1, s3);
+
+  // reversed segment — should be equal
+  auto s4 = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D::Zero());
+  ASSERT_TRUE(s1.AlmostEquals(s4));
+  ASSERT_EQ(s1, s4);
+}
+
 TEST_F(LineSegment2DTest, Constructor) {
   auto s1 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
 

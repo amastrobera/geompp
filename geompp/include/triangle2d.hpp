@@ -53,10 +53,11 @@ class Triangle2D {
   bool Intersects(Line2D const& line) const;
   bool Intersects(Ray2D const& ray) const;
   bool Intersects(LineSegment2D const& segment) const;
-  ReturnSet Intersects(Triangle2D const& other) const;
+  bool Intersects(Triangle2D const& other) const;
+
   ReturnSet Intersection(Line2D const& line) const;
   ReturnSet Intersection(Ray2D const& ray) const;
-  ReturnSet Intersection(LineSegment2D const& other) const;
+  ReturnSet Intersection(LineSegment2D const& segment) const;
   ReturnSet Intersection(Triangle2D const& other) const;
 #pragma endregion
 

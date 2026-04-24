@@ -44,7 +44,18 @@ Line2D& Line2D::operator=(Line2D const& other) {
 }
 
 bool Line2D::AlmostEquals(Line2D const& other, double epsilon) const {
-  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
+  // first check: are they parallel ?
+  if (!DIR.AlmostEquals(other.DIR, epsilon) && !DIR.AlmostEquals(-other.DIR, epsilon)) {
+    return false;
+  }
+  // second check: are they collinear ? (if they are parallel, we can check if the vector between their origins is also
+  // parallel to the direction)
+  auto w0 = P0 - other.P0;
+  if (compare(std::abs(DIR.Cross(w0)), epsilon) != 0) {
+    return false;
+  }
+
+  return true;  // no heading check at all
 }
 
 double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DIR.Cross(point - P0))); }

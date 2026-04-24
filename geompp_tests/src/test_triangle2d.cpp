@@ -227,94 +227,110 @@ TEST_F(Triangle2DTest, IntersectionWLine) {
   // actual intersect (reverse order)
 }
 
-// TEST(Triangle2D, IntersectionWRay) {
-//   geompp::DECIMAL_PRECISION =  4;
-//   auto r1 = g::Ray2D::Make(g::Point2D(-1, 1), g::Vector2D(1, -1));
-//   auto r2 = g::Ray2D::Make(g::Point2D(-1, -1), g::Vector2D(1, 1));    // intersects r1 in (0,0)
-//   auto r3 = g::Ray2D::Make(g::Point2D(-0.5, 0), g::Vector2D(0, -1));  // intersects r2 in (-0.5,-0.5)
-//   auto r4 = g::Ray2D::Make(g::Point2D(1, -0.5), g::Vector2D(0, 1));   // intersects r2 in (1,1)
+// Triangle TRIANGLE(0 -1, 1 1, -1 1):
+//   P0=(0,-1)  P1=(1,1)  P2=(-1,1)
+//   At y=0: left edge P2P0 crosses at (-0.5,0), right edge P0P1 at (0.5,0)
+//   Top edge P1P2 is at y=1
 
-//   ASSERT_TRUE(r1.Intersects(r2));
-//   {
-//     auto inter = r1.Intersection(r2);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
-//   }
+TEST_F(Triangle2DTest, IntersectionWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 1, -1 1)");
 
-//   ASSERT_FALSE(r1.Intersects(r3));
-//   ASSERT_FALSE(r1.Intersection(r3).has_value());
-//   ASSERT_FALSE(r1.Intersects(r4));
-//   ASSERT_FALSE(r1.Intersection(r4).has_value());
+  // ray crosses both sides → segment result
+  auto ray_thru = g::Ray2D::Make(g::Point2D(-3, 0), g::Vector2D::BasisX());
+  ASSERT_TRUE(tri.Intersects(ray_thru));
+  {
+    auto inter = tri.Intersection(ray_thru);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment2D>(*inter));
+    EXPECT_EQ(g::LineSegment2D::Make({-0.5, 0}, {0.5, 0}), std::get<g::LineSegment2D>(*inter));
+  }
 
-//   ASSERT_TRUE(r2.Intersects(r3));
-//   {
-//     auto inter = r2.Intersection(r3);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(-0.5, -0.5), std::get<g::Point2D>(*inter));
-//   }
+  // ray pointing away from the triangle: no intersection
+  auto ray_away = g::Ray2D::Make(g::Point2D(-3, 0), -g::Vector2D::BasisX());
+  ASSERT_FALSE(tri.Intersects(ray_away));
+  ASSERT_FALSE(tri.Intersection(ray_away).has_value());
 
-//   ASSERT_TRUE(r2.Intersects(r4));
-//   {
-//     auto inter = r2.Intersection(r4);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(1, 1), std::get<g::Point2D>(*inter));
-//   }
-// }
+  // ray origin inside, pointing right → exits at right edge only (point result)
+  auto ray_from_inside_right = g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D::BasisX());
+  ASSERT_TRUE(tri.Intersects(ray_from_inside_right));
+  {
+    auto inter = tri.Intersection(ray_from_inside_right);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0.5, 0), std::get<g::Point2D>(*inter));
+  }
 
-// TEST(Triangle2D, IntersectionWRay) {
-//   geompp::DECIMAL_PRECISION =  4;
-//   auto s1 = g::LineSegment2D::Make(g::Point2D(-1, -2), g::Point2D(2, 1));   // intersects r1, r2
-//   auto s2 = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 1));     // intersects r1
-//   auto s3 = g::LineSegment2D::Make(g::Point2D(-1, 0), g::Point2D(-1, -1));  // intersects r2
+  // ray origin inside, pointing left → exits at left edge only (point result)
+  auto ray_from_inside_left = g::Ray2D::Make(g::Point2D(0, 0), -g::Vector2D::BasisX());
+  ASSERT_TRUE(tri.Intersects(ray_from_inside_left));
+  {
+    auto inter = tri.Intersection(ray_from_inside_left);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(-0.5, 0), std::get<g::Point2D>(*inter));
+  }
 
-//   auto r1 = g::Ray2D::Make(g::Point2D(0.5, -2), g::Vector2D(0, 1));
-//   auto r2 = g::Ray2D::Make(g::Point2D(-2, -0.5), g::Vector2D(1, 0));
-//   auto r1_rev = g::Ray2D::Make(g::Point2D(0.5, -2), g::Vector2D(0, -1));   // no intersections
-//   auto r2_rev = g::Ray2D::Make(g::Point2D(-2, -0.5), g::Vector2D(-1, 0));  // no intersections
+  // ray origin inside, pointing up → exits at top edge (point result)
+  auto ray_from_inside_up = g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D::BasisY());
+  ASSERT_TRUE(tri.Intersects(ray_from_inside_up));
+  {
+    auto inter = tri.Intersection(ray_from_inside_up);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0, 1), std::get<g::Point2D>(*inter));
+  }
 
-//   ASSERT_TRUE(s1.Intersects(r1));
-//   {
-//     auto inter = s1.Intersection(r1);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0.5, -0.5), std::get<g::Point2D>(*inter));
-//   }
-//   ASSERT_TRUE(s1.Intersects(r2));
-//   {
-//     auto inter = s1.Intersection(r2);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0.5, -0.5), std::get<g::Point2D>(*inter));
-//   }
+  // ray above triangle pointing up: entirely behind
+  auto ray_above = g::Ray2D::Make(g::Point2D(0, 3), g::Vector2D::BasisY());
+  ASSERT_FALSE(tri.Intersects(ray_above));
+  ASSERT_FALSE(tri.Intersection(ray_above).has_value());
+}
 
-//   ASSERT_TRUE(s2.Intersects(r1));
-//   {
-//     auto inter = s2.Intersection(r1);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(0.5, 1), std::get<g::Point2D>(*inter));
-//   }
-//   ASSERT_FALSE(s2.Intersects(r2));
+TEST_F(Triangle2DTest, IntersectionWSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto tri = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 1, -1 1)");
 
-//   ASSERT_TRUE(s3.Intersects(r2));
-//   {
-//     auto inter = s3.Intersection(r2);
-//     ASSERT_TRUE(inter.has_value());
-//     ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-//     EXPECT_EQ(g::Point2D(-1, -0.5), std::get<g::Point2D>(*inter));
-//   }
-//   ASSERT_FALSE(s3.Intersects(r1));
+  // segment crosses both sides → segment result
+  auto seg_thru = g::LineSegment2D::Make(g::Point2D(-3, 0), g::Point2D(3, 0));
+  ASSERT_TRUE(tri.Intersects(seg_thru));
+  {
+    auto inter = tri.Intersection(seg_thru);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment2D>(*inter));
+    EXPECT_EQ(g::LineSegment2D::Make({-0.5, 0}, {0.5, 0}), std::get<g::LineSegment2D>(*inter));
+  }
 
-//   ASSERT_FALSE(s1.Intersects(r1_rev));
-//   ASSERT_FALSE(s1.Intersects(r2_rev));
-//   ASSERT_FALSE(s2.Intersects(r1_rev));
-//   ASSERT_FALSE(s2.Intersects(r2_rev));
-//   ASSERT_FALSE(s3.Intersects(r1_rev));
-//   ASSERT_FALSE(s3.Intersects(r2_rev));
-// }
+  // segment enters from the left but stops inside → point at left edge
+  auto seg_enter_left = g::LineSegment2D::Make(g::Point2D(-3, 0), g::Point2D(0, 0));
+  ASSERT_TRUE(tri.Intersects(seg_enter_left));
+  {
+    auto inter = tri.Intersection(seg_enter_left);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(-0.5, 0), std::get<g::Point2D>(*inter));
+  }
+
+  // segment starts inside and exits right → point at right edge
+  auto seg_exit_right = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(3, 0));
+  ASSERT_TRUE(tri.Intersects(seg_exit_right));
+  {
+    auto inter = tri.Intersection(seg_exit_right);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(0.5, 0), std::get<g::Point2D>(*inter));
+  }
+
+  // segment entirely outside: no intersection
+  auto seg_outside = g::LineSegment2D::Make(g::Point2D(-3, 0), g::Point2D(-2, 0));
+  ASSERT_FALSE(tri.Intersects(seg_outside));
+  ASSERT_FALSE(tri.Intersection(seg_outside).has_value());
+
+  // segment entirely inside: no boundary crossing
+  auto seg_inside = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(0, 0.5));
+  ASSERT_FALSE(tri.Intersects(seg_inside));
+  ASSERT_FALSE(tri.Intersection(seg_inside).has_value());
+}
 
 TEST_F(Triangle2DTest, Wkt) {
   ASSERT_EQ("TRIANGLE (0 0, 1 1, 0 2)",

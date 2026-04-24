@@ -58,10 +58,11 @@ class Triangle3D {
   bool Intersects(Line3D const& line) const;
   bool Intersects(Ray3D const& ray) const;
   bool Intersects(LineSegment3D const& segment) const;
-  ReturnSet Intersects(Triangle3D const& other) const;
+  bool Intersects(Triangle3D const& other) const;
+
   ReturnSet Intersection(Line3D const& line) const;
   ReturnSet Intersection(Ray3D const& ray) const;
-  ReturnSet Intersection(LineSegment3D const& other) const;
+  ReturnSet Intersection(LineSegment3D const& segment) const;
   ReturnSet Intersection(Triangle3D const& other) const;
 #pragma endregion
 

@@ -43,9 +43,15 @@ TEST_F(LineSegment3DTest, AlmostEquals) {
   auto s2 = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
   auto s3 = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(0, 3, 0));
 
+  // forward match
   ASSERT_EQ(s1, s2);
   ASSERT_NE(s1, s3);
   ASSERT_EQ(s1, s1);
+
+  // reversed segment — should be equal
+  auto s4 = g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D::Zero());
+  ASSERT_TRUE(s1.AlmostEquals(s4));
+  ASSERT_EQ(s1, s4);
 }
 
 TEST_F(LineSegment3DTest, Assignment) {

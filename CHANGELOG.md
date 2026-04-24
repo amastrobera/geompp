@@ -11,6 +11,85 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.3.0] - 2026-04-24
+
+> C++ library — tagged `v0.3.0`
+
+### Changed
+
+**C++ core**
+- `Line2D::AlmostEquals` / `operator==`: now geometric equality — two lines are equal if they lie on the same infinite line (parallel directions, collinear origins). The old P0/P1 coordinate comparison is replaced. Anti-parallel lines on the same infinite line are equal; parallel but offset lines are not. **Breaking for callers that relied on the old point-coordinate comparison.**
+- `Line3D::AlmostEquals` / `operator==`: same geometric-equality change.
+- `LineSegment2D::AlmostEquals` / `operator==`: now order-agnostic — `Make(A, B) == Make(B, A)`. **Breaking for callers that relied on direction-sensitive equality.**
+- `LineSegment3D::AlmostEquals` / `operator==`: same order-agnostic change.
+
+### Fixed
+
+**C++ core**
+- `Ray2D::Contains`: replaced ad-hoc cross-product collinearity check with `ToLine().Contains(point) && IsAhead(point)` for consistency with `Line2D::Contains`.
+- `Triangle2D::Intersects(Triangle2D const&)`: corrected return type from `ReturnSet` to `bool`, matching the pattern of all other `Intersects` overloads.
+- `Triangle3D::Intersects(Triangle3D const&)`: same return-type correction.
+
+### Added
+
+**C++ core**
+- `Triangle2D::Intersection(Ray2D const&)`: implemented. Returns a `Point2D` if the ray clips one edge, a `LineSegment2D` if it crosses two edges, or `nullopt` if it misses or is entirely behind the triangle.
+- `Triangle2D::Intersection(LineSegment2D const&)`: implemented. Returns a `Point2D` if the segment crosses one boundary edge, a `LineSegment2D` if it crosses two, or `nullopt` if entirely outside or entirely inside.
+- `Triangle2D::Intersects(Ray2D const&)` and `Triangle2D::Intersects(LineSegment2D const&)`: now delegate to the corresponding `Intersection` overloads (were stubs that threw).
+
+### Tests
+- `test_line2d.cpp`: added `Location`, `ProjectOnto`, `AlmostEquals` (geometric-equality and epsilon cases).
+- `test_line3d.cpp`: extended `AlmostEquals` with same-infinite-line and reversed-direction cases; added `DistanceTo`.
+- `test_line_segment2d.cpp`: added `AlmostEquals` including reversed-segment equality.
+- `test_line_segment3d.cpp`: extended `AlmostEquals` with reversed-segment case.
+- `test_ray3d.cpp`: added `DistanceTo`, `IntersectionWithRay3D`.
+- `test_polyline3d.cpp`: added `Location`.
+- `test_triangle2d.cpp`: added `IntersectionWRay` and `IntersectionWSegment`.
+
+---
+
+## [0.2.0] - 2026-04-24
+
+> C++ library — tagged `v0.2.0` · C# / NuGet — tagged `csharp-v0.2.0` · Python / PyPI — tagged `python-v0.2.0`
+
+### Changed
+
+**C++ core**
+- `Triangle3D::SignedArea(Vector3D const& ref_normal)`: signature changed — now requires an explicit reference normal. Result is `ref_normal.Dot(AreaVector())`; sign depends on which side of the plane `ref_normal` points to. Existing no-argument callers must be updated.
+- `Triangle3D::IsCCW(Vector3D const& ref_normal)`: same — now requires explicit reference normal.
+
+**C# / NuGet**
+- `Triangle3D.SignedArea(Vector3D^ refNormal)` and `Triangle3D.IsCCW(Vector3D^ refNormal)`: updated to match new C++ signatures.
+
+**Python / PyPI**
+- `Triangle3D.signed_area(ref_normal)` and `Triangle3D.is_ccw(ref_normal)`: updated to match new C++ signatures.
+
+### Added
+
+**C++ core**
+- `Triangle2D::IsCCW()`: returns `true` if winding is counter-clockwise (`SignedArea() > 0`).
+- `Triangle3D::Normal()`: returns the unit normal vector (`AreaVector().Normalize()`).
+- `Triangle3D::ToPolygon()`: converts the triangle to a `Polygon3D` with the same three vertices.
+
+**C# / NuGet**
+- `Triangle2D.IsCCW()`, `Triangle3D.Normal()`, `Triangle3D.ToPolygon()` newly exposed.
+
+**Python / PyPI**
+- `Triangle2D.is_ccw()`, `Triangle3D.normal()`, `Triangle3D.to_polygon()` newly exposed.
+
+### Fixed
+
+**C++ core**
+- `triangle3d.hpp`: typo `book IsCCW()` corrected to `bool IsCCW()` — function was syntactically invalid before this fix.
+- `test_plane.cpp`: `Plane::AlmostEquals` was already implemented but the test was a stale placeholder expecting a throw; replaced with real assertions.
+
+### Tests
+- `test_plane.cpp`: added `AlmostEquals` cases — equal planes, distinct planes, anti-parallel normals at same offset, different offsets.
+- `test_triangle3d.cpp`: added `ToPolygon`, `Normal`, `IsCCW`; updated `SignedArea` to pass `ref_normal`.
+- `test_triangle2d.cpp`: added `IsCCW`.
+
+---
+
 ## [0.1.3] - 2026-04-13
 
 > C++ library — tagged `v0.1.3`

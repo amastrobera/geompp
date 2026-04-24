@@ -166,4 +166,47 @@ TEST_F(Ray3DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "from file = " << r.ToWkt();
 }
 
+TEST_F(Ray3DTest, DistanceTo) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+
+  // on the ray: 0
+  ASSERT_EQ(0.0, g::round(r.DistanceTo(g::Point3D::Zero())));
+  ASSERT_EQ(0.0, g::round(r.DistanceTo(g::Point3D(3, 0, 0))));
+
+  // ahead with perpendicular offset: distance = offset magnitude
+  ASSERT_EQ(3.0, g::round(r.DistanceTo(g::Point3D(5, 3, 0))));
+
+  // directly behind origin: distance = distance to origin
+  ASSERT_EQ(2.0, g::round(r.DistanceTo(g::Point3D(-2, 0, 0))));
+
+  // behind and offset: distance = distance to origin (not to projection on line)
+  ASSERT_EQ(g::round(g::Point3D::Zero().DistanceTo(g::Point3D(-1, 3, 0))),
+            g::round(r.DistanceTo(g::Point3D(-1, 3, 0))));
+}
+
+TEST_F(Ray3DTest, IntersectionWithRay3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  // r1 along +X; r2 from (3,1,0) pointing -Y → meet at (3,0,0)
+  auto r1 = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+  auto r2 = g::Ray3D::Make(g::Point3D(3, 1, 0), g::Vector3D(0, -1, 0));
+
+  ASSERT_TRUE(r1.Intersects(r2));
+  {
+    auto inter = r1.Intersection(r2);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_EQ(g::Point3D(3, 0, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // r3 from (-3,1,0) pointing -Y — lines would cross at (-3,0,0), behind r1
+  auto r3 = g::Ray3D::Make(g::Point3D(-3, 1, 0), g::Vector3D(0, -1, 0));
+  ASSERT_FALSE(r1.Intersects(r3));
+  ASSERT_FALSE(r1.Intersection(r3).has_value());
+
+  // parallel rays: no intersection
+  auto r4 = g::Ray3D::Make(g::Point3D(0, 1, 0), g::Vector3D::BasisX());
+  ASSERT_FALSE(r1.Intersects(r4));
+  ASSERT_FALSE(r1.Intersection(r4).has_value());
+}
+
 }  // namespace geompp_tests

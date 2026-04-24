@@ -10,6 +10,7 @@
 #include "geompp_log.hpp"
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <filesystem>
 #include <vector>
 
@@ -129,6 +130,27 @@ TEST_F(Polyline3DTest, Interpolate) {
   // clamped
   ASSERT_EQ(g::Point3D::Zero(), poly.Interpolate(-0.5));
   ASSERT_EQ(g::Point3D(3, 0, 0), poly.Interpolate(1.5));
+}
+
+TEST_F(Polyline3DTest, Location) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto poly = g::Polyline3D::FromWkt("LINESTRING (0 0 0, 3 0 0)");
+
+  // start = 0, end = 1
+  ASSERT_EQ(0.0, poly.Location(g::Point3D::Zero()));
+  ASSERT_EQ(1.0, poly.Location(g::Point3D(3, 0, 0)));
+
+  // midpoint = 0.5
+  ASSERT_EQ(0.5, g::round(poly.Location(g::Point3D(1.5, 0, 0))));
+
+  // before start: negative (distance to start / total length)
+  ASSERT_EQ(g::round(-1.0 / 3.0, 3), g::round(poly.Location(g::Point3D(-1, 0, 0)), 3));
+
+  // beyond end: > 1
+  ASSERT_EQ(g::round(4.0 / 3.0, 3), g::round(poly.Location(g::Point3D(4, 0, 0)), 3));
+
+  // off-polyline: infinity
+  ASSERT_TRUE(std::isinf(poly.Location(g::Point3D(1, 1, 0))));
 }
 
 TEST_F(Polyline3DTest, IntersectionWLine) {

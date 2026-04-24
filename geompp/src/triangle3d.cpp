@@ -128,9 +128,7 @@ bool Triangle3D::Intersects(Ray3D const& ray) const { return Intersection(ray).h
 
 bool Triangle3D::Intersects(LineSegment3D const& segment) const { return Intersection(segment).has_value(); }
 
-Triangle3D::ReturnSet Triangle3D::Intersects(Triangle3D const& other) const {
-  throw std::runtime_error("not implemented");
-}
+bool Triangle3D::Intersects(Triangle3D const& other) const { throw std::runtime_error("not implemented"); }
 
 Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
   throw std::runtime_error("not implemented");
@@ -138,7 +136,7 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
 
 Triangle3D::ReturnSet Triangle3D::Intersection(Ray3D const& ray) const { throw std::runtime_error("not implemented"); }
 
-Triangle3D::ReturnSet Triangle3D::Intersection(LineSegment3D const& other) const {
+Triangle3D::ReturnSet Triangle3D::Intersection(LineSegment3D const& segment) const {
   throw std::runtime_error("not implemented");
 }
 
