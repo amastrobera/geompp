@@ -50,6 +50,7 @@ bool operator==(Vector2D const& lhs, Vector2D const& rhs);
 
 Point2D operator+(Vector2D const& lhs, Point2D const& point);
 Vector2D operator+(Vector2D const& lhs, Vector2D const& vec);
+Vector2D operator+=(Vector2D& lhs, Vector2D const& vec);
 
 Vector2D operator-(Vector2D const& lhs, Vector2D const& vec);
 

@@ -76,7 +76,7 @@ using G = GeomPP;
 
 G.Precision.DecimalPrecision = G.Precision.DP_THREE;
 
-var parser = G.LVSParser.Open("sample_geometries.lsv");
+var parser = G.WktParser.Open("sample_geometries.lsv");
 
 if (!parser.HasNext()) {
     Console.WriteLine("no geometries found");
@@ -89,7 +89,7 @@ while (parser.HasNext()) {
         Console.WriteLine("skipped unrecognised line");
         continue;
     }
-    Console.WriteLine(G.LVSParser.ToWkt(item));
+    Console.WriteLine(G.WktParser.ToWkt(item));
 }
 ```
 
@@ -134,7 +134,7 @@ double eps = G.Precision.Epsilon;  // current epsilon (10^-N)
 | `Polygon`         | ✓  | ✓  |
 | `BBox`            | ✓  | ✓  |
 | `Plane`           | —  | ✓  |
-| `LVSParser`       | ✓  | ✓  |
+| `WktParser`       | ✓  | ✓  |
 
 All types expose `ToWkt()`, `FromWkt()`, `ToFile()`, `FromFile()`, `AlmostEquals()`, and the same
 operators available in the C++ library.

@@ -1,4 +1,4 @@
-#include "lsv_parser.hpp"
+#include "wkt_parser.hpp"
 
 #include "constants.hpp"
 #include "point2d.hpp"
@@ -19,17 +19,17 @@ namespace geompp_tests {
 
 extern fs::path test_res_path;
 
-class LsvParserTest : public ::testing::Test {
+class WktParserTest : public ::testing::Test {
  protected:
   void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
   void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
 };
 
-TEST_F(LsvParserTest, FromFile) {
+TEST_F(WktParserTest, FromFile) {
   std::string geom_file_path = (test_res_path / "lsv" / "initial_geometries.lsv").string();
 
   // expected values filling: creating the testw file
-  std::vector<g::LVSParser::ReturnSet> geometry_list;
+  std::vector<g::WktParser::ReturnSet> geometry_list;
   ASSERT_NO_THROW({
     geometry_list.push_back(g::Point2D::FromWkt("POINT(5 2)"));
     geometry_list.push_back(g::LineSegment2D::FromWkt("LINESTRING(0 0, 1 1)"));
@@ -76,7 +76,7 @@ TEST_F(LsvParserTest, FromFile) {
   ASSERT_TRUE(fs::exists(geom_file_path));
 
   // ASSERT_NO_THROW({
-  auto geom_parser = g::LVSParser::Open(geom_file_path);  // can throw
+  auto geom_parser = g::WktParser::Open(geom_file_path);  // can throw
   while (geom_parser.HasNext()) {
     auto geom = geom_parser.Next();
 

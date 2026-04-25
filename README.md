@@ -122,7 +122,7 @@
 
   g::DECIMAL_PRECISION = g::DP_THREE;
 
-  auto parser = g::LVSParser::Open(lsv_path);
+  auto parser = g::WktParser::Open(lsv_path);
   if (!parser.HasNext()) {
     GEOMPP_LOG(WARNING) << "no geometries found in file " << lsv_path;
     return;
@@ -136,7 +136,7 @@
       continue;
     }
 
-    GEOMPP_LOG(INFO) << g::LVSParser::ToWkt(entry.value());
+    GEOMPP_LOG(INFO) << g::WktParser::ToWkt(entry.value());
   }
   ```
 
@@ -170,8 +170,9 @@
   | Status | Area |
   |--------|------|
   | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md) |
-  | Next | Docker (Windows), geom_viewer camera/input/delete |
-  | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping |
+  | **In progress** | Test coverage push (target ≥ 70% per class); `GeometryCollection2D/3D` bindings + serialization; `WktParser` (renamed from `LVSParser`) `get()` + `to_wkt()` in Python; `Polygon2D/3D` holes support with CCW/CW validation; winding-order helpers (`are_ccw`, `are_cw`, `are_coplanar`) |
+  | Next | `Polygon2D/3D::FromWkt()` roundtrip fix; `GeometryCollection` C# bindings; Docker (Windows); geom_viewer camera/input/delete |
+  | Backlog | Polygon ops, convex hull, overlap/adjacency, polygon clipping |
 
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).

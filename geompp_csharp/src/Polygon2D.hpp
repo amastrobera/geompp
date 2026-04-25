@@ -17,8 +17,9 @@ public:
     ~Polygon2D();
     !Polygon2D();
 
-    // Factory method (private constructor — use Make)
+    // Factory methods (private constructor — use Make)
     static Polygon2D^ Make(array<Point2D^>^ points);
+    static Polygon2D^ Make(array<Point2D^>^ points, array<array<Point2D^>^>^ holes);
 
     int Size();
     property Point2D^ default[int] { Point2D^ get(int i); }

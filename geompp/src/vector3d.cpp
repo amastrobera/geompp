@@ -81,6 +81,11 @@ Vector3D operator+(Vector3D const& lhs, Vector3D const& rhs) {
   return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z()};
 }
 
+Vector3D operator+=(Vector3D& lhs, Vector3D const& vec) {
+  lhs = lhs + vec;
+  return lhs;
+}
+
 Vector3D operator-(Vector3D const& lhs, Vector3D const& rhs) {
   return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z()};
 }

@@ -3,7 +3,15 @@
 void bind_polygon2d(py::module_& m) {
     py::class_<geompp::Polygon2D>(m, "Polygon2D",
         "2D polygon (ordered vertex list, open/closed by convention).")
-        .def_static("make", &geompp::Polygon2D::Make, "points"_a)
+        .def_static("make",
+             [](const std::vector<geompp::Point2D>& pts) { return geompp::Polygon2D::Make(pts); },
+             "points"_a)
+        .def_static("make",
+             [](const std::vector<geompp::Point2D>& pts,
+                const std::vector<std::vector<geompp::Point2D>>& holes) {
+                 return geompp::Polygon2D::Make(pts, holes);
+             },
+             "points"_a, "holes"_a)
         .def(py::init<const geompp::Polygon2D&>())
         .def("size",        &geompp::Polygon2D::Size)
         .def("centroid",    &geompp::Polygon2D::Centroid)

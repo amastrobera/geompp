@@ -89,4 +89,12 @@ std::ostream& operator<<(std::ostream& os, Point2D const& g);
 
 #pragma endregion
 
+#pragma region Collection Operations
+
+bool are_ccw(std::vector<Point2D> const& points);
+
+bool are_cw(std::vector<Point2D> const& points);
+
+#pragma endregion
+
 }  // namespace geompp

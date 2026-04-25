@@ -54,4 +54,24 @@ void bind_free_functions(py::module_& m) {
     m.def("average",
           [](const std::vector<geompp::Point3D>& pts) { return geompp::average(pts); },
           "points"_a, "Arithmetic mean of 3D points.");
+
+    m.def("are_ccw",
+          [](const std::vector<geompp::Point2D>& pts) { return geompp::are_ccw(pts); },
+          "points"_a, "True if 2D points are ordered counter-clockwise.");
+
+    m.def("are_cw",
+          [](const std::vector<geompp::Point2D>& pts) { return geompp::are_cw(pts); },
+          "points"_a, "True if 2D points are ordered clockwise.");
+
+    m.def("are_coplanar",
+          [](const std::vector<geompp::Point3D>& pts) { return geompp::are_coplanar(pts); },
+          "points"_a, "True if 3D points are coplanar.");
+
+    m.def("are_ccw",
+          [](const std::vector<geompp::Point3D>& pts) { return geompp::are_ccw(pts); },
+          "points"_a, "True if 3D points are ordered counter-clockwise.");
+
+    m.def("are_cw",
+          [](const std::vector<geompp::Point3D>& pts) { return geompp::are_cw(pts); },
+          "points"_a, "True if 3D points are ordered clockwise.");
 }

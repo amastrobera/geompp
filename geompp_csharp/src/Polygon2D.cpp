@@ -34,6 +34,24 @@ Polygon2D^ Polygon2D::Make(array<Point2D^>^ points) {
     return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(nativePoints)));
 }
 
+Polygon2D^ Polygon2D::Make(array<Point2D^>^ points, array<array<Point2D^>^>^ holes) {
+    std::vector<geompp::Point2D> nativePoints;
+    nativePoints.reserve(points->Length);
+    for each (Point2D^ p in points)
+        nativePoints.push_back(*p->_native);
+
+    std::vector<std::vector<geompp::Point2D>> nativeHoles;
+    for each (array<Point2D^>^ hole in holes) {
+        std::vector<geompp::Point2D> nativeHole;
+        nativeHole.reserve(hole->Length);
+        for each (Point2D^ p in hole)
+            nativeHole.push_back(*p->_native);
+        nativeHoles.push_back(nativeHole);
+    }
+
+    return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(nativePoints, nativeHoles)));
+}
+
 // ── Methods ──────────────────────────────────────────────────────────────────
 
 int Polygon2D::Size() {

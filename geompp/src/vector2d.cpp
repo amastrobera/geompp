@@ -49,6 +49,11 @@ bool operator==(Vector2D const& lhs, Vector2D const& rhs) { return lhs.AlmostEqu
 
 Vector2D operator+(Vector2D const& lhs, Vector2D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y()}; }
 
+Vector2D operator+=(Vector2D& lhs, Vector2D const& vec) {
+  lhs = lhs + vec;
+  return lhs;
+}
+
 Vector2D operator-(Vector2D const& lhs, Vector2D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y()}; }
 
 Point2D operator+(Vector2D const& lhs, Point2D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y()}; }

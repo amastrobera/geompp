@@ -1,6 +1,6 @@
 #include <line2d.hpp>
 #include <line_segment2d.hpp>
-#include <lsv_parser.hpp>
+#include <wkt_parser.hpp>
 #include <point2d.hpp>
 #include <ray2d.hpp>
 #include <geompp_log.hpp>
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 
   // Parse geometries
   std::string geom_file_path = (geoms_path / "initial_geometries.lsv").string();
-  auto geom_parser = g::LVSParser::Open(geom_file_path);  // can throw
+  auto geom_parser = g::WktParser::Open(geom_file_path);  // can throw
 
   // will this stupid hack work ?
   auto normalize_to_viewport = [](float value, float min, float max) -> float {

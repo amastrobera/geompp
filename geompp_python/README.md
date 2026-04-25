@@ -45,11 +45,11 @@ proj = plane.project_onto(p3)   # Point3D(1, 2, 0)
 g.set_decimal_precision(g.DP_SIX)
 
 # File parser
-parser = g.LVSParser.open("geometry.lsv")
+parser = g.WktParser.open("geometry.lsv")
 while parser.has_next():
     item = parser.next()
     if item is not None:
-        print(g.LVSParser.to_wkt(item))
+        print(g.WktParser.to_wkt(item))
 ```
 
 ## Classes

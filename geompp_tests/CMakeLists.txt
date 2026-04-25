@@ -60,9 +60,11 @@ add_executable(${PROJECT_NAME}
     src/test_polygon2d.cpp
     src/test_polygon3d.cpp
 
-    src/test_lsv_parser.cpp
+    src/test_wkt_parser.cpp
     src/test_polyline3d.cpp
     src/test_utils.cpp
+    src/test_geometry_collection2d.cpp
+    src/test_geometry_collection3d.cpp
 
     main.cpp
 )

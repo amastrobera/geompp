@@ -34,7 +34,7 @@
 | `Point3D` | 20 | 0 | **100%** |
 | `Vector3D` | 22 | 0 | **100%** |
 | `utils.hpp` | 12 | 0 | **100%** |
-| `LVSParser` | 4 | 0 | **100%** |
+| `WktParser` | 4 | 0 | **100%** |
 
 ---
 
@@ -43,7 +43,7 @@
 - **No class is at 0%** — all geometry classes and utilities have at least some test coverage.
 - **`Line2D`, `Ray3D`, `Vector2D`, `Line3D`** remain the weakest — all lack several geometric operations (intersections, distance, normalization).
 - **`operator<<` and `operator=`** are the most common "last mile" gaps — they appear across `Triangle3D`, `Polygon2D`, `Polygon3D`, `Polyline2D`, `Polyline3D`, and `LineSegment3D`.
-- **`BBox3D`, `Point3D`, `Vector3D`, `utils.hpp`, `LVSParser`** are at **100%**.
+- **`BBox3D`, `Point3D`, `Vector3D`, `utils.hpp`, `WktParser`** are at **100%**.
 - **2D side** continues to be strong overall; the biggest remaining gaps are in the 2D intersection/distance helpers (`Line2D`, `Vector2D`, `Ray3D`).
 
 ---

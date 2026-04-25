@@ -108,7 +108,6 @@ Line2D::ReturnSet Line2D::Intersection(Line2D const& other, double& sc, double& 
     auto v = other.P1 - other.P0;
     auto vp = v.Perp();
     auto up = u.Perp();
-    auto Q0 = other.P0;
     auto w0 = (P0 - other.P0);
 
     // parallel lines

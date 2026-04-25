@@ -32,7 +32,7 @@ add_library(${PROJECT_NAME}
     src/constants.cpp
     src/geompp_log.cpp
     src/utils.cpp
-    src/lsv_parser.cpp
+    src/wkt_parser.cpp
 
     src/point2d.cpp
     src/vector2d.cpp
@@ -54,6 +54,8 @@ add_library(${PROJECT_NAME}
     src/triangle3d.cpp
     src/polygon3d.cpp
     src/bbox3d.cpp
+    src/geometry_collection2d.cpp
+    src/geometry_collection3d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

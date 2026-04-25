@@ -97,4 +97,49 @@ bool operator==(Plane const& lhs, Plane const& rhs) { return lhs.AlmostEquals(rh
 
 #pragma endregion
 
+#pragma region Collection Operations
+
+bool are_coplanar(std::vector<Point3D> const& points) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() < 4) {
+    return true;
+  }
+
+  // avoid building a plane and making a constructor
+  auto normal = (unique_points[1] - unique_points[0]).Cross(unique_points[2] - unique_points[0]);
+
+  // if normal and Pi-P0 are not orthogonal, then the point is not in the plane defined by P0, P1 and P2
+  for (int i = 3; i < unique_points.size(); ++i) {
+    if (compare(normal.Dot(unique_points[i] - unique_points[0]), 0) != 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+double orientation(std::vector<Point3D> const& points) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() < 3) {
+    return true;
+  }
+
+  auto normal = (unique_points[1] - unique_points[0]).Cross(unique_points[2] - unique_points[0]);
+
+  Vector3D signed_area = {0, 0, 0};
+  for (int i = 0; i < unique_points.size(); ++i) {
+    auto const& p1 = unique_points[i];
+    auto const& p2 = unique_points[(i + 1) % unique_points.size()];
+    signed_area += p1.ToVector().Cross(p2.ToVector());
+  }
+
+  return normal.Dot(signed_area);
+}
+
+bool are_ccw(std::vector<Point3D> const& points) { return compare(orientation(points), 0) > 0; }
+
+bool are_cw(std::vector<Point3D> const& points) { return compare(orientation(points), 0) < 0; }
+
+#pragma endregion
+
 }  // namespace geompp

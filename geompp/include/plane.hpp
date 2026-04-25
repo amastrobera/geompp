@@ -66,4 +66,14 @@ bool operator==(Plane const& lhs, Plane const& rhs);
 
 #pragma endregion
 
+#pragma region Collection Operations
+
+bool are_coplanar(std::vector<Point3D> const& points);
+
+bool are_ccw(std::vector<Point3D> const& points);
+
+bool are_cw(std::vector<Point3D> const& points);
+
+#pragma endregion
+
 }  // namespace geompp

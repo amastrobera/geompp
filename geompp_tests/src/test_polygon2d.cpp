@@ -36,6 +36,10 @@ TEST_F(Polygon2DTest, Constructor) {
   EXPECT_ANY_THROW(g::Polygon2D::Make({}));
   EXPECT_ANY_THROW(g::Polygon2D::Make({g::Point2D::Zero(), g::Point2D::Zero(), g::Point2D::Zero()}));
   EXPECT_ANY_THROW(g::Polygon2D::Make({g::Point2D::Zero(), g::Point2D(1, 0)}));
+
+  // CW outer ring throws
+  EXPECT_ANY_THROW(
+      g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(0, 1), g::Point2D(1, 1), g::Point2D(1, 0)}));
 }
 
 TEST_F(Polygon2DTest, AlmostEquals) {
@@ -65,13 +69,56 @@ TEST_F(Polygon2DTest, Wkt) {
   auto p = g::Polygon2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   ASSERT_EQ("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))", p.ToWkt());
 
+  // CCW triangle at DP=2
   geompp::DECIMAL_PRECISION = 2;
-  auto p2 = g::Polygon2D::Make({g::Point2D(1.126, 2.354), g::Point2D(5.678, 9.012), g::Point2D(3.333, 0.111)});
-  ASSERT_EQ("POLYGON ((1.13 2.35, 5.68 9.01, 3.33 0.11, 1.13 2.35))", p2.ToWkt());
+  auto p2 = g::Polygon2D::Make({g::Point2D(0.123, 0.456), g::Point2D(8.789, 0.123), g::Point2D(4.321, 7.654)});
+  ASSERT_EQ("POLYGON ((0.12 0.46, 8.79 0.12, 4.32 7.65, 0.12 0.46))", p2.ToWkt());
 
   // FromWkt is not yet implemented — all calls throw
   EXPECT_ANY_THROW(g::Polygon2D::FromWkt("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"));
   EXPECT_ANY_THROW(g::Polygon2D::FromWkt("anything"));
+}
+
+TEST_F(Polygon2DTest, WktWithHoles) {
+  geompp::DECIMAL_PRECISION = 4;
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+  ASSERT_EQ("POLYGON ((0 0, 4 0, 4 4, 0 4, 0 0), (1 1, 1 3, 3 3, 3 1, 1 1))", p.ToWkt());
+}
+
+TEST_F(Polygon2DTest, WithHoles_Valid) {
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+  ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
+}
+
+TEST_F(Polygon2DTest, WithHoles_PerimeterCW_Throws) {
+  std::vector<g::Point2D> cw_outer = {
+      g::Point2D(0, 0), g::Point2D(0, 4), g::Point2D(4, 4), g::Point2D(4, 0)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  EXPECT_ANY_THROW(g::Polygon2D::Make(cw_outer, {hole}));
+}
+
+TEST_F(Polygon2DTest, WithHoles_HoleCCW_Throws) {
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> ccw_hole = {
+      g::Point2D(1, 1), g::Point2D(3, 1), g::Point2D(3, 3), g::Point2D(1, 3)};
+  EXPECT_ANY_THROW(g::Polygon2D::Make(outer, {ccw_hole}));
+}
+
+TEST_F(Polygon2DTest, WithHoles_HoleTooFewPoints_Throws) {
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> bad_hole = {g::Point2D(1, 1), g::Point2D(2, 1)};
+  EXPECT_ANY_THROW(g::Polygon2D::Make(outer, {bad_hole}));
 }
 
 TEST_F(Polygon2DTest, ToFile) {

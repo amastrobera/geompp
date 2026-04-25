@@ -21,6 +21,7 @@ class Triangle2D;
 class Polygon2D {
  public:
   static Polygon2D Make(std::vector<Point2D> const& points);
+  static Polygon2D Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes);
   Polygon2D(Polygon2D const&) = default;
   Polygon2D(Polygon2D&&) = default;
   ~Polygon2D() = default;
@@ -58,8 +59,10 @@ class Polygon2D {
 
  private:
   std::vector<Point2D> VERTICES;
+  std::vector<std::vector<Point2D>> HOLES;
 
   Polygon2D(std::vector<Point2D> const& points);
+  Polygon2D(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes);
 };
 
 #pragma region Operator Overloading

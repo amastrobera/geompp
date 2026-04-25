@@ -1,5 +1,6 @@
 #include "utils.hpp"
 
+#include "plane.hpp"
 #include "point2d.hpp"
 #include "point3d.hpp"
 
@@ -161,6 +162,51 @@ TEST_F(UtilsTest, ToWktCollection) {
   // works for Point2D too
   std::vector<g::Point2D> pts2d{g::Point2D::Zero(), g::Point2D(1, 1)};
   EXPECT_NE(std::string::npos, g::ToWkt(pts2d).find("GEOMETRYCOLLECTION"));
+}
+
+TEST_F(UtilsTest, AreCCW_2D) {
+  // CCW square
+  std::vector<g::Point2D> ccw = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  EXPECT_TRUE(g::are_ccw(ccw));
+  EXPECT_FALSE(g::are_cw(ccw));
+
+  // CW square
+  std::vector<g::Point2D> cw = {
+      g::Point2D(0, 0), g::Point2D(0, 4), g::Point2D(4, 4), g::Point2D(4, 0)};
+  EXPECT_FALSE(g::are_ccw(cw));
+  EXPECT_TRUE(g::are_cw(cw));
+
+  // CCW triangle
+  std::vector<g::Point2D> tri_ccw = {
+      g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1)};
+  EXPECT_TRUE(g::are_ccw(tri_ccw));
+}
+
+TEST_F(UtilsTest, AreCoplanar_3D) {
+  // all on XY plane
+  std::vector<g::Point3D> planar = {
+      g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0), g::Point3D(1, 1, 0)};
+  EXPECT_TRUE(g::are_coplanar(planar));
+
+  // not coplanar
+  std::vector<g::Point3D> non_planar = {
+      g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0), g::Point3D(1, 1, 1)};
+  EXPECT_FALSE(g::are_coplanar(non_planar));
+}
+
+TEST_F(UtilsTest, AreCCW_3D) {
+  // CCW square on XY plane (viewed from +Z)
+  std::vector<g::Point3D> ccw = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  EXPECT_TRUE(g::are_ccw(ccw));
+  EXPECT_FALSE(g::are_cw(ccw));
+
+  // CW square on XY plane
+  std::vector<g::Point3D> cw = {
+      g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(4, 4, 0), g::Point3D(4, 0, 0)};
+  EXPECT_FALSE(g::are_ccw(cw));
+  EXPECT_TRUE(g::are_cw(cw));
 }
 
 }  // namespace geompp_tests

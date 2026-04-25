@@ -53,6 +53,7 @@ bool operator==(Vector3D const& lhs, Vector3D const& rhs);
 
 Point3D operator+(Vector3D const& lhs, Point3D const& point);
 Vector3D operator+(Vector3D const& lhs, Vector3D const& vec);
+Vector3D operator+=(Vector3D& lhs, Vector3D const& vec);
 
 Vector3D operator-(Vector3D const& lhs, Vector3D const& vec);
 

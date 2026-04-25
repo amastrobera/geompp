@@ -17,8 +17,9 @@ public:
     ~Polygon3D();
     !Polygon3D();
 
-    // Factory method (private constructor — use Make)
+    // Factory methods (private constructor — use Make)
     static Polygon3D^ Make(array<Point3D^>^ points);
+    static Polygon3D^ Make(array<Point3D^>^ points, array<array<Point3D^>^>^ holes);
 
     int Size();
     property Point3D^ default[int] { Point3D^ get(int i); }

@@ -124,7 +124,9 @@
     <ClCompile Include="src\BBox2D.cpp" />
     <ClCompile Include="src\BBox3D.cpp" />
     <ClCompile Include="src\Plane.cpp" />
-    <ClCompile Include="src\LVSParser.cpp" />
+    <ClCompile Include="src\WktParser.cpp" />
+    <ClCompile Include="src\GeometryCollection2D.cpp" />
+    <ClCompile Include="src\GeometryCollection3D.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -148,7 +150,9 @@
     <ClInclude Include="src\BBox2D.hpp" />
     <ClInclude Include="src\BBox3D.hpp" />
     <ClInclude Include="src\Plane.hpp" />
-    <ClInclude Include="src\LVSParser.hpp" />
+    <ClInclude Include="src\WktParser.hpp" />
+    <ClInclude Include="src\GeometryCollection2D.hpp" />
+    <ClInclude Include="src\GeometryCollection3D.hpp" />
   </ItemGroup>
 
   <!-- ── geompp native core (compiled without /clr so that GEOMPP_NO_THREAD_LOCAL ── -->
@@ -187,7 +191,7 @@
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="$(ProjectDir)..\geompp\src\lsv_parser.cpp">
+    <ClCompile Include="$(ProjectDir)..\geompp\src\wkt_parser.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
@@ -244,6 +248,14 @@
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\vector3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\geometry_collection2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\geometry_collection3d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>

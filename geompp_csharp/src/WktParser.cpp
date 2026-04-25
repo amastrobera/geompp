@@ -1,4 +1,4 @@
-#include "LVSParser.hpp"
+#include "WktParser.hpp"
 #include "Point2D.hpp"
 #include "Line2D.hpp"
 #include "Ray2D.hpp"
@@ -15,33 +15,33 @@ namespace GeomPP {
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
-LVSParser::LVSParser(geompp::LVSParser* native)
+WktParser::WktParser(geompp::WktParser* native)
     : _native(native) {}
 
-LVSParser::~LVSParser() {
+WktParser::~WktParser() {
     delete _native;
     _native = nullptr;
 }
 
-LVSParser::!LVSParser() {
+WktParser::!WktParser() {
     delete _native;
     _native = nullptr;
 }
 
 // ── Factory ───────────────────────────────────────────────────────────────────
 
-LVSParser^ LVSParser::Open(System::String^ filePath) {
-    return gcnew LVSParser(
-        new geompp::LVSParser(geompp::LVSParser::Open(marshal_as<std::string>(filePath))));
+WktParser^ WktParser::Open(System::String^ filePath) {
+    return gcnew WktParser(
+        new geompp::WktParser(geompp::WktParser::Open(marshal_as<std::string>(filePath))));
 }
 
 // ── Methods ──────────────────────────────────────────────────────────────────
 
-bool LVSParser::HasNext() {
+bool WktParser::HasNext() {
     return _native->HasNext();
 }
 
-System::Object^ LVSParser::Next() {
+System::Object^ WktParser::Next() {
     auto result = _native->Next();
     if (!result.has_value()) return nullptr;
 
@@ -65,43 +65,43 @@ System::Object^ LVSParser::Next() {
     return nullptr;
 }
 
-System::String^ LVSParser::GetFilePath() {
+System::String^ WktParser::GetFilePath() {
     return gcnew System::String(_native->GetFilePath().c_str());
 }
 
-System::String^ LVSParser::ToWkt(System::Object^ item) {
+System::String^ WktParser::ToWkt(System::Object^ item) {
     if (item == nullptr) return nullptr;
 
     // Reconstruct a native ReturnSet from the managed wrapper and call native ToWkt
     if (Point2D^ p = dynamic_cast<Point2D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*p->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*p->_native)).c_str());
     if (Line2D^ l = dynamic_cast<Line2D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*l->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*l->_native)).c_str());
     if (Ray2D^ r = dynamic_cast<Ray2D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*r->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*r->_native)).c_str());
     if (LineSegment2D^ s = dynamic_cast<LineSegment2D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*s->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*s->_native)).c_str());
     if (Point3D^ p = dynamic_cast<Point3D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*p->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*p->_native)).c_str());
     if (Line3D^ l = dynamic_cast<Line3D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*l->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*l->_native)).c_str());
     if (Ray3D^ r = dynamic_cast<Ray3D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*r->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*r->_native)).c_str());
     if (LineSegment3D^ s = dynamic_cast<LineSegment3D^>(item))
         return gcnew System::String(
-            geompp::LVSParser::ToWkt(geompp::LVSParser::ReturnSet(*s->_native)).c_str());
+            geompp::WktParser::ToWkt(geompp::WktParser::ReturnSet(*s->_native)).c_str());
     return nullptr;
 }
 
-System::String^ LVSParser::ToString() {
-    return gcnew System::String(("LVSParser[" + _native->GetFilePath() + "]").c_str());
+System::String^ WktParser::ToString() {
+    return gcnew System::String(("WktParser[" + _native->GetFilePath() + "]").c_str());
 }
 
 }  // namespace GeomPP

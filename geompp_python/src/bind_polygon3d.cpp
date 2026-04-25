@@ -3,7 +3,15 @@
 void bind_polygon3d(py::module_& m) {
     py::class_<geompp::Polygon3D>(m, "Polygon3D",
         "3D polygon (ordered vertex list).")
-        .def_static("make", &geompp::Polygon3D::Make, "points"_a)
+        .def_static("make",
+             [](const std::vector<geompp::Point3D>& pts) { return geompp::Polygon3D::Make(pts); },
+             "points"_a)
+        .def_static("make",
+             [](const std::vector<geompp::Point3D>& pts,
+                const std::vector<std::vector<geompp::Point3D>>& holes) {
+                 return geompp::Polygon3D::Make(pts, holes);
+             },
+             "points"_a, "holes"_a)
         .def(py::init<const geompp::Polygon3D&>())
         .def("size",        &geompp::Polygon3D::Size)
         .def("centroid",    &geompp::Polygon3D::Centroid)

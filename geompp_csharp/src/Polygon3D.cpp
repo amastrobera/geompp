@@ -34,6 +34,24 @@ Polygon3D^ Polygon3D::Make(array<Point3D^>^ points) {
     return gcnew Polygon3D(new geompp::Polygon3D(geompp::Polygon3D::Make(nativePoints)));
 }
 
+Polygon3D^ Polygon3D::Make(array<Point3D^>^ points, array<array<Point3D^>^>^ holes) {
+    std::vector<geompp::Point3D> nativePoints;
+    nativePoints.reserve(points->Length);
+    for each (Point3D^ p in points)
+        nativePoints.push_back(*p->_native);
+
+    std::vector<std::vector<geompp::Point3D>> nativeHoles;
+    for each (array<Point3D^>^ hole in holes) {
+        std::vector<geompp::Point3D> nativeHole;
+        nativeHole.reserve(hole->Length);
+        for each (Point3D^ p in hole)
+            nativeHole.push_back(*p->_native);
+        nativeHoles.push_back(nativeHole);
+    }
+
+    return gcnew Polygon3D(new geompp::Polygon3D(geompp::Polygon3D::Make(nativePoints, nativeHoles)));
+}
+
 // ── Methods ──────────────────────────────────────────────────────────────────
 
 int Polygon3D::Size() {

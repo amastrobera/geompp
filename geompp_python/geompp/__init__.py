@@ -12,7 +12,7 @@ Classes
     Polyline3D, Triangle3D, Polygon3D, BBox3D, Plane
 
 Parser:
-    LVSParser
+    WktParser
 
 Free functions
 --------------
@@ -66,7 +66,7 @@ from ._geompp import (  # noqa: F401
     BBox3D,
     Plane,
     # parser
-    LVSParser,
+    WktParser,
     # free functions
     are_collinear,
     remove_duplicates,
@@ -85,7 +85,7 @@ __all__ = [
     "Polyline2D", "Triangle2D", "Polygon2D", "BBox2D",
     "Point3D", "Vector3D", "Line3D", "Ray3D", "LineSegment3D",
     "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "Plane",
-    "LVSParser",
+    "WktParser",
     "are_collinear", "remove_duplicates", "remove_duplicates_from_sorted_list",
     "remove_collinear", "linear_combination", "average",
 ]

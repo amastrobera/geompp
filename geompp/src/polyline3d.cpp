@@ -274,7 +274,7 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other) const {
   return intersections;
 }
 
-// #pragma endregion
+#pragma endregion
 
 #pragma region Formatting
 
@@ -302,7 +302,7 @@ std::string Polyline3D::ToWkt() const {
 
 Polyline3D Polyline3D::FromWkt(std::string const& wkt) {
   try {
-    std::size_t end_gtype, end_pi, end_pn;
+    std::size_t end_gtype, end_pn;
 
     end_gtype = wkt.find('(');
     if (end_gtype == std::string::npos) {
@@ -314,38 +314,19 @@ Polyline3D Polyline3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_pn = wkt.substr(end_gtype + 1).find(')');
+    end_pn = wkt.substr(end_gtype + 1).rfind(')');
     if (end_pn == std::string::npos) {
       throw std::runtime_error("brakets");
     }
-
-    std::string mid_part = wkt.substr(end_gtype + 1, wkt.size() - (end_gtype + 1 + 1));
+    std::string mid_part = wkt.substr(end_gtype + 1, end_pn);
 
     std::vector<Point3D> pt_vec;
-    int decimal_precision = 0;
-    int num_dec = 0;
-    std::string pt_trimmed;
     for (std::string const& p_str : geompp::tokenize_string(mid_part, ',')) {
-      pt_trimmed = geompp::trim(p_str);
-
+      std::string pt_trimmed = geompp::trim(p_str);
       auto nums = geompp::tokenize_to_doubles(pt_trimmed, ' ');
       if (nums.size() != 3) {
         throw std::runtime_error("numbers");
       }
-
-      num_dec = count_decimal_places(nums[0]);
-      if (num_dec > decimal_precision) {
-        decimal_precision = num_dec;
-      }
-      num_dec = count_decimal_places(nums[1]);
-      if (num_dec > decimal_precision) {
-        decimal_precision = num_dec;
-      }
-      num_dec = count_decimal_places(nums[2]);
-      if (num_dec > decimal_precision) {
-        decimal_precision = num_dec;
-      }
-
       pt_vec.push_back({nums[0], nums[1], nums[2]});
     }
 

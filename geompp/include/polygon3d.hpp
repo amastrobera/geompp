@@ -21,6 +21,7 @@ class Triangle3D;
 class Polygon3D {
  public:
   static Polygon3D Make(std::vector<Point3D> const& points);
+  static Polygon3D Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes);
   Polygon3D(Polygon3D const&) = default;
   Polygon3D(Polygon3D&&) = default;
   ~Polygon3D() = default;
@@ -57,8 +58,10 @@ class Polygon3D {
 
  private:
   std::vector<Point3D> VERTICES;
+  std::vector<std::vector<Point3D>> HOLES;
 
   Polygon3D(std::vector<Point3D> const& points);
+  Polygon3D(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes);
 };
 
 #pragma region Operator Overloading

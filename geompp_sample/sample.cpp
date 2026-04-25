@@ -1,7 +1,7 @@
 #include "constants.hpp"
 #include "geompp_log.hpp"
 #include "line_segment3d.hpp"
-#include "lsv_parser.hpp"
+#include "wkt_parser.hpp"
 #include "point3d.hpp"
 #include "vector3d.hpp"
 
@@ -77,7 +77,7 @@ void example_2() {
     f.close();
   }
 
-  auto parser = g::LVSParser::Open(lsv_path);
+  auto parser = g::WktParser::Open(lsv_path);
 
   if (!parser.HasNext()) {
     GEOMPP_LOG(WARNING) << "no geometries found in file " << lsv_path;
@@ -92,7 +92,7 @@ void example_2() {
       continue;
     }
 
-    GEOMPP_LOG(INFO) << g::LVSParser::ToWkt(entry.value());
+    GEOMPP_LOG(INFO) << g::WktParser::ToWkt(entry.value());
   }
 }
 

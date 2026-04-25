@@ -11,6 +11,55 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.4.0] - 2026-04-25
+
+> C++ library — tagged `v0.4.0` · C# / NuGet — tagged `csharp-v0.4.0` · Python / PyPI — tagged `python-v0.4.0`
+
+### Changed
+
+**All packages**
+- `LVSParser` renamed to `WktParser` everywhere: C++ class, header (`wkt_parser.hpp`), source (`wkt_parser.cpp`), C# wrapper (`WktParser.hpp/.cpp`), Python binding (`bind_wktparser.cpp`, exposed as `geompp.WktParser`), all CMakeLists, vcxproj files, tests, and documentation. The old name is gone entirely — update any call sites.
+
+### Added
+
+**C++ core**
+- `GeometryCollection2D` / `GeometryCollection3D`: heterogeneous container holding any mix of 2D (or 3D) primitives. Supports `Add()`, `Get(index)`, `Size()`, `ToWkt()`, `FromWkt()`, `ToFile()`, `FromFile()`, `AlmostEquals()`, and `operator==`.
+- `Polygon2D::Make(points, holes)`: new overload that accepts an outer ring and a list of hole rings. Validates that the outer ring is CCW and each hole is CW; throws on violation.
+- `Polygon3D::Make(points, holes)`: same, additionally validates that outer ring and all hole rings are coplanar.
+- `are_ccw(points)` / `are_cw(points)` (2D, declared in `point2d.hpp`): free functions returning `true` when the ordered point list has the specified winding.
+- `are_coplanar(points)` / `are_ccw(points)` / `are_cw(points)` (3D, declared in `plane.hpp`): 3D winding and coplanarity checks on point lists.
+- `WktParser::Get(wkt)`: static method — parse any WKT string into a `ReturnSet` (already existed but now part of the stable API).
+- `WktParser::ToWkt(shape)`: static method — serialize a `ReturnSet` back to its WKT string; throws on `nullopt`.
+
+**C# / NuGet**
+- `Polygon2D.Make(array<Point2D^>^ points, array<array<Point2D^>^>^ holes)` exposed.
+- `Polygon3D.Make(array<Point3D^>^ points, array<array<Point3D^>^>^ holes)` exposed.
+
+**Python / PyPI**
+- `GeometryCollection2D` and `GeometryCollection3D` exposed with full `add()`, `get()`, `size()`, WKT, file I/O, and equality support.
+- `Polygon2D.make(points)` and `Polygon2D.make(points, holes)` exposed.
+- `Polygon3D.make(points)` and `Polygon3D.make(points, holes)` exposed.
+- `are_ccw(points)` / `are_cw(points)` exposed for `list[Point2D]`.
+- `are_coplanar(points)` / `are_ccw(points)` / `are_cw(points)` exposed for `list[Point3D]`.
+- `WktParser.get(wkt)` — parse a WKT string; returns a geometry object or `None`.
+- `WktParser.to_wkt(shape)` — serialize any geometry object to its WKT string; raises on `None` or unsupported type.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_polygon2d.cpp`: added `WktWithHoles`, `WithHoles_Valid`, `WithHoles_PerimeterCW_Throws`, `WithHoles_HoleCCW_Throws`, `WithHoles_HoleTooFewPoints_Throws`.
+- `test_polygon3d.cpp`: added same suite plus `WithHoles_NonCoplanar_Throws`.
+- `test_utils.cpp`: added `AreCCW_2D`, `AreCoplanar_3D`, `AreCCW_3D`.
+- `test_wkt_parser.cpp` (renamed from `test_lsv_parser.cpp`): existing `FromFile` test retained.
+
+**Python (`geompp_python/tests`)**
+- `TestWktParser` (renamed from `TestLVSParser`): added `test_get_returns_geometry`, `test_get_returns_none_on_unknown`, `test_to_wkt_point2d`, `test_to_wkt_linesegment2d`, `test_to_wkt_point3d`, `test_to_wkt_none_raises`, `test_to_wkt_roundtrip`, `test_to_wkt_unsupported_type_raises`.
+- `TestPolygon2D`: added holes construction, CCW-outer throw, CW-hole throw, and too-few-points throw cases.
+- `TestPolygon3D`: added same suite plus non-coplanar throw.
+- `TestFreeFunctions`: added `are_ccw`/`are_cw` (2D), `are_coplanar`/`are_ccw`/`are_cw` (3D).
+
+---
+
 ## [0.3.0] - 2026-04-24
 
 > C++ library — tagged `v0.3.0`
