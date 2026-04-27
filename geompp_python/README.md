@@ -52,6 +52,33 @@ while parser.has_next():
         print(g.WktParser.to_wkt(item))
 ```
 
+## Checking coplanarity, orientation, and closest world plane
+
+```python
+import geompp as g
+
+pts_flat = [g.Point3D(0,0,0), g.Point3D(1,0,0), g.Point3D(0,1,0), g.Point3D(1,1,0)]
+pts_3d   = [g.Point3D(0,0,0), g.Point3D(1,0,0), g.Point3D(0,1,0), g.Point3D(0,0,1)]
+
+print(g.are_coplanar(pts_flat))  # True  — all on the XY plane
+print(g.are_coplanar(pts_3d))    # False — spans 3D space
+
+# Find which world axis plane is closest to the point cloud
+plane = g.closest_world_plane_to(pts_flat)
+print(plane.normal)              # Vector3D(0, 0, 1)  → XY plane
+
+# Check / require CCW winding
+ring = [g.Point3D(0,0,0), g.Point3D(1,0,0), g.Point3D(1,1,0), g.Point3D(0,1,0)]
+print(g.are_ccw(ring))           # True
+print(g.are_cw(ring))            # False
+
+# Polygon3D requires CCW outer ring and CW holes
+outer = [g.Point3D(0,0,0), g.Point3D(4,0,0), g.Point3D(4,4,0), g.Point3D(0,4,0)]
+hole  = [g.Point3D(1,3,0), g.Point3D(3,3,0), g.Point3D(3,1,0), g.Point3D(1,1,0)]
+poly  = g.Polygon3D.make(outer, [hole])
+print(poly.size())               # 4
+```
+
 ## Classes
 
 | 2D | 3D |
@@ -65,7 +92,22 @@ while parser.has_next():
 | Triangle2D | Triangle3D |
 | Polygon2D | Polygon3D |
 | BBox2D | BBox3D |
+| GeometryCollection2D | GeometryCollection3D |
 | | Plane |
+
+## Free functions
+
+| Function | Description |
+|---|---|
+| `are_collinear(p1, p2, p3)` | Three points on the same line |
+| `are_coplanar(points)` | List of `Point3D` on the same plane |
+| `closest_world_plane_to(points)` | XY / YZ / ZX plane nearest to the point cloud |
+| `are_ccw(points[, ref_plane])` | Counter-clockwise winding (2D or 3D) |
+| `are_cw(points[, ref_plane])` | Clockwise winding (2D or 3D) |
+| `remove_collinear(points)` | Drop collinear intermediate points |
+| `remove_duplicates(points)` | Drop duplicate points |
+| `average(points)` | Arithmetic mean |
+| `linear_combination(points, weights)` | Weighted sum |
 
 
 

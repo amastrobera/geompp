@@ -127,6 +127,7 @@
     <ClCompile Include="src\WktParser.cpp" />
     <ClCompile Include="src\GeometryCollection2D.cpp" />
     <ClCompile Include="src\GeometryCollection3D.cpp" />
+    <ClCompile Include="src\GeomUtil.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -153,6 +154,7 @@
     <ClInclude Include="src\WktParser.hpp" />
     <ClInclude Include="src\GeometryCollection2D.hpp" />
     <ClInclude Include="src\GeometryCollection3D.hpp" />
+    <ClInclude Include="src\GeomUtil.hpp" />
   </ItemGroup>
 
   <!-- ── geompp native core (compiled without /clr so that GEOMPP_NO_THREAD_LOCAL ── -->

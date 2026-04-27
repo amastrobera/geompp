@@ -33,7 +33,7 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
   }
 
   if (!are_ccw(unique_points)) {
-    throw std::runtime_error("cannot create polygon with points in clock-wise order");
+    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
   return {unique_points};
@@ -54,7 +54,7 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
   }
 
   if (!are_ccw(unique_points)) {
-    throw std::runtime_error("cannot create polygon with points in clock-wise order");
+    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
   std::vector<std::vector<Point3D>> unique_holes_points;
@@ -73,6 +73,14 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
 
     if (!are_cw(unique_hole_points)) {
       throw std::runtime_error("cannot create polygon holes in anti-clock-wise order");
+    }
+
+    // verify that holes are on the same plane as the outer loop
+    auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
+    for (int i = 0; i < unique_hole_points.size(); ++i) {
+      if (!outer_plane.Contains(unique_hole_points[i])) {
+        throw std::runtime_error("cannot create polygon holes that are not on the same plane as the outer loop");
+      }
     }
 
     unique_holes_points.push_back(unique_hole_points);
@@ -191,7 +199,7 @@ std::string Polygon3D::ToWkt() const {
   {
     buf << "(";
     for (int i = 0; i < num_verts; ++i) {
-      buf << std::format("{} {} {},", round(VERTICES[i].x()), round(VERTICES[i].y()), round(VERTICES[i].z()));
+      buf << std::format("{} {} {}, ", round(VERTICES[i].x()), round(VERTICES[i].y()), round(VERTICES[i].z()));
     }
     buf << std::format("{} {} {}", round(VERTICES[0].x()), round(VERTICES[0].y()), round(VERTICES[0].z()));
     buf << ")";
@@ -203,7 +211,7 @@ std::string Polygon3D::ToWkt() const {
       buf << ", (";
       std::size_t n = hole.size();
       for (int i = 0; i < n; ++i) {
-        buf << std::format("{} {} {},", round(hole[i].x()), round(hole[i].y()), round(hole[i].z()));
+        buf << std::format("{} {} {}, ", round(hole[i].x()), round(hole[i].y()), round(hole[i].z()));
       }
       buf << std::format("{} {} {}", round(hole[0].x()), round(hole[0].y()), round(hole[0].z()));
       buf << ")";

@@ -67,11 +67,21 @@ void bind_free_functions(py::module_& m) {
           [](const std::vector<geompp::Point3D>& pts) { return geompp::are_coplanar(pts); },
           "points"_a, "True if 3D points are coplanar.");
 
+    m.def("closest_world_plane_to",
+          [](const std::vector<geompp::Point3D>& pts) { return geompp::closest_world_plane_to(pts); },
+          "points"_a, "Returns the XY, YZ or ZX world plane whose normal is closest to the points' plane normal.");
+
     m.def("are_ccw",
-          [](const std::vector<geompp::Point3D>& pts) { return geompp::are_ccw(pts); },
-          "points"_a, "True if 3D points are ordered counter-clockwise.");
+          [](const std::vector<geompp::Point3D>& pts, std::optional<geompp::Plane> ref_plane) {
+              return geompp::are_ccw(pts, ref_plane);
+          },
+          "points"_a, "ref_plane"_a = py::none(),
+          "True if 3D points are ordered counter-clockwise. If ref_plane is omitted, the plane is fitted from the points.");
 
     m.def("are_cw",
-          [](const std::vector<geompp::Point3D>& pts) { return geompp::are_cw(pts); },
-          "points"_a, "True if 3D points are ordered clockwise.");
+          [](const std::vector<geompp::Point3D>& pts, std::optional<geompp::Plane> ref_plane) {
+              return geompp::are_cw(pts, ref_plane);
+          },
+          "points"_a, "ref_plane"_a = py::none(),
+          "True if 3D points are ordered clockwise. If ref_plane is omitted, the plane is fitted from the points.");
 }

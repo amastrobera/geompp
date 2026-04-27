@@ -31,11 +31,11 @@ void bind_polygon2d(py::module_& m) {
         .def("intersects",
              [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) { return p.Intersects(s); }, "segment"_a)
         .def("intersection",
-             [](const geompp::Polygon2D& p, const geompp::Line2D& l) { return opt_variant_to_py(p.Intersection(l)); }, "line"_a)
+             [](const geompp::Polygon2D& p, const geompp::Line2D& l) -> py::object { return opt_variant_to_py(p.Intersection(l)); }, "line"_a)
         .def("intersection",
-             [](const geompp::Polygon2D& p, const geompp::Ray2D& r) { return opt_variant_to_py(p.Intersection(r)); }, "ray"_a)
+             [](const geompp::Polygon2D& p, const geompp::Ray2D& r) -> py::object { return opt_variant_to_py(p.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
+             [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
         .def("__len__",     &geompp::Polygon2D::Size)
         .def("__getitem__", [](const geompp::Polygon2D& p, int i) -> geompp::Point2D {
             if (i < 0) i += static_cast<int>(p.Size());

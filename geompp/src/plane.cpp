@@ -1,7 +1,9 @@
 #include "plane.hpp"
 
 #include "line3d.hpp"
+#include "point2d.hpp"
 #include "utils.hpp"
+#include "vector2d.hpp"
 
 #include <cmath>
 #include <format>
@@ -118,27 +120,56 @@ bool are_coplanar(std::vector<Point3D> const& points) {
   return true;
 }
 
-double orientation(std::vector<Point3D> const& points) {
+Plane closest_world_plane_to(std::vector<Point3D> const& points) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() < 3) {
+    throw std::runtime_error("closest_world_plane_to requires at least 3 non-collinear points");
+  }
+  Vector3D points_normal = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]).normal();
+  Vector3D world_normal = {0, 0, 0};
+
+  // Find the absolute largest component of the normal
+  double absX = std::abs(points_normal.x());
+  double absY = std::abs(points_normal.y());
+  double absZ = std::abs(points_normal.z());
+
+  if (compare(absZ, absX) >= 0 && compare(absZ, absY) >= 0) {
+    world_normal = Vector3D::BasisZ();
+
+  } else {
+    world_normal = compare(absX, absY) >= 0 ? Vector3D::BasisX() : Vector3D::BasisY();
+  }
+
+  return Plane::FromOriginAndNormal(Point3D::Zero(), world_normal);
+}
+
+double orientation(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt) {
   auto unique_points = remove_collinear(points);
   if (unique_points.size() < 3) {
     return true;
   }
 
-  auto normal = (unique_points[1] - unique_points[0]).Cross(unique_points[2] - unique_points[0]);
+  if (!plane.has_value()) {
+    plane = closest_world_plane_to(unique_points);
+  }
 
-  Vector3D signed_area = {0, 0, 0};
+  double signed_area = 0;
   for (int i = 0; i < unique_points.size(); ++i) {
-    auto const& p1 = unique_points[i];
-    auto const& p2 = unique_points[(i + 1) % unique_points.size()];
+    auto const& p1 = plane.value().ProjectInto(unique_points[i]);
+    auto const& p2 = plane.value().ProjectInto(unique_points[(i + 1) % unique_points.size()]);
     signed_area += p1.ToVector().Cross(p2.ToVector());
   }
 
-  return normal.Dot(signed_area);
+  return signed_area;
 }
 
-bool are_ccw(std::vector<Point3D> const& points) { return compare(orientation(points), 0) > 0; }
+bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return compare(orientation(points, plane), 0) > 0;
+}
 
-bool are_cw(std::vector<Point3D> const& points) { return compare(orientation(points), 0) < 0; }
+bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return compare(orientation(points, plane), 0) < 0;
+}
 
 #pragma endregion
 

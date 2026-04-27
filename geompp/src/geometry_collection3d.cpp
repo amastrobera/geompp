@@ -2,13 +2,13 @@
 
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
-#include "wkt_parser.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
 #include "polyline3d.hpp"
 #include "ray3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
+#include "wkt_parser.hpp"
 
 #include "geompp_log.hpp"
 
@@ -88,6 +88,21 @@ bool GeometryCollection3D::AlmostEquals(GeometryCollection3D const& other, doubl
 }
 
 #pragma region Operator Overloading
+
+GeometryCollection3D& GeometryCollection3D::operator=(GeometryCollection3D const& other) {
+  if (this != &other) {
+    GEOMETRIES = other.GEOMETRIES;
+    POINTS = other.POINTS;
+    LINES = other.LINES;
+    LINE_SEGMENTS = other.LINE_SEGMENTS;
+    RAYS = other.RAYS;
+    POLYLINES = other.POLYLINES;
+    TRIANGLES = other.TRIANGLES;
+    POLYGONS = other.POLYGONS;
+    GEOMETRY_COLLECTIONS = other.GEOMETRY_COLLECTIONS;
+  }
+  return *this;
+}
 
 bool operator==(GeometryCollection3D const& lhs, GeometryCollection3D const& rhs) { return lhs.AlmostEquals(rhs); }
 
@@ -256,7 +271,7 @@ GeometryCollection3D GeometryCollection3D::FromWkt(std::string const& wkt) {
     for (std::string const& wkt_str : geompp::tokenize_string(mid_part, ',')) {
       std::string wkt_trimmed = geompp::trim(wkt_str);
 
-      auto shape = WktParser::Get(wkt_trimmed);
+      auto shape = WktParser::FromWkt(wkt_trimmed);
 
       if (!shape.has_value()) {
         throw std::runtime_error("bad format of str " + wkt_trimmed);

@@ -70,9 +70,16 @@ bool operator==(Plane const& lhs, Plane const& rhs);
 
 bool are_coplanar(std::vector<Point3D> const& points);
 
-bool are_ccw(std::vector<Point3D> const& points);
+// returns the XY, YZ or ZX world plane whose normal is closest to the normal of the points' plane
+Plane closest_world_plane_to(std::vector<Point3D> const& points);
 
-bool are_cw(std::vector<Point3D> const& points);
+// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane will be
+// determined by the first three non-collinear points
+bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> ref_plane = std::nullopt);
+
+// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane will be
+// determined by the first three non-collinear points
+bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> ref_plane = std::nullopt);
 
 #pragma endregion
 

@@ -648,10 +648,8 @@ class TestBBox3D:
         assert approx(bb.max.x, 3) and approx(bb.max.y, 5) and approx(bb.max.z, 4)
 
     def test_from_polygon(self):
-        pts = [
-            geompp.Point3D(0, 0, 1), geompp.Point3D(4, 0, 1),
-            geompp.Point3D(4, 3, 5), geompp.Point3D(0, 0, 1),
-        ]
+        # ZX projection: reversed order so the triangle is CCW
+        pts = [geompp.Point3D(4, 3, 5), geompp.Point3D(4, 0, 1), geompp.Point3D(0, 0, 1)]
         bb = geompp.BBox3D(geompp.Polygon3D.make(pts))
         assert approx(bb.min.x, 0) and approx(bb.min.z, 1)
         assert approx(bb.max.x, 4) and approx(bb.max.z, 5)
@@ -759,12 +757,12 @@ class TestWktParser:
             os.unlink(path)
 
     def test_get_returns_geometry(self):
-        result = geompp.WktParser.get("POINT (1 2)")
+        result = geompp.WktParser.from_wkt("POINT (1 2)")
         assert isinstance(result, geompp.Point2D)
         assert approx(result.x, 1) and approx(result.y, 2)
 
     def test_get_returns_none_on_unknown(self):
-        result = geompp.WktParser.get("BOGUS (1 2)")
+        result = geompp.WktParser.from_wkt("BOGUS (1 2)")
         assert result is None
 
     def test_to_wkt_point2d(self):
@@ -785,7 +783,7 @@ class TestWktParser:
 
     def test_to_wkt_roundtrip(self):
         wkt_in = "POINT (1 2)"
-        geom = geompp.WktParser.get(wkt_in)
+        geom = geompp.WktParser.from_wkt(wkt_in)
         assert geompp.WktParser.to_wkt(geom) == wkt_in
 
     def test_to_wkt_unsupported_type_raises(self):
@@ -892,6 +890,29 @@ class TestFreeFunctions:
         ]
         assert geompp.are_cw(pts)
         assert not geompp.are_ccw(pts)
+
+    def test_closest_world_plane_to(self):
+        # XY points → normal along Z
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0)]
+        pl = geompp.closest_world_plane_to(pts)
+        assert isinstance(pl, geompp.Plane)
+        assert approx(abs(pl.normal.z), 1.0)
+
+    def test_are_ccw_3d_with_ref_plane(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        ref = geompp.Plane.xy()
+        assert geompp.are_ccw(pts, ref)
+        assert not geompp.are_cw(pts, ref)
+
+    def test_are_ccw_3d_with_none_ref_plane(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        assert geompp.are_ccw(pts, None)  # None is accepted as the default
 
 
 # ─── GeometryCollection2D ─────────────────────────────────────────────────────

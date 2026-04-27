@@ -51,8 +51,7 @@ public:
     bool Intersects(Line3D^ line);
     bool Intersects(Ray3D^ ray);
     bool Intersects(LineSegment3D^ segment);
-    // Triangle3D overload returns ReturnSet, not bool
-    System::Object^ Intersects(Triangle3D^ other);
+    bool Intersects(Triangle3D^ other);
 
     // Intersection — optional<variant<Point3D,LineSegment3D,Triangle3D,Polygon3D>> → System::Object^
     System::Object^ Intersection(Line3D^ line);

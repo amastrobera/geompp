@@ -1,4 +1,5 @@
 using GeomPP;
+using Geompp.Extensions;
 
 // ── Tiny test harness ─────────────────────────────────────────────────────────
 
@@ -279,10 +280,8 @@ Test("FromPolyline_SpansAllKnots", () => {
 });
 
 Test("FromPolygon_SpansAllVertices", () => {
-  var pts = new Point3D[] {
-    new Point3D(0, 0, 1), new Point3D(4, 0, 1),
-    new Point3D(4, 3, 5), new Point3D(0, 0, 1),
-  };
+  // ZX projection: reversed order so the triangle is CCW
+  var pts = new Point3D[] { new Point3D(4, 3, 5), new Point3D(4, 0, 1), new Point3D(0, 0, 1) };
   var bb = new BBox3D(Polygon3D.Make(pts));
   Eq(0.0, bb.Min().X); Eq(1.0, bb.Min().Z);
   Eq(4.0, bb.Max().X); Eq(5.0, bb.Max().Z);
@@ -374,6 +373,55 @@ Test("IsCCW_CW_ReturnsFalse_2D", () => {
   IsFalse(t.IsCCW(), "CW triangle should return false");
   IsTrue(t.SignedArea() < 0, "CW triangle should have negative signed area");
   IsTrue(t.IsCCW() == (t.SignedArea() > 0), "IsCCW must match sign of SignedArea");
+});
+
+// ── GeomUtil / List<Point3D> extensions ───────────────────────────────────────
+Test("AreCoplanar_XYPoints_True", () => {
+  var pts = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0),
+    new Point3D(1,1,0), new Point3D(0,1,0)
+  };
+  IsTrue(pts.AreCoplanar(), "all XY-plane points must be coplanar");
+});
+
+Test("AreCoplanar_NonCoplanar_False", () => {
+  var pts = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0),
+    new Point3D(1,1,0), new Point3D(0,1,1)
+  };
+  IsFalse(pts.AreCoplanar(), "off-plane point must make them non-coplanar");
+});
+
+Test("ClosestWorldPlaneTo_XYPoints_ReturnsXY", () => {
+  var pts = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0)
+  };
+  var plane = pts.ClosestWorldPlaneTo();
+  IsTrue(plane.Normal().AlmostEquals(new Vector3D(0,0,1)), "XY-plane points → normal must be (0,0,1)");
+});
+
+Test("AreCCW_CCWSquare_True", () => {
+  var pts = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0),
+    new Point3D(1,1,0), new Point3D(0,1,0)
+  };
+  IsTrue(pts.AreCCW(), "CCW square must return true");
+});
+
+Test("AreCCW_CWSquare_False", () => {
+  var pts = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(0,1,0),
+    new Point3D(1,1,0), new Point3D(1,0,0)
+  };
+  IsFalse(pts.AreCCW(), "CW square must return false");
+});
+
+Test("AreCW_CWSquare_True", () => {
+  var pts = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(0,1,0),
+    new Point3D(1,1,0), new Point3D(1,0,0)
+  };
+  IsTrue(pts.AreCW(), "CW square must return true");
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

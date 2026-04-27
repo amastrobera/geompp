@@ -72,7 +72,8 @@ TEST_F(BBox3DTest, ConstructorFromPolyline) {
 }
 
 TEST_F(BBox3DTest, ConstructorFromPolygon) {
-  auto p = g::Polygon3D::Make({g::Point3D(-1, 0, 2), g::Point3D(3, 4, -1), g::Point3D(0, -2, 5)});
+  // reversed from {(-1,0,2),(3,4,-1),(0,-2,5)}: ZX projection gives CW, so use CCW order
+  auto p = g::Polygon3D::Make({g::Point3D(0, -2, 5), g::Point3D(3, 4, -1), g::Point3D(-1, 0, 2)});
   auto bb = g::BBox3D(p);
   ASSERT_EQ(g::Point3D(-1, -2, -1), bb.min());
   ASSERT_EQ(g::Point3D(3, 4, 5), bb.max());

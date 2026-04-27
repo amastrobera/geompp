@@ -106,6 +106,58 @@ RAY (0 0 0, 0 1 0)
 
 ---
 
+### Example 3 — `are_coplanar`, winding order, and polygon with holes
+
+```csharp
+using GeomPP;
+using Geompp.Extensions;
+
+Precision.DecimalPrecision = Precision.DP_THREE;
+
+var flat = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0),
+    new Point3D(0,1,0), new Point3D(1,1,0)
+};
+var skew = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0),
+    new Point3D(0,1,0), new Point3D(0,0,1)
+};
+
+Console.WriteLine(flat.AreCoplanar());   // True  — all on the XY plane
+Console.WriteLine(skew.AreCoplanar());   // False — spans 3D space
+
+// Closest world-axis plane and winding check
+var plane = flat.ClosestWorldPlaneTo();
+Console.WriteLine(plane.Normal());       // (0, 0, 1)  → XY plane
+
+Console.WriteLine(flat.AreCCW());        // True  — CCW on the XY plane
+Console.WriteLine(flat.AreCW());         // False
+
+// Polygon3D requires CCW outer ring and CW holes
+var outer = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(4,0,0),
+    new Point3D(4,4,0), new Point3D(0,4,0)
+};
+var hole = new List<Point3D> {
+    new Point3D(1,3,0), new Point3D(3,3,0),
+    new Point3D(3,1,0), new Point3D(1,1,0)
+};
+var poly = Polygon3D.Make(outer, new List<List<Point3D>> { hole });
+Console.WriteLine(poly.Size());          // 4
+```
+
+Output:
+```
+True
+False
+VECTOR (0 0 1)
+True
+False
+4
+```
+
+---
+
 ## Precision
 
 All floating-point comparisons go through a thread-local precision setting:
@@ -134,6 +186,7 @@ double eps = G.Precision.Epsilon;  // current epsilon (10^-N)
 | `Polygon`         | ✓  | ✓  |
 | `BBox`            | ✓  | ✓  |
 | `Plane`           | —  | ✓  |
+| `GeometryCollection` | ✓ | ✓ |
 | `WktParser`       | ✓  | ✓  |
 
 All types expose `ToWkt()`, `FromWkt()`, `ToFile()`, `FromFile()`, `AlmostEquals()`, and the same

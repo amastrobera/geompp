@@ -28,7 +28,7 @@ Each release covers all three packages at the same version:
 - `Polygon3D::Make(points, holes)`: same, additionally validates that outer ring and all hole rings are coplanar.
 - `are_ccw(points)` / `are_cw(points)` (2D, declared in `point2d.hpp`): free functions returning `true` when the ordered point list has the specified winding.
 - `are_coplanar(points)` / `are_ccw(points)` / `are_cw(points)` (3D, declared in `plane.hpp`): 3D winding and coplanarity checks on point lists.
-- `WktParser::Get(wkt)`: static method — parse any WKT string into a `ReturnSet` (already existed but now part of the stable API).
+- `WktParser::FromWkt(wkt)`: static method — parse any WKT string into a `ReturnSet` (already existed as `Get()`, renamed to `FromWkt()` for consistency with the serialization API).
 - `WktParser::ToWkt(shape)`: static method — serialize a `ReturnSet` back to its WKT string; throws on `nullopt`.
 
 **C# / NuGet**
@@ -41,7 +41,7 @@ Each release covers all three packages at the same version:
 - `Polygon3D.make(points)` and `Polygon3D.make(points, holes)` exposed.
 - `are_ccw(points)` / `are_cw(points)` exposed for `list[Point2D]`.
 - `are_coplanar(points)` / `are_ccw(points)` / `are_cw(points)` exposed for `list[Point3D]`.
-- `WktParser.get(wkt)` — parse a WKT string; returns a geometry object or `None`.
+- `WktParser.from_wkt(wkt)` — parse a WKT string; returns a geometry object or `None`.
 - `WktParser.to_wkt(shape)` — serialize any geometry object to its WKT string; raises on `None` or unsupported type.
 
 ### Tests

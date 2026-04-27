@@ -307,4 +307,73 @@ TEST_F(PlaneTest, EqualityOperator) {
               g::Plane::FromOriginAndNormal(g::Point3D::Zero(), -g::Vector3D::BasisY()));
 }
 
+TEST_F(PlaneTest, ClosestWorldPlaneTo) {
+  // exact world planes
+  EXPECT_TRUE(g::closest_world_plane_to({{0,0,0},{1,0,0},{0,1,0}}).normal().AlmostEquals(g::Vector3D::BasisZ()));
+  EXPECT_TRUE(g::closest_world_plane_to({{0,0,0},{0,1,0},{0,0,1}}).normal().AlmostEquals(g::Vector3D::BasisX()));
+  // From3Points((0,0,0),(1,0,0),(0,0,1)) yields normal (0,-1,0); abs dominates Y → returns BasisY
+  EXPECT_TRUE(g::closest_world_plane_to({{0,0,0},{1,0,0},{0,0,1}}).normal().AlmostEquals(g::Vector3D::BasisY()));
+
+  // tilted planes — dominant axis still selects the right world plane
+  // normal ≈ (-0.1,-0.1,1): Z dominant → XY
+  EXPECT_TRUE(g::closest_world_plane_to({{0,0,0},{1,0,0.1},{0,1,0.1}}).normal().AlmostEquals(g::Vector3D::BasisZ()));
+  // normal ≈ (1,-0.1,-0.1): X dominant → YZ
+  EXPECT_TRUE(g::closest_world_plane_to({{0,0,0},{0.1,1,0},{0.1,0,1}}).normal().AlmostEquals(g::Vector3D::BasisX()));
+  // normal ≈ (0.1,-1,0.1): Y dominant → ZX
+  EXPECT_TRUE(g::closest_world_plane_to({{0,0,0},{1,0.1,0},{0,0.1,1}}).normal().AlmostEquals(g::Vector3D::BasisY()));
+
+  // throws when fewer than 3 non-collinear points remain
+  EXPECT_ANY_THROW(g::closest_world_plane_to({{0,0,0},{1,0,0},{2,0,0}}));  // collinear
+  EXPECT_ANY_THROW(g::closest_world_plane_to({{0,0,0},{1,0,0}}));           // only 2 points
+}
+
+TEST_F(PlaneTest, AreCCW) {
+  // XY plane (normal = +Z)
+  std::vector<g::Point3D> xy_ccw = {{0,0,0},{1,0,0},{1,1,0},{0,1,0}};
+  std::vector<g::Point3D> xy_cw  = {{0,0,0},{0,1,0},{1,1,0},{1,0,0}};
+  EXPECT_TRUE(g::are_ccw(xy_ccw));
+  EXPECT_FALSE(g::are_ccw(xy_cw));
+
+  // YZ plane (normal = +X); axes U=+Y, V=+Z
+  std::vector<g::Point3D> yz_ccw = {{0,0,0},{0,1,0},{0,1,1},{0,0,1}};
+  std::vector<g::Point3D> yz_cw  = {{0,0,0},{0,0,1},{0,1,1},{0,1,0}};
+  EXPECT_TRUE(g::are_ccw(yz_ccw));
+  EXPECT_FALSE(g::are_ccw(yz_cw));
+
+  // ZX plane (normal = +Y); axes U=+Z, V=+X
+  std::vector<g::Point3D> zx_ccw = {{0,0,0},{0,0,1},{1,0,1},{1,0,0}};
+  std::vector<g::Point3D> zx_cw  = {{0,0,0},{1,0,0},{1,0,1},{0,0,1}};
+  EXPECT_TRUE(g::are_ccw(zx_ccw));
+  EXPECT_FALSE(g::are_ccw(zx_cw));
+
+  // tilted polygon: auto-detection picks XY (wrong reference) → CW;
+  // explicit plane (from the points themselves) → CCW
+  std::vector<g::Point3D> tilted = {{0,0,0},{0,1,0},{1,1,1},{1,0,1}};
+  auto ref = g::Plane::From3Points(tilted[0], tilted[1], tilted[2]);
+  EXPECT_FALSE(g::are_ccw(tilted));        // auto XY ref gives wrong answer
+  EXPECT_TRUE(g::are_ccw(tilted, ref));    // correct ref gives right answer
+}
+
+TEST_F(PlaneTest, AreCW) {
+  std::vector<g::Point3D> xy_ccw = {{0,0,0},{1,0,0},{1,1,0},{0,1,0}};
+  std::vector<g::Point3D> xy_cw  = {{0,0,0},{0,1,0},{1,1,0},{1,0,0}};
+  EXPECT_FALSE(g::are_cw(xy_ccw));
+  EXPECT_TRUE(g::are_cw(xy_cw));
+
+  std::vector<g::Point3D> yz_ccw = {{0,0,0},{0,1,0},{0,1,1},{0,0,1}};
+  std::vector<g::Point3D> yz_cw  = {{0,0,0},{0,0,1},{0,1,1},{0,1,0}};
+  EXPECT_FALSE(g::are_cw(yz_ccw));
+  EXPECT_TRUE(g::are_cw(yz_cw));
+
+  std::vector<g::Point3D> zx_ccw = {{0,0,0},{0,0,1},{1,0,1},{1,0,0}};
+  std::vector<g::Point3D> zx_cw  = {{0,0,0},{1,0,0},{1,0,1},{0,0,1}};
+  EXPECT_FALSE(g::are_cw(zx_ccw));
+  EXPECT_TRUE(g::are_cw(zx_cw));
+
+  std::vector<g::Point3D> tilted = {{0,0,0},{0,1,0},{1,1,1},{1,0,1}};
+  auto ref = g::Plane::From3Points(tilted[0], tilted[1], tilted[2]);
+  EXPECT_TRUE(g::are_cw(tilted));          // auto XY ref gives wrong answer
+  EXPECT_FALSE(g::are_cw(tilted, ref));    // correct ref gives right answer
+}
+
 }  // namespace geompp_tests

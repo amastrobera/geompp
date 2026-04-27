@@ -16,8 +16,11 @@ void bind_wktparser(py::module_& m) {
             return opt_variant_to_py(self.Next());
         })
         .def("get_file_path", &geompp::WktParser::GetFilePath)
+        .def_static("from_wkt", [](const std::string& wkt) -> py::object {
+            return opt_variant_to_py(geompp::WktParser::FromWkt(wkt));
+        }, "wkt"_a)
         .def_static("get", [](const std::string& wkt) -> py::object {
-            return opt_variant_to_py(geompp::WktParser::Get(wkt));
+            return opt_variant_to_py(geompp::WktParser::FromWkt(wkt));
         }, "wkt"_a)
         .def_static("to_wkt", [](const py::object& item) -> std::string {
             geompp::WktParser::ReturnSet rs;

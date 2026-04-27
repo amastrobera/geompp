@@ -109,7 +109,7 @@ WktParser::~WktParser() { FILE.close(); }
 
 bool WktParser::HasNext() const { return !FILE.eof(); }
 
-WktParser::ReturnSet WktParser::Get(std::string const& wkt) {
+WktParser::ReturnSet WktParser::FromWkt(std::string const& wkt) {
   try {
     std::string clean_line = trim(wkt);
 
@@ -208,53 +208,8 @@ std::string WktParser::ToWkt(ReturnSet const& shape) {
     throw std::runtime_error("shape is nullopt");
   }
 
-  return std::visit(
-      [](auto&& arg) -> std::string {
-        using T = std::decay_t<decltype(arg)>;
-        // 2D geometries
-        if constexpr (std::is_same_v<T, Vector2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Point2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Line2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, LineSegment2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Ray2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Polyline2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Triangle2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Polygon2D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, GeometryCollection2D>) {
-          return arg.ToWkt();
-
-          // 3D geometries
-        } else if constexpr (std::is_same_v<T, Vector3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Point3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Line3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, LineSegment3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Ray3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Polyline3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Triangle3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, Polygon3D>) {
-          return arg.ToWkt();
-        } else if constexpr (std::is_same_v<T, GeometryCollection3D>) {
-          return arg.ToWkt();
-        } else {
-          throw std::runtime_error("unsupported geometry type " + std::string(typeid(T).name()));
-        }
-      },
-      shape.value());
+  // thanks to the use of concepts for the variant type, this function is very simple to write
+  return std::visit([](const auto& obj) { return obj.ToWkt(); }, shape.value());
 }
 
 WktParser::ReturnSet WktParser::Next() {
@@ -266,7 +221,7 @@ WktParser::ReturnSet WktParser::Next() {
       continue;
     }
 
-    return WktParser::Get(line);
+    return WktParser::FromWkt(line);
   }
   return std::nullopt;
 }

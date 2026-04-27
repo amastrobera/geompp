@@ -30,12 +30,12 @@ void bind_polyline3d(py::module_& m) {
         .def("intersects",
              [](const geompp::Polyline3D& p, const geompp::Polyline3D& o)    { return p.Intersects(o); }, "other"_a)
         .def("intersection",
-             [](const geompp::Polyline3D& p, const geompp::Line3D& l)        { return opt_variant_to_py(p.Intersection(l)); }, "line"_a)
+             [](const geompp::Polyline3D& p, const geompp::Line3D& l)        -> py::object { return opt_variant_to_py(p.Intersection(l)); }, "line"_a)
         .def("intersection",
-             [](const geompp::Polyline3D& p, const geompp::Ray3D& r)         { return opt_variant_to_py(p.Intersection(r)); }, "ray"_a)
+             [](const geompp::Polyline3D& p, const geompp::Ray3D& r)         -> py::object { return opt_variant_to_py(p.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::Polyline3D& p, const geompp::LineSegment3D& s) { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
+             [](const geompp::Polyline3D& p, const geompp::LineSegment3D& s) -> py::object { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
         .def("intersection",
-             [](const geompp::Polyline3D& p, const geompp::Polyline3D& o)    { return opt_variant_to_py(p.Intersection(o)); }, "other"_a)
+             [](const geompp::Polyline3D& p, const geompp::Polyline3D& o)    -> py::object { return opt_variant_to_py(p.Intersection(o)); }, "other"_a)
         .def("__eq__", [](const geompp::Polyline3D& a, const geompp::Polyline3D& b) { return a == b; });
 }

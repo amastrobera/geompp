@@ -20,6 +20,7 @@
 #include "triangle3d.hpp"
 #include "vector3d.hpp"
 
+#include <concepts>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -27,13 +28,22 @@
 
 namespace geompp {
 
+template <typename T>
+concept WktSerializable = requires(const T& obj, const std::string& wkt) {
+  { obj.ToWkt() } -> std::convertible_to<std::string>;
+  { T::FromWkt(wkt) } -> std::same_as<T>;
+};
+
+template <WktSerializable... Ts>
+using WktVariant = std::variant<Ts...>;
+
 class WktParser {
  public:
   static WktParser Open(std::string const& fle_path);
   WktParser(WktParser&&) noexcept;
   ~WktParser();
 
-  using ReturnSet = std::optional<std::variant<
+  using ReturnSet = std::optional<WktVariant<
       // 2D objects
       Vector2D, Point2D, Line2D, Ray2D, LineSegment2D, Polyline2D, Triangle2D, Polygon2D, GeometryCollection2D,
       // 3D objects
@@ -42,7 +52,7 @@ class WktParser {
 
   std::string GetFilePath() const;
 
-  static ReturnSet Get(std::string const& wkt);
+  static ReturnSet FromWkt(std::string const& wkt);
   static std::string ToWkt(ReturnSet const& shape);
 
   ReturnSet Next();

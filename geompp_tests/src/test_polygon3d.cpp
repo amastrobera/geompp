@@ -136,6 +136,17 @@ TEST_F(Polygon3DTest, WithHoles_NonCoplanar_Throws) {
   EXPECT_ANY_THROW(g::Polygon3D::Make(outer, {non_coplanar_hole}));
 }
 
+TEST_F(Polygon3DTest, WithHoles_CoplanarHole_NoThrow) {
+  // Polygon on the YZ plane (x=0).  BasisX is dominant, so AxisU=BasisY, AxisV=BasisZ.
+  // Outer ring: (0,0)→(4,0)→(4,4)→(0,4) in projected space — CCW (2A=+32).
+  // Hole: (1,1)→(1,3)→(3,3)→(3,1) in projected space — CW (2A=−8).
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(0, 4, 4), g::Point3D(0, 0, 4)};
+  std::vector<g::Point3D> coplanar_hole = {
+      g::Point3D(0, 1, 1), g::Point3D(0, 1, 3), g::Point3D(0, 3, 3), g::Point3D(0, 3, 1)};
+  EXPECT_NO_THROW(g::Polygon3D::Make(outer, {coplanar_hole}));
+}
+
 TEST_F(Polygon3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "polygon3d.wkt").string();

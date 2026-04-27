@@ -42,15 +42,15 @@ void bind_triangle3d(py::module_& m) {
              [](const geompp::Triangle3D& t, const geompp::LineSegment3D& s) { return t.Intersects(s); }, "segment"_a)
         .def("intersects_triangle",
              [](const geompp::Triangle3D& t, const geompp::Triangle3D& other) {
-                 return opt_variant_to_py(t.Intersects(other));
+                 return t.Intersects(other);
              }, "other"_a)
         .def("intersection",
-             [](const geompp::Triangle3D& t, const geompp::Line3D& l) { return opt_variant_to_py(t.Intersection(l)); }, "line"_a)
+             [](const geompp::Triangle3D& t, const geompp::Line3D& l) -> py::object { return opt_variant_to_py(t.Intersection(l)); }, "line"_a)
         .def("intersection",
-             [](const geompp::Triangle3D& t, const geompp::Ray3D& r) { return opt_variant_to_py(t.Intersection(r)); }, "ray"_a)
+             [](const geompp::Triangle3D& t, const geompp::Ray3D& r) -> py::object { return opt_variant_to_py(t.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::Triangle3D& t, const geompp::LineSegment3D& s) { return opt_variant_to_py(t.Intersection(s)); }, "segment"_a)
+             [](const geompp::Triangle3D& t, const geompp::LineSegment3D& s) -> py::object { return opt_variant_to_py(t.Intersection(s)); }, "segment"_a)
         .def("intersection",
-             [](const geompp::Triangle3D& t, const geompp::Triangle3D& other) { return opt_variant_to_py(t.Intersection(other)); }, "other"_a)
+             [](const geompp::Triangle3D& t, const geompp::Triangle3D& other) -> py::object { return opt_variant_to_py(t.Intersection(other)); }, "other"_a)
         .def("__eq__", [](const geompp::Triangle3D& a, const geompp::Triangle3D& b) { return a == b; });
 }

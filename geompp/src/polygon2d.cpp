@@ -28,7 +28,7 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
   }
 
   if (!are_ccw(unique_points)) {
-    throw std::runtime_error("cannot create polygon with points in clock-wise order");
+    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
   return {unique_points};
@@ -45,7 +45,7 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
   }
 
   if (!are_ccw(unique_points)) {
-    throw std::runtime_error("cannot create polygon with points in clock-wise order");
+    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
   std::vector<std::vector<Point2D>> unique_holes_points;
@@ -178,7 +178,7 @@ std::string Polygon2D::ToWkt() const {
   {
     buf << "(";
     for (int i = 0; i < num_verts; ++i) {
-      buf << std::format("{} {},", round(VERTICES[i].x()), round(VERTICES[i].y()));
+      buf << std::format("{} {}, ", round(VERTICES[i].x()), round(VERTICES[i].y()));
     }
     buf << std::format("{} {}", round(VERTICES[0].x()), round(VERTICES[0].y()));
     buf << ")";
@@ -190,7 +190,7 @@ std::string Polygon2D::ToWkt() const {
       buf << ", (";
       std::size_t n = hole.size();
       for (int i = 0; i < n; ++i) {
-        buf << std::format("{} {},", round(hole[i].x()), round(hole[i].y()));
+        buf << std::format("{} {}, ", round(hole[i].x()), round(hole[i].y()));
       }
       buf << std::format("{} {}", round(hole[0].x()), round(hole[0].y()));
       buf << ")";
