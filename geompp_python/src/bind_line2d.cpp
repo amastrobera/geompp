@@ -27,11 +27,11 @@ void bind_line2d(py::module_& m) {
         .def("intersects",
              [](const geompp::Line2D& l, const geompp::LineSegment2D& s) { return l.Intersects(s); }, "segment"_a)
         .def("intersection",
-             [](const geompp::Line2D& l, const geompp::Line2D& o)        { return opt_variant_to_py(l.Intersection(o)); }, "other"_a)
+             [](const geompp::Line2D& l, const geompp::Line2D& o)        -> py::object { return opt_variant_to_py(l.Intersection(o)); }, "other"_a)
         .def("intersection",
-             [](const geompp::Line2D& l, const geompp::Ray2D& r)         { return opt_variant_to_py(l.Intersection(r)); }, "ray"_a)
+             [](const geompp::Line2D& l, const geompp::Ray2D& r)         -> py::object { return opt_variant_to_py(l.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::Line2D& l, const geompp::LineSegment2D& s) { return opt_variant_to_py(l.Intersection(s)); }, "segment"_a)
+             [](const geompp::Line2D& l, const geompp::LineSegment2D& s) -> py::object { return opt_variant_to_py(l.Intersection(s)); }, "segment"_a)
         // Returns (Optional[Point2D], sc, tc) where sc/tc are parametric t-values
         .def("intersection_with_params",
              [](const geompp::Line2D& l, const geompp::Line2D& other) {

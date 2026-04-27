@@ -10,6 +10,7 @@
 #include "geompp_log.hpp"
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <filesystem>
 #include <vector>
 
@@ -48,9 +49,9 @@ TEST_F(Polyline3DTest, Constructor) {
 
 TEST_F(Polyline3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
-  auto p1 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
-  auto p2 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
-  auto p3 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0)});
+  auto p1 = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
+  auto p2 = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
+  auto p3 = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0)});
 
   ASSERT_TRUE(p1.AlmostEquals(p2));
   ASSERT_FALSE(p1.AlmostEquals(p3));
@@ -58,23 +59,23 @@ TEST_F(Polyline3DTest, AlmostEquals) {
   ASSERT_NE(p1, p3);
 
   // different knot counts → not equal
-  auto p4 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto p4 = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
   ASSERT_FALSE(p1.AlmostEquals(p4));
 }
 
 TEST_F(Polyline3DTest, ToSegments) {
   geompp::DECIMAL_PRECISION = 4;
-  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto poly = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
 
   auto segs = poly.ToSegments();
   ASSERT_EQ(3, segs.size());
 
-  ASSERT_EQ(g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)), segs[0]);
+  ASSERT_EQ(g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0)), segs[0]);
   ASSERT_EQ(g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)), segs[1]);
   ASSERT_EQ(g::LineSegment3D::Make(g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)), segs[2]);
 
   // two-knot → one segment
-  auto p2 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(3, 4, 0)});
+  auto p2 = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(3, 4, 0)});
   ASSERT_EQ(1, p2.ToSegments().size());
 }
 
@@ -96,7 +97,7 @@ TEST_F(Polyline3DTest, Contains) {
   }
 
   // off-polyline point
-  ASSERT_FALSE(poly.Contains(g::Point3D(0, 0, 0)));
+  ASSERT_FALSE(poly.Contains(g::Point3D::Zero()));
 }
 
 TEST_F(Polyline3DTest, DistanceTo) {
@@ -123,12 +124,33 @@ TEST_F(Polyline3DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly = g::Polyline3D::FromWkt("LINESTRING (0 0 0, 3 0 0)");
 
-  ASSERT_EQ(g::Point3D(0, 0, 0), poly.Interpolate(0));
+  ASSERT_EQ(g::Point3D::Zero(), poly.Interpolate(0));
   ASSERT_EQ(g::Point3D(3, 0, 0), poly.Interpolate(1));
 
   // clamped
-  ASSERT_EQ(g::Point3D(0, 0, 0), poly.Interpolate(-0.5));
+  ASSERT_EQ(g::Point3D::Zero(), poly.Interpolate(-0.5));
   ASSERT_EQ(g::Point3D(3, 0, 0), poly.Interpolate(1.5));
+}
+
+TEST_F(Polyline3DTest, Location) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto poly = g::Polyline3D::FromWkt("LINESTRING (0 0 0, 3 0 0)");
+
+  // start = 0, end = 1
+  ASSERT_EQ(0.0, poly.Location(g::Point3D::Zero()));
+  ASSERT_EQ(1.0, poly.Location(g::Point3D(3, 0, 0)));
+
+  // midpoint = 0.5
+  ASSERT_EQ(0.5, g::round(poly.Location(g::Point3D(1.5, 0, 0))));
+
+  // before start: negative (distance to start / total length)
+  ASSERT_EQ(g::round(-1.0 / 3.0, 3), g::round(poly.Location(g::Point3D(-1, 0, 0)), 3));
+
+  // beyond end: > 1
+  ASSERT_EQ(g::round(4.0 / 3.0, 3), g::round(poly.Location(g::Point3D(4, 0, 0)), 3));
+
+  // off-polyline: infinity
+  ASSERT_TRUE(std::isinf(poly.Location(g::Point3D(1, 1, 0))));
 }
 
 TEST_F(Polyline3DTest, IntersectionWLine) {
@@ -138,8 +160,8 @@ TEST_F(Polyline3DTest, IntersectionWLine) {
   auto poly2 = g::Polyline3D::FromWkt("LINESTRING (-1 2 0, -0.5 2 0, 1 2 0, 2 1 0)");
   auto poly3 = g::Polyline3D::FromWkt("LINESTRING (-1 2 0, -1 -1 0, -2 -2 0, -1 -3 0)");
 
-  auto x = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
-  auto y = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(0, 1, 0));
+  auto x = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0));
+  auto y = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(0, 1, 0));
 
   ASSERT_TRUE(poly1.Intersects(x));
   {
@@ -169,10 +191,10 @@ TEST_F(Polyline3DTest, IntersectionWRay) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly1 = g::Polyline3D::FromWkt("LINESTRING (-1 2 0, -1 -2 0, 1 -2 0, 1 2 0)");
 
-  auto x_neg = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(-1, 0, 0));
-  auto x_pos = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
-  auto y_neg = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(0, -1, 0));
-  auto y_pos = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(0, 1, 0));
+  auto x_neg = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(-1, 0, 0));
+  auto x_pos = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+  auto y_neg = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(0, -1, 0));
+  auto y_pos = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisY());
 
   ASSERT_TRUE(poly1.Intersects(x_neg));
   {
@@ -256,7 +278,7 @@ TEST_F(Polyline3DTest, Wkt) {
             g::Polyline3D::FromWkt("LINESTRING (1.5 -2.0 3.0, -1.0 4.5 0.0)"));
 
   // case-insensitive keyword
-  EXPECT_EQ(g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 1, 1)}),
+  EXPECT_EQ(g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(1, 1, 1)}),
             g::Polyline3D::FromWkt("  linestring( 0 0 0, 1 1 1)"));
 
   // invalid

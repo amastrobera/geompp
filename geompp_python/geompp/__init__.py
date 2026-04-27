@@ -5,18 +5,22 @@ Classes
 -------
 2D primitives:
     Point2D, Vector2D, Line2D, Ray2D, LineSegment2D,
-    Polyline2D, Triangle2D, Polygon2D, BBox2D
+    Polyline2D, Triangle2D, Polygon2D, BBox2D, GeometryCollection2D
 
 3D primitives:
     Point3D, Vector3D, Line3D, Ray3D, LineSegment3D,
-    Polyline3D, Triangle3D, Polygon3D, BBox3D, Plane
+    Polyline3D, Triangle3D, Polygon3D, BBox3D, Plane, GeometryCollection3D
 
 Parser:
-    LVSParser
+    WktParser
 
 Free functions
 --------------
     are_collinear(p1, p2, p3)
+    are_coplanar(points)
+    closest_world_plane_to(points)
+    are_ccw(points[, ref_plane])
+    are_cw(points[, ref_plane])
     remove_duplicates(points)
     remove_duplicates_from_sorted_list(points)
     remove_collinear(points)
@@ -54,6 +58,7 @@ from ._geompp import (  # noqa: F401
     Triangle2D,
     Polygon2D,
     BBox2D,
+    GeometryCollection2D,
     # 3D
     Point3D,
     Vector3D,
@@ -65,10 +70,15 @@ from ._geompp import (  # noqa: F401
     Polygon3D,
     BBox3D,
     Plane,
+    GeometryCollection3D,
     # parser
-    LVSParser,
+    WktParser,
     # free functions
     are_collinear,
+    are_coplanar,
+    closest_world_plane_to,
+    are_ccw,
+    are_cw,
     remove_duplicates,
     remove_duplicates_from_sorted_list,
     remove_collinear,
@@ -82,10 +92,11 @@ __all__ = [
     "DP_THREE", "DP_SIX", "DP_NINE",
     "set_decimal_precision", "get_decimal_precision",
     "Point2D", "Vector2D", "Line2D", "Ray2D", "LineSegment2D",
-    "Polyline2D", "Triangle2D", "Polygon2D", "BBox2D",
+    "Polyline2D", "Triangle2D", "Polygon2D", "BBox2D", "GeometryCollection2D",
     "Point3D", "Vector3D", "Line3D", "Ray3D", "LineSegment3D",
-    "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "Plane",
-    "LVSParser",
-    "are_collinear", "remove_duplicates", "remove_duplicates_from_sorted_list",
+    "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "Plane", "GeometryCollection3D",
+    "WktParser",
+    "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
+    "remove_duplicates", "remove_duplicates_from_sorted_list",
     "remove_collinear", "linear_combination", "average",
 ]

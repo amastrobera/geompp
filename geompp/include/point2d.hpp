@@ -20,7 +20,7 @@ class Point2D {
   inline double x() const { return X; }
   inline double y() const { return Y; }
 
-  Vector2D ToVector();
+  Vector2D ToVector() const;
   bool AlmostEquals(Point2D const& other, double epsilon = DOUBLE_EPSILON) const;
   double DistanceTo(Point2D const& other) const;
 
@@ -86,6 +86,14 @@ std::ostream& operator<<(std::ostream& os, Point2D const& g);
 //      return std::format_to(ctx.out(), "{}", p.ToWkt());
 //    }
 //  };
+
+#pragma endregion
+
+#pragma region Collection Operations
+
+bool are_ccw(std::vector<Point2D> const& points);
+
+bool are_cw(std::vector<Point2D> const& points);
 
 #pragma endregion
 

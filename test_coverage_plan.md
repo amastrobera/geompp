@@ -56,10 +56,31 @@ genhtml coverage.info --output-directory coverage_html
 
 ---
 
+## ✅ Completed — `Plane` free functions + `operator==`; `Polygon3D` holes; `GeometryCollection` 2D & 3D
+
+| What | Where | Coverage |
+|---|---|---|
+| `closest_world_plane_to`, `are_ccw` (3D), `are_cw` (3D), `are_coplanar`, `operator==` | `test_plane.cpp` (new tests: `ClosestWorldPlaneTo`, `AreCCW`, `AreCW`, `EqualityOperator`) | `Plane` → **100%** |
+| `Polygon3D` holes coplanarity constraint (`WithHoles_NonCoplanar_Throws`, `WithHoles_CoplanarHole_NoThrow`) | `test_polygon3d.cpp` | `Polygon3D` → ~92% |
+| `GeometryCollection2D` | `geompp_tests/src/test_geometry_collection2d.cpp` (19 tests) | ~86% |
+| `GeometryCollection3D` | `geompp_tests/src/test_geometry_collection3d.cpp` (18 tests) | ~86% |
+
+---
+
 ## Priority 1 — `Polyline3D` remaining gaps
 
 - [ ] `Polyline3D::operator=` — assign one polyline to another; self-assign is safe
 - [ ] `Polyline3D::operator<<` — stream output matches `ToWkt()`
+
+---
+
+## Priority 2 — `GeometryCollection2D` / `GeometryCollection3D` remaining gaps (~86%)
+
+**Files:** `test_geometry_collection2d.cpp`, `test_geometry_collection3d.cpp`
+
+- [ ] `operator=` — assign one collection to another; self-assign is safe
+- [ ] `operator<<` — stream output matches `ToWkt()`
+- [ ] `FromFile` — round-trip through a temp file produces equal collection
 
 ---
 

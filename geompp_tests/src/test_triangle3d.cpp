@@ -3,7 +3,7 @@
 #include "line3d.hpp"
 // #include "line_segment3d.hpp"
 #include "point3d.hpp"
-// #include "polygon3d.hpp"
+#include "polygon3d.hpp"
 // #include "ray3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
@@ -320,9 +320,9 @@ TEST_F(Triangle3DTest, Wkt) {
                 .ToWkt());
 
   geompp::DECIMAL_PRECISION = 4;
-  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 2, 0)),
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(1, 1, 1), g::Point3D(0, 2, 0)),
             g::Triangle3D::FromWkt("TRIANGLE (0 0 0, 1 1 1, 0 2 0)"));
-  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 2, 0)),
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(1, 1, 0), g::Point3D(0, 2, 0)),
             g::Triangle3D::FromWkt("  triangle( 0     0 0 , 1   1  0, 0 2 0  )"));
   EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 2), g::Point3D(0, 2, 3)),
             g::Triangle3D::FromWkt("triANGle   ( 0 0  1, 1 1  2, 0   2  3    )"));
@@ -371,32 +371,41 @@ TEST_F(Triangle3DTest, TestFromFile) {
 }
 
 TEST_F(Triangle3DTest, Vertices) {
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto [p0, p1, p2] = t.Vertices();
-  ASSERT_EQ(g::Point3D(0, 0, 0), p0);
+  ASSERT_EQ(g::Point3D::Zero(), p0);
   ASSERT_EQ(g::Point3D(2, 0, 0), p1);
   ASSERT_EQ(g::Point3D(0, 2, 0), p2);
 }
 
 TEST_F(Triangle3DTest, AlmostEquals) {
-  auto t1 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
-  auto t2 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t1 = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t2 = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto t3 = g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(2, 0, 1), g::Point3D(0, 2, 1));
 
   ASSERT_TRUE(t1.AlmostEquals(t2));
   ASSERT_FALSE(t1.AlmostEquals(t3));
   ASSERT_EQ(t1, t2);
   ASSERT_NE(t1, t3);
+
+  // epsilon: tiny offset on all three vertices, within a wider tolerance
+  double tiny = 1e-6;
+  auto t_near = g::Triangle3D::Make(g::Point3D(tiny, 0, 0), g::Point3D(2 + tiny, 0, 0), g::Point3D(0, 2 + tiny, 0));
+  ASSERT_TRUE(t1.AlmostEquals(t_near, 1e-4));
+  ASSERT_FALSE(t1.AlmostEquals(t_near, 1e-8));  // tighter than the offset → not equal
+
+  // a difference of 1 on the Z axis is always outside any reasonable epsilon
+  ASSERT_FALSE(t1.AlmostEquals(t3, 1e-4));
 }
 
 TEST_F(Triangle3DTest, Perimeter) {
   geompp::DECIMAL_PRECISION = 4;
   // right-isosceles triangle with legs of length 2: perimeter = 2 + 2 + 2*sqrt(2)
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   ASSERT_EQ(6.8284, g::round(t.Perimeter()));
 
   // equilateral triangle with side 2: perimeter = 6
-  auto t2 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0));
+  auto t2 = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0));
   // degenerate — use a proper equilateral
   auto t3 = g::Triangle3D::Make(g::Point3D(-1, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 0, 2));
   ASSERT_TRUE(t3.Perimeter() > 0);
@@ -404,7 +413,7 @@ TEST_F(Triangle3DTest, Perimeter) {
 
 TEST_F(Triangle3DTest, ToAxis) {
   geompp::DECIMAL_PRECISION = 4;
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto [u, v] = t.ToAxis();
   ASSERT_EQ(g::Vector3D(2, 0, 0), u);  // P1 - P0
   ASSERT_EQ(g::Vector3D(0, 2, 0), v);  // P2 - P0
@@ -412,10 +421,10 @@ TEST_F(Triangle3DTest, ToAxis) {
 
 TEST_F(Triangle3DTest, Interpolate) {
   geompp::DECIMAL_PRECISION = 4;
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
 
   // vertices
-  ASSERT_EQ(g::Point3D(0, 0, 0), t.Interpolate(0, 0));
+  ASSERT_EQ(g::Point3D::Zero(), t.Interpolate(0, 0));
   ASSERT_EQ(g::Point3D(2, 0, 0), t.Interpolate(1, 0));
   ASSERT_EQ(g::Point3D(0, 2, 0), t.Interpolate(0, 1));
 
@@ -430,33 +439,143 @@ TEST_F(Triangle3DTest, Interpolate) {
 }
 
 TEST_F(Triangle3DTest, SignedArea) {
-  // SignedArea is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
-  EXPECT_ANY_THROW(t.SignedArea());
-  EXPECT_ANY_THROW(t.Area());
+  geompp::DECIMAL_PRECISION = 4;
+
+  // right-isosceles triangle in XY plane, legs = 2  →  area = 2.0
+  auto t_ccw = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  double sa_ccw = t_ccw.SignedArea(g::Vector3D::BasisZ());
+  ASSERT_TRUE(sa_ccw > 0);  // CCW winding → positive
+  ASSERT_EQ(2.0, g::round(t_ccw.Area()));
+  ASSERT_EQ(sa_ccw, t_ccw.Area());  // Area() == |SignedArea()| for CCW
+
+  // reversed winding (CW) → same geometry, opposite sign
+  auto [p0, p1, p2] = t_ccw.Vertices();
+  auto t_cw = g::Triangle3D::Make(p0, p2, p1);
+  double sa_cw = t_cw.SignedArea(g::Vector3D::BasisZ());
+  ASSERT_TRUE(sa_cw < 0);                 // CW winding → negative
+  ASSERT_EQ(2.0, g::round(t_cw.Area()));  // Area() is always positive
+  ASSERT_EQ(-sa_ccw, sa_cw);              // symmetric
+
+  // flipping ref_normal reverses the sign
+  ASSERT_EQ(-sa_ccw, t_ccw.SignedArea(-g::Vector3D::BasisZ()));
+
+  // equilateral triangle with side 2 in XY plane  →  area = sqrt(3) ≈ 1.7321
+  auto t_eq = g::Triangle3D::Make(g::Point3D(-1, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, std::sqrt(3.0), 0));
+  ASSERT_EQ(1.7321, g::round(t_eq.Area()));
+  ASSERT_GT(t_eq.SignedArea(g::Vector3D::BasisZ()), 0.0);  // CCW as constructed
+
+  // tilted triangle — use its own normal as ref so result is positive and |result| == Area()
+  auto t_3d = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(1, 1, 1));
+  ASSERT_GT(t_3d.Area(), 0.0);
+  ASSERT_TRUE(geompp::compare(t_3d.Area(), std::abs(t_3d.SignedArea(t_3d.Normal()))) == 0);
+}
+
+TEST_F(Triangle3DTest, AreaVector) {
+  geompp::DECIMAL_PRECISION = 4;
+
+  // right-isosceles in XY plane → cross/2 = (0,0,2), length = area
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto av = t.AreaVector();
+  ASSERT_EQ(g::Vector3D(0, 0, 2), av);  // perpendicular to XY plane, pointing +Z
+  ASSERT_EQ(t.Area(), av.Length());     // |AreaVector| == area
+
+  // reversed winding (CW) → flipped direction, same length
+  auto [p0, p1, p2] = t.Vertices();
+  auto t_cw = g::Triangle3D::Make(p0, p2, p1);
+  auto av_cw = t_cw.AreaVector();
+  ASSERT_EQ(g::Vector3D(0, 0, -2), av_cw);  // pointing −Z
+  ASSERT_EQ(t_cw.Area(), av_cw.Length());
+
+  // tilted triangle in XZ plane: (0,0,0),(2,0,0),(0,0,2) → cross/2 = (0,-2,0)
+  auto t_xz = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 0, 2));
+  ASSERT_EQ(g::Vector3D(0, -2, 0), t_xz.AreaVector());
+  ASSERT_EQ(t_xz.Area(), t_xz.AreaVector().Length());
+}
+
+TEST_F(Triangle3DTest, IsCCW) {
+  auto ref = g::Vector3D::BasisZ();
+
+  // CCW winding in XY plane → SignedArea > 0 → IsCCW == true
+  auto t_ccw = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  ASSERT_TRUE(t_ccw.SignedArea(ref) > 0);
+  ASSERT_TRUE(t_ccw.IsCCW(ref));
+
+  // CW winding → SignedArea < 0 → IsCCW == false
+  auto [p0, p1, p2] = t_ccw.Vertices();
+  auto t_cw = g::Triangle3D::Make(p0, p2, p1);
+  ASSERT_TRUE(t_cw.SignedArea(ref) < 0);
+  ASSERT_FALSE(t_cw.IsCCW(ref));
+
+  // IsCCW is consistent with sign of SignedArea
+  ASSERT_EQ(t_ccw.IsCCW(ref), t_ccw.SignedArea(ref) > 0);
+  ASSERT_EQ(t_cw.IsCCW(ref), t_cw.SignedArea(ref) > 0);
+
+  // flipping ref_normal flips the result
+  ASSERT_FALSE(t_ccw.IsCCW(-ref));
+  ASSERT_TRUE(t_cw.IsCCW(-ref));
+}
+
+TEST_F(Triangle3DTest, Normal) {
+  // XY-plane triangle — normal must point +Z
+  auto t_xy = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  ASSERT_TRUE(t_xy.Normal().AlmostEquals(g::Vector3D::BasisZ()));
+
+  // Normal must be a unit vector
+  ASSERT_EQ(1.0, g::round(t_xy.Normal().Length()));
+
+  // Normal must equal ToPlane().normal()
+  ASSERT_TRUE(t_xy.Normal().AlmostEquals(t_xy.ToPlane().normal()));
+
+  // XZ-plane triangle — normal must point -Y (CCW winding: (0,0,0),(2,0,0),(0,0,2))
+  auto t_xz = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 0, 2));
+  ASSERT_TRUE(t_xz.Normal().AlmostEquals(t_xz.ToPlane().normal()));
+  ASSERT_EQ(1.0, g::round(t_xz.Normal().Length()));
+
+  // tilted triangle — normal still equals ToPlane().normal()
+  auto t_3d = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(1, 1, 1));
+  ASSERT_TRUE(t_3d.Normal().AlmostEquals(t_3d.ToPlane().normal()));
+  ASSERT_EQ(1.0, g::round(t_3d.Normal().Length()));
+}
+
+TEST_F(Triangle3DTest, ToPolygon) {
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto poly = t.ToPolygon();
+
+  ASSERT_EQ(3u, poly.Size());
+  ASSERT_EQ(g::Point3D::Zero(), poly[0]);
+  ASSERT_EQ(g::Point3D(2, 0, 0), poly[1]);
+  ASSERT_EQ(g::Point3D(0, 2, 0), poly[2]);
+
+  // matches a polygon built from the same vertices
+  auto [p0, p1, p2] = t.Vertices();
+  ASSERT_EQ(g::Polygon3D::Make({p0, p1, p2}), poly);
+
+  // different triangle → different polygon
+  auto t2 = g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(2, 0, 1), g::Point3D(0, 2, 1));
+  ASSERT_NE(t2.ToPolygon(), poly);
 }
 
 TEST_F(Triangle3DTest, DistanceTo) {
   // DistanceTo is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   EXPECT_ANY_THROW(t.DistanceTo(g::Point3D(0.5, 0.5, 0)));
 }
 
 TEST_F(Triangle3DTest, Location) {
   // Location is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   EXPECT_ANY_THROW(t.Location(g::Point3D(0.5, 0.5, 0)));
 }
 
 TEST_F(Triangle3DTest, Contains) {
   // Contains is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   EXPECT_ANY_THROW(t.Contains(g::Point3D(0.5, 0.5, 0)));
 }
 
 TEST_F(Triangle3DTest, IntersectionWLine) {
   // Intersection(Line3D) is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
   auto line = g::Line3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1));
   EXPECT_ANY_THROW(t.Intersection(line));
   EXPECT_ANY_THROW(t.Intersects(line));

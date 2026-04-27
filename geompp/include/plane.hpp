@@ -46,9 +46,9 @@ class Plane {
 
 #pragma endregion
 
-  static inline Plane XY() { return Plane(Point3D{0, 0, 0}, Vector3D{0, 0, 1}); }
-  static inline Plane YZ() { return Plane(Point3D{0, 0, 0}, Vector3D{1, 0, 0}); }
-  static inline Plane ZX() { return Plane(Point3D{0, 0, 0}, Vector3D{0, 1, 0}); }
+  static inline Plane XY() { return Plane(Point3D::Zero(), Vector3D::BasisZ()); }
+  static inline Plane YZ() { return Plane(Point3D::Zero(), Vector3D::BasisX()); }
+  static inline Plane ZX() { return Plane(Point3D::Zero(), Vector3D::BasisY()); }
 
  private:
   Point3D Origin;
@@ -63,6 +63,23 @@ class Plane {
 #pragma region Operator Overloading
 
 bool operator==(Plane const& lhs, Plane const& rhs);
+
+#pragma endregion
+
+#pragma region Collection Operations
+
+bool are_coplanar(std::vector<Point3D> const& points);
+
+// returns the XY, YZ or ZX world plane whose normal is closest to the normal of the points' plane
+Plane closest_world_plane_to(std::vector<Point3D> const& points);
+
+// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane will be
+// determined by the first three non-collinear points
+bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> ref_plane = std::nullopt);
+
+// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane will be
+// determined by the first three non-collinear points
+bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> ref_plane = std::nullopt);
 
 #pragma endregion
 

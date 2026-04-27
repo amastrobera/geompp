@@ -2,7 +2,7 @@
 
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
-#include "lsv_parser.hpp"
+#include "wkt_parser.hpp"
 #pragma managed(pop)
 
 namespace GeomPP {
@@ -16,13 +16,13 @@ ref class Line3D;
 ref class Ray3D;
 ref class LineSegment3D;
 
-public ref class LVSParser {
+public ref class WktParser {
 public:
-    ~LVSParser();
-    !LVSParser();
+    ~WktParser();
+    !WktParser();
 
     // Factory method (private constructor — use Open)
-    static LVSParser^ Open(System::String^ filePath);
+    static WktParser^ Open(System::String^ filePath);
 
     bool HasNext();
 
@@ -37,8 +37,8 @@ public:
     virtual System::String^ ToString() override;
 
 internal:
-    LVSParser(geompp::LVSParser* native);
-    geompp::LVSParser* _native;
+    WktParser(geompp::WktParser* native);
+    geompp::WktParser* _native;
 };
 
 }  // namespace GeomPP

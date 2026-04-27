@@ -114,9 +114,9 @@ TEST_F(Point2DTest, DistanceTo) {
 
 TEST_F(Point2DTest, RemoveDuplicates) {
   // clang-format off
-  std::vector<g::Point2D> pts{g::Point2D(0, 0),
-                              g::Point2D(0, 0), // duplicate
-                              g::Point2D(0, 0), // duplicate
+  std::vector<g::Point2D> pts{g::Point2D::Zero(),
+                              g::Point2D::Zero(), // duplicate
+                              g::Point2D::Zero(), // duplicate
                               g::Point2D(1, 0),
                               g::Point2D(2, 0),
                               g::Point2D(2, 2),
@@ -130,7 +130,7 @@ TEST_F(Point2DTest, RemoveDuplicates) {
   auto unique_pts = g::remove_duplicates(pts);
 
   ASSERT_EQ(5, unique_pts.size());
-  ASSERT_EQ(g::Point2D(0, 0), unique_pts[0]);
+  ASSERT_EQ(g::Point2D::Zero(), unique_pts[0]);
   ASSERT_EQ(g::Point2D(1, 0), unique_pts[1]);
   ASSERT_EQ(g::Point2D(2, 0), unique_pts[2]);
   ASSERT_EQ(g::Point2D(2, 2), unique_pts[3]);
@@ -139,7 +139,7 @@ TEST_F(Point2DTest, RemoveDuplicates) {
 
 TEST_F(Point2DTest, RemoveCollinear) {
   // clang-format off
-  std::vector<g::Point2D> pts{g::Point2D(0, 0),
+  std::vector<g::Point2D> pts{g::Point2D::Zero(),
                               g::Point2D(1, 0),
                               g::Point2D(2, 0), // collinear
                               g::Point2D(2, 2),
@@ -158,7 +158,7 @@ TEST_F(Point2DTest, RemoveCollinear) {
 
   auto unique_pts = g::remove_collinear(pts);
 
-  ASSERT_EQ(g::Point2D(0, 0), unique_pts[0]);
+  ASSERT_EQ(g::Point2D::Zero(), unique_pts[0]);
   ASSERT_EQ(g::Point2D(2, 0), unique_pts[1]);
   ASSERT_EQ(g::Point2D(2, 5), unique_pts[2]);
   ASSERT_EQ(g::Point2D(3, 6), unique_pts[3]) << "value=" << unique_pts[3].ToWkt();
@@ -169,7 +169,7 @@ TEST_F(Point2DTest, RemoveCollinear) {
 
 TEST_F(Point2DTest, Average) {
   // clang-format off
-  std::vector<g::Point2D> pts{g::Point2D(0, 0),
+  std::vector<g::Point2D> pts{g::Point2D::Zero(),
                               g::Point2D(1, 0),
                               g::Point2D(2, -3),
                               g::Point2D(-5, 6),

@@ -44,7 +44,18 @@ Line3D& Line3D::operator=(Line3D const& other) {
 }
 
 bool Line3D::AlmostEquals(Line3D const& other, double epsilon) const {
-  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
+  // first check: are they parallel ?
+  if (!DIR.AlmostEquals(other.DIR, epsilon) && !DIR.AlmostEquals(-other.DIR, epsilon)) {
+    return false;
+  }
+  // second check: are they collinear ? (if they are parallel, we can check if the vector between their origins is also
+  // parallel to the direction)
+  auto w0 = P0 - other.P0;
+  if (compare(DIR.Cross(w0).Length(), epsilon) != 0) {
+    return false;
+  }
+
+  return true;  // no heading check at all
 }
 
 double Line3D::DistanceTo(Point3D const& point) const { return (point - ProjectOnto(point)).Length(); }

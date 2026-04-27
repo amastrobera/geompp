@@ -1,7 +1,9 @@
 #include "plane.hpp"
 
 #include "line3d.hpp"
+#include "point2d.hpp"
 #include "utils.hpp"
+#include "vector2d.hpp"
 
 #include <cmath>
 #include <format>
@@ -31,21 +33,17 @@ Plane Plane::FromOriginAndNormal(Point3D origin, Vector3D normal) {
 }
 
 Plane::Plane(Point3D origin, Vector3D normal)
-    : Origin(origin),
-      Normal(normal),
-      AxisU(normal.Perp().Normalize()),
-      AxisV(normal.Cross(AxisU).Normalize()) {}
+    : Origin(origin), Normal(normal), AxisU(normal.Perp().Normalize()), AxisV(normal.Cross(AxisU).Normalize()) {}
 
 Plane::Plane(Point3D origin, Vector3D u, Vector3D v)
-    : Origin(origin),
-      Normal(u.Cross(v).Normalize()),
-      AxisU(u),
-      AxisV(v) {}
+    : Origin(origin), Normal(u.Cross(v).Normalize()), AxisU(u), AxisV(v) {}
 
 bool Plane::AlmostEquals(Plane const& other, double epsilon) const {
-  throw new std::runtime_error("not implemented");
-  // return round(X - other.X) == 0.0 && round(Y - other.Y) == 0.0 &&
-  // round(Z - other.Z) == 0.0;
+  return (
+      // same normal (or parallel)
+      (Normal.AlmostEquals(other.Normal, epsilon) || Normal.AlmostEquals(-other.Normal, epsilon)) &&
+      // same offset from the origin
+      (compare(Normal.Dot(Origin.ToVector()), other.Normal.Dot(other.Origin.ToVector()), epsilon) == 0));
 }
 
 Plane& Plane::operator=(Plane const& other) {
@@ -98,6 +96,80 @@ Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
 #pragma region Operator Overloading
 
 bool operator==(Plane const& lhs, Plane const& rhs) { return lhs.AlmostEquals(rhs); }
+
+#pragma endregion
+
+#pragma region Collection Operations
+
+bool are_coplanar(std::vector<Point3D> const& points) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() < 4) {
+    return true;
+  }
+
+  // avoid building a plane and making a constructor
+  auto normal = (unique_points[1] - unique_points[0]).Cross(unique_points[2] - unique_points[0]);
+
+  // if normal and Pi-P0 are not orthogonal, then the point is not in the plane defined by P0, P1 and P2
+  for (int i = 3; i < unique_points.size(); ++i) {
+    if (compare(normal.Dot(unique_points[i] - unique_points[0]), 0) != 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+Plane closest_world_plane_to(std::vector<Point3D> const& points) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() < 3) {
+    throw std::runtime_error("closest_world_plane_to requires at least 3 non-collinear points");
+  }
+  Vector3D points_normal = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]).normal();
+  Vector3D world_normal = {0, 0, 0};
+
+  // Find the absolute largest component of the normal
+  double absX = std::abs(points_normal.x());
+  double absY = std::abs(points_normal.y());
+  double absZ = std::abs(points_normal.z());
+
+  if (compare(absZ, absX) >= 0 && compare(absZ, absY) >= 0) {
+    world_normal = Vector3D::BasisZ();
+
+  } else {
+    world_normal = compare(absX, absY) >= 0 ? Vector3D::BasisX() : Vector3D::BasisY();
+  }
+
+  return Plane::FromOriginAndNormal(Point3D::Zero(), world_normal);
+}
+
+double orientation(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() < 3) {
+    return true;
+  }
+
+  if (!plane.has_value()) {
+    plane = closest_world_plane_to(unique_points);
+  }
+
+  double signed_area = 0;
+  for (int i = 0; i < unique_points.size(); ++i) {
+    auto const& p1 = plane.value().ProjectInto(unique_points[i]);
+    auto const& p2 = plane.value().ProjectInto(unique_points[(i + 1) % unique_points.size()]);
+    signed_area += p1.ToVector().Cross(p2.ToVector());
+  }
+
+  return signed_area;
+}
+
+bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return compare(orientation(points, plane), 0) > 0;
+}
+
+bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return compare(orientation(points, plane), 0) < 0;
+}
 
 #pragma endregion
 

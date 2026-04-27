@@ -76,7 +76,7 @@ using G = GeomPP;
 
 G.Precision.DecimalPrecision = G.Precision.DP_THREE;
 
-var parser = G.LVSParser.Open("sample_geometries.lsv");
+var parser = G.WktParser.Open("sample_geometries.lsv");
 
 if (!parser.HasNext()) {
     Console.WriteLine("no geometries found");
@@ -89,7 +89,7 @@ while (parser.HasNext()) {
         Console.WriteLine("skipped unrecognised line");
         continue;
     }
-    Console.WriteLine(G.LVSParser.ToWkt(item));
+    Console.WriteLine(G.WktParser.ToWkt(item));
 }
 ```
 
@@ -102,6 +102,58 @@ LINESTRING (0 0 0, 1 1 1)
 LINESTRING (2 0 0, 2 3 4)
 LINE (0 0 0, 1 0 0)
 RAY (0 0 0, 0 1 0)
+```
+
+---
+
+### Example 3 — `are_coplanar`, winding order, and polygon with holes
+
+```csharp
+using GeomPP;
+using Geompp.Extensions;
+
+Precision.DecimalPrecision = Precision.DP_THREE;
+
+var flat = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0),
+    new Point3D(0,1,0), new Point3D(1,1,0)
+};
+var skew = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(1,0,0),
+    new Point3D(0,1,0), new Point3D(0,0,1)
+};
+
+Console.WriteLine(flat.AreCoplanar());   // True  — all on the XY plane
+Console.WriteLine(skew.AreCoplanar());   // False — spans 3D space
+
+// Closest world-axis plane and winding check
+var plane = flat.ClosestWorldPlaneTo();
+Console.WriteLine(plane.Normal());       // (0, 0, 1)  → XY plane
+
+Console.WriteLine(flat.AreCCW());        // True  — CCW on the XY plane
+Console.WriteLine(flat.AreCW());         // False
+
+// Polygon3D requires CCW outer ring and CW holes
+var outer = new List<Point3D> {
+    new Point3D(0,0,0), new Point3D(4,0,0),
+    new Point3D(4,4,0), new Point3D(0,4,0)
+};
+var hole = new List<Point3D> {
+    new Point3D(1,3,0), new Point3D(3,3,0),
+    new Point3D(3,1,0), new Point3D(1,1,0)
+};
+var poly = Polygon3D.Make(outer, new List<List<Point3D>> { hole });
+Console.WriteLine(poly.Size());          // 4
+```
+
+Output:
+```
+True
+False
+VECTOR (0 0 1)
+True
+False
+4
 ```
 
 ---
@@ -134,7 +186,8 @@ double eps = G.Precision.Epsilon;  // current epsilon (10^-N)
 | `Polygon`         | ✓  | ✓  |
 | `BBox`            | ✓  | ✓  |
 | `Plane`           | —  | ✓  |
-| `LVSParser`       | ✓  | ✓  |
+| `GeometryCollection` | ✓ | ✓ |
+| `WktParser`       | ✓  | ✓  |
 
 All types expose `ToWkt()`, `FromWkt()`, `ToFile()`, `FromFile()`, `AlmostEquals()`, and the same
 operators available in the C++ library.

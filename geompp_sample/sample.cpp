@@ -1,9 +1,11 @@
 #include "constants.hpp"
 #include "geompp_log.hpp"
 #include "line_segment3d.hpp"
-#include "lsv_parser.hpp"
+#include "plane.hpp"
 #include "point3d.hpp"
+#include "polygon3d.hpp"
 #include "vector3d.hpp"
+#include "wkt_parser.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -77,7 +79,7 @@ void example_2() {
     f.close();
   }
 
-  auto parser = g::LVSParser::Open(lsv_path);
+  auto parser = g::WktParser::Open(lsv_path);
 
   if (!parser.HasNext()) {
     GEOMPP_LOG(WARNING) << "no geometries found in file " << lsv_path;
@@ -92,8 +94,47 @@ void example_2() {
       continue;
     }
 
-    GEOMPP_LOG(INFO) << g::LVSParser::ToWkt(entry.value());
+    GEOMPP_LOG(INFO) << g::WktParser::ToWkt(entry.value());
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Example 3 — are_coplanar, closest_world_plane_to, are_ccw, Polygon3D holes
+// ─────────────────────────────────────────────────────────────────────────────
+void example_3() {
+  std::cout << "\n=== Example 3: coplanarity, winding order, polygon with holes ===\n";
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Four points on the XY plane
+  std::vector<g::Point3D> flat = {
+      {0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}};
+
+  // Same four but one point lifted off the plane
+  std::vector<g::Point3D> skew = {
+      {0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+
+  GEOMPP_LOG(INFO) << "flat coplanar: " << g::are_coplanar(flat);   // 1
+  GEOMPP_LOG(INFO) << "skew coplanar: " << g::are_coplanar(skew);   // 0
+
+  // Which world-axis plane is closest to the flat cloud?
+  auto plane = g::closest_world_plane_to(flat);
+  GEOMPP_LOG(INFO) << "closest plane normal: " << plane.normal().ToWkt();  // (0, 0, 1)
+
+  // Winding order of a CCW square on the XY plane
+  std::vector<g::Point3D> ring = {
+      {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
+  GEOMPP_LOG(INFO) << "ring is CCW: " << g::are_ccw(ring);   // 1
+  GEOMPP_LOG(INFO) << "ring is CW:  " << g::are_cw(ring);    // 0
+
+  // Build a Polygon3D with a rectangular hole (outer ring CCW, hole CW)
+  std::vector<g::Point3D> outer = {
+      {0, 0, 0}, {4, 0, 0}, {4, 4, 0}, {0, 4, 0}};
+  std::vector<g::Point3D> hole = {
+      {1, 3, 0}, {3, 3, 0}, {3, 1, 0}, {1, 1, 0}};
+
+  auto poly = g::Polygon3D::Make(outer, {hole});
+  GEOMPP_LOG(INFO) << "polygon: " << poly.ToWkt();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,6 +142,8 @@ int main() {
   example_1();
 
   example_2();
+
+  example_3();
 
   return 0;
 }

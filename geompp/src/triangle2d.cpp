@@ -59,11 +59,15 @@ Point2D Triangle2D::Centroid() const { return average({P0, P1, P2}); }
 
 Polygon2D Triangle2D::ToPolygon() const { return Polygon2D::Make({P0, P1, P2}); }
 
-double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
+double Triangle2D::SignedArea() const {
+  return ((P1 - P0).Cross(P2 - P0)) / 2.0;  // same as 1/2 perp-prod
+}
 
 double Triangle2D::Area() const { return std::abs(SignedArea()); }
 
 double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
+
+bool Triangle2D::IsCCW() const { return SignedArea() > 0; }
 
 double Triangle2D::DistanceTo(Point2D const& point) const {
   if (Contains(point)) {
@@ -85,8 +89,6 @@ std::optional<Point2D> Triangle2D::Interpolate(double s, double t) const {
   return linear_combination({P0, P1, P2}, {1 - s - t, s, t});
 }
 
-// #pragma endregion
-
 #pragma region Operator Overloading
 
 bool operator==(Triangle2D const& lhs, Triangle2D const& rhs) { return lhs.AlmostEquals(rhs); }
@@ -98,7 +100,7 @@ std::ostream& operator<<(std::ostream& os, Triangle2D const& g) {
 
 #pragma endregion
 
-// #pragma region Geometrical Operations
+#pragma region Geometrical Operations
 
 std::tuple<double, double> Triangle2D::Location(Point2D const& point) const {
   auto u = (P1 - P0);
@@ -121,14 +123,9 @@ bool Triangle2D::Contains(Point2D const& point) const {
 }
 
 bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
-
-// bool LineSegment2D::Intersects(Ray2D const& ray) const {
-//   return Intersection(ray).has_value();
-// }
-
-// bool LineSegment2D::Intersects(LineSegment2D const& other) const {
-//   return Intersection(other).has_value();
-// }
+bool Triangle2D::Intersects(Ray2D const& ray) const { return Intersection(ray).has_value(); }
+bool Triangle2D::Intersects(LineSegment2D const& segment) const { return Intersection(segment).has_value(); }
+bool Triangle2D::Intersects(Triangle2D const& other) const { throw std::runtime_error("not implemented"); }
 
 Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto points_view = std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
@@ -141,8 +138,8 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
 
   std::vector<Point2D> intersections(points_view.begin(), points_view.end());
 
-  // all points are the same as the triangle vertices, so we consider it as no intersection but something else (touch,
-  // tangency or overlap)
+  // all points are the same as the triangle vertices,
+  // so we consider it as no intersection but something else (touch, tangency or overlap)
   if (std::ranges::all_of(intersections, [&](Point2D const& p) { return p == P0 || p == P1 || p == P2; })) {
     return std::nullopt;
   }
@@ -165,69 +162,109 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   return LineSegment2D::Make(unique_points[0], unique_points[1]);
 }
 
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = ray.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - ray.Origin());
+Triangle2D::ReturnSet Triangle2D::Intersection(Ray2D const& ray) const {
+  auto line_result = Intersection(ray.ToLine());
 
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
+  if (!line_result.has_value()) {
+    return std::nullopt;
+  }
 
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s)) {
-//     return std::nullopt;
-//   }
+  // all points are the same as the triangle vertices,
+  // so we consider it as no intersection but something else (touch, tangency or overlap)
+  // --> already tested in line intersection, so we can skip it here
 
-//   return inter_t;
-// }
+  // case: 1 intersection, a point
+  if (std::holds_alternative<Point2D>(*line_result)) {
+    Point2D const& p = std::get<Point2D>(*line_result);
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    if (ray.IsAhead(p)) {
+      return p;
+    }
+    return std::nullopt;
+  }
 
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = (other.P1 - other.P0);
-//   auto vp = v.Perp();
-//   auto w = (P0 - other.P0);
+  // case 2: 2 intersections, a line segment
+  if (std::holds_alternative<LineSegment2D>(*line_result)) {
+    LineSegment2D const& seg = std::get<LineSegment2D>(*line_result);
+    auto line_points = std::vector<Point2D>{seg.First(), seg.Last()};
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    line_points.erase(
+        std::remove_if(line_points.begin(), line_points.end(), [&](Point2D const& p) { return !ray.IsAhead(p); }),
+        line_points.end());
 
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
+    if (line_points.empty()) {
+      return std::nullopt;
+    }
 
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s)) {
-//     return std::nullopt;
-//   }
+    // case 2.1: only 1 point is ahead of the ray, so we consider it as a point intersection
+    if (line_points.size() == 1) {
+      return line_points[0];
+    }
 
-//   return inter_t;
-// }
+    // case 2.2: both points are ahead of the ray, so we consider it as a line segment intersection (already sorted in
+    // the direction of the ray from Line::Intersection)
+    return seg;
+  }
 
-// #pragma endregion
+  // case 3: undefined
+  throw std::runtime_error("unexpected result from line intersection");
+}
 
-// #pragma region Formatting
+Triangle2D::ReturnSet Triangle2D::Intersection(LineSegment2D const& segment) const {
+  auto line_result = Intersection(segment.ToLine());
+
+  if (!line_result.has_value()) {
+    return std::nullopt;
+  }
+
+  // all points are the same as the triangle vertices,
+  // so we consider it as no intersection but something else (touch, tangency or overlap)
+  // --> already tested in line intersection, so we can skip it here
+
+  // case: 1 intersection, a point
+  if (std::holds_alternative<Point2D>(*line_result)) {
+    Point2D const& p = std::get<Point2D>(*line_result);
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    if (segment.Contains(p)) {
+      return p;
+    }
+    return std::nullopt;
+  }
+
+  // case 2: 2 intersections, a line segment
+  if (std::holds_alternative<LineSegment2D>(*line_result)) {
+    LineSegment2D const& seg = std::get<LineSegment2D>(*line_result);
+    auto line_points = std::vector<Point2D>{seg.First(), seg.Last()};
+    // giving for granted that the point IS on the ray, we only need to check if it's ahead of its origin
+    line_points.erase(
+        std::remove_if(line_points.begin(), line_points.end(), [&](Point2D const& p) { return !segment.Contains(p); }),
+        line_points.end());
+
+    if (line_points.empty()) {
+      return std::nullopt;
+    }
+
+    // case 2.1: only 1 point is ahead of the ray, so we consider it as a point intersection
+    if (line_points.size() == 1) {
+      return line_points[0];
+    }
+
+    // case 2.2: both points are ahead of the ray, so we consider it as a line segment intersection (already sorted in
+    // the direction of the ray from Line::Intersection)
+    return seg;
+  }
+
+  // case 3: undefined
+  throw std::runtime_error("unexpected result from line intersection");
+}
+
+Triangle2D::ReturnSet Triangle2D::Intersection(Triangle2D const& other) const {
+  throw std::runtime_error("not implemented");
+}
+
+#pragma endregion
+
+#pragma region Formatting
 
 std::string Triangle2D::ToWkt() const {
   // clang-format off
@@ -241,7 +278,7 @@ std::string Triangle2D::ToWkt() const {
 
 Triangle2D Triangle2D::FromWkt(std::string const& wkt) {
   try {
-    std::size_t end_gtype, end_pi, end_pn;
+    std::size_t end_gtype, end_pn;
 
     end_gtype = wkt.find('(');
     if (end_gtype == std::string::npos) {
@@ -253,34 +290,20 @@ Triangle2D Triangle2D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_pn = wkt.substr(end_gtype + 1).find(')');
+    end_pn = wkt.substr(end_gtype + 1).rfind(')');
     if (end_pn == std::string::npos) {
       throw std::runtime_error("brakets");
     }
 
-    std::string mid_part = wkt.substr(end_gtype + 1, wkt.size() - (end_gtype + 1 + 1));
+    std::string mid_part = wkt.substr(end_gtype + 1, end_pn);
 
     std::vector<Point2D> pt_vec;
-    int decimal_precision = 0;
-    int num_dec = 0;
-    std::string pt_trimmed;
     for (std::string const& p_str : geompp::tokenize_string(mid_part, ',')) {
-      pt_trimmed = geompp::trim(p_str);
-
+      std::string pt_trimmed = geompp::trim(p_str);
       auto nums = geompp::tokenize_to_doubles(pt_trimmed, ' ');
       if (nums.size() != 2) {
         throw std::runtime_error("numbers");
       }
-
-      num_dec = count_decimal_places(nums[0]);
-      if (num_dec > decimal_precision) {
-        decimal_precision = num_dec;
-      }
-      num_dec = count_decimal_places(nums[1]);
-      if (num_dec > decimal_precision) {
-        decimal_precision = num_dec;
-      }
-
       pt_vec.push_back({nums[0], nums[1]});
     }
 
@@ -349,6 +372,6 @@ Triangle2D Triangle2D::FromFile(std::string const& path) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-// #pragma endregion
+#pragma endregion
 
 }  // namespace geompp

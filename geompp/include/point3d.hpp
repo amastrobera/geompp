@@ -21,7 +21,7 @@ class Point3D {
   inline double y() const { return Y; }
   inline double z() const { return Z; }
 
-  Vector3D ToVector();
+  Vector3D ToVector() const;
   bool AlmostEquals(Point3D const& other, double epsilon = DOUBLE_EPSILON) const;
   double DistanceTo(Point3D const& other) const;
 

@@ -33,6 +33,7 @@ class Triangle2D {
   double SignedArea() const;    // if negative the order of points is clock-wise, otherwise it's counter-clockwise
   double Area() const;
   double Perimeter() const;
+  bool IsCCW() const;
   double DistanceTo(Point2D const& point) const;
   std::tuple<Vector2D, Vector2D> ToAxis()
       const;  // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
@@ -50,13 +51,14 @@ class Triangle2D {
   bool Contains(Point2D const& point) const;
   using ReturnSet = std::optional<std::variant<Point2D, LineSegment2D, Triangle2D, Polygon2D>>;
   bool Intersects(Line2D const& line) const;
-  // bool Intersects(Ray2D const& ray) const;
-  // bool Intersects(LineSegment2D const& segment) const;
-  // ReturnSet Intersects(Triangle2D const& other) const;
+  bool Intersects(Ray2D const& ray) const;
+  bool Intersects(LineSegment2D const& segment) const;
+  bool Intersects(Triangle2D const& other) const;
+
   ReturnSet Intersection(Line2D const& line) const;
-  // ReturnSet Intersection(Ray2D const& ray) const;
-  // ReturnSet Intersection(LineSegment2D const& other) const;
-  // ReturnSet Intersection(Triangle2D const& other) const;
+  ReturnSet Intersection(Ray2D const& ray) const;
+  ReturnSet Intersection(LineSegment2D const& segment) const;
+  ReturnSet Intersection(Triangle2D const& other) const;
 #pragma endregion
 
  private:

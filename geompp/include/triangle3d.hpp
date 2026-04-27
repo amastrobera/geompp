@@ -1,7 +1,10 @@
 #pragma once
 
 #include "constants.hpp"
+#include "line_segment3d.hpp"
+#include "plane.hpp"
 #include "point3d.hpp"
+#include "polygon3d.hpp"
 #include "vector3d.hpp"
 
 #include <optional>
@@ -13,10 +16,8 @@
 namespace geompp {
 
 class Line3D;
-// class Ray3D;
-// class LineSegment3D;
+class Ray3D;
 // class Polyline3D;
-// class Polygon3D;
 
 class Triangle3D {
  public:
@@ -29,11 +30,16 @@ class Triangle3D {
 
   bool AlmostEquals(Triangle3D const& other, double epsilon = DOUBLE_EPSILON) const;
   Point3D Centroid() const;
-  // Polygon3D ToPolygon() const;  // useful for ToWkt() polygon
-  double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
+  Polygon3D ToPolygon() const;  // useful for ToWkt() polygon
+  Plane ToPlane() const;
+  Vector3D AreaVector() const;
+  Vector3D Normal() const;
+  double SignedArea(Vector3D const& ref_normal)
+      const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
   double Area() const;
   double Perimeter() const;
   double DistanceTo(Point3D const& point) const;
+  bool IsCCW(Vector3D const& ref_normal) const;
   std::tuple<Vector3D, Vector3D> ToAxis()
       const;  // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
   std::tuple<double, double> Location(Point3D const& point) const;  // coordinates of axis U, and axis V
@@ -48,20 +54,16 @@ class Triangle3D {
 
 #pragma region Geometrical Operations
   bool Contains(Point3D const& point) const;
-  using ReturnSet = std::optional<std::variant<Point3D
-                                               //, LineSegment3D
-                                               ,
-                                               Triangle3D
-                                               //, Polygon3D
-                                               >>;
+  using ReturnSet = std::optional<std::variant<Point3D, LineSegment3D, Triangle3D, Polygon3D>>;
   bool Intersects(Line3D const& line) const;
-  // bool Intersects(Ray3D const& ray) const;
-  // bool Intersects(LineSegment3D const& segment) const;
-  // ReturnSet Intersects(Triangle3D const& other) const;
+  bool Intersects(Ray3D const& ray) const;
+  bool Intersects(LineSegment3D const& segment) const;
+  bool Intersects(Triangle3D const& other) const;
+
   ReturnSet Intersection(Line3D const& line) const;
-  // ReturnSet Intersection(Ray3D const& ray) const;
-  // ReturnSet Intersection(LineSegment3D const& other) const;
-  // ReturnSet Intersection(Triangle3D const& other) const;
+  ReturnSet Intersection(Ray3D const& ray) const;
+  ReturnSet Intersection(LineSegment3D const& segment) const;
+  ReturnSet Intersection(Triangle3D const& other) const;
 #pragma endregion
 
  private:

@@ -24,6 +24,6 @@ void bind_plane(py::module_& m) {
         .def("intersects",
              [](const geompp::Plane& pl, const geompp::Line3D& l) { return pl.Intersects(l); }, "line"_a)
         .def("intersection",
-             [](const geompp::Plane& pl, const geompp::Line3D& l) { return opt_variant_to_py(pl.Intersection(l)); }, "line"_a)
+             [](const geompp::Plane& pl, const geompp::Line3D& l) -> py::object { return opt_variant_to_py(pl.Intersection(l)); }, "line"_a)
         .def("__eq__", [](const geompp::Plane& a, const geompp::Plane& b) { return a == b; });
 }

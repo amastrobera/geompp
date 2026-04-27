@@ -28,6 +28,7 @@ public:
     Point2D^        Centroid();
     Polygon2D^      ToPolygon();
     double          SignedArea();
+    bool            IsCCW();
     double          Area();
     double          Perimeter();
     double          DistanceTo(Point2D^ point);

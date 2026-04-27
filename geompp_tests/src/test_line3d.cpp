@@ -28,14 +28,14 @@ class Line3DTest : public ::testing::Test {
 
 TEST_F(Line3DTest, MakeFromTwoPoints) {
   geompp::DECIMAL_PRECISION = 4;
-  auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
+  auto l = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
 
-  ASSERT_EQ(g::Point3D(0, 0, 0), l.Origin());
-  ASSERT_EQ(g::Point3D(0, 0, 0), l.First());
+  ASSERT_EQ(g::Point3D::Zero(), l.Origin());
+  ASSERT_EQ(g::Point3D::Zero(), l.First());
   ASSERT_EQ(g::Point3D(3, 0, 0), l.Last());
 
   // direction is normalised
-  ASSERT_EQ(g::Vector3D(1, 0, 0), l.Direction());
+  ASSERT_EQ(g::Vector3D::BasisX(), l.Direction());
 
   // coincident points throw
   EXPECT_ANY_THROW(g::Line3D::Make(g::Point3D(1, 2, 3), g::Point3D(1, 2, 3)));
@@ -47,27 +47,40 @@ TEST_F(Line3DTest, MakeFromPointAndVector) {
 
   ASSERT_EQ(g::Point3D(1, 2, 0), l.Origin());
   // direction is normalised
-  ASSERT_EQ(g::Vector3D(1, 0, 0), l.Direction());
+  ASSERT_EQ(g::Vector3D::BasisX(), l.Direction());
 
   // zero direction throws
-  EXPECT_ANY_THROW(g::Line3D::Make(g::Point3D(0, 0, 0), g::Vector3D(0, 0, 0)));
+  EXPECT_ANY_THROW(g::Line3D::Make(g::Point3D::Zero(), g::Vector3D(0, 0, 0)));
 }
 
 TEST_F(Line3DTest, AlmostEquals) {
   geompp::DECIMAL_PRECISION = 4;
-  auto l1 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
-  auto l2 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
-  auto l3 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(0, 1, 0));
+  auto l1 = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0));
+  auto l2 = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0));
+  auto l3 = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(0, 1, 0));
 
+  // identical construction
   ASSERT_EQ(l1, l2);
+  ASSERT_EQ(l1, l1);
+
+  // different direction: not equal
   ASSERT_NE(l1, l3);
 
-  // self-equality
-  ASSERT_EQ(l1, l1);
+  // same infinite line, different origin — geometrically equal
+  auto l4 = g::Line3D::Make(g::Point3D(5, 0, 0), g::Point3D(8, 0, 0));
+  ASSERT_EQ(l1, l4);
+
+  // same infinite line, reversed direction — geometrically equal
+  auto l5 = g::Line3D::Make(g::Point3D(1, 0, 0), g::Point3D::Zero());
+  ASSERT_EQ(l1, l5);
+
+  // parallel but offset — NOT equal
+  auto l6 = g::Line3D::Make(g::Point3D(0, 1, 0), g::Point3D(5, 1, 0));
+  ASSERT_NE(l1, l6);
 }
 
 TEST_F(Line3DTest, Assignment) {
-  auto l1 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
+  auto l1 = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(5, 0, 0));
   auto l2 = g::Line3D::Make(g::Point3D(1, 2, 0), g::Point3D(3, 4, 0));
 
   l2 = l1;
@@ -75,13 +88,13 @@ TEST_F(Line3DTest, Assignment) {
 
   // self-assignment
   l1 = l1;
-  ASSERT_EQ(g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0)), l1);
+  ASSERT_EQ(g::Line3D::Make(g::Point3D::Zero(), g::Point3D(5, 0, 0)), l1);
 }
 
 TEST_F(Line3DTest, ProjectOnto) {
   geompp::DECIMAL_PRECISION = 4;
   // horizontal line along X-axis
-  auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
+  auto l = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(5, 0, 0));
 
   // projection of off-axis point lands on the line
   auto proj = l.ProjectOnto(g::Point3D(3, 5, 0));
@@ -94,7 +107,7 @@ TEST_F(Line3DTest, ProjectOnto) {
   ASSERT_EQ(g::Point3D(-2, 0, 0), l.ProjectOnto(g::Point3D(-2, 3, 0)));
 
   // diagonal line: y = x in XY plane
-  auto ld = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0));
+  auto ld = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 1, 0));
   geompp::DECIMAL_PRECISION = 3;
   auto proj_d = ld.ProjectOnto(g::Point3D(1, 0, 0));
   // (1,0,0) projects onto (0.5, 0.5, 0) on y=x line
@@ -104,10 +117,10 @@ TEST_F(Line3DTest, ProjectOnto) {
 
 TEST_F(Line3DTest, Location) {
   geompp::DECIMAL_PRECISION = 4;
-  auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
+  auto l = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(5, 0, 0));
 
   // at origin: location 0
-  ASSERT_EQ(0.0, l.Location(g::Point3D(0, 0, 0)));
+  ASSERT_EQ(0.0, l.Location(g::Point3D::Zero()));
 
   // at P1: location == distance(P0, P1)
   ASSERT_EQ(5.0, l.Location(g::Point3D(5, 0, 0)));
@@ -121,7 +134,7 @@ TEST_F(Line3DTest, Location) {
 
 TEST_F(Line3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
-  auto l = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(3, 0, 0));
+  auto l = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
   ASSERT_EQ("LINE (0 0 0, 3 0 0)", l.ToWkt());
 
   geompp::DECIMAL_PRECISION = 2;
@@ -168,13 +181,33 @@ TEST_F(Line3DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "from file = " << l.ToWkt();
 }
 
+TEST_F(Line3DTest, DistanceTo) {
+  geompp::DECIMAL_PRECISION = 4;
+  // horizontal line along X-axis
+  auto line = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(5, 0, 0));
+
+  // on the line: distance = 0
+  ASSERT_EQ(0.0, g::round(line.DistanceTo(g::Point3D::Zero())));
+  ASSERT_EQ(0.0, g::round(line.DistanceTo(g::Point3D(3, 0, 0))));
+  ASSERT_EQ(0.0, g::round(line.DistanceTo(g::Point3D(-2, 0, 0))));  // behind origin, still on line
+
+  // perpendicular offset in Y
+  ASSERT_EQ(3.0, g::round(line.DistanceTo(g::Point3D(2, 3, 0))));
+
+  // perpendicular offset in Z
+  ASSERT_EQ(4.0, g::round(line.DistanceTo(g::Point3D(1, 0, 4))));
+
+  // offset in both Y and Z: 3-4-5 triple
+  ASSERT_EQ(5.0, g::round(line.DistanceTo(g::Point3D(0, 3, 4))));
+}
+
 TEST_F(Line3DTest, IntersectionWithLine3D) {
   geompp::DECIMAL_PRECISION = 4;
   // X-axis and vertical line through (3, 3, 0):
   // expected intersection at (3, 0, 0) — but the 3D intersection algorithm
   // inherits 2D Perp logic, so we only test the result value here.
-  auto x_axis = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
-  auto y_axis = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(0, 1, 0));
+  auto x_axis = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0));
+  auto y_axis = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(0, 1, 0));
 
   // parallel lines (same direction) should not intersect
   auto l_parallel = g::Line3D::Make(g::Point3D(0, 2, 0), g::Point3D(1, 2, 0));

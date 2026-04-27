@@ -20,6 +20,8 @@
   [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](./geompp_python/README.md)
   [![C# .NET](https://img.shields.io/badge/C%23_.NET-512BD4?logo=dotnet&logoColor=white)](./geompp_csharp/README.md)
 
+  
+  ![geometry picture 3d](etc/intersections_projections_3d.png)
 
   ## What it provides
 
@@ -122,7 +124,7 @@
 
   g::DECIMAL_PRECISION = g::DP_THREE;
 
-  auto parser = g::LVSParser::Open(lsv_path);
+  auto parser = g::WktParser::Open(lsv_path);
   if (!parser.HasNext()) {
     GEOMPP_LOG(WARNING) << "no geometries found in file " << lsv_path;
     return;
@@ -136,11 +138,48 @@
       continue;
     }
 
-    GEOMPP_LOG(INFO) << g::LVSParser::ToWkt(entry.value());
+    GEOMPP_LOG(INFO) << g::WktParser::ToWkt(entry.value());
   }
   ```
 
   will print out exactly the list of geometries above.
+
+
+  #### Check coplanarity, winding order, and build a polygon with holes
+  ```cpp
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Four points on the XY plane vs. a set that spans 3D space
+  std::vector<g::Point3D> flat = {{0,0,0}, {1,0,0}, {0,1,0}, {1,1,0}};
+  std::vector<g::Point3D> skew = {{0,0,0}, {1,0,0}, {0,1,0}, {0,0,1}};
+
+  GEOMPP_LOG(INFO) << "flat coplanar: " << g::are_coplanar(flat);  // 1
+  GEOMPP_LOG(INFO) << "skew coplanar: " << g::are_coplanar(skew);  // 0
+
+  // Which world-axis plane is closest to the cloud?
+  auto plane = g::closest_world_plane_to(flat);
+  GEOMPP_LOG(INFO) << "closest plane normal: " << plane.normal().ToWkt();  // (0, 0, 1)
+
+  // Winding check
+  std::vector<g::Point3D> ring = {{0,0,0}, {1,0,0}, {1,1,0}, {0,1,0}};
+  GEOMPP_LOG(INFO) << "ring CCW: " << g::are_ccw(ring);  // 1
+
+  // Polygon3D with a rectangular hole (outer CCW, hole CW)
+  std::vector<g::Point3D> outer = {{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
+  std::vector<g::Point3D> hole  = {{1,3,0}, {3,3,0}, {3,1,0}, {1,1,0}};
+  auto poly = g::Polygon3D::Make(outer, {hole});
+  GEOMPP_LOG(INFO) << poly.ToWkt();
+  ```
+
+  will print out
+
+  ```bash
+  I20260403] flat coplanar: 1
+  I20260403] skew coplanar: 0
+  I20260403] closest plane normal: VECTOR (0 0 1)
+  I20260403] ring CCW: 1
+  I20260403] POLYGON ((0 0 0, 4 0 0, 4 4 0, 0 4 0, 0 0 0), (1 3 0, 3 3 0, 3 1 0, 1 1 0, 1 3 0))
+  ```
 
 
   ## geom_viewer — interactive geometry visualizer (WIP)
@@ -170,8 +209,9 @@
   | Status | Area |
   |--------|------|
   | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md) |
-  | Next | Docker (Windows), geom_viewer camera/input/delete |
-  | Backlog | Polygon ops, convex hull, overlap/adjacency, 3D polygon & mesh, polygon clipping |
+  | **In progress** | Test coverage push (target ≥ 70% per class); `GeometryCollection2D/3D` bindings + serialization; `WktParser` (renamed from `LVSParser`) `get()` + `to_wkt()` in Python; `Polygon2D/3D` holes support with CCW/CW validation; winding-order helpers (`are_ccw`, `are_cw`, `are_coplanar`) |
+  | Next | `Polygon2D/3D::FromWkt()` roundtrip fix; `GeometryCollection` C# bindings; Docker (Windows); geom_viewer camera/input/delete |
+  | Backlog | Polygon ops, convex hull, overlap/adjacency, polygon clipping |
 
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).
@@ -248,9 +288,11 @@
 
   # from the main directory, geompp
   cmake --build build_win --target geompp_tests [--config Release]
-  .\build_win\geompp_tests\Debug[|Release]\geompp_tests.exe [--gtest_filter="Point2D*"]
+  .\build_win\geompp_tests\Debug\geompp_tests.exe [--gtest_filter="Point2D*"]
+  [.\build_win\geompp_tests\Release\geompp_tests.exe [--gtest_filter="Point2D*"] ]
   # alternatively
-  ctest --test-dir build_win/geompp_tests --build-config Debug [|Release]
+  ctest --test-dir build_win/geompp_tests --build-config Debug
+  [ctest --test-dir build_win/geompp_tests --build-config Release]
 
   # smoke tests on python bindings 
   pip install pytest # useful only the first time

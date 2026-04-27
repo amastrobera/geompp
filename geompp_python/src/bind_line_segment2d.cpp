@@ -22,10 +22,10 @@ void bind_line_segment2d(py::module_& m) {
         .def("intersects",
              [](const geompp::LineSegment2D& s, const geompp::LineSegment2D& o) { return s.Intersects(o); }, "segment"_a)
         .def("intersection",
-             [](const geompp::LineSegment2D& s, const geompp::Line2D& l)        { return opt_variant_to_py(s.Intersection(l)); }, "line"_a)
+             [](const geompp::LineSegment2D& s, const geompp::Line2D& l)        -> py::object { return opt_variant_to_py(s.Intersection(l)); }, "line"_a)
         .def("intersection",
-             [](const geompp::LineSegment2D& s, const geompp::Ray2D& r)         { return opt_variant_to_py(s.Intersection(r)); }, "ray"_a)
+             [](const geompp::LineSegment2D& s, const geompp::Ray2D& r)         -> py::object { return opt_variant_to_py(s.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::LineSegment2D& s, const geompp::LineSegment2D& o) { return opt_variant_to_py(s.Intersection(o)); }, "segment"_a)
+             [](const geompp::LineSegment2D& s, const geompp::LineSegment2D& o) -> py::object { return opt_variant_to_py(s.Intersection(o)); }, "segment"_a)
         .def("__eq__", [](const geompp::LineSegment2D& a, const geompp::LineSegment2D& b) { return a == b; });
 }

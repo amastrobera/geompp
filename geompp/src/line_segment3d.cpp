@@ -36,7 +36,10 @@ LineSegment3D& LineSegment3D::operator=(LineSegment3D const& other) {
 double LineSegment3D::Length() const { return (P1 - P0).Length(); }
 
 bool LineSegment3D::AlmostEquals(LineSegment3D const& other, double epsilon) const {
-  return P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon);
+  return (P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon))  // forward
+         ||                                                                          //
+         (P0.AlmostEquals(other.P1, epsilon) && P1.AlmostEquals(other.P0, epsilon))  // backward
+      ;  // no heading check (needed for edges in a mesh though)
 }
 
 Line3D LineSegment3D::ToLine() const { return Line3D::Make(P0, P1); }

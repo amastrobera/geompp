@@ -18,8 +18,8 @@ class BBox2DTest : public ::testing::Test {
 };
 
 TEST_F(BBox2DTest, Constructor) {
-  auto bb = g::BBox2D(g::Point2D(0, 0), g::Point2D(3, 4));
-  ASSERT_EQ(g::Point2D(0, 0), bb.min());
+  auto bb = g::BBox2D(g::Point2D::Zero(), g::Point2D(3, 4));
+  ASSERT_EQ(g::Point2D::Zero(), bb.min());
   ASSERT_EQ(g::Point2D(3, 4), bb.max());
 }
 
@@ -38,8 +38,8 @@ TEST_F(BBox2DTest, ConstructorFromTriangle) {
 }
 
 TEST_F(BBox2DTest, AlmostEquals) {
-  auto bb1 = g::BBox2D(g::Point2D(0, 0), g::Point2D(3, 4));
-  auto bb2 = g::BBox2D(g::Point2D(0, 0), g::Point2D(3, 4));
+  auto bb1 = g::BBox2D(g::Point2D::Zero(), g::Point2D(3, 4));
+  auto bb2 = g::BBox2D(g::Point2D::Zero(), g::Point2D(3, 4));
   auto bb3 = g::BBox2D(g::Point2D(1, 1), g::Point2D(5, 6));
 
   ASSERT_TRUE(bb1.AlmostEquals(bb2));
@@ -49,20 +49,20 @@ TEST_F(BBox2DTest, AlmostEquals) {
 }
 
 TEST_F(BBox2DTest, Assignment) {
-  auto bb1 = g::BBox2D(g::Point2D(0, 0), g::Point2D(3, 4));
+  auto bb1 = g::BBox2D(g::Point2D::Zero(), g::Point2D(3, 4));
   auto bb2 = g::BBox2D(g::Point2D(1, 1), g::Point2D(5, 6));
   bb2 = bb1;
   ASSERT_EQ(bb1, bb2);
   bb1 = bb1;
-  ASSERT_EQ(g::BBox2D(g::Point2D(0, 0), g::Point2D(3, 4)), bb1);
+  ASSERT_EQ(g::BBox2D(g::Point2D::Zero(), g::Point2D(3, 4)), bb1);
 }
 
 TEST_F(BBox2DTest, Contains) {
   geompp::DECIMAL_PRECISION = 4;
-  auto bb = g::BBox2D(g::Point2D(0, 0), g::Point2D(3, 4));
+  auto bb = g::BBox2D(g::Point2D::Zero(), g::Point2D(3, 4));
 
   // corners
-  ASSERT_TRUE(bb.Contains(g::Point2D(0, 0)));
+  ASSERT_TRUE(bb.Contains(g::Point2D::Zero()));
   ASSERT_TRUE(bb.Contains(g::Point2D(3, 0)));
   ASSERT_TRUE(bb.Contains(g::Point2D(3, 4)));
   ASSERT_TRUE(bb.Contains(g::Point2D(0, 4)));

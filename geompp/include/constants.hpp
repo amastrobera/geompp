@@ -21,6 +21,17 @@ struct DynamicEpsilon {
   operator double() const { return pow(10.0, -DECIMAL_PRECISION); }
 };
 
+enum class GeometryType {
+  Point,
+  Line,
+  Ray,
+  LineSegment,
+  Polyline,
+  Triangle,
+  Polygon,
+  GeometryCollection
+};  // update as needed
+
 #ifdef GEOMPP_NO_THREAD_LOCAL
 extern DynamicEpsilon DOUBLE_EPSILON;
 #else

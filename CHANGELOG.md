@@ -11,6 +11,134 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.4.0] - 2026-04-25
+
+> C++ library — tagged `v0.4.0` · C# / NuGet — tagged `csharp-v0.4.0` · Python / PyPI — tagged `python-v0.4.0`
+
+### Changed
+
+**All packages**
+- `LVSParser` renamed to `WktParser` everywhere: C++ class, header (`wkt_parser.hpp`), source (`wkt_parser.cpp`), C# wrapper (`WktParser.hpp/.cpp`), Python binding (`bind_wktparser.cpp`, exposed as `geompp.WktParser`), all CMakeLists, vcxproj files, tests, and documentation. The old name is gone entirely — update any call sites.
+
+### Added
+
+**C++ core**
+- `GeometryCollection2D` / `GeometryCollection3D`: heterogeneous container holding any mix of 2D (or 3D) primitives. Supports `Add()`, `Get(index)`, `Size()`, `ToWkt()`, `FromWkt()`, `ToFile()`, `FromFile()`, `AlmostEquals()`, and `operator==`.
+- `Polygon2D::Make(points, holes)`: new overload that accepts an outer ring and a list of hole rings. Validates that the outer ring is CCW and each hole is CW; throws on violation.
+- `Polygon3D::Make(points, holes)`: same, additionally validates that outer ring and all hole rings are coplanar.
+- `are_ccw(points)` / `are_cw(points)` (2D, declared in `point2d.hpp`): free functions returning `true` when the ordered point list has the specified winding.
+- `are_coplanar(points)` / `are_ccw(points)` / `are_cw(points)` (3D, declared in `plane.hpp`): 3D winding and coplanarity checks on point lists.
+- `WktParser::FromWkt(wkt)`: static method — parse any WKT string into a `ReturnSet` (already existed as `Get()`, renamed to `FromWkt()` for consistency with the serialization API).
+- `WktParser::ToWkt(shape)`: static method — serialize a `ReturnSet` back to its WKT string; throws on `nullopt`.
+
+**C# / NuGet**
+- `Polygon2D.Make(array<Point2D^>^ points, array<array<Point2D^>^>^ holes)` exposed.
+- `Polygon3D.Make(array<Point3D^>^ points, array<array<Point3D^>^>^ holes)` exposed.
+
+**Python / PyPI**
+- `GeometryCollection2D` and `GeometryCollection3D` exposed with full `add()`, `get()`, `size()`, WKT, file I/O, and equality support.
+- `Polygon2D.make(points)` and `Polygon2D.make(points, holes)` exposed.
+- `Polygon3D.make(points)` and `Polygon3D.make(points, holes)` exposed.
+- `are_ccw(points)` / `are_cw(points)` exposed for `list[Point2D]`.
+- `are_coplanar(points)` / `are_ccw(points)` / `are_cw(points)` exposed for `list[Point3D]`.
+- `WktParser.from_wkt(wkt)` — parse a WKT string; returns a geometry object or `None`.
+- `WktParser.to_wkt(shape)` — serialize any geometry object to its WKT string; raises on `None` or unsupported type.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_polygon2d.cpp`: added `WktWithHoles`, `WithHoles_Valid`, `WithHoles_PerimeterCW_Throws`, `WithHoles_HoleCCW_Throws`, `WithHoles_HoleTooFewPoints_Throws`.
+- `test_polygon3d.cpp`: added same suite plus `WithHoles_NonCoplanar_Throws`.
+- `test_utils.cpp`: added `AreCCW_2D`, `AreCoplanar_3D`, `AreCCW_3D`.
+- `test_wkt_parser.cpp` (renamed from `test_lsv_parser.cpp`): existing `FromFile` test retained.
+
+**Python (`geompp_python/tests`)**
+- `TestWktParser` (renamed from `TestLVSParser`): added `test_get_returns_geometry`, `test_get_returns_none_on_unknown`, `test_to_wkt_point2d`, `test_to_wkt_linesegment2d`, `test_to_wkt_point3d`, `test_to_wkt_none_raises`, `test_to_wkt_roundtrip`, `test_to_wkt_unsupported_type_raises`.
+- `TestPolygon2D`: added holes construction, CCW-outer throw, CW-hole throw, and too-few-points throw cases.
+- `TestPolygon3D`: added same suite plus non-coplanar throw.
+- `TestFreeFunctions`: added `are_ccw`/`are_cw` (2D), `are_coplanar`/`are_ccw`/`are_cw` (3D).
+
+---
+
+## [0.3.0] - 2026-04-24
+
+> C++ library — tagged `v0.3.0`
+
+### Changed
+
+**C++ core**
+- `Line2D::AlmostEquals` / `operator==`: now geometric equality — two lines are equal if they lie on the same infinite line (parallel directions, collinear origins). The old P0/P1 coordinate comparison is replaced. Anti-parallel lines on the same infinite line are equal; parallel but offset lines are not. **Breaking for callers that relied on the old point-coordinate comparison.**
+- `Line3D::AlmostEquals` / `operator==`: same geometric-equality change.
+- `LineSegment2D::AlmostEquals` / `operator==`: now order-agnostic — `Make(A, B) == Make(B, A)`. **Breaking for callers that relied on direction-sensitive equality.**
+- `LineSegment3D::AlmostEquals` / `operator==`: same order-agnostic change.
+
+### Fixed
+
+**C++ core**
+- `Ray2D::Contains`: replaced ad-hoc cross-product collinearity check with `ToLine().Contains(point) && IsAhead(point)` for consistency with `Line2D::Contains`.
+- `Triangle2D::Intersects(Triangle2D const&)`: corrected return type from `ReturnSet` to `bool`, matching the pattern of all other `Intersects` overloads.
+- `Triangle3D::Intersects(Triangle3D const&)`: same return-type correction.
+
+### Added
+
+**C++ core**
+- `Triangle2D::Intersection(Ray2D const&)`: implemented. Returns a `Point2D` if the ray clips one edge, a `LineSegment2D` if it crosses two edges, or `nullopt` if it misses or is entirely behind the triangle.
+- `Triangle2D::Intersection(LineSegment2D const&)`: implemented. Returns a `Point2D` if the segment crosses one boundary edge, a `LineSegment2D` if it crosses two, or `nullopt` if entirely outside or entirely inside.
+- `Triangle2D::Intersects(Ray2D const&)` and `Triangle2D::Intersects(LineSegment2D const&)`: now delegate to the corresponding `Intersection` overloads (were stubs that threw).
+
+### Tests
+- `test_line2d.cpp`: added `Location`, `ProjectOnto`, `AlmostEquals` (geometric-equality and epsilon cases).
+- `test_line3d.cpp`: extended `AlmostEquals` with same-infinite-line and reversed-direction cases; added `DistanceTo`.
+- `test_line_segment2d.cpp`: added `AlmostEquals` including reversed-segment equality.
+- `test_line_segment3d.cpp`: extended `AlmostEquals` with reversed-segment case.
+- `test_ray3d.cpp`: added `DistanceTo`, `IntersectionWithRay3D`.
+- `test_polyline3d.cpp`: added `Location`.
+- `test_triangle2d.cpp`: added `IntersectionWRay` and `IntersectionWSegment`.
+
+---
+
+## [0.2.0] - 2026-04-24
+
+> C++ library — tagged `v0.2.0` · C# / NuGet — tagged `csharp-v0.2.0` · Python / PyPI — tagged `python-v0.2.0`
+
+### Changed
+
+**C++ core**
+- `Triangle3D::SignedArea(Vector3D const& ref_normal)`: signature changed — now requires an explicit reference normal. Result is `ref_normal.Dot(AreaVector())`; sign depends on which side of the plane `ref_normal` points to. Existing no-argument callers must be updated.
+- `Triangle3D::IsCCW(Vector3D const& ref_normal)`: same — now requires explicit reference normal.
+
+**C# / NuGet**
+- `Triangle3D.SignedArea(Vector3D^ refNormal)` and `Triangle3D.IsCCW(Vector3D^ refNormal)`: updated to match new C++ signatures.
+
+**Python / PyPI**
+- `Triangle3D.signed_area(ref_normal)` and `Triangle3D.is_ccw(ref_normal)`: updated to match new C++ signatures.
+
+### Added
+
+**C++ core**
+- `Triangle2D::IsCCW()`: returns `true` if winding is counter-clockwise (`SignedArea() > 0`).
+- `Triangle3D::Normal()`: returns the unit normal vector (`AreaVector().Normalize()`).
+- `Triangle3D::ToPolygon()`: converts the triangle to a `Polygon3D` with the same three vertices.
+
+**C# / NuGet**
+- `Triangle2D.IsCCW()`, `Triangle3D.Normal()`, `Triangle3D.ToPolygon()` newly exposed.
+
+**Python / PyPI**
+- `Triangle2D.is_ccw()`, `Triangle3D.normal()`, `Triangle3D.to_polygon()` newly exposed.
+
+### Fixed
+
+**C++ core**
+- `triangle3d.hpp`: typo `book IsCCW()` corrected to `bool IsCCW()` — function was syntactically invalid before this fix.
+- `test_plane.cpp`: `Plane::AlmostEquals` was already implemented but the test was a stale placeholder expecting a throw; replaced with real assertions.
+
+### Tests
+- `test_plane.cpp`: added `AlmostEquals` cases — equal planes, distinct planes, anti-parallel normals at same offset, different offsets.
+- `test_triangle3d.cpp`: added `ToPolygon`, `Normal`, `IsCCW`; updated `SignedArea` to pass `ref_normal`.
+- `test_triangle2d.cpp`: added `IsCCW`.
+
+---
+
 ## [0.1.3] - 2026-04-13
 
 > C++ library — tagged `v0.1.3`

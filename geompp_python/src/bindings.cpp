@@ -22,8 +22,10 @@ void bind_triangle3d(py::module_& m);
 void bind_bbox2d(py::module_& m);
 void bind_bbox3d(py::module_& m);
 void bind_plane(py::module_& m);
-void bind_lvsparser(py::module_& m);
+void bind_wktparser(py::module_& m);
 void bind_free_functions(py::module_& m);
+void bind_geometry_collection2d(py::module_& m);
+void bind_geometry_collection3d(py::module_& m);
 
 PYBIND11_MODULE(_geompp, m) {
     m.doc() = "geompp: C++ 2D/3D geometry library — Python bindings";
@@ -48,6 +50,8 @@ PYBIND11_MODULE(_geompp, m) {
     bind_bbox2d(m);
     bind_bbox3d(m);
     bind_plane(m);
-    bind_lvsparser(m);
+    bind_wktparser(m);
     bind_free_functions(m);
+    bind_geometry_collection2d(m);
+    bind_geometry_collection3d(m);
 }

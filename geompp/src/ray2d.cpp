@@ -60,9 +60,7 @@ std::ostream& operator<<(std::ostream& os, Ray2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Ray2D::Contains(Point2D const& point) const {
-  return compare((point - ORIGIN).Cross(DIR), 0) == 0 && IsAhead(point);
-}
+bool Ray2D::Contains(Point2D const& point) const { return ToLine().Contains(point) && IsAhead(point); }
 
 bool Ray2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 

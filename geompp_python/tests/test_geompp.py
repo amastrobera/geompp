@@ -337,29 +337,58 @@ class TestRay3D:
 class TestPolygon2D:
     @pytest.fixture
     def square(self):
-        # Polygon2D requires a closed ring (first == last) for valid WKT output
         pts = [
             geompp.Point2D(0, 0), geompp.Point2D(1, 0),
             geompp.Point2D(1, 1), geompp.Point2D(0, 1),
-            geompp.Point2D(0, 0),
         ]
         return geompp.Polygon2D.make(pts)
 
     def test_size(self, square):
-        assert len(square) == 5
+        assert len(square) == 4
 
     def test_getitem(self, square):
         assert approx(square[0].x, 0) and approx(square[0].y, 0)
-        assert approx(square[3].x, 0) and approx(square[3].y, 1)  # (0,1) before closing point
+        assert approx(square[3].x, 0) and approx(square[3].y, 1)
 
     def test_iteration(self, square):
         pts = list(square)
-        assert len(pts) == 5  # 4 corners + closing point
+        assert len(pts) == 4
         assert all(isinstance(p, geompp.Point2D) for p in pts)
 
     def test_index_error(self, square):
         with pytest.raises(IndexError):
             _ = square[10]
+
+    def test_cw_outer_throws(self):
+        with pytest.raises(Exception):
+            geompp.Polygon2D.make([
+                geompp.Point2D(0, 0), geompp.Point2D(0, 4),
+                geompp.Point2D(4, 4), geompp.Point2D(4, 0),
+            ])
+
+    def test_with_holes_valid(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+            geompp.Point2D(3, 3), geompp.Point2D(3, 1),
+        ]
+        p = geompp.Polygon2D.make(outer, [hole])
+        assert len(p) == 4
+
+    def test_with_holes_ccw_hole_throws(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        ccw_hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(3, 1),
+            geompp.Point2D(3, 3), geompp.Point2D(1, 3),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon2D.make(outer, [ccw_hole])
 
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
@@ -368,10 +397,41 @@ class TestPolygon3D:
     def test_construction(self):
         pts = [
             geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
-            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
         ]
         p = geompp.Polygon3D.make(pts)
         assert len(p) == 4
+
+    def test_cw_outer_throws(self):
+        with pytest.raises(Exception):
+            geompp.Polygon3D.make([
+                geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+                geompp.Point3D(4, 4, 0), geompp.Point3D(4, 0, 0),
+            ])
+
+    def test_with_holes_valid(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        p = geompp.Polygon3D.make(outer, [hole])
+        assert len(p) == 4
+
+    def test_with_holes_ccw_hole_throws(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        ccw_hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(3, 1, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(1, 3, 0),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon3D.make(outer, [ccw_hole])
 
 
 # ─── Polyline2D ──────────────────────────────────────────────────────────────
@@ -458,6 +518,21 @@ class TestTriangle2D:
         hit = tri.intersection(l)
         assert hit is not None
 
+    def test_is_ccw(self, tri):
+        # fixture is CCW → IsCCW True and SignedArea positive
+        assert tri.is_ccw()
+        assert tri.signed_area() > 0
+
+        # reversed winding → CW
+        v0, v1, v2 = tri.vertices
+        t_cw = geompp.Triangle2D.make(v0, v2, v1)
+        assert not t_cw.is_ccw()
+        assert t_cw.signed_area() < 0
+
+        # invariant: is_ccw() == (signed_area() > 0)
+        assert tri.is_ccw() == (tri.signed_area() > 0)
+        assert t_cw.is_ccw() == (t_cw.signed_area() > 0)
+
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle2D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
@@ -480,10 +555,49 @@ class TestTriangle3D:
         c = tri.centroid()
         assert isinstance(c, geompp.Point3D)
 
-    def test_area_raises(self, tri):
-        # Triangle3D::Area() is deliberately not implemented in C++ source
-        with pytest.raises(Exception):
-            tri.area()
+    def test_area(self, tri):
+        # Right triangle with legs 1, 1 → area = 0.5
+        assert approx(tri.area(), 0.5)
+
+    def test_signed_area(self, tri):
+        ref = geompp.Vector3D(0, 0, 1)
+        # CCW winding in XY plane → positive signed area
+        assert tri.signed_area(ref) > 0
+        v0, v1, v2 = tri.vertices
+        t_cw = geompp.Triangle3D.make(v0, v2, v1)
+        assert t_cw.signed_area(ref) < 0
+        # flipping ref reverses the sign
+        assert tri.signed_area(geompp.Vector3D(0, 0, -1)) < 0
+
+    def test_area_vector(self, tri):
+        av = tri.area_vector()
+        assert isinstance(av, geompp.Vector3D)
+        assert approx(av.z, 0.5)
+        assert approx(tri.area(), av.length())
+
+    def test_to_plane(self, tri):
+        pl = tri.to_plane()
+        assert isinstance(pl, geompp.Plane)
+        assert approx(abs(pl.normal.z), 1.0)
+
+    def test_is_ccw(self, tri):
+        ref = geompp.Vector3D(0, 0, 1)
+        # fixture is CCW in XY plane → IsCCW True and SignedArea positive
+        assert tri.is_ccw(ref)
+        assert tri.signed_area(ref) > 0
+
+        # reversed winding → CW
+        v0, v1, v2 = tri.vertices
+        t_cw = geompp.Triangle3D.make(v0, v2, v1)
+        assert not t_cw.is_ccw(ref)
+        assert t_cw.signed_area(ref) < 0
+
+        # invariant: is_ccw(ref) == (signed_area(ref) > 0)
+        assert tri.is_ccw(ref) == (tri.signed_area(ref) > 0)
+        assert t_cw.is_ccw(ref) == (t_cw.signed_area(ref) > 0)
+
+        # flipping ref flips the result
+        assert not tri.is_ccw(geompp.Vector3D(0, 0, -1))
 
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle3D.from_wkt(tri.to_wkt())
@@ -534,10 +648,8 @@ class TestBBox3D:
         assert approx(bb.max.x, 3) and approx(bb.max.y, 5) and approx(bb.max.z, 4)
 
     def test_from_polygon(self):
-        pts = [
-            geompp.Point3D(0, 0, 1), geompp.Point3D(4, 0, 1),
-            geompp.Point3D(4, 3, 5), geompp.Point3D(0, 0, 1),
-        ]
+        # ZX projection: reversed order so the triangle is CCW
+        pts = [geompp.Point3D(4, 3, 5), geompp.Point3D(4, 0, 1), geompp.Point3D(0, 0, 1)]
         bb = geompp.BBox3D(geompp.Polygon3D.make(pts))
         assert approx(bb.min.x, 0) and approx(bb.min.z, 1)
         assert approx(bb.max.x, 4) and approx(bb.max.z, 5)
@@ -606,9 +718,9 @@ class TestPlane:
         assert approx(hit.z, 0)
 
 
-# ─── LVSParser ───────────────────────────────────────────────────────────────
+# ─── WktParser ───────────────────────────────────────────────────────────────
 
-class TestLVSParser:
+class TestWktParser:
     def _make_lsv_file(self, lines):
         f = tempfile.NamedTemporaryFile(mode="w", suffix=".lsv", delete=False)
         f.write("\n".join(lines) + "\n")
@@ -621,7 +733,7 @@ class TestLVSParser:
             "POINT (3 4)",
         ])
         try:
-            parser = geompp.LVSParser.open(path)
+            parser = geompp.WktParser.open(path)
             results = []
             while parser.has_next():
                 item = parser.next()
@@ -637,20 +749,46 @@ class TestLVSParser:
     def test_context_manager(self):
         path = self._make_lsv_file(["POINT (0 0)"])
         try:
-            with geompp.LVSParser.open(path) as parser:
+            with geompp.WktParser.open(path) as parser:
                 item = parser.next()
                 assert item is not None
             del parser  # force C++ destructor so the file handle is released on Windows
         finally:
             os.unlink(path)
 
-    def test_to_wkt_static(self):
-        p = geompp.Point2D(1, 2)
-        wkt = geompp.LVSParser.to_wkt(p)
-        assert "POINT" in wkt
+    def test_get_returns_geometry(self):
+        result = geompp.WktParser.from_wkt("POINT (1 2)")
+        assert isinstance(result, geompp.Point2D)
+        assert approx(result.x, 1) and approx(result.y, 2)
 
-    def test_to_wkt_none(self):
-        assert "EMPTY" in geompp.LVSParser.to_wkt(None)
+    def test_get_returns_none_on_unknown(self):
+        result = geompp.WktParser.from_wkt("BOGUS (1 2)")
+        assert result is None
+
+    def test_to_wkt_point2d(self):
+        p = geompp.Point2D(1.0, 2.0)
+        assert geompp.WktParser.to_wkt(p) == p.to_wkt()
+
+    def test_to_wkt_linesegment2d(self):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        assert geompp.WktParser.to_wkt(seg) == seg.to_wkt()
+
+    def test_to_wkt_point3d(self):
+        p = geompp.Point3D(1.0, 2.0, 3.0)
+        assert geompp.WktParser.to_wkt(p) == p.to_wkt()
+
+    def test_to_wkt_none_raises(self):
+        with pytest.raises(Exception):
+            geompp.WktParser.to_wkt(None)
+
+    def test_to_wkt_roundtrip(self):
+        wkt_in = "POINT (1 2)"
+        geom = geompp.WktParser.from_wkt(wkt_in)
+        assert geompp.WktParser.to_wkt(geom) == wkt_in
+
+    def test_to_wkt_unsupported_type_raises(self):
+        with pytest.raises(Exception):
+            geompp.WktParser.to_wkt(42)
 
 
 # ─── Free functions ──────────────────────────────────────────────────────────
@@ -706,3 +844,309 @@ class TestFreeFunctions:
         pts = [geompp.Point2D(0, 0), geompp.Point2D(0, 0), geompp.Point2D(1, 0)]
         result = geompp.remove_duplicates_from_sorted_list(pts)
         assert len(result) == 2
+
+    def test_are_ccw_2d_true(self):
+        pts = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        assert geompp.are_ccw(pts)
+        assert not geompp.are_cw(pts)
+
+    def test_are_cw_2d_true(self):
+        pts = [
+            geompp.Point2D(0, 0), geompp.Point2D(0, 4),
+            geompp.Point2D(4, 4), geompp.Point2D(4, 0),
+        ]
+        assert geompp.are_cw(pts)
+        assert not geompp.are_ccw(pts)
+
+    def test_are_coplanar_3d_true(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(0, 1, 0), geompp.Point3D(1, 1, 0),
+        ]
+        assert geompp.are_coplanar(pts)
+
+    def test_are_coplanar_3d_false(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(0, 1, 0), geompp.Point3D(1, 1, 1),
+        ]
+        assert not geompp.are_coplanar(pts)
+
+    def test_are_ccw_3d_true(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        assert geompp.are_ccw(pts)
+        assert not geompp.are_cw(pts)
+
+    def test_are_cw_3d_true(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(4, 0, 0),
+        ]
+        assert geompp.are_cw(pts)
+        assert not geompp.are_ccw(pts)
+
+    def test_closest_world_plane_to(self):
+        # XY points → normal along Z
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0)]
+        pl = geompp.closest_world_plane_to(pts)
+        assert isinstance(pl, geompp.Plane)
+        assert approx(abs(pl.normal.z), 1.0)
+
+    def test_are_ccw_3d_with_ref_plane(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        ref = geompp.Plane.xy()
+        assert geompp.are_ccw(pts, ref)
+        assert not geompp.are_cw(pts, ref)
+
+    def test_are_ccw_3d_with_none_ref_plane(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        assert geompp.are_ccw(pts, None)  # None is accepted as the default
+
+
+# ─── GeometryCollection2D ─────────────────────────────────────────────────────
+
+class TestGeometryCollection2D:
+    def test_default_construction(self):
+        gc = geompp.GeometryCollection2D()
+        assert gc.size() == 0
+        assert len(gc) == 0
+
+    def test_add_point(self):
+        gc = geompp.GeometryCollection2D()
+        gc.add(geompp.Point2D(1, 2))
+        assert gc.size() == 1
+
+    def test_add_multiple_types(self):
+        gc = geompp.GeometryCollection2D()
+        gc.add(geompp.Point2D(0, 0))
+        gc.add(geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0)))
+        gc.add(geompp.Triangle2D.make(
+            geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1)
+        ))
+        assert gc.size() == 3
+        assert len(gc) == 3
+
+    def test_get_point(self):
+        gc = geompp.GeometryCollection2D()
+        p = geompp.Point2D(3, 4)
+        gc.add(p)
+        result = gc.get(0)
+        assert isinstance(result, geompp.Point2D)
+        assert result == p
+
+    def test_getitem(self):
+        gc = geompp.GeometryCollection2D()
+        gc.add(geompp.Point2D(1, 2))
+        gc.add(geompp.Point2D(3, 4))
+        assert isinstance(gc[0], geompp.Point2D)
+        assert isinstance(gc[1], geompp.Point2D)
+        assert isinstance(gc[-1], geompp.Point2D)
+
+    def test_getitem_out_of_range(self):
+        gc = geompp.GeometryCollection2D()
+        with pytest.raises(IndexError):
+            _ = gc[0]
+
+    def test_get_line_segment(self):
+        gc = geompp.GeometryCollection2D()
+        seg = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(3, 4))
+        gc.add(seg)
+        result = gc.get(0)
+        assert isinstance(result, geompp.LineSegment2D)
+
+    def test_almost_equals_equal(self):
+        gc1 = geompp.GeometryCollection2D()
+        gc2 = geompp.GeometryCollection2D()
+        gc1.add(geompp.Point2D(1, 2))
+        gc2.add(geompp.Point2D(1, 2))
+        assert gc1.almost_equals(gc2)
+        assert gc1 == gc2
+
+    def test_almost_equals_different(self):
+        gc1 = geompp.GeometryCollection2D()
+        gc2 = geompp.GeometryCollection2D()
+        gc1.add(geompp.Point2D(1, 2))
+        gc2.add(geompp.Point2D(9, 9))
+        assert not gc1.almost_equals(gc2)
+
+    def test_almost_equals_empty(self):
+        gc1 = geompp.GeometryCollection2D()
+        gc2 = geompp.GeometryCollection2D()
+        assert gc1.almost_equals(gc2)
+        assert gc1 == gc2
+
+    def test_almost_equals_different_sizes(self):
+        gc1 = geompp.GeometryCollection2D()
+        gc2 = geompp.GeometryCollection2D()
+        gc1.add(geompp.Point2D(1, 2))
+        assert not gc1.almost_equals(gc2)
+
+    def test_wkt_empty(self):
+        gc = geompp.GeometryCollection2D()
+        assert gc.to_wkt() == "GEOMETRYCOLLECTION EMPTY"
+        assert str(gc) == "GEOMETRYCOLLECTION EMPTY"
+        assert repr(gc) == "GEOMETRYCOLLECTION EMPTY"
+
+    def test_wkt_with_geometries(self):
+        gc = geompp.GeometryCollection2D()
+        gc.add(geompp.Point2D(1, 2))
+        wkt = gc.to_wkt()
+        assert "GEOMETRYCOLLECTION" in wkt
+        assert "POINT" in wkt
+
+    def test_nested_collection(self):
+        inner = geompp.GeometryCollection2D()
+        inner.add(geompp.Point2D(0, 0))
+        outer = geompp.GeometryCollection2D()
+        outer.add(inner)
+        assert outer.size() == 1
+        result = outer.get(0)
+        assert isinstance(result, geompp.GeometryCollection2D)
+
+    def test_copy_construction(self):
+        gc1 = geompp.GeometryCollection2D()
+        gc1.add(geompp.Point2D(5, 6))
+        gc2 = geompp.GeometryCollection2D(gc1)
+        assert gc1 == gc2
+
+    def test_from_wkt_point(self):
+        geompp.set_decimal_precision(4)
+        gc = geompp.GeometryCollection2D.from_wkt("GEOMETRYCOLLECTION (POINT (1 2))")
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Point2D)
+        assert result == geompp.Point2D(1, 2)
+
+    def test_from_wkt_invalid_throws(self):
+        with pytest.raises(Exception):
+            geompp.GeometryCollection2D.from_wkt("not a wkt")
+        with pytest.raises(Exception):
+            geompp.GeometryCollection2D.from_wkt("POINT (1 2)")
+
+    def test_from_wkt_empty_throws(self):
+        with pytest.raises(Exception):
+            geompp.GeometryCollection2D.from_wkt("GEOMETRYCOLLECTION EMPTY")
+
+    def test_roundtrip_wkt(self):
+        geompp.set_decimal_precision(4)
+        gc = geompp.GeometryCollection2D()
+        gc.add(geompp.Point2D(1, 2))
+        gc2 = geompp.GeometryCollection2D.from_wkt(gc.to_wkt())
+        assert gc == gc2
+
+    def test_to_file(self):
+        gc = geompp.GeometryCollection2D()
+        gc.add(geompp.Point2D(1, 2))
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            gc.to_file(path)
+            assert os.path.exists(path)
+        finally:
+            os.unlink(path)
+
+
+# ─── GeometryCollection3D ─────────────────────────────────────────────────────
+
+class TestGeometryCollection3D:
+    def test_default_construction(self):
+        gc = geompp.GeometryCollection3D()
+        assert gc.size() == 0
+
+    def test_add_point(self):
+        gc = geompp.GeometryCollection3D()
+        gc.add(geompp.Point3D(1, 2, 3))
+        assert gc.size() == 1
+
+    def test_add_multiple_types(self):
+        gc = geompp.GeometryCollection3D()
+        gc.add(geompp.Point3D(0, 0, 0))
+        gc.add(geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0)))
+        gc.add(geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0)
+        ))
+        assert gc.size() == 3
+
+    def test_get_point(self):
+        gc = geompp.GeometryCollection3D()
+        p = geompp.Point3D(1, 2, 3)
+        gc.add(p)
+        result = gc.get(0)
+        assert isinstance(result, geompp.Point3D)
+        assert result == p
+
+    def test_getitem(self):
+        gc = geompp.GeometryCollection3D()
+        gc.add(geompp.Point3D(1, 2, 3))
+        assert isinstance(gc[0], geompp.Point3D)
+        assert isinstance(gc[-1], geompp.Point3D)
+
+    def test_almost_equals_equal(self):
+        gc1 = geompp.GeometryCollection3D()
+        gc2 = geompp.GeometryCollection3D()
+        gc1.add(geompp.Point3D(1, 2, 3))
+        gc2.add(geompp.Point3D(1, 2, 3))
+        assert gc1.almost_equals(gc2)
+        assert gc1 == gc2
+
+    def test_almost_equals_empty(self):
+        gc1 = geompp.GeometryCollection3D()
+        gc2 = geompp.GeometryCollection3D()
+        assert gc1.almost_equals(gc2)
+
+    def test_wkt_empty(self):
+        gc = geompp.GeometryCollection3D()
+        assert gc.to_wkt() == "GEOMETRYCOLLECTION EMPTY"
+
+    def test_wkt_with_geometries(self):
+        gc = geompp.GeometryCollection3D()
+        gc.add(geompp.Point3D(1, 2, 3))
+        wkt = gc.to_wkt()
+        assert "GEOMETRYCOLLECTION" in wkt
+        assert "POINT" in wkt
+
+    def test_nested_collection(self):
+        inner = geompp.GeometryCollection3D()
+        inner.add(geompp.Point3D(0, 0, 0))
+        outer = geompp.GeometryCollection3D()
+        outer.add(inner)
+        assert outer.size() == 1
+        result = outer.get(0)
+        assert isinstance(result, geompp.GeometryCollection3D)
+
+    def test_from_wkt_point(self):
+        geompp.set_decimal_precision(4)
+        gc = geompp.GeometryCollection3D.from_wkt("GEOMETRYCOLLECTION (POINT (1 2 3))")
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Point3D)
+        assert result == geompp.Point3D(1, 2, 3)
+
+    def test_from_wkt_invalid_throws(self):
+        with pytest.raises(Exception):
+            geompp.GeometryCollection3D.from_wkt("not a wkt")
+        with pytest.raises(Exception):
+            geompp.GeometryCollection3D.from_wkt("POINT (1 2 3)")
+
+    def test_from_wkt_empty_throws(self):
+        with pytest.raises(Exception):
+            geompp.GeometryCollection3D.from_wkt("GEOMETRYCOLLECTION EMPTY")
+
+    def test_roundtrip_wkt(self):
+        geompp.set_decimal_precision(4)
+        gc = geompp.GeometryCollection3D()
+        gc.add(geompp.Point3D(1, 2, 3))
+        gc2 = geompp.GeometryCollection3D.from_wkt(gc.to_wkt())
+        assert gc == gc2

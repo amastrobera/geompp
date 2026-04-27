@@ -1,6 +1,7 @@
 #include "polygon2d.hpp"
 
 #include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
@@ -25,10 +26,52 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
         "cannot create polygon with less than 3 unique points; points  are too close with {} decimals precision",
         DECIMAL_PRECISION));
   }
+
+  if (!are_ccw(unique_points)) {
+    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
+  }
+
   return {unique_points};
 }
 
+Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes) {
+  auto unique_points =
+      remove_collinear(remove_duplicates_from_sorted_list(points));  // remove duplicates and collinear points
+
+  if (unique_points.size() < 3) {
+    throw std::runtime_error(std::format(
+        "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
+        DECIMAL_PRECISION));
+  }
+
+  if (!are_ccw(unique_points)) {
+    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
+  }
+
+  std::vector<std::vector<Point2D>> unique_holes_points;
+  for (auto const& hole : holes) {
+    auto unique_hole_points = remove_collinear(remove_duplicates_from_sorted_list(hole));
+
+    if (unique_hole_points.size() < 3) {
+      throw std::runtime_error(std::format(
+          "cannot create hole with less than 3 unique points; points are too close with {} decimals precision",
+          DECIMAL_PRECISION));
+    }
+
+    if (!are_cw(unique_hole_points)) {
+      throw std::runtime_error("cannot create polygon holes in anti-clock-wise order");
+    }
+
+    unique_holes_points.push_back(unique_hole_points);
+  }
+
+  return {unique_points, unique_holes_points};
+}
+
 Polygon2D::Polygon2D(std::vector<Point2D> const& points) : VERTICES(points) {}
+
+Polygon2D::Polygon2D(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes)
+    : VERTICES(points), HOLES(holes) {}
 
 Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   if (this != &other) {
@@ -38,70 +81,47 @@ Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
 }
 
 bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
-  if (Size() != other.Size()) {
+  // size comparison of loops
+  if (Size() != other.Size() || HOLES.size() != other.HOLES.size()) {
     return false;
   }
+  for (size_t i = 0; i < HOLES.size(); ++i) {
+    if (HOLES[i].size() != other.HOLES[i].size()) {
+      return false;
+    }
+  }
+
+  // outer loop vertices comparison
   for (size_t i = 0; i < VERTICES.size(); ++i) {
     if (!VERTICES[i].AlmostEquals(other[i], epsilon)) {
       return false;
     }
   }
+
+  // inner loops vertices comparison
+  for (size_t i = 0; i < HOLES.size(); ++i) {
+    for (size_t j = 0; j < HOLES[i].size(); ++j) {
+      if (!HOLES[i][j].AlmostEquals(other.HOLES[i][j], epsilon)) {
+        return false;
+      }
+    }
+  }
   return true;
 }
 
-// Point2D Triangle2D::Centroid() const {
-//   return {
-//       (P0.x() + P1.x() + P2.x()) / 3.0,
-//       (P0.y() + P1.y() + P2.y()) / 3.0,
-//   };
-// }
+Point2D Polygon2D::Centroid() const { throw std::runtime_error("not implemented"); }
 
-// Polygon2D Triangle2D::ToPolygon() const {
-// TODO
-// }
+double Polygon2D::SignedArea() const { throw std::runtime_error("not implemented"); }
 
-// double Triangle2D::SignedArea() const { return ((P1 - P0).Cross(P2 - P0)) / 2.0; }
+double Polygon2D::Area() const { throw std::runtime_error("not implemented"); }
 
-// double Triangle2D::Area() const { return std::abs(SignedArea()); }
+double Polygon2D::Perimeter() const { throw std::runtime_error("not implemented"); }
 
-// double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Length() + (P0 - P2).Length(); }
+double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
-// double LineSegment2D::Location(Point2D const& point) const {
-//   if (!ToLine().Contains(point)) {
-//     return std::numeric_limits<double>::infinity();
-//   }
-//   return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length() / Length();
-// }
+double Polygon2D::Location(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
-// Point2D LineSegment2D::Interpolate(double pct) const {
-//   // the point is behind the polyline
-//   if (round(pct) < 0.0) {
-//     return P0;
-//   }
-
-//   // the point is beyond the polyline
-//   if (round(pct) > 1.0) {
-//     return P1;
-//   }
-
-//   return P0 + pct * (P1 - P0);
-// }
-
-// double LineSegment2D::DistanceTo(Point2D const& point) const {
-//   auto line_eqv = ToLine(decimal_precision);
-//   auto proj = line_eqv.ProjectOnto(point);
-//   double loc = Location(proj);
-//   if (round(loc) < 0) {
-//     return P0.DistanceTo(point);
-
-//   } else if (round(loc) > 1) {
-//     return P1.DistanceTo(point);
-//   }
-
-//   return line_eqv.DistanceTo(point);
-// }
-
-// #pragma endregion
+Point2D Polygon2D::Interpolate(double pct) const { throw std::runtime_error("not implemented"); }
 
 #pragma region Operator Overloading
 
@@ -121,115 +141,27 @@ std::ostream& operator<<(std::ostream& os, Polygon2D const& g) {
 
 #pragma endregion
 
-// #pragma region Geometrical Operations
+#pragma region Geometrical Operations
 
-// bool Triangle2D::Contains(Point2D const& point) const {
-//   auto u = (P1 - P0);
-//   auto v = (P2 - P0);
-//   auto w = (point - P0);
+bool Polygon2D::Contains(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
-//   double wu = w.Dot(u) / u.Dot(u);
-//   double wv = w.Dot(v) / v.Dot(v);
+bool Polygon2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 
-//   return (round(wu) >= 0 && round(wu - 1) <= 0) &&
-//          (round(wv) >= 0 && round(wv - 1) <= 0);
-// }
+bool Polygon2D::Intersects(Ray2D const& ray) const { return Intersection(ray).has_value(); }
 
-// bool LineSegment2D::Intersects(Line2D const& line) const {
-//   return Intersection(line).has_value();
-// }
+bool Polygon2D::Intersects(LineSegment2D const& segment) const { return Intersection(segment).has_value(); }
 
-// bool LineSegment2D::Intersects(Ray2D const& ray) const {
-//   return Intersection(ray).has_value();
-// }
+Polygon2D::ReturnSet Polygon2D::Intersection(Line2D const& line) const { throw std::runtime_error("not implemented"); }
 
-// bool LineSegment2D::Intersects(LineSegment2D const& other) const {
-//   return Intersection(other).has_value();
-// }
+Polygon2D::ReturnSet Polygon2D::Intersection(Ray2D const& ray) const { throw std::runtime_error("not implemented"); }
 
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line) const {
-//   auto u = P1 - P0;
-//   auto v = line.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - line.First());
+Polygon2D::ReturnSet Polygon2D::Intersection(LineSegment2D const& other) const {
+  throw std::runtime_error("not implemented");
+}
 
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
+#pragma endregion
 
-//   // verify that the intersection is ahead of the ray
-//   auto inter_p = P0 + t * u;
-//   if (!Contains(inter_p)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_p;
-// }
-
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = ray.Direction();
-//   auto vp = v.Perp();
-//   auto w = (P0 - ray.Origin());
-
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = ray.Origin() + s * v;
-//   if (!ray.IsAhead(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
-
-// LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
-//   auto u = P1 - P0;
-//   auto up = u.Perp();  // equivalent (calc, on the other side)
-//   auto v = (other.P1 - other.P0);
-//   auto vp = v.Perp();
-//   auto w = (P0 - other.P0);
-
-//   // testing on this ray
-//   if (round(u * vp) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double t = (-w * vp) / (u * vp);
-//   auto inter_t = P0 + t * u;
-//   if (!Contains(inter_t)) {
-//     return std::nullopt;
-//   }
-
-//   // testing on the other ray
-//   if (round(v * up) == 0.0) {
-//     return std::nullopt;
-//   }
-//   double s = (w * up) / (v * up);  // equivalent (calc on the other side)
-//   auto inter_s = other.P0 + s * v;
-//   if (!other.Contains(inter_s)) {
-//     return std::nullopt;
-//   }
-
-//   return inter_t;
-// }
-
-// #pragma endregion
-
-// #pragma region Formatting
+#pragma region Formatting
 
 std::string Polygon2D::ToWkt() const {
   std::ostringstream buf;
@@ -240,71 +172,122 @@ std::string Polygon2D::ToWkt() const {
     return buf.str();
   }
 
-  buf << "((";
-  for (int i = 0; i < num_verts; ++i) {
-    buf << std::format("{} {}", round(VERTICES[i].x()), round(VERTICES[i].y()));
-    buf << ", ";
+  buf << "(";
+
+  // outer loop
+  {
+    buf << "(";
+    for (int i = 0; i < num_verts; ++i) {
+      buf << std::format("{} {}, ", round(VERTICES[i].x()), round(VERTICES[i].y()));
+    }
+    buf << std::format("{} {}", round(VERTICES[0].x()), round(VERTICES[0].y()));
+    buf << ")";
   }
-  buf << std::format("{} {}", round(VERTICES[0].x()), round(VERTICES[0].y()));
-  buf << "))";
+
+  // inner loops
+  {
+    for (auto const& hole : HOLES) {
+      buf << ", (";
+      std::size_t n = hole.size();
+      for (int i = 0; i < n; ++i) {
+        buf << std::format("{} {}, ", round(hole[i].x()), round(hole[i].y()));
+      }
+      buf << std::format("{} {}", round(hole[0].x()), round(hole[0].y()));
+      buf << ")";
+    }
+  }
+
+  buf << ")";
 
   return buf.str();
+  ;
 }
 
 Polygon2D Polygon2D::FromWkt(std::string const& wkt) {
-  // try {
-  //   std::size_t end_gtype, end_pi, end_pn;
+  try {
+    std::size_t end_gtype, end_pn;
 
-  //   end_gtype = wkt.find('(');
-  //   if (end_gtype == std::string::npos) {
-  //     throw std::runtime_error("brakets");
-  //   }
+    end_gtype = wkt.find('(');
+    if (end_gtype == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
 
-  //   std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
-  //   if (g_type != "POLYGON") {
-  //     throw std::runtime_error("geometry name");
-  //   }
+    std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
+    if (g_type != "POLYGON") {
+      throw std::runtime_error("geometry name");
+    }
 
-  //   end_pn = wkt.substr(end_gtype + 1).find(')');
-  //   if (end_pn == std::string::npos) {
-  //     throw std::runtime_error("brakets");
-  //   }
+    end_pn = wkt.substr(end_gtype + 1).rfind(')');
+    if (end_pn == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
 
-  //   std::string mid_part = wkt.substr(end_gtype + 1, wkt.size() - (end_gtype + 1 + 1));
+    std::string polygon_loops_wkt = wkt.substr(end_gtype + 1, end_pn);
 
-  //   std::vector<Point2D> pt_vec;
-  //   int decimal_precision = 0;
-  //   int num_dec = 0;
-  //   std::string pt_trimmed;
-  //   for (std::string const& p_str : geompp::tokenize_string(mid_part, ',')) {
-  //     pt_trimmed = geompp::trim(p_str);
+    // find outer loop (first loop)
+    std::vector<Point2D> points;
+    std::size_t start_outer_loop, end_outer_loop;
+    {
+      start_outer_loop = end_gtype + polygon_loops_wkt.find('(');
+      if (start_outer_loop == std::string::npos) {
+        throw std::runtime_error("brakets (outer)");
+      }
 
-  //     auto nums = geompp::tokenize_to_doubles(pt_trimmed, ' ');
-  //     if (nums.size() != 2) {
-  //       throw std::runtime_error("numbers");
-  //     }
+      end_outer_loop = end_gtype + polygon_loops_wkt.find(')');
+      if (end_pn == std::string::npos) {
+        throw std::runtime_error("brakets (outer/end)");
+      }
 
-  //     num_dec = count_decimal_places(nums[0]);
-  //     if (num_dec > decimal_precision) {
-  //       decimal_precision = num_dec;
-  //     }
-  //     num_dec = count_decimal_places(nums[1]);
-  //     if (num_dec > decimal_precision) {
-  //       decimal_precision = num_dec;
-  //     }
+      std::string outer_loop_str = wkt.substr(start_outer_loop + 1, end_outer_loop - start_outer_loop - 1);
 
-  //     pt_vec.push_back({nums[0], nums[1]});
-  //   }
+      for (std::string const& wkt_str : geompp::tokenize_string(outer_loop_str, ',')) {
+        std::string wkt_trimmed = geompp::trim(wkt_str);
+        auto nums = geompp::tokenize_to_doubles(wkt_trimmed);
+        if (nums.size() != 2) {
+          throw std::runtime_error("numbers");
+        }
+        points.emplace_back(nums[0], nums[1]);
+      }
+    }
 
-  //   if (pt_vec.size() != 3) {
-  //     throw std::runtime_error("initialized with n != 3 points");
-  //   }
+    // find holes (other loops)
+    std::vector<std::vector<Point2D>> holes;
+    std::size_t start_inner_loop =
+        polygon_loops_wkt.substr(end_outer_loop + 1).find(',');  // find the comma separator of loops
+    std::size_t end_inner_loop;
+    while (start_inner_loop != std::string::npos) {
+      start_inner_loop = start_inner_loop + polygon_loops_wkt.substr(end_outer_loop + 1).find('(');
+      if (start_inner_loop == std::string::npos) {
+        throw std::runtime_error("brakets (inner)");
+      }
 
-  //   return Make(pt_vec[0], pt_vec[1], pt_vec[2]);
+      end_inner_loop = start_inner_loop + polygon_loops_wkt.substr(end_outer_loop + 1).find(')');
+      if (end_inner_loop == std::string::npos) {
+        throw std::runtime_error("brakets (inner/end)");
+      }
 
-  // } catch (...) {
-  //   std::cerr << "bad format of str " << wkt << std::endl;  // TODO: replace with logger lib
-  // }
+      std::vector<Point2D> hole;
+      std::string inner_loop_str = wkt.substr(start_inner_loop + 1, end_inner_loop - start_inner_loop - 1);
+      for (std::string const& wkt_str : geompp::tokenize_string(inner_loop_str, ',')) {
+        std::string wkt_trimmed = geompp::trim(wkt_str);
+        auto nums = geompp::tokenize_to_doubles(wkt_trimmed);
+        if (nums.size() != 2) {
+          throw std::runtime_error("numbers");
+        }
+        hole.emplace_back(nums[0], nums[1]);
+      }
+      holes.push_back(hole);
+
+      // reset to next comma separator of loops
+      start_inner_loop =
+          end_inner_loop + polygon_loops_wkt.substr(end_inner_loop + 1).find(',');  // find the comma separator of loops
+    }
+
+    return {points, holes};
+
+  } catch (std::exception const& e) {
+    GEOMPP_LOG(ERROR) << e.what();
+  }
 
   throw std::runtime_error("failed to parse WKT");
 }
@@ -361,6 +344,6 @@ Polygon2D Polygon2D::FromFile(std::string const& path) {
   throw std::runtime_error("failed to parse WKT");
 }
 
-// #pragma endregion
+#pragma endregion
 
 }  // namespace geompp

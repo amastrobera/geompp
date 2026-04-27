@@ -32,8 +32,8 @@ TEST_F(Vector3DTest, Equality) {
   ASSERT_EQ(g::Vector3D(0, 0, 0), g::Vector3D(0, 0, 0));
 
   // inequality
-  ASSERT_NE(g::Vector3D(1, 0, 0), g::Vector3D(0, 1, 0));
-  ASSERT_NE(g::Vector3D(0, 0, 0), g::Vector3D(0, 0, 1));
+  ASSERT_NE(g::Vector3D::BasisX(), g::Vector3D::BasisY());
+  ASSERT_NE(g::Vector3D(0, 0, 0), g::Vector3D::BasisZ());
 }
 
 TEST_F(Vector3DTest, Assignment) {
@@ -92,9 +92,9 @@ TEST_F(Vector3DTest, AlmostEquals) {
 
 TEST_F(Vector3DTest, Dot) {
   // orthogonal basis vectors
-  ASSERT_EQ(0.0, g::Vector3D(1, 0, 0).Dot(g::Vector3D(0, 1, 0)));
-  ASSERT_EQ(0.0, g::Vector3D(1, 0, 0).Dot(g::Vector3D(0, 0, 1)));
-  ASSERT_EQ(0.0, g::Vector3D(0, 1, 0).Dot(g::Vector3D(0, 0, 1)));
+  ASSERT_EQ(0.0, g::Vector3D::BasisX().Dot(g::Vector3D::BasisY()));
+  ASSERT_EQ(0.0, g::Vector3D::BasisX().Dot(g::Vector3D::BasisZ()));
+  ASSERT_EQ(0.0, g::Vector3D::BasisY().Dot(g::Vector3D::BasisZ()));
 
   // self-dot == squared length
   ASSERT_EQ(2.0, g::Vector3D(1, 1, 0).Dot(g::Vector3D(1, 1, 0)));
@@ -113,7 +113,7 @@ TEST_F(Vector3DTest, Cross) {
   // BasisX x BasisY == BasisZ
   auto bx = g::Vector3D::BasisX();
   auto by = g::Vector3D::BasisY();
-  auto bz = g::Vector3D(0, 0, 1);
+  auto bz = g::Vector3D::BasisZ();
   ASSERT_EQ(bz, bx.Cross(by));
 
   // anti-commutative: a x b == -(b x a)
@@ -141,9 +141,9 @@ TEST_F(Vector3DTest, Perp) {
     geompp::DECIMAL_PRECISION = 4;
   };
 
-  check_perp(g::Vector3D(1, 0, 0));
-  check_perp(g::Vector3D(0, 1, 0));
-  check_perp(g::Vector3D(0, 0, 1));
+  check_perp(g::Vector3D::BasisX());
+  check_perp(g::Vector3D::BasisY());
+  check_perp(g::Vector3D::BasisZ());
   check_perp(g::Vector3D(1, 1, 0));
   check_perp(g::Vector3D(1, 1, 1));
 }
@@ -154,10 +154,10 @@ TEST_F(Vector3DTest, Normalize) {
   geompp::DECIMAL_PRECISION = 4;
 
   auto nx = g::Vector3D(3, 0, 0).Normalize();
-  ASSERT_EQ(g::Vector3D(1, 0, 0), nx);
+  ASSERT_EQ(g::Vector3D::BasisX(), nx);
 
   auto ny = g::Vector3D(0, 5, 0).Normalize();
-  ASSERT_EQ(g::Vector3D(0, 1, 0), ny);
+  ASSERT_EQ(g::Vector3D::BasisY(), ny);
 
   // diagonal in XY plane (z=0): result should still have length 1
   geompp::DECIMAL_PRECISION = 3;
@@ -190,8 +190,8 @@ TEST_F(Vector3DTest, Operators) {
 }
 
 TEST_F(Vector3DTest, BasisVectors) {
-  ASSERT_EQ(g::Vector3D(1, 0, 0), g::Vector3D::BasisX());
-  ASSERT_EQ(g::Vector3D(0, 1, 0), g::Vector3D::BasisY());
+  ASSERT_EQ(g::Vector3D::BasisX(), g::Vector3D::BasisX());
+  ASSERT_EQ(g::Vector3D::BasisY(), g::Vector3D::BasisY());
 
   // basis vectors are unit vectors
   ASSERT_EQ(1.0, g::Vector3D::BasisX().Length());

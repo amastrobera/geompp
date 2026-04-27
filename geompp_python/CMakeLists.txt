@@ -25,7 +25,7 @@ set(GEOMPP_SOURCES
     ${GEOMPP_ROOT}/src/constants.cpp
     ${GEOMPP_ROOT}/src/geompp_log.cpp
     ${GEOMPP_ROOT}/src/utils.cpp
-    ${GEOMPP_ROOT}/src/lsv_parser.cpp
+    ${GEOMPP_ROOT}/src/wkt_parser.cpp
     ${GEOMPP_ROOT}/src/point2d.cpp
     ${GEOMPP_ROOT}/src/vector2d.cpp
     ${GEOMPP_ROOT}/src/line2d.cpp
@@ -45,6 +45,8 @@ set(GEOMPP_SOURCES
     ${GEOMPP_ROOT}/src/triangle3d.cpp
     ${GEOMPP_ROOT}/src/polygon3d.cpp
     ${GEOMPP_ROOT}/src/bbox3d.cpp
+    ${GEOMPP_ROOT}/src/geometry_collection2d.cpp
+    ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
 )
 
 # ─── Binding sources (one file per class) ─────────────────────────────────────
@@ -70,8 +72,10 @@ set(BINDING_SOURCES
     src/bind_bbox2d.cpp
     src/bind_bbox3d.cpp
     src/bind_plane.cpp
-    src/bind_lvsparser.cpp
+    src/bind_wktparser.cpp
     src/bind_free_functions.cpp
+    src/bind_geometry_collection2d.cpp
+    src/bind_geometry_collection3d.cpp
 )
 
 # ─── Python extension module ─────────────────────────────────────────────────

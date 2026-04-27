@@ -21,7 +21,7 @@ Vector3D& Vector3D::operator=(Vector3D const& other) {
   return *this;
 }
 
-Point3D Vector3D::ToPoint() { return Point3D(X, Y, Z); }
+Point3D Vector3D::ToPoint() const { return Point3D(X, Y, Z); }
 
 double Vector3D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z, 2)); }
 
@@ -79,6 +79,11 @@ bool operator==(Vector3D const& lhs, Vector3D const& rhs) { return lhs.AlmostEqu
 
 Vector3D operator+(Vector3D const& lhs, Vector3D const& rhs) {
   return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z()};
+}
+
+Vector3D operator+=(Vector3D& lhs, Vector3D const& vec) {
+  lhs = lhs + vec;
+  return lhs;
 }
 
 Vector3D operator-(Vector3D const& lhs, Vector3D const& rhs) {

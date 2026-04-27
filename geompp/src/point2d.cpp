@@ -20,7 +20,7 @@ bool Point2D::AlmostEquals(Point2D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0;
 }
 
-Vector2D Point2D::ToVector() { return {X, Y}; }
+Vector2D Point2D::ToVector() const { return {X, Y}; }
 
 double Point2D::DistanceTo(Point2D const& other) const { return (other - *this).Length(); }
 
@@ -281,6 +281,30 @@ Point2D Point2D::FromFile(std::string const& path) {
 
   throw std::runtime_error("failed to parse WKT");
 }
+
+#pragma endregion
+
+#pragma region Collection Operations
+
+double orientation(std::vector<Point2D> const& points) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() < 3) {
+    return true;
+  }
+
+  double signed_area = 0;
+  for (int i = 0; i < unique_points.size(); ++i) {
+    auto const& p1 = unique_points[i];
+    auto const& p2 = unique_points[(i + 1) % unique_points.size()];
+    signed_area += p1.ToVector().Cross(p2.ToVector());
+  }
+
+  return signed_area;
+}
+
+bool are_ccw(std::vector<Point2D> const& points) { return compare(orientation(points), 0) > 0; }
+
+bool are_cw(std::vector<Point2D> const& points) { return compare(orientation(points), 0) < 0; }
 
 #pragma endregion
 
