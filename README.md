@@ -17,8 +17,8 @@
   rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
 
   **Language bindings:**
-  [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](./geompp_python/README.md) --> ![see readme](./geompp_python/README.md)
-  [![C# .NET](https://img.shields.io/badge/C%23_.NET-512BD4?logo=dotnet&logoColor=white)](./geompp_csharp/README.md) --> ![see readme](./geompp_csharp/README.md)
+  [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](./geompp_python/README.md) 
+  [![C# .NET](https://img.shields.io/badge/C%23_.NET-512BD4?logo=dotnet&logoColor=white)](./geompp_csharp/README.md) 
 
   
   ![geometry picture 3d](etc/intersections_projections_3d.png)
