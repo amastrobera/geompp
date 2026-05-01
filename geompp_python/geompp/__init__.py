@@ -26,6 +26,8 @@ Free functions
     remove_collinear(points)
     linear_combination(points, weights)
     average(points)
+    signed_area(points[, plane])
+    centroid(points[, plane])
 
 Precision
 ---------
@@ -60,6 +62,7 @@ from ._geompp import (  # noqa: F401
     BBox2D,
     GeometryCollection2D,
     # 3D
+    Axis,
     Point3D,
     Vector3D,
     Line3D,
@@ -84,6 +87,8 @@ from ._geompp import (  # noqa: F401
     remove_collinear,
     linear_combination,
     average,
+    signed_area,
+    centroid,
 )
 
 __version__ = "1.0.0"
@@ -96,7 +101,9 @@ __all__ = [
     "Point3D", "Vector3D", "Line3D", "Ray3D", "LineSegment3D",
     "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "Plane", "GeometryCollection3D",
     "WktParser",
+    "Axis",
     "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
     "remove_duplicates", "remove_duplicates_from_sorted_list",
     "remove_collinear", "linear_combination", "average",
+    "signed_area", "centroid",
 ]

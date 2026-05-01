@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(geompp VERSION 0.1.1)
+project(geompp VERSION 0.5.0)
 
 
 # Specify the C++ standard
@@ -64,3 +64,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC glog::glog)
 
 # Required when geompp is linked into a shared library (e.g. Python extension .so)
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Avoid PDB write collisions when building with /MP (parallel compilation)
+if (MSVC)
+  target_compile_options(${PROJECT_NAME} PRIVATE /FS)
+endif()

@@ -31,8 +31,6 @@ class Polygon2D {
 
   bool AlmostEquals(Polygon2D const& other, double epsilon = DOUBLE_EPSILON) const;
   Point2D Centroid() const;
-  // Polygon2D ToPolygon () const; // useful for ToWkt() polygon
-  double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
   double Area() const;
   double Perimeter() const;
   double DistanceTo(Point2D const& point) const;

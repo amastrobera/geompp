@@ -109,13 +109,51 @@ bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
   return true;
 }
 
-Point2D Polygon2D::Centroid() const { throw std::runtime_error("not implemented"); }
+Point2D Polygon2D::Centroid() const {
+  Point2D cs = centroid(VERTICES);
+  double sa = signed_area(VERTICES);
 
-double Polygon2D::SignedArea() const { throw std::runtime_error("not implemented"); }
+  if (HOLES.empty()) {
+    return cs;
+  }
 
-double Polygon2D::Area() const { throw std::runtime_error("not implemented"); }
+  // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)  — hole areas are negative (CW) so they subtract
+  double total_sa = sa;
+  double wx = sa * cs.x();
+  double wy = sa * cs.y();
 
-double Polygon2D::Perimeter() const { throw std::runtime_error("not implemented"); }
+  for (auto const& hole : HOLES) {
+    double sa_h = signed_area(hole);
+    Point2D c_h = centroid(hole);
+    total_sa += sa_h;
+    wx += sa_h * c_h.x();
+    wy += sa_h * c_h.y();
+  }
+
+  return Point2D(wx / total_sa, wy / total_sa);
+}
+
+double Polygon2D::Area() const {
+  // outer loop
+  double area = signed_area(VERTICES);  // this is guaranteed to be positive by the constructor
+
+  // remove the areas of holes (inner loops)
+  for (auto const& hole : HOLES) {
+    area += signed_area(
+        hole);  // holes are checked to be CW (guaranteed by constructor), therefore this area WILL be negative
+  }
+
+  return area;
+}
+
+double Polygon2D::Perimeter() const {
+  double perimeter = 0;
+  int n = VERTICES.size();
+  for (int i = 0; i < n; ++i) {
+    perimeter += VERTICES[i].DistanceTo(VERTICES[(i + 1) % n]);
+  }
+  return perimeter;
+}
 
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 

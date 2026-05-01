@@ -178,12 +178,23 @@ Point2D average(std::vector<Point2D> const& points) {
 bool operator==(Point2D const& lhs, Point2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
 Point2D operator+(Point2D const& lhs, Vector2D const& rhs) { return {lhs.x() + rhs.x(), lhs.y() + rhs.y()}; }
+Point2D& operator+=(Point2D& lhs, Vector2D const& rhs) {
+  lhs = lhs + rhs;
+  return lhs;
+}
 
 Vector2D operator-(Point2D const& lhs, Point2D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y()}; }
 Point2D operator-(Point2D const& lhs, Vector2D const& rhs) { return {lhs.x() - rhs.x(), lhs.y() - rhs.y()}; }
 
 Point2D operator*(Point2D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a}; }
 Point2D operator*(double a, Point2D const& rhs) { return rhs * a; }
+
+Point2D operator/(Point2D const& lhs, double a) {
+  if (compare(a, 0) == 0) {
+    throw std::runtime_error("division by zero");
+  }
+  return {lhs.x() / a, lhs.y() / a};
+}
 
 std::ostream& operator<<(std::ostream& os, Point2D const& g) {
   os << g.ToWkt();
@@ -286,25 +297,70 @@ Point2D Point2D::FromFile(std::string const& path) {
 
 #pragma region Collection Operations
 
-double orientation(std::vector<Point2D> const& points) {
+double signed_area(std::vector<Point2D> const& points) {
   auto unique_points = remove_collinear(points);
   if (unique_points.size() < 3) {
-    return true;
+    throw std::runtime_error(
+        std::format("cannot compute area of a set of points with less than 3 unique points; points are too close with "
+                    "{} decimals precision",
+                    DECIMAL_PRECISION));
   }
 
   double signed_area = 0;
-  for (int i = 0; i < unique_points.size(); ++i) {
+  //// the cross product takes 1 subtraction and 2 multiplications
+  //// (and here we are also constructing the Vector2D object before using it)
+  // for (int i = 0; i < unique_points.size(); ++i) {
+  //   auto const& p1 = unique_points[i];
+  //   auto const& p2 = unique_points[(i + 1) % unique_points.size()];
+  //   signed_area += p1.ToVector().Cross(p2.ToVector());
+  // }
+
+  // therefore we replace it with a single multiplication and subtraction, and we avoid constructing the Vector2D
+  // objects this is equivalent to the shoelace formula, but
+  std::size_t n = unique_points.size();
+  for (int i = 0; i < n; ++i) {
+    auto const& p0 = unique_points[(n + i - 1) % n];
     auto const& p1 = unique_points[i];
-    auto const& p2 = unique_points[(i + 1) % unique_points.size()];
-    signed_area += p1.ToVector().Cross(p2.ToVector());
+    auto const& p2 = unique_points[(i + 1) % n];
+    signed_area += p1.x() * (p2.y() - p0.y());
   }
+
+  // finally divide by 2
+  signed_area /= 2;
 
   return signed_area;
 }
 
-bool are_ccw(std::vector<Point2D> const& points) { return compare(orientation(points), 0) > 0; }
+bool are_ccw(std::vector<Point2D> const& points) { return compare(signed_area(points), 0) > 0; }
 
-bool are_cw(std::vector<Point2D> const& points) { return compare(orientation(points), 0) < 0; }
+bool are_cw(std::vector<Point2D> const& points) { return compare(signed_area(points), 0) < 0; }
+
+Point2D centroid(std::vector<Point2D> const& points) {
+  double sa = signed_area(points);
+
+  if (compare(sa, 0) == 0) {
+    throw std::runtime_error("centroid of a set of points with zero area");
+  }
+
+  double cx = 0;
+  double cy = 0;
+  std::size_t n = points.size();
+
+  for (int i = 0; i < n; ++i) {
+    auto const& p1 = points[i];
+    auto const& p2 = points[(i + 1) % n];
+    double shoelace =
+        p1.x() * p2.y() - p2.x() * p1.y();  // replaces p1.ToVector().Cross(p2.ToVector()) with a single multiplication
+                                            // and subtraction, and we avoid constructing the Vector2D
+    cx += (p1.x() + p2.x()) * shoelace;
+    cy += (p1.y() + p2.y()) * shoelace;
+  }
+
+  cx /= (6 * sa);
+  cy /= (6 * sa);
+
+  return {cx, cy};
+}
 
 #pragma endregion
 

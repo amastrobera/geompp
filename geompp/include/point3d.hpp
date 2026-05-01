@@ -59,7 +59,7 @@ Point3D average(std::vector<Point3D> const& points);
 bool operator==(Point3D const& lhs, Point3D const& rhs);
 
 Point3D operator+(Point3D const& lhs, Vector3D const& rhs);
-
+Point3D& operator+=(Point3D& lhs, Vector3D const& rhs);
 Vector3D operator-(Point3D const& lhs, Point3D const& rhs);
 Point3D operator-(Point3D const& lhs, Vector3D const& rhs);
 
@@ -69,6 +69,7 @@ Point3D operator*(Point3D const& lhs, Point3D const& rhs) = delete;
 Point3D operator+(Point3D const& lhs, Point3D const& rhs) = delete;
 
 Point3D operator/(Point3D const& lhs, Point3D const& rhs) = delete;
+Point3D operator/(Point3D const& lhs, double a);
 
 std::ostream& operator<<(std::ostream& os, Point3D const& g);
 

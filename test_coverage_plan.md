@@ -67,6 +67,17 @@ genhtml coverage.info --output-directory coverage_html
 
 ---
 
+## ✅ Completed — `operator+=` for Points; 3D `centroid`; `Polygon3D::Centroid`
+
+| What | Where | Coverage |
+|---|---|---|
+| `Point2D::operator+=`, `Point3D::operator+=` | `test_point2d.cpp`, `test_point3d.cpp` (`AddVectorInPlace`) | `Point2D` → ~95% (20 covered); `Point3D` → **100%** (21 covered) |
+| `centroid(points3D, plane)` free function | `test_plane.cpp` (9 new `Centroid_*` tests) | `Plane + free functions` → **100%** (21 covered) |
+| `Polygon3D::Centroid()` (weighted, with holes) | `test_polygon3d.cpp` (6 new `Centroid_*` tests) | `Polygon3D` → ~93% |
+| `Polygon2D::Perimeter()`, `Polygon3D::Perimeter()` | `test_polygon2d.cpp`, `test_polygon3d.cpp` (3 tests each) | `Polygon2D` → ~92%; `Polygon3D` → ~93% |
+
+---
+
 ## Priority 1 — `Polyline3D` remaining gaps
 
 - [ ] `Polyline3D::operator=` — assign one polyline to another; self-assign is safe

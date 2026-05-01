@@ -1,4 +1,5 @@
 #include "Polygon3D.hpp"
+#include "Plane.hpp"
 #include "Point3D.hpp"
 #include "Line3D.hpp"
 #include "Ray3D.hpp"
@@ -70,12 +71,12 @@ bool Polygon3D::AlmostEquals(Polygon3D^ other, double epsilon) {
     return _native->AlmostEquals(*other->_native, epsilon);
 }
 
-Point3D^ Polygon3D::Centroid() {
-    return gcnew Point3D(new geompp::Point3D(_native->Centroid()));
+Plane^ Polygon3D::GetPlane() {
+    return gcnew Plane(new geompp::Plane(_native->GetPlane()));
 }
 
-double Polygon3D::SignedArea() {
-    return _native->SignedArea();
+Point3D^ Polygon3D::Centroid() {
+    return gcnew Point3D(new geompp::Point3D(_native->Centroid()));
 }
 
 double Polygon3D::Area() {

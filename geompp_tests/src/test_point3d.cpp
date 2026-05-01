@@ -103,6 +103,23 @@ TEST_F(Point3DTest, AddVector) {
   ASSERT_EQ(sum, sum2);
 }
 
+TEST_F(Point3DTest, AddVectorInPlace) {
+  auto p = g::Point3D(1.0, 2.0, 3.0);
+  auto v = g::Vector3D(0.5, -1.0, 2.0);
+  p += v;
+  ASSERT_EQ(g::Point3D(1.5, 1.0, 5.0), p);
+
+  // zero vector leaves point unchanged
+  p += g::Vector3D(0, 0, 0);
+  ASSERT_EQ(g::Point3D(1.5, 1.0, 5.0), p);
+
+  // returns reference to lhs (enables chaining)
+  auto p2 = g::Point3D(0.0, 0.0, 0.0);
+  auto& ref = (p2 += v);
+  ASSERT_EQ(&p2, &ref);
+  ASSERT_EQ(g::Point3D(0.5, -1.0, 2.0), p2);
+}
+
 TEST_F(Point3DTest, ScalarMultiply) {
   auto p = g::Point3D(2.0, -3.0, 4.0);
 
@@ -113,6 +130,15 @@ TEST_F(Point3DTest, ScalarMultiply) {
 
   // scalar on the left
   ASSERT_EQ(p * 3.0, 3.0 * p);
+}
+
+TEST_F(Point3DTest, ScalarDivide) {
+  auto p = g::Point3D(4.0, -6.0, 8.0);
+  ASSERT_EQ(g::Point3D(2.0, -3.0, 4.0), p / 2.0);
+  ASSERT_EQ(g::Point3D(1.0, -1.5, 2.0), p / 4.0);
+  ASSERT_EQ(p, p / 1.0);
+  ASSERT_EQ(g::Point3D(-4.0, 6.0, -8.0), p / -1.0);
+  ASSERT_EQ(p * 0.5, p / 2.0);
 }
 
 TEST_F(Point3DTest, DistanceTo) {

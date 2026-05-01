@@ -50,6 +50,17 @@ class TestPoint2D:
         p = geompp.Point2D(1, 2) + geompp.Vector2D(3, 4)
         assert approx(p.x, 4) and approx(p.y, 6)
 
+    def test_iadd_vector(self):
+        p = geompp.Point2D(1.0, 2.0)
+        p += geompp.Vector2D(0.5, -1.0)
+        assert isinstance(p, geompp.Point2D)
+        assert approx(p.x, 1.5) and approx(p.y, 1.0)
+
+    def test_iadd_zero_vector_unchanged(self):
+        p = geompp.Point2D(3.0, 4.0)
+        p += geompp.Vector2D(0, 0)
+        assert approx(p.x, 3.0) and approx(p.y, 4.0)
+
     def test_sub_point_gives_vector(self):
         v = geompp.Point2D(4, 6) - geompp.Point2D(1, 2)
         assert isinstance(v, geompp.Vector2D)
@@ -63,6 +74,10 @@ class TestPoint2D:
     def test_scalar_mul(self):
         p = geompp.Point2D(1, 2) * 3
         assert approx(p.x, 3) and approx(p.y, 6)
+
+    def test_scalar_div(self):
+        p = geompp.Point2D(4, 6) / 2
+        assert approx(p.x, 2) and approx(p.y, 3)
 
     def test_distance_to(self):
         d = geompp.Point2D(0, 0).distance_to(geompp.Point2D(3, 4))
@@ -103,9 +118,24 @@ class TestPoint3D:
         p = geompp.Point3D(1, 2, 3) + geompp.Vector3D(1, 1, 1)
         assert approx(p.x, 2) and approx(p.y, 3) and approx(p.z, 4)
 
+    def test_iadd_vector(self):
+        p = geompp.Point3D(1.0, 2.0, 3.0)
+        p += geompp.Vector3D(0.5, -1.0, 2.0)
+        assert isinstance(p, geompp.Point3D)
+        assert approx(p.x, 1.5) and approx(p.y, 1.0) and approx(p.z, 5.0)
+
+    def test_iadd_zero_vector_unchanged(self):
+        p = geompp.Point3D(1.0, 2.0, 3.0)
+        p += geompp.Vector3D(0, 0, 0)
+        assert approx(p.x, 1.0) and approx(p.y, 2.0) and approx(p.z, 3.0)
+
     def test_distance_to(self):
         d = geompp.Point3D(0, 0, 0).distance_to(geompp.Point3D(1, 0, 0))
         assert approx(d, 1.0)
+
+    def test_scalar_div(self):
+        p = geompp.Point3D(4, 6, 8) / 2
+        assert approx(p.x, 2) and approx(p.y, 3) and approx(p.z, 4)
 
     def test_wkt_roundtrip(self):
         p = geompp.Point3D(1, 2, 3)
@@ -172,6 +202,13 @@ class TestVector3D:
 
     def test_basis(self):
         assert approx(geompp.Vector3D.basis_z().z, 1)
+
+    def test_dominant_axis(self):
+        assert geompp.Vector3D(3, 1, 1).dominant_axis() == geompp.Axis.X
+        assert geompp.Vector3D(-3, 1, 1).dominant_axis() == geompp.Axis.X
+        assert geompp.Vector3D(1, 3, 1).dominant_axis() == geompp.Axis.Y
+        assert geompp.Vector3D(1, 1, 3).dominant_axis() == geompp.Axis.Z
+        assert geompp.Vector3D.basis_z().dominant_axis() == geompp.Axis.Z
 
 
 # ─── LineSegment2D ───────────────────────────────────────────────────────────
@@ -390,6 +427,47 @@ class TestPolygon2D:
         with pytest.raises(Exception):
             geompp.Polygon2D.make(outer, [ccw_hole])
 
+    def test_centroid_square(self, square):
+        c = square.centroid()
+        assert approx(c.x, 0.5) and approx(c.y, 0.5)
+
+    def test_centroid_triangle(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(0, 3)
+        ])
+        c = p.centroid()
+        assert approx(c.x, 4/3) and approx(c.y, 1.0)
+
+    def test_centroid_with_hole(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+            geompp.Point2D(3, 3), geompp.Point2D(3, 1),
+        ]
+        c = geompp.Polygon2D.make(outer, [hole]).centroid()
+        assert approx(c.x, 2.0) and approx(c.y, 2.0)
+
+    def test_perimeter_square(self, square):
+        # 1×1 square → perimeter = 4
+        assert approx(square.perimeter(), 4.0)
+
+    def test_perimeter_rectangle(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(3, 0),
+            geompp.Point2D(3, 4), geompp.Point2D(0, 4),
+        ])
+        assert approx(p.perimeter(), 14.0)
+
+    def test_perimeter_triangle(self):
+        # 3-4-5 right triangle → perimeter = 12
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(0, 3),
+        ])
+        assert approx(p.perimeter(), 12.0)
+
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
@@ -432,6 +510,181 @@ class TestPolygon3D:
         ]
         with pytest.raises(Exception):
             geompp.Polygon3D.make(outer, [ccw_hole])
+
+    def test_area_square(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        assert approx(geompp.Polygon3D.make(pts).area(), 16.0)
+
+    def test_area_with_hole(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        assert approx(geompp.Polygon3D.make(outer, [hole]).area(), 12.0)
+
+    def test_area_far_from_origin(self):
+        ox, oy = 1e8, 1e8
+        pts = [
+            geompp.Point3D(ox,     oy,     0), geompp.Point3D(ox + 4, oy,     0),
+            geompp.Point3D(ox + 4, oy + 4, 0), geompp.Point3D(ox,     oy + 4, 0),
+        ]
+        assert abs(geompp.Polygon3D.make(pts).area() - 16.0) < 1e-4
+
+    def test_perimeter_square(self):
+        # 1×1 square → perimeter = 4
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        assert approx(geompp.Polygon3D.make(pts).perimeter(), 4.0)
+
+    def test_perimeter_non_xy_plane(self):
+        # 1×1 square on YZ plane → same perimeter = 4
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+            geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
+        ]
+        assert approx(geompp.Polygon3D.make(pts).perimeter(), 4.0)
+
+    def test_perimeter_triangle(self):
+        # 3-4-5 right triangle → perimeter = 12
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 3, 0),
+        ]
+        assert approx(geompp.Polygon3D.make(pts).perimeter(), 12.0)
+
+    def test_get_plane_returns_plane(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        pl = geompp.Polygon3D.make(pts).get_plane()
+        assert isinstance(pl, geompp.Plane)
+        assert approx(abs(pl.normal.z), 1.0)
+
+    def test_get_plane_contains_all_vertices(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        p = geompp.Polygon3D.make(pts)
+        pl = p.get_plane()
+        for i in range(len(p)):
+            assert pl.contains(p[i])
+
+    def test_get_plane_with_holes(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        p = geompp.Polygon3D.make(outer, [hole])
+        pl = p.get_plane()
+        assert isinstance(pl, geompp.Plane)
+        assert approx(abs(pl.normal.z), 1.0)
+
+    def test_centroid_square(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        c = geompp.Polygon3D.make(pts).centroid()
+        assert isinstance(c, geompp.Point3D)
+        assert approx(c.x, 2.0) and approx(c.y, 2.0) and approx(c.z, 0.0)
+
+    def test_centroid_elevated_square(self):
+        pts = [
+            geompp.Point3D(0, 0, 5), geompp.Point3D(4, 0, 5),
+            geompp.Point3D(4, 4, 5), geompp.Point3D(0, 4, 5),
+        ]
+        c = geompp.Polygon3D.make(pts).centroid()
+        assert approx(c.x, 2.0) and approx(c.y, 2.0) and approx(c.z, 5.0)
+
+    def test_centroid_with_centered_hole(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        c = geompp.Polygon3D.make(outer, [hole]).centroid()
+        assert approx(c.x, 2.0) and approx(c.y, 2.0) and approx(c.z, 0.0)
+
+    def test_centroid_with_off_center_hole(self):
+        # 6×1 outer, 2×1 CW hole on the right → centroid shifts left to x=2
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(6, 0, 0),
+            geompp.Point3D(6, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        hole = [
+            geompp.Point3D(4, 0, 0), geompp.Point3D(4, 1, 0),
+            geompp.Point3D(6, 1, 0), geompp.Point3D(6, 0, 0),
+        ]
+        c = geompp.Polygon3D.make(outer, [hole]).centroid()
+        assert approx(c.x, 2.0) and approx(c.y, 0.5) and approx(c.z, 0.0)
+
+
+# ─── Free function centroid (3D) ─────────────────────────────────────────────
+
+class TestCentroid3D:
+    def test_xy_square(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        c = geompp.centroid(pts)
+        assert isinstance(c, geompp.Point3D)
+        assert approx(c.x, 2.0) and approx(c.y, 2.0) and approx(c.z, 0.0)
+
+    def test_elevated_xy_square(self):
+        pts = [
+            geompp.Point3D(0, 0, 7), geompp.Point3D(4, 0, 7),
+            geompp.Point3D(4, 4, 7), geompp.Point3D(0, 4, 7),
+        ]
+        c = geompp.centroid(pts)
+        assert approx(c.x, 2.0) and approx(c.y, 2.0) and approx(c.z, 7.0)
+
+    def test_yz_square(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+            geompp.Point3D(0, 4, 4), geompp.Point3D(0, 0, 4),
+        ]
+        c = geompp.centroid(pts)
+        assert approx(c.x, 0.0) and approx(c.y, 2.0) and approx(c.z, 2.0)
+
+    def test_off_origin_yz_square(self):
+        pts = [
+            geompp.Point3D(5, 0, 0), geompp.Point3D(5, 4, 0),
+            geompp.Point3D(5, 4, 4), geompp.Point3D(5, 0, 4),
+        ]
+        c = geompp.centroid(pts)
+        assert approx(c.x, 5.0) and approx(c.y, 2.0) and approx(c.z, 2.0)
+
+    def test_with_explicit_plane(self):
+        pts = [
+            geompp.Point3D(0, 0, 3), geompp.Point3D(4, 0, 3),
+            geompp.Point3D(4, 4, 3), geompp.Point3D(0, 4, 3),
+        ]
+        pl = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 3), geompp.Vector3D(0, 0, 1))
+        c = geompp.centroid(pts, pl)
+        assert approx(c.x, 2.0) and approx(c.y, 2.0) and approx(c.z, 3.0)
+
+    def test_triangle_returns_average(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(0, 3, 0)]
+        c = geompp.centroid(pts)
+        assert approx(c.x, 1.0) and approx(c.y, 1.0) and approx(c.z, 0.0)
 
 
 # ─── Polyline2D ──────────────────────────────────────────────────────────────
@@ -913,6 +1166,59 @@ class TestFreeFunctions:
             geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
         ]
         assert geompp.are_ccw(pts, None)  # None is accepted as the default
+
+    def test_signed_area_ccw_is_positive(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        sa = geompp.signed_area(pts)
+        assert sa > 0
+        assert approx(sa, 16.0)
+
+    def test_signed_area_cw_is_negative(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(0, 4), geompp.Point2D(4, 4), geompp.Point2D(4, 0)]
+        sa = geompp.signed_area(pts)
+        assert sa < 0
+        assert approx(sa, -16.0)
+
+    def test_signed_area_triangle(self):
+        # base=4, height=3 → area = 6
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(0, 3)]
+        assert approx(geompp.signed_area(pts), 6.0)
+
+    def test_signed_area_off_origin(self):
+        # 4×4 square not starting at origin — exercises i=0 wraparound
+        pts = [geompp.Point2D(1, 1), geompp.Point2D(5, 1), geompp.Point2D(5, 5), geompp.Point2D(1, 5)]
+        assert approx(geompp.signed_area(pts), 16.0)
+
+    def test_signed_area_consistent_with_are_ccw(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2), geompp.Point2D(0, 2)]
+        assert (geompp.signed_area(pts) > 0) == geompp.are_ccw(pts)
+
+    def test_signed_area_3d_ccw_is_positive(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+               geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)]
+        sa = geompp.signed_area(pts)
+        assert sa > 0
+        assert approx(sa, 16.0)
+
+    def test_signed_area_3d_cw_is_negative(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+               geompp.Point3D(4, 4, 0), geompp.Point3D(4, 0, 0)]
+        sa = geompp.signed_area(pts)
+        assert sa < 0
+        assert approx(sa, -16.0)
+
+    def test_signed_area_3d_opposite_normal_negates(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+               geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)]
+        plane_pos = geompp.Plane.xy()
+        plane_neg = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 0), geompp.Vector3D(0, 0, -1))
+        assert geompp.signed_area(pts, plane_pos) > 0
+        assert geompp.signed_area(pts, plane_neg) < 0
+
+    def test_signed_area_3d_consistent_with_are_ccw(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0),
+               geompp.Point3D(2, 2, 0), geompp.Point3D(0, 2, 0)]
+        assert (geompp.signed_area(pts) > 0) == geompp.are_ccw(pts, None)
 
 
 # ─── GeometryCollection2D ─────────────────────────────────────────────────────

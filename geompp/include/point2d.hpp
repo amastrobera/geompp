@@ -58,6 +58,7 @@ Point2D average(std::vector<Point2D> const& points);
 bool operator==(Point2D const& lhs, Point2D const& rhs);
 
 Point2D operator+(Point2D const& lhs, Vector2D const& rhs);
+Point2D& operator+=(Point2D& lhs, Vector2D const& rhs);
 
 Vector2D operator-(Point2D const& lhs, Point2D const& rhs);
 Point2D operator-(Point2D const& lhs, Vector2D const& rhs);
@@ -68,6 +69,7 @@ Point2D operator*(Point2D const& lhs, Point2D const& rhs) = delete;
 Point2D operator+(Point2D const& lhs, Point2D const& rhs) = delete;
 
 Point2D operator/(Point2D const& lhs, Point2D const& rhs) = delete;
+Point2D operator/(Point2D const& lhs, double a);
 
 std::ostream& operator<<(std::ostream& os, Point2D const& g);
 
@@ -91,9 +93,13 @@ std::ostream& operator<<(std::ostream& os, Point2D const& g);
 
 #pragma region Collection Operations
 
+double signed_area(std::vector<Point2D> const& points);
+
 bool are_ccw(std::vector<Point2D> const& points);
 
 bool are_cw(std::vector<Point2D> const& points);
+
+Point2D centroid(std::vector<Point2D> const& points);
 
 #pragma endregion
 

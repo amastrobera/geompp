@@ -74,10 +74,6 @@ Point2D^ Polygon2D::Centroid() {
     return gcnew Point2D(new geompp::Point2D(_native->Centroid()));
 }
 
-double Polygon2D::SignedArea() {
-    return _native->SignedArea();
-}
-
 double Polygon2D::Area() {
     return _native->Area();
 }

@@ -25,6 +25,19 @@ Point3D Vector3D::ToPoint() const { return Point3D(X, Y, Z); }
 
 double Vector3D::Length() const { return sqrt(pow(X, 2) + pow(Y, 2) + pow(Z, 2)); }
 
+Axis Vector3D::DominantAxis() const {
+  double absX = std::abs(X);
+  double absY = std::abs(Y);
+  double absZ = std::abs(Z);
+
+  if (compare(absZ, absX) >= 0 && compare(absZ, absY) >= 0) {
+    return Axis::Z;
+
+  } else {
+    return compare(absX, absY) >= 0 ? Axis::X : Axis::Y;
+  }
+}
+
 bool Vector3D::AlmostEquals(Vector3D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
 }

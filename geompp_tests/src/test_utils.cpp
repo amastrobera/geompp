@@ -209,4 +209,47 @@ TEST_F(UtilsTest, AreCCW_3D) {
   EXPECT_TRUE(g::are_cw(cw));
 }
 
+TEST_F(UtilsTest, SignedArea_CCW_IsPositive) {
+  // 4×4 CCW square → signed area = +16
+  std::vector<g::Point2D> pts = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  EXPECT_NEAR(16.0, g::signed_area(pts), 1e-9);
+  EXPECT_GT(g::signed_area(pts), 0.0);
+}
+
+TEST_F(UtilsTest, SignedArea_CW_IsNegative) {
+  // same square with CW winding → signed area = -16
+  std::vector<g::Point2D> pts = {
+      g::Point2D(0, 0), g::Point2D(0, 4), g::Point2D(4, 4), g::Point2D(4, 0)};
+  EXPECT_NEAR(-16.0, g::signed_area(pts), 1e-9);
+  EXPECT_LT(g::signed_area(pts), 0.0);
+}
+
+TEST_F(UtilsTest, SignedArea_Triangle) {
+  // base=4, height=3 → area = 6; CCW
+  std::vector<g::Point2D> ccw = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)};
+  EXPECT_NEAR(6.0,  g::signed_area(ccw), 1e-9);
+
+  // CW orientation → -6
+  std::vector<g::Point2D> cw = {g::Point2D(0, 0), g::Point2D(0, 3), g::Point2D(4, 0)};
+  EXPECT_NEAR(-6.0, g::signed_area(cw), 1e-9);
+}
+
+TEST_F(UtilsTest, SignedArea_OffOrigin_CorrectResult) {
+  // 4×4 square NOT starting at the origin — exercises the i=0 wraparound
+  std::vector<g::Point2D> pts = {
+      g::Point2D(1, 1), g::Point2D(5, 1), g::Point2D(5, 5), g::Point2D(1, 5)};
+  EXPECT_NEAR(16.0, g::signed_area(pts), 1e-9);
+}
+
+TEST_F(UtilsTest, SignedArea_ConsistentWithAreCCW) {
+  std::vector<g::Point2D> ccw = {
+      g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)};
+  std::vector<g::Point2D> cw = {
+      g::Point2D(0, 0), g::Point2D(0, 2), g::Point2D(2, 2), g::Point2D(2, 0)};
+
+  EXPECT_EQ(g::are_ccw(ccw), g::signed_area(ccw) > 0);
+  EXPECT_EQ(g::are_cw(cw),   g::signed_area(cw)  < 0);
+}
+
 }  // namespace geompp_tests

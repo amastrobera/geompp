@@ -138,4 +138,118 @@ TEST_F(Polygon2DTest, FromFile) {
   EXPECT_ANY_THROW(g::Polygon2D::FromFile(path));
 }
 
+// ---- Area -------------------------------------------------------------------
+
+TEST_F(Polygon2DTest, Area_Square) {
+  // 1×1 square → area = 1
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  EXPECT_NEAR(1.0, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Area_Rectangle) {
+  // 3 wide × 4 tall → area = 12
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 4), g::Point2D(0, 4)});
+  EXPECT_NEAR(12.0, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Area_RightTriangle) {
+  // base=4, height=3 → area = 0.5 × 4 × 3 = 6
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)});
+  EXPECT_NEAR(6.0, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Area_SquareWithOneHole) {
+  // 4×4 outer (area=16) minus 2×2 CW hole (area=4) = 12
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+  EXPECT_NEAR(12.0, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Area_RectangleWithTwoHoles) {
+  // 6×4 outer (area=24) minus two 1×2 CW holes (area=2 each) = 20
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(6, 0), g::Point2D(6, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole1 = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(2, 3), g::Point2D(2, 1)};
+  std::vector<g::Point2D> hole2 = {
+      g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(5, 3), g::Point2D(5, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole1, hole2});
+  EXPECT_NEAR(20.0, p.Area(), 1e-9);
+}
+
+// ---- Centroid ---------------------------------------------------------------
+
+TEST_F(Polygon2DTest, Centroid_Square) {
+  auto p = g::Polygon2D::Make({
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto c = p.Centroid();
+  EXPECT_NEAR(2.0, c.x(), 1e-9);
+  EXPECT_NEAR(2.0, c.y(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Centroid_Rectangle) {
+  auto p = g::Polygon2D::Make({
+      g::Point2D(0, 0), g::Point2D(6, 0), g::Point2D(6, 2), g::Point2D(0, 2)});
+  auto c = p.Centroid();
+  EXPECT_NEAR(3.0, c.x(), 1e-9);
+  EXPECT_NEAR(1.0, c.y(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Centroid_Triangle) {
+  // right triangle (0,0),(4,0),(0,3) → (4/3, 1)
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)});
+  auto c = p.Centroid();
+  EXPECT_NEAR(4.0 / 3.0, c.x(), 1e-9);
+  EXPECT_NEAR(1.0,        c.y(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Centroid_SquareWithCenteredHole) {
+  // 4×4 outer, 2×2 symmetric CW hole → centroid stays at (2, 2)
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+  auto c = p.Centroid();
+  EXPECT_NEAR(2.0, c.x(), 1e-9);
+  EXPECT_NEAR(2.0, c.y(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Centroid_SquareWithOffCenterHole) {
+  // 4×4 outer (area=16, centroid=(2,2)), 2×2 CW hole in top-right ([2,4]×[2,4])
+  // hole centroid=(3,3), hole signed_area≈-4
+  // c = (16*(2,2) + (-4)*(3,3)) / (16-4) = (20,20)/12 = (5/3, 5/3)
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(2, 2), g::Point2D(2, 4), g::Point2D(4, 4), g::Point2D(4, 2)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+  auto c = p.Centroid();
+  EXPECT_NEAR(5.0 / 3.0, c.x(), 1e-9);
+  EXPECT_NEAR(5.0 / 3.0, c.y(), 1e-9);
+}
+
+// ---- Perimeter --------------------------------------------------------------
+
+TEST_F(Polygon2DTest, Perimeter_Square) {
+  // 1×1 square → 4 sides of length 1
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  EXPECT_NEAR(4.0, p.Perimeter(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Perimeter_Rectangle) {
+  // 3×4 rectangle → 2*(3+4) = 14
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 4), g::Point2D(0, 4)});
+  EXPECT_NEAR(14.0, p.Perimeter(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Perimeter_Triangle) {
+  // 3-4-5 right triangle → perimeter = 12
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)});
+  EXPECT_NEAR(12.0, p.Perimeter(), 1e-9);
+}
+
 }  // namespace geompp_tests

@@ -9,6 +9,8 @@ namespace geompp {
 
 class Point3D;
 
+enum class Axis { X, Y, Z };
+
 class Vector3D {
  public:
   Vector3D(double x, double y, double z);
@@ -21,8 +23,9 @@ class Vector3D {
   double inline const z() const { return Z; }
 
   Point3D ToPoint() const;
-
   double Length() const;
+  Axis DominantAxis() const;
+
   bool AlmostEquals(Vector3D const& other, double epsilon = DOUBLE_EPSILON) const;
   std::string ToWkt() const;
   static Vector3D FromWkt(std::string const& wkt);

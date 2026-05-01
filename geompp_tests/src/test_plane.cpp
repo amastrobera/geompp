@@ -40,6 +40,22 @@ TEST_F(PlaneTest, Constructor) {
   ASSERT_TRUE(xy_axes.axis_u().AlmostEquals(g::Vector3D::BasisX()));
   ASSERT_TRUE(xy_axes.axis_v().AlmostEquals(g::Vector3D::BasisY()));
 
+  // FromOriginAndAxes with non-unit axes: constructor must normalize AxisU and AxisV
+  auto xy_scaled = g::Plane::FromOriginAndAxes(g::Point3D::Zero(), g::Vector3D(2, 0, 0), g::Vector3D(0, 3, 0));
+  ASSERT_TRUE(xy_scaled.normal().AlmostEquals(g::Vector3D::BasisZ()));
+  ASSERT_TRUE(xy_scaled.axis_u().AlmostEquals(g::Vector3D::BasisX()));
+  ASSERT_TRUE(xy_scaled.axis_v().AlmostEquals(g::Vector3D::BasisY()));
+  ASSERT_NEAR(1.0, xy_scaled.axis_u().Length(), 1e-9);
+  ASSERT_NEAR(1.0, xy_scaled.axis_v().Length(), 1e-9);
+
+  // From3Points with non-unit span vectors: same normalization applies
+  auto xy_3pts_scaled = g::Plane::From3Points(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 3, 0));
+  ASSERT_TRUE(xy_3pts_scaled.normal().AlmostEquals(g::Vector3D::BasisZ()));
+  ASSERT_TRUE(xy_3pts_scaled.axis_u().AlmostEquals(g::Vector3D::BasisX()));
+  ASSERT_TRUE(xy_3pts_scaled.axis_v().AlmostEquals(g::Vector3D::BasisY()));
+  ASSERT_NEAR(1.0, xy_3pts_scaled.axis_u().Length(), 1e-9);
+  ASSERT_NEAR(1.0, xy_3pts_scaled.axis_v().Length(), 1e-9);
+
   // Static convenience planes
   ASSERT_EQ(g::Point3D::Zero(), g::Plane::XY().origin());
   ASSERT_TRUE(g::Plane::XY().normal().AlmostEquals(g::Vector3D::BasisZ()));
@@ -352,6 +368,127 @@ TEST_F(PlaneTest, AreCCW) {
   auto ref = g::Plane::From3Points(tilted[0], tilted[1], tilted[2]);
   EXPECT_FALSE(g::are_ccw(tilted));        // auto XY ref gives wrong answer
   EXPECT_TRUE(g::are_ccw(tilted, ref));    // correct ref gives right answer
+}
+
+TEST_F(PlaneTest, SignedArea_3D_XY) {
+  std::vector<g::Point3D> ccw = {{0,0,0},{4,0,0},{4,4,0},{0,4,0}};
+  EXPECT_NEAR(16.0, g::signed_area(ccw), 1e-9);
+  EXPECT_GT(g::signed_area(ccw), 0.0);
+
+  std::vector<g::Point3D> cw = {{0,0,0},{0,4,0},{4,4,0},{4,0,0}};
+  EXPECT_NEAR(-16.0, g::signed_area(cw), 1e-9);
+  EXPECT_LT(g::signed_area(cw), 0.0);
+}
+
+TEST_F(PlaneTest, SignedArea_3D_YZ) {
+  // 4×4 CCW square on YZ plane → +16
+  std::vector<g::Point3D> ccw = {{0,0,0},{0,4,0},{0,4,4},{0,0,4}};
+  EXPECT_NEAR(16.0, g::signed_area(ccw), 1e-9);
+}
+
+TEST_F(PlaneTest, SignedArea_3D_ZX) {
+  // 4×4 CCW square on ZX plane → +16
+  std::vector<g::Point3D> ccw = {{0,0,0},{0,0,4},{4,0,4},{4,0,0}};
+  EXPECT_NEAR(16.0, g::signed_area(ccw), 1e-9);
+}
+
+TEST_F(PlaneTest, SignedArea_3D_OppositeNormal) {
+  // same CCW points on XY plane: +Z plane → positive, -Z plane → negative
+  std::vector<g::Point3D> pts = {{0,0,0},{4,0,0},{4,4,0},{0,4,0}};
+  auto plane_pos = g::Plane::FromOriginAndNormal(g::Point3D::Zero(),  g::Vector3D::BasisZ());
+  auto plane_neg = g::Plane::FromOriginAndNormal(g::Point3D::Zero(), -g::Vector3D::BasisZ());
+  EXPECT_GT(g::signed_area(pts, plane_pos), 0.0);
+  EXPECT_LT(g::signed_area(pts, plane_neg), 0.0);
+}
+
+TEST_F(PlaneTest, SignedArea_3D_ConsistentWithAreCCW) {
+  std::vector<g::Point3D> ccw = {{0,0,0},{4,0,0},{4,4,0},{0,4,0}};
+  std::vector<g::Point3D> cw  = {{0,0,0},{0,4,0},{4,4,0},{4,0,0}};
+  EXPECT_EQ(g::are_ccw(ccw), g::signed_area(ccw) > 0);
+  EXPECT_EQ(g::are_cw(cw),   g::signed_area(cw)  < 0);
+}
+
+TEST_F(PlaneTest, Centroid_XYSquare) {
+  // 4×4 square on the XY plane at z=0 → centroid = (2,2,0)
+  std::vector<g::Point3D> pts = {{0,0,0},{4,0,0},{4,4,0},{0,4,0}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(2.0, c.x(), 1e-9);
+  EXPECT_NEAR(2.0, c.y(), 1e-9);
+  EXPECT_NEAR(0.0, c.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_ElevatedXYSquare) {
+  // same square lifted to z=7 — the missing z must come from the plane
+  std::vector<g::Point3D> pts = {{0,0,7},{4,0,7},{4,4,7},{0,4,7}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(2.0, c.x(), 1e-9);
+  EXPECT_NEAR(2.0, c.y(), 1e-9);
+  EXPECT_NEAR(7.0, c.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_YZSquare) {
+  // 4×4 square on the YZ plane (x=0) → centroid = (0,2,2)
+  std::vector<g::Point3D> pts = {{0,0,0},{0,4,0},{0,4,4},{0,0,4}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(0.0, c.x(), 1e-9);
+  EXPECT_NEAR(2.0, c.y(), 1e-9);
+  EXPECT_NEAR(2.0, c.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_OffOriginYZSquare) {
+  // 4×4 square on the plane x=5 → centroid = (5,2,2)
+  std::vector<g::Point3D> pts = {{5,0,0},{5,4,0},{5,4,4},{5,0,4}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(5.0, c.x(), 1e-9);
+  EXPECT_NEAR(2.0, c.y(), 1e-9);
+  EXPECT_NEAR(2.0, c.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_ZXSquare) {
+  // 4×4 square on the ZX plane (y=0) → centroid = (2,0,2)
+  std::vector<g::Point3D> pts = {{0,0,0},{0,0,4},{4,0,4},{4,0,0}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(2.0, c.x(), 1e-9);
+  EXPECT_NEAR(0.0, c.y(), 1e-9);
+  EXPECT_NEAR(2.0, c.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_OffOriginZXSquare) {
+  // 4×4 square on the plane y=3 → centroid = (2,3,2)
+  std::vector<g::Point3D> pts = {{0,3,0},{0,3,4},{4,3,4},{4,3,0}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(2.0, c.x(), 1e-9);
+  EXPECT_NEAR(3.0, c.y(), 1e-9);
+  EXPECT_NEAR(2.0, c.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_Triangle) {
+  // triangle with ≤3 unique points → returns average of vertices
+  std::vector<g::Point3D> pts = {{0,0,0},{3,0,0},{0,3,0}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(1.0, c.x(), 1e-9);
+  EXPECT_NEAR(1.0, c.y(), 1e-9);
+  EXPECT_NEAR(0.0, c.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_WithExplicitPlane) {
+  // passing the plane explicitly must give the same result as auto-detection
+  std::vector<g::Point3D> pts = {{0,0,5},{4,0,5},{4,4,5},{0,4,5}};
+  auto plane = g::Plane::FromOriginAndNormal(g::Point3D(0,0,5), g::Vector3D::BasisZ());
+  auto c_auto   = g::centroid(pts);
+  auto c_explicit = g::centroid(pts, plane);
+  EXPECT_NEAR(c_auto.x(), c_explicit.x(), 1e-9);
+  EXPECT_NEAR(c_auto.y(), c_explicit.y(), 1e-9);
+  EXPECT_NEAR(c_auto.z(), c_explicit.z(), 1e-9);
+}
+
+TEST_F(PlaneTest, Centroid_RightTriangleXY) {
+  // right triangle base=4, height=3 → centroid = (4/3, 1, 0)
+  std::vector<g::Point3D> pts = {{0,0,0},{4,0,0},{0,3,0}};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(4.0/3.0, c.x(), 1e-6);
+  EXPECT_NEAR(1.0,     c.y(), 1e-6);
+  EXPECT_NEAR(0.0,     c.z(), 1e-9);
 }
 
 TEST_F(PlaneTest, AreCW) {

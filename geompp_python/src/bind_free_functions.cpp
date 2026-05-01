@@ -55,6 +55,28 @@ void bind_free_functions(py::module_& m) {
           [](const std::vector<geompp::Point3D>& pts) { return geompp::average(pts); },
           "points"_a, "Arithmetic mean of 3D points.");
 
+    m.def("centroid",
+          [](const std::vector<geompp::Point2D>& pts) { return geompp::centroid(pts); },
+          "points"_a, "Centroid of a 2D polygon. Throws if the points have zero area.");
+
+    m.def("centroid",
+          [](const std::vector<geompp::Point3D>& pts, std::optional<geompp::Plane> plane) {
+              return geompp::centroid(pts, plane);
+          },
+          "points"_a, "plane"_a = py::none(),
+          "Centroid of a 3D polygon. Throws if the points have zero area. Plane is auto-detected if omitted.");
+
+    m.def("signed_area",
+          [](const std::vector<geompp::Point2D>& pts) { return geompp::signed_area(pts); },
+          "points"_a, "Signed area of a 2D polygon; positive = CCW, negative = CW.");
+
+    m.def("signed_area",
+          [](const std::vector<geompp::Point3D>& pts, std::optional<geompp::Plane> plane) {
+              return geompp::signed_area(pts, plane);
+          },
+          "points"_a, "plane"_a = py::none(),
+          "Signed area of a 3D polygon; positive = CCW, negative = CW. Plane is auto-detected if omitted.");
+
     m.def("are_ccw",
           [](const std::vector<geompp::Point2D>& pts) { return geompp::are_ccw(pts); },
           "points"_a, "True if 2D points are ordered counter-clockwise.");

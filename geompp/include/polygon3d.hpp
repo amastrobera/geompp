@@ -1,6 +1,7 @@
 #pragma once
 
 #include "constants.hpp"
+#include "plane.hpp"
 #include "point3d.hpp"
 #include "vector3d.hpp"
 
@@ -28,10 +29,10 @@ class Polygon3D {
 
   inline std::size_t Size() const { return VERTICES.size(); }
   Point3D const& operator[](int i) const;
+  inline Plane GetPlane() const { return PLANE; }
 
   bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
   Point3D Centroid() const;
-  double SignedArea() const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
   double Area() const;
   double Perimeter() const;
   double DistanceTo(Point3D const& point) const;
@@ -59,9 +60,10 @@ class Polygon3D {
  private:
   std::vector<Point3D> VERTICES;
   std::vector<std::vector<Point3D>> HOLES;
+  Plane PLANE;
 
-  Polygon3D(std::vector<Point3D> const& points);
-  Polygon3D(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes);
+  Polygon3D(std::vector<Point3D> const& points, Plane const& plane);
+  Polygon3D(std::vector<Point3D> const& points, Plane const& plane, std::vector<std::vector<Point3D>> const& holes);
 };
 
 #pragma region Operator Overloading
