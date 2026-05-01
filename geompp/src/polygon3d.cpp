@@ -35,8 +35,8 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
   if (!are_ccw(unique_points)) {
     throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
-
-  return {unique_points};
+  auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
+  return {unique_points, outer_plane};
 }
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes) {
@@ -57,6 +57,8 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
     throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
+  auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
+
   std::vector<std::vector<Point3D>> unique_holes_points;
   for (auto const& hole : holes) {
     auto unique_hole_points = remove_collinear(remove_duplicates_from_sorted_list(hole));
@@ -76,7 +78,6 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
     }
 
     // verify that holes are on the same plane as the outer loop
-    auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
     for (int i = 0; i < unique_hole_points.size(); ++i) {
       if (!outer_plane.Contains(unique_hole_points[i])) {
         throw std::runtime_error("cannot create polygon holes that are not on the same plane as the outer loop");
@@ -86,13 +87,14 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
     unique_holes_points.push_back(unique_hole_points);
   }
 
-  return {unique_points, unique_holes_points};
+  return {unique_points, outer_plane, unique_holes_points};
 }
 
-Polygon3D::Polygon3D(std::vector<Point3D> const& points) : VERTICES(points) {}
+Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane) : VERTICES(points), PLANE(plane) {}
 
-Polygon3D::Polygon3D(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes)
-    : VERTICES(points), HOLES(holes) {}
+Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane,
+                     std::vector<std::vector<Point3D>> const& holes)
+    : VERTICES(points), PLANE(plane), HOLES(holes) {}
 
 Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   if (this != &other) {
@@ -130,13 +132,48 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   return true;
 }
 
-Point3D Polygon3D::Centroid() const { throw std::runtime_error("not implemented"); }
+Point3D Polygon3D::Centroid() const {
+  Point3D cs = centroid(VERTICES, PLANE);
+  double sa = signed_area(VERTICES, PLANE);
 
-double Polygon3D::SignedArea() const { throw std::runtime_error("not implemented"); }
+  if (HOLES.empty()) {
+    return cs;
+  }
 
-double Polygon3D::Area() const { throw std::runtime_error("not implemented"); }
+  // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)  — hole areas are negative (CW) so they subtract
+  double total_sa = sa;
+  double wx = sa * cs.x();
+  double wy = sa * cs.y();
+  double wz = sa * cs.z();
 
-double Polygon3D::Perimeter() const { throw std::runtime_error("not implemented"); }
+  for (auto const& hole : HOLES) {
+    double sa_h = signed_area(hole, PLANE);
+    Point3D c_h = centroid(hole, PLANE);
+    total_sa += sa_h;
+    wx += sa_h * c_h.x();
+    wy += sa_h * c_h.y();
+    wz += sa_h * c_h.z();
+  }
+
+  return Point3D(wx / total_sa, wy / total_sa, wz / total_sa);
+}
+
+double Polygon3D::Area() const {
+  double area = signed_area(VERTICES, PLANE);  // guaranteed to be positive by construction
+  for (auto const& hole : HOLES) {
+    area += signed_area(hole, PLANE);  // guaranteed to be negative by construction, so we add it
+  }
+  return area;
+}
+
+double Polygon3D::Perimeter() const {
+  double perimeter = 0;
+  int n = VERTICES.size();
+  for (int i = 0; i < n; ++i) {
+    perimeter += VERTICES[i].DistanceTo(VERTICES[(i + 1) % n]);
+  }
+  return perimeter;
+}
 
 double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
@@ -303,7 +340,7 @@ Polygon3D Polygon3D::FromWkt(std::string const& wkt) {
           end_inner_loop + polygon_loops_wkt.substr(end_inner_loop + 1).find(',');  // find the comma separator of loops
     }
 
-    return {points, holes};
+    return Make(points, holes);
 
   } catch (std::exception const& e) {
     GEOMPP_LOG(ERROR) << e.what();

@@ -1,14 +1,12 @@
 #include "plane.hpp"
 
 #include "line3d.hpp"
-#include "point2d.hpp"
 #include "utils.hpp"
 #include "vector2d.hpp"
 
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <iostream>  // TODO: replace with logger lib
 #include <unordered_set>
 
 namespace geompp {
@@ -36,7 +34,7 @@ Plane::Plane(Point3D origin, Vector3D normal)
     : Origin(origin), Normal(normal), AxisU(normal.Perp().Normalize()), AxisV(normal.Cross(AxisU).Normalize()) {}
 
 Plane::Plane(Point3D origin, Vector3D u, Vector3D v)
-    : Origin(origin), Normal(u.Cross(v).Normalize()), AxisU(u), AxisV(v) {}
+    : Origin(origin), Normal(u.Cross(v).Normalize()), AxisU(u.Normalize()), AxisV(Normal.Cross(AxisU).Normalize()) {}
 
 bool Plane::AlmostEquals(Plane const& other, double epsilon) const {
   return (
@@ -71,12 +69,10 @@ Point2D Plane::ProjectInto(Point3D const& p) const {
   return {u, v};
 }
 
-Point3D Plane::Evaluate(Point2D const& p) const {
-  // we "project onto" the evaluated one, to avoid complaints on decimal precision ?
-  return ProjectOnto(Origin + AxisU * p.x() + AxisV * p.y());
-}
+Point3D Plane::Evaluate(Point2D const& p) const { return Origin + AxisU * p.x() + AxisV * p.y(); }
 
 bool Plane::Contains(Point3D const& point) const { return compare((point - Origin).Dot(Normal), 0) == 0; }
+
 bool Plane::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
   auto V = line.Last() - line.First();
@@ -87,8 +83,7 @@ Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
     return std::nullopt;
   }
   double t = -W.Dot(Normal) / denominator;
-  // we "project onto" the evaluated one, to avoid complaints on decimal precision ?
-  return ProjectOnto(line.First() + t * V);
+  return ProjectOnto(line.First() + t * V);  // snap to plane: division by small denominator can accumulate error
 }
 
 #pragma endregion
@@ -143,32 +138,213 @@ Plane closest_world_plane_to(std::vector<Point3D> const& points) {
   return Plane::FromOriginAndNormal(Point3D::Zero(), world_normal);
 }
 
-double orientation(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt) {
+// Snyder & Barr [1987] approach: pick the dominant normal axis, and project the polygon there
+//                                (simple drop of coordinate)
+//                                then compute the 2D signed area, and multiply by the normal
+// This makes the calculation quicker and removes the overhead of re-constructing a vector of 2D points
+// Note: this function could have been written more elegantly projecting on 2D all points and re-using
+//       the 2D signed area function, thus avoiding code-redundancy. However, we preferred to invest in
+//       performance, avoiding the filling of a vector of 2D points and calling many constructors, I
+//       re-wrote the shoelace formuala in 3D.
+double signed_area(std::vector<Point3D> const& points, std::optional<Plane> plane) {
   auto unique_points = remove_collinear(points);
   if (unique_points.size() < 3) {
-    return true;
+    throw std::runtime_error(
+        std::format("cannot compute area of a set of points with less than 3 unique points; points are too close with "
+                    "{} decimals precision",
+                    DECIMAL_PRECISION));
   }
-
   if (!plane.has_value()) {
     plane = closest_world_plane_to(unique_points);
   }
 
   double signed_area = 0;
-  for (int i = 0; i < unique_points.size(); ++i) {
-    auto const& p1 = plane.value().ProjectInto(unique_points[i]);
-    auto const& p2 = plane.value().ProjectInto(unique_points[(i + 1) % unique_points.size()]);
-    signed_area += p1.ToVector().Cross(p2.ToVector());
+  std::size_t n = unique_points.size();
+
+  // select the larges coordinate of the normal
+  auto dominant_coord = plane->normal().DominantAxis();
+  switch (dominant_coord) {
+    case Axis::X: {  // Project onto the YZ plane at zero cost
+      // simplification of the Shoelace formula, using only 1 multiplication and 1 subtraction per point, instead of 2
+      // multiplications and 1 subtraction for the general case
+      for (int i = 0; i < n; ++i) {
+        auto const& p0 = unique_points[(n + i - 1) % n];
+        auto const& p1 = unique_points[i];
+        auto const& p2 = unique_points[(i + 1) % n];
+        signed_area += p1.y() * (p2.z() - p0.z());
+      }
+    } break;
+
+    case Axis::Y: {  // Project onto the ZX plane at zero cost
+      // simplification of the Shoelace formula, using only 1 multiplication and 1 subtraction per point, instead of 2
+      // multiplications and 1 subtraction for the general case
+      for (int i = 0; i < n; ++i) {
+        auto const& p0 = unique_points[(n + i - 1) % n];
+        auto const& p1 = unique_points[i];
+        auto const& p2 = unique_points[(i + 1) % n];
+        signed_area += p1.z() * (p2.x() - p0.x());
+      }
+
+    } break;
+
+    case Axis::Z: {  // Project onto the XY plane at zero cost
+      // simplification of the Shoelace formula, using only 1 multiplication and 1 subtraction per point, instead of 2
+      // multiplications and 1 subtraction for the general case
+      for (int i = 0; i < n; ++i) {
+        auto const& p0 = unique_points[(n + i - 1) % n];
+        auto const& p1 = unique_points[i];
+        auto const& p2 = unique_points[(i + 1) % n];
+        signed_area += p1.x() * (p2.y() - p0.y());
+      }
+    } break;
+  }
+
+  // scale to get area before projection and get the correct sign, then divide by 2
+  double normal_length = plane->normal().Length();
+  switch (dominant_coord) {
+    case Axis::X: {
+      signed_area *= normal_length / (2 * plane->normal().x());
+    } break;
+
+    case Axis::Y: {
+      signed_area *= normal_length / (2 * plane->normal().y());
+    } break;
+
+    case Axis::Z: {
+      signed_area *= normal_length / (2 * plane->normal().z());
+    } break;
   }
 
   return signed_area;
 }
 
 bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
-  return compare(orientation(points, plane), 0) > 0;
+  return compare(signed_area(points, plane), 0) > 0;
 }
 
 bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
-  return compare(orientation(points, plane), 0) < 0;
+  return compare(signed_area(points, plane), 0) < 0;
+}
+
+// Calculates the centroid of the polygon
+// Note: this function could have been written more elegantly projecting on 2D all points and re-using
+//       the 2D signed area function, thus avoiding code-redundancy. However, we preferred to invest in
+//       performance, avoiding the filling of a vector of 2D points and calling many constructors, I
+//       re-wrote the shoelace formuala in 3D.
+Point3D centroid(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  auto unique_points = remove_collinear(points);
+  if (unique_points.size() <= 3) {
+    return average(unique_points);
+  }
+
+  if (!plane.has_value()) {
+    plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
+  }
+
+  double sa = 0;
+  double cx = 0;
+  double cy = 0;
+  double cz = 0;
+  std::size_t n = unique_points.size();
+
+  // the plane having formula
+  //   Ax + By + Cz + D = 0
+  //  where (A, B, C) is the normal of the plane,
+  //       and D is the distance from the origin to the plane along the normal (D = -N.dot(P0))
+  Vector3D normal = plane->normal();
+  double A = normal.x();
+  double B = normal.y();
+  double C = normal.z();
+  double D = -normal.Dot(unique_points[0].ToVector());
+  //  we will be able to evaluate the 3D coordinate of the centroid based on the other two, using
+  //     cy and cz known => cx = (-B*cy - C*cz - D) / A
+  //     cx and cz known => cy = (-A*cx - C*cz - D) / B
+  //     cx and cy known => cz = (-A*cx - B*cy - D) / C
+  //
+  // ... in fact the Plane::Evaluate() function cannot be used in this case.
+  //     it would require us to project all points on the points->plane() in order to make sense
+  //     (and we explicitely don't want to project all points on that plane, as we want to save time and memory)
+
+  // select the larges coordinate of the normal
+  auto dominant_coord = plane->normal().DominantAxis();
+  switch (dominant_coord) {
+    case Axis::X: {  // Project onto the YZ plane at zero cost
+
+      for (int i = 0; i < n; ++i) {
+        auto const& p1 = unique_points[i];
+        auto const& p2 = unique_points[(i + 1) % n];
+        double shoelace = p1.y() * p2.z() - p2.y() * p1.z();
+        // we do not need the adjustment for the dominant coordinate as we did in siged_area
+        // ... because the adjument happens both on the numerator and the denominator of
+        //     the centroid (Cx and Cy) formula and it cancels out
+        cy += (p1.y() + p2.y()) * shoelace;
+        cz += (p1.z() + p2.z()) * shoelace;
+        sa += shoelace;
+      }
+      sa /= 2.0;
+
+      if (compare(sa, 0) == 0) {
+        throw std::runtime_error("centroid of a set of points with zero area (YZ projection)");
+      }
+
+      cy /= (6 * sa);
+      cz /= (6 * sa);
+      cx = (-B * cy - C * cz - D) / A;
+
+    } break;
+
+    case Axis::Y: {  // Project onto the ZX plane at zero cost
+
+      for (int i = 0; i < n; ++i) {
+        auto const& p1 = unique_points[i];
+        auto const& p2 = unique_points[(i + 1) % n];
+        double shoelace = p1.z() * p2.x() - p2.z() * p1.x();
+        // we do not need the adjustment for the dominant coordinate as we did in siged_area
+        // ... because the adjument happens both on the numerator and the denominator of
+        //     the centroid (Cx and Cy) formula and it cancels out
+        cz += (p1.z() + p2.z()) * shoelace;
+        cx += (p1.x() + p2.x()) * shoelace;
+        sa += shoelace;
+      }
+      sa /= 2.0;
+
+      if (compare(sa, 0) == 0) {
+        throw std::runtime_error("centroid of a set of points with zero area (ZX projection)");
+      }
+
+      cz /= (6 * sa);
+      cx /= (6 * sa);
+      cy = (-A * cx - C * cz - D) / B;
+
+    } break;
+
+    case Axis::Z: {  // Project onto the XY plane at zero cost
+
+      for (int i = 0; i < n; ++i) {
+        auto const& p1 = unique_points[i];
+        auto const& p2 = unique_points[(i + 1) % n];
+        double shoelace = p1.x() * p2.y() - p2.x() * p1.y();
+        // we do not need the adjustment for the dominant coordinate as we did in siged_area
+        // ... because the adjument happens both on the numerator and the denominator of
+        //     the centroid (Cx and Cy) formula and it cancels out
+        cx += (p1.x() + p2.x()) * shoelace;
+        cy += (p1.y() + p2.y()) * shoelace;
+        sa += shoelace;
+      }
+      sa /= 2.0;
+
+      if (compare(sa, 0) == 0) {
+        throw std::runtime_error("centroid of a set of points with zero area (XY projection)");
+      }
+
+      cx /= (6 * sa);
+      cy /= (6 * sa);
+      cz = (-A * cx - B * cy - D) / C;
+
+    } break;
+  }
+
+  return Point3D(cx, cy, cz);
 }
 
 #pragma endregion

@@ -54,6 +54,32 @@ TEST_F(Point2DTest, AddVector) {
   ASSERT_EQ(g::Point2D(3.05, 3.77), pv);
 }
 
+TEST_F(Point2DTest, AddVectorInPlace) {
+  auto p = g::Point2D(1.0, 2.0);
+  auto v = g::Vector2D(0.5, -1.0);
+  p += v;
+  ASSERT_EQ(g::Point2D(1.5, 1.0), p);
+
+  // zero vector leaves point unchanged
+  p += g::Vector2D(0, 0);
+  ASSERT_EQ(g::Point2D(1.5, 1.0), p);
+
+  // returns reference to lhs (enables chaining)
+  auto p2 = g::Point2D(0.0, 0.0);
+  auto& ref = (p2 += v);
+  ASSERT_EQ(&p2, &ref);
+  ASSERT_EQ(g::Point2D(0.5, -1.0), p2);
+}
+
+TEST_F(Point2DTest, ScalarDivide) {
+  auto p = g::Point2D(4.0, -6.0);
+  ASSERT_EQ(g::Point2D(2.0, -3.0), p / 2.0);
+  ASSERT_EQ(g::Point2D(1.0, -1.5), p / 4.0);
+  ASSERT_EQ(p, p / 1.0);
+  ASSERT_EQ(g::Point2D(-4.0, 6.0), p / -1.0);
+  ASSERT_EQ(p * 0.5, p / 2.0);
+}
+
 TEST_F(Point2DTest, Wkt) {
   ASSERT_EQ("POINT (0 0)", g::Point2D::Zero().ToWkt());
   geompp::DECIMAL_PRECISION = 2;
@@ -165,6 +191,38 @@ TEST_F(Point2DTest, RemoveCollinear) {
   ASSERT_EQ(g::Point2D(5, 4), unique_pts[4]);
   ASSERT_EQ(g::Point2D(6, 0), unique_pts[5]);
   ASSERT_EQ(g::Point2D(7, 0), unique_pts[6]);
+}
+
+TEST_F(Point2DTest, Centroid_Square) {
+  // 4×4 CCW square → centroid at (2, 2)
+  std::vector<g::Point2D> pts = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(2.0, c.x(), 1e-9);
+  EXPECT_NEAR(2.0, c.y(), 1e-9);
+}
+
+TEST_F(Point2DTest, Centroid_Triangle) {
+  // right triangle (0,0),(4,0),(0,3) → centroid = (4/3, 1)
+  std::vector<g::Point2D> pts = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(4.0 / 3.0, c.x(), 1e-9);
+  EXPECT_NEAR(1.0,        c.y(), 1e-9);
+}
+
+TEST_F(Point2DTest, Centroid_Rectangle) {
+  // 6×2 rectangle → centroid at (3, 1)
+  std::vector<g::Point2D> pts = {
+      g::Point2D(0, 0), g::Point2D(6, 0), g::Point2D(6, 2), g::Point2D(0, 2)};
+  auto c = g::centroid(pts);
+  EXPECT_NEAR(3.0, c.x(), 1e-9);
+  EXPECT_NEAR(1.0, c.y(), 1e-9);
+}
+
+TEST_F(Point2DTest, Centroid_ZeroArea_Throws) {
+  // collinear points → signed_area == 0 → throws
+  std::vector<g::Point2D> pts = {g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(2, 0)};
+  EXPECT_ANY_THROW(g::centroid(pts));
 }
 
 TEST_F(Point2DTest, Average) {

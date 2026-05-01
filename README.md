@@ -218,9 +218,9 @@
 
   | Status | Count | % |
   |---|---|---|
-  | Tested | ~323 | ~90% |
-  | Untested | ~37 | ~10% |
-  | **Total** | **~360** | |
+  | Tested | ~401 | ~92% |
+  | Untested | ~35 | ~8% |
+  | **Total** | **~436** | |
 
   More on [test coverage](./test_coverage_report.md).
 
@@ -325,22 +325,3 @@
   - **F5** — run all tests
 
   ![unit test windows](etc/unit_tests_win_vs.png)
-
-
-## Versioning 
-
-I maintain three versions, one for each language. Tagging and pushing to github triggers the deployment of several packages. 
-
-```bash
-# C++ release archive
-git tag v0.1.1
-git push origin v0.1.1
-
-# NuGet
-git tag csharp-v0.1.1
-git push origin csharp-v0.1.1
-
-# PyPI
-git tag python-v0.1.1
-git push origin python-v0.1.1
-```

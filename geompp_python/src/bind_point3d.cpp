@@ -14,8 +14,10 @@ void bind_point3d(py::module_& m) {
         .def_static("zero",  &geompp::Point3D::Zero)
         .def("__eq__",   [](const geompp::Point3D& a, const geompp::Point3D& b) { return a == b; })
         .def("__add__",  [](const geompp::Point3D& p, const geompp::Vector3D& v) { return p + v; }, "v"_a)
+        .def("__iadd__", [](geompp::Point3D& p,       const geompp::Vector3D& v) -> geompp::Point3D& { return p += v; }, "v"_a)
         .def("__sub__",  [](const geompp::Point3D& a, const geompp::Point3D& b)  -> geompp::Vector3D { return a - b; }, "other"_a)
         .def("__sub__",  [](const geompp::Point3D& p, const geompp::Vector3D& v) -> geompp::Point3D  { return p - v; }, "v"_a)
-        .def("__mul__",  [](const geompp::Point3D& p, double a) { return p * a; }, "scalar"_a)
-        .def("__rmul__", [](const geompp::Point3D& p, double a) { return a * p; }, "scalar"_a);
+        .def("__mul__",      [](const geompp::Point3D& p, double a) { return p * a; }, "scalar"_a)
+        .def("__rmul__",     [](const geompp::Point3D& p, double a) { return a * p; }, "scalar"_a)
+        .def("__truediv__",  [](const geompp::Point3D& p, double a) { return p / a; }, "scalar"_a);
 }

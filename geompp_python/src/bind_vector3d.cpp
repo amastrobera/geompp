@@ -1,6 +1,11 @@
 #include "bind_helpers.hpp"
 
 void bind_vector3d(py::module_& m) {
+    py::enum_<geompp::Axis>(m, "Axis")
+        .value("X", geompp::Axis::X)
+        .value("Y", geompp::Axis::Y)
+        .value("Z", geompp::Axis::Z);
+
     py::class_<geompp::Vector3D>(m, "Vector3D", "3D vector (x, y, z).")
         .def(py::init<double, double, double>(),  "x"_a, "y"_a, "z"_a)
         .def(py::init<const geompp::Vector3D&>())
@@ -13,7 +18,8 @@ void bind_vector3d(py::module_& m) {
         .def("cross",       &geompp::Vector3D::Cross,       "other"_a)
         .def("perp",        &geompp::Vector3D::Perp)
         .def("normalize",   &geompp::Vector3D::Normalize)
-        .def("is_parallel", &geompp::Vector3D::IsParallel, "other"_a)
+        .def("is_parallel",    &geompp::Vector3D::IsParallel,   "other"_a)
+        .def("dominant_axis",  &geompp::Vector3D::DominantAxis)
         BIND_ALMOST_EQUALS(Vector3D)
         BIND_SERIALIZATION(Vector3D)
         .def_static("basis_x", &geompp::Vector3D::BasisX)

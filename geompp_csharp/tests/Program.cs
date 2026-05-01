@@ -424,6 +424,75 @@ Test("AreCW_CWSquare_True", () => {
   IsTrue(pts.AreCW(), "CW square must return true");
 });
 
+// ── Polygon2D ─────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPolygon2D");
+
+Test("Perimeter_Square", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  Eq(4.0, p.Perimeter());
+});
+
+Test("Perimeter_Rectangle", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(3,0), new(3,4), new(0,4) });
+  Eq(14.0, p.Perimeter());
+});
+
+Test("Centroid_Square", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(2,0), new(2,2), new(0,2) });
+  var c = p.Centroid();
+  NotNull(c);
+  Eq(1.0, c!.X); Eq(1.0, c.Y);
+});
+
+Test("Centroid_Rectangle", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,2), new(0,2) });
+  var c = p.Centroid();
+  NotNull(c);
+  Eq(2.0, c!.X); Eq(1.0, c.Y);
+});
+
+// ── Polygon3D ─────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPolygon3D");
+
+Test("Perimeter_Square", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  Eq(4.0, p.Perimeter());
+});
+
+Test("Perimeter_NonXYPlane", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(0,1,0), new(0,1,1), new(0,0,1) });
+  Eq(4.0, p.Perimeter());
+});
+
+Test("Centroid_Square", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(2,0,0), new(2,2,0), new(0,2,0) });
+  var c = p.Centroid();
+  NotNull(c);
+  Eq(1.0, c!.X); Eq(1.0, c.Y); Eq(0.0, c.Z);
+});
+
+Test("Centroid_ElevatedSquare", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,5), new(2,0,5), new(2,2,5), new(0,2,5) });
+  var c = p.Centroid();
+  NotNull(c);
+  Eq(1.0, c!.X); Eq(1.0, c.Y); Eq(5.0, c.Z);
+});
+
+Test("GetPlane_XYPlane_NormalPointsInZ", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  var pl = p.GetPlane();
+  NotNull(pl);
+  Eq(1.0, Math.Abs(pl!.Normal().Z));
+});
+
+Test("GetPlane_ContainsAllVertices", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,3), new(1,0,3), new(1,1,3), new(0,1,3) });
+  var pl = p.GetPlane();
+  NotNull(pl);
+  IsTrue(pl!.Contains(new Point3D(0,0,3)), "origin vertex must lie on plane");
+  IsTrue(pl.Contains(new Point3D(1,1,3)), "far vertex must lie on plane");
+});
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 Console.WriteLine($"\n{passed} passed, {failed} failed out of {passed + failed} tests.");
 return failed > 0 ? 1 : 0;

@@ -27,7 +27,6 @@ public:
     bool     AlmostEquals(Polygon2D^ other);
     bool     AlmostEquals(Polygon2D^ other, double epsilon);
     Point2D^ Centroid();
-    double   SignedArea();
     double   Area();
     double   Perimeter();
     double   DistanceTo(Point2D^ point);

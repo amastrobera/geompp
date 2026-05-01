@@ -11,6 +11,75 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.5.0] - 2026-05-01
+
+> C++ library — tagged `v0.5.0` · C# / NuGet — tagged `csharp-v0.5.0` · Python / PyPI — tagged `python-v0.5.0`
+
+### Added
+
+**C++ core**
+- `Axis` enum (`X`, `Y`, `Z`) in `vector3d.hpp` — axis identifier used by the dominant-axis algorithm.
+- `Vector3D::DominantAxis()` — returns the `Axis` whose absolute component is largest; used internally by the 3D shoelace formula and available as a public API.
+- `Point2D::operator+=(Vector2D const&)` and `Point3D::operator+=(Vector3D const&)` — in-place point translation.
+- `Point2D operator/(Point2D, double)` and `Point3D operator/(Point3D, double)` — scalar division (throws on division by zero).
+- `centroid(std::vector<Point2D> const&)` free function (declared in `point2d.hpp`) — shoelace-formula centroid of a 2D polygon ring.
+- `centroid(std::vector<Point3D> const&, std::optional<Plane>)` free function (declared in `plane.hpp`) — 3D centroid; auto-detects the plane if not supplied.
+- `Polygon2D::Perimeter()` — sum of outer-ring edge lengths (holes excluded).
+- `Polygon3D::Perimeter()` — sum of outer-ring edge lengths.
+- `Polygon3D::Centroid()` — area-weighted centroid; hole areas contribute with negative weight.
+- `Polygon3D::GetPlane()` — returns the `Plane` stored on construction.
+
+**C# / NuGet**
+- `Polygon2D.Perimeter()` and `Polygon3D.Perimeter()` exposed.
+- `Polygon3D.Centroid()` and `Polygon3D.GetPlane()` exposed.
+
+**Python / PyPI**
+- `Axis` enum exposed (`geompp.Axis.X / .Y / .Z`).
+- `Vector3D.dominant_axis()` exposed.
+- `Point2D.__iadd__(Vector2D)` and `Point3D.__iadd__(Vector3D)` exposed (`p += v` syntax).
+- `Polygon2D.perimeter()` and `Polygon3D.perimeter()` exposed.
+- `Polygon3D.centroid()` and `Polygon3D.get_plane()` exposed.
+- `centroid(points)` (2D list) and `centroid(points, plane)` (3D list) free functions exposed.
+- `signed_area(points, plane)` (3D) free function exposed.
+
+### Fixed
+
+**C++ core**
+- `Polygon2D::Centroid()` with holes: the weighted sum was computing `hole_area²` instead of `hole_area`, producing wrong centroids whenever holes were present. Also fixed an MSVC `C2672: std::construct_at` build error caused by pre-sizing a `std::vector<std::pair<Point2D, double>>` over a type with no default constructor — rewritten to use `reserve()` + range iteration.
+- `signed_area(std::vector<Point3D>, Plane)`: now throws `std::runtime_error` for fewer than 3 unique points (previously returned 0 silently).
+
+### Removed
+
+**C++ core (breaking)**
+- `Polygon2D::SignedArea()` — removed. Use the free function `signed_area(points)` (2D) instead.
+- `Polygon3D::SignedArea()` — removed. Use the free function `signed_area(points, plane)` (3D) instead.
+
+**C# / NuGet (breaking)**
+- `Polygon2D.SignedArea()` and `Polygon3D.SignedArea()` removed to match the C++ API change above.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_point2d.cpp`: added `AddVectorInPlace` (3 cases).
+- `test_point3d.cpp`: added `AddVectorInPlace` (3 cases).
+- `test_plane.cpp`: added 9 `Centroid_*` tests for the 3D `centroid()` free function.
+- `test_polygon2d.cpp`: added `Centroid_SquareWithCenteredHole`, `Centroid_SquareWithOffCenterHole`; added `Perimeter_Square`, `Perimeter_Rectangle`, `Perimeter_Triangle`.
+- `test_polygon3d.cpp`: added `Centroid_Square`, `Centroid_ElevatedSquare`, `Centroid_Triangle`, `Centroid_NonXYPlane`, `Centroid_SquareWithCenteredHole`, `Centroid_SquareWithOffCenterHole`; added `Perimeter_Square`, `Perimeter_NonXYPlane`, `Perimeter_Triangle`.
+
+**C# (`geompp_csharp/tests`)**
+- `Polygon2D`: added `Perimeter_Square`, `Perimeter_Rectangle`, `Centroid_Square`, `Centroid_Rectangle`.
+- `Polygon3D`: added `Perimeter_Square`, `Perimeter_NonXYPlane`, `Centroid_Square`, `Centroid_ElevatedSquare`, `GetPlane_XYPlane_NormalPointsInZ`, `GetPlane_ContainsAllVertices`.
+
+**Python (`geompp_python/tests`)**
+- `TestVector3D`: added `test_dominant_axis`.
+- `TestPoint2D`: added `test_iadd_vector`, `test_iadd_zero_vector_unchanged`.
+- `TestPoint3D`: added `test_iadd_vector`, `test_iadd_zero_vector_unchanged`.
+- `TestPolygon2D`: added `test_perimeter_square`, `test_perimeter_rectangle`, `test_perimeter_triangle`.
+- `TestPolygon3D`: added `test_perimeter_square`, `test_perimeter_non_xy_plane`, `test_perimeter_triangle`, `test_get_plane_returns_plane`, `test_get_plane_contains_all_vertices`, `test_get_plane_with_holes`.
+- `TestCentroid3D` (new class): 6 tests for `centroid(points)` and `centroid(points, plane)`.
+
+---
+
 ## [0.4.0] - 2026-04-25
 
 > C++ library — tagged `v0.4.0` · C# / NuGet — tagged `csharp-v0.4.0` · Python / PyPI — tagged `python-v0.4.0`

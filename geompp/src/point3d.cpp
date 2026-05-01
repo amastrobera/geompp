@@ -181,6 +181,7 @@ bool operator==(Point3D const& lhs, Point3D const& rhs) { return lhs.AlmostEqual
 Point3D operator+(Point3D const& lhs, Vector3D const& rhs) {
   return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z()};
 }
+Point3D& operator+=(Point3D& lhs, Vector3D const& rhs) { lhs = lhs + rhs; return lhs; }
 
 Vector3D operator-(Point3D const& lhs, Point3D const& rhs) {
   return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z()};
@@ -191,6 +192,13 @@ Point3D operator-(Point3D const& lhs, Vector3D const& rhs) {
 
 Point3D operator*(Point3D const& lhs, double a) { return {lhs.x() * a, lhs.y() * a, lhs.z() * a}; }
 Point3D operator*(double a, Point3D const& rhs) { return rhs * a; }
+
+Point3D operator/(Point3D const& lhs, double a) {
+  if (compare(a, 0) == 0) {
+    throw std::runtime_error("division by zero");
+  }
+  return {lhs.x() / a, lhs.y() / a, lhs.z() / a};
+}
 
 std::ostream& operator<<(std::ostream& os, Point3D const& g) {
   os << g.ToWkt();

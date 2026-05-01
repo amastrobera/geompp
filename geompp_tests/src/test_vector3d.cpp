@@ -189,6 +189,22 @@ TEST_F(Vector3DTest, Operators) {
   ASSERT_EQ(a, -(-a));
 }
 
+TEST_F(Vector3DTest, DominantAxis) {
+  EXPECT_EQ(g::Axis::X, g::Vector3D(3, 1, 1).DominantAxis());
+  EXPECT_EQ(g::Axis::X, g::Vector3D(-3, 1, 1).DominantAxis());
+  EXPECT_EQ(g::Axis::X, g::Vector3D::BasisX().DominantAxis());
+
+  EXPECT_EQ(g::Axis::Y, g::Vector3D(1, 3, 1).DominantAxis());
+  EXPECT_EQ(g::Axis::Y, g::Vector3D(1, -3, 1).DominantAxis());
+  EXPECT_EQ(g::Axis::Y, g::Vector3D::BasisY().DominantAxis());
+
+  EXPECT_EQ(g::Axis::Z, g::Vector3D(1, 1, 3).DominantAxis());
+  EXPECT_EQ(g::Axis::Z, g::Vector3D(1, 1, -3).DominantAxis());
+  EXPECT_EQ(g::Axis::Z, g::Vector3D::BasisZ().DominantAxis());
+  EXPECT_EQ(g::Axis::Z, g::Vector3D(1, 0, 1).DominantAxis());  // tie X==Z → Z wins
+  EXPECT_EQ(g::Axis::Z, g::Vector3D(0, 1, 1).DominantAxis());  // tie Y==Z → Z wins
+}
+
 TEST_F(Vector3DTest, BasisVectors) {
   ASSERT_EQ(g::Vector3D::BasisX(), g::Vector3D::BasisX());
   ASSERT_EQ(g::Vector3D::BasisY(), g::Vector3D::BasisY());

@@ -15,7 +15,6 @@ void bind_polygon2d(py::module_& m) {
         .def(py::init<const geompp::Polygon2D&>())
         .def("size",        &geompp::Polygon2D::Size)
         .def("centroid",    &geompp::Polygon2D::Centroid)
-        .def("signed_area", &geompp::Polygon2D::SignedArea)
         .def("area",        &geompp::Polygon2D::Area)
         .def("perimeter",   &geompp::Polygon2D::Perimeter)
         .def("distance_to", &geompp::Polygon2D::DistanceTo,  "point"_a)

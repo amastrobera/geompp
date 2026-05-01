@@ -7,6 +7,7 @@
 
 namespace GeomPP {
 
+ref class Plane;
 ref class Point3D;
 ref class Line3D;
 ref class Ray3D;
@@ -23,11 +24,11 @@ public:
 
     int Size();
     property Point3D^ default[int] { Point3D^ get(int i); }
+    Plane^   GetPlane();
 
     bool     AlmostEquals(Polygon3D^ other);
     bool     AlmostEquals(Polygon3D^ other, double epsilon);
     Point3D^ Centroid();
-    double   SignedArea();
     double   Area();
     double   Perimeter();
     double   DistanceTo(Point3D^ point);
