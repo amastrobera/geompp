@@ -127,9 +127,9 @@ TEST_F(Polyline3DTest, Interpolate) {
   ASSERT_EQ(g::Point3D::Zero(), poly.Interpolate(0));
   ASSERT_EQ(g::Point3D(3, 0, 0), poly.Interpolate(1));
 
-  // clamped
-  ASSERT_EQ(g::Point3D::Zero(), poly.Interpolate(-0.5));
-  ASSERT_EQ(g::Point3D(3, 0, 0), poly.Interpolate(1.5));
+  // out of range throws
+  EXPECT_ANY_THROW(poly.Interpolate(-0.5));
+  EXPECT_ANY_THROW(poly.Interpolate(1.5));
 }
 
 TEST_F(Polyline3DTest, Location) {

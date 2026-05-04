@@ -115,23 +115,6 @@ TEST_F(Line3DTest, ProjectOnto) {
   geompp::DECIMAL_PRECISION = 4;
 }
 
-TEST_F(Line3DTest, Location) {
-  geompp::DECIMAL_PRECISION = 4;
-  auto l = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(5, 0, 0));
-
-  // at origin: location 0
-  ASSERT_EQ(0.0, l.Location(g::Point3D::Zero()));
-
-  // at P1: location == distance(P0, P1)
-  ASSERT_EQ(5.0, l.Location(g::Point3D(5, 0, 0)));
-
-  // between: proportional to displacement
-  ASSERT_EQ(3.0, l.Location(g::Point3D(3, 0, 0)));
-
-  // behind origin: negative
-  ASSERT_EQ(-2.0, l.Location(g::Point3D(-2, 0, 0)));
-}
-
 TEST_F(Line3DTest, Wkt) {
   geompp::DECIMAL_PRECISION = 4;
   auto l = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));

@@ -86,14 +86,6 @@ double Polygon2D::DistanceTo(Point2D^ point) {
     return _native->DistanceTo(*point->_native);
 }
 
-double Polygon2D::Location(Point2D^ point) {
-    return _native->Location(*point->_native);
-}
-
-Point2D^ Polygon2D::Interpolate(double pct) {
-    return gcnew Point2D(new geompp::Point2D(_native->Interpolate(pct)));
-}
-
 bool Polygon2D::Contains(Point2D^ point) {
     return _native->Contains(*point->_native);
 }

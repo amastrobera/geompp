@@ -468,6 +468,18 @@ class TestPolygon2D:
         ])
         assert approx(p.perimeter(), 12.0)
 
+    def test_to_segments(self, square):
+        segs = square.to_segments()
+        assert len(segs) == 4  # N vertices → N segments (closed)
+        assert all(isinstance(s, geompp.LineSegment2D) for s in segs)
+        assert all(approx(s.length(), 1.0) for s in segs)
+        first = segs[0]
+        assert first.first.almost_equals(geompp.Point2D(0, 0))
+        assert first.last.almost_equals(geompp.Point2D(1, 0))
+        last = segs[3]
+        assert last.first.almost_equals(geompp.Point2D(0, 1))
+        assert last.last.almost_equals(geompp.Point2D(0, 0))
+
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
@@ -635,6 +647,23 @@ class TestPolygon3D:
         c = geompp.Polygon3D.make(outer, [hole]).centroid()
         assert approx(c.x, 2.0) and approx(c.y, 0.5) and approx(c.z, 0.0)
 
+    def test_to_segments(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        p = geompp.Polygon3D.make(pts)
+        segs = p.to_segments()
+        assert len(segs) == 4  # N vertices → N segments (closed)
+        assert all(isinstance(s, geompp.LineSegment3D) for s in segs)
+        assert all(approx(s.length(), 1.0) for s in segs)
+        first = segs[0]
+        assert first.first.almost_equals(geompp.Point3D(0, 0, 0))
+        assert first.last.almost_equals(geompp.Point3D(1, 0, 0))
+        last = segs[3]
+        assert last.first.almost_equals(geompp.Point3D(0, 1, 0))
+        assert last.last.almost_equals(geompp.Point3D(0, 0, 0))
+
 
 # ─── Free function centroid (3D) ─────────────────────────────────────────────
 
@@ -705,11 +734,14 @@ class TestPolyline2D:
         assert pline.contains(geompp.Point2D(1, 0))
 
     def test_interpolate(self, pline):
-        # Polyline2D.interpolate() uses vertex index as parameter (0 … size-1)
         start = pline.interpolate(0.0)
         assert approx(start.x, 0) and approx(start.y, 0)
-        end = pline.interpolate(float(pline.size() - 1))
+        end = pline.interpolate(1.0)
         assert approx(end.x, 3) and approx(end.y, 4)
+        with pytest.raises(Exception):
+            pline.interpolate(1.2)
+        with pytest.raises(Exception):
+            pline.interpolate(-0.1)
 
     def test_intersection_with_line(self, pline):
         l = geompp.Line2D.make(geompp.Point2D(0, 2), geompp.Point2D(1, 2))
@@ -721,6 +753,15 @@ class TestPolyline2D:
         p2 = geompp.Polyline2D.from_wkt(pline.to_wkt())
         assert pline.almost_equals(p2)
 
+    def test_to_segments(self, pline):
+        segs = pline.to_segments()
+        assert len(segs) == 2  # 3 knots → 2 segments (open)
+        assert all(isinstance(s, geompp.LineSegment2D) for s in segs)
+        assert approx(segs[0].length(), 3.0)
+        assert approx(segs[1].length(), 4.0)
+        assert segs[0].first.almost_equals(geompp.Point2D(0, 0))
+        assert segs[0].last.almost_equals(geompp.Point2D(3, 0))
+
 
 # ─── Polyline3D ──────────────────────────────────────────────────────────────
 
@@ -729,6 +770,17 @@ class TestPolyline3D:
         pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(0, 0, 5)]
         pl = geompp.Polyline3D.make(pts)
         assert approx(pl.length(), 5.0)
+
+    def test_to_segments(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(3, 4, 0)]
+        pl = geompp.Polyline3D.make(pts)
+        segs = pl.to_segments()
+        assert len(segs) == 2  # 3 knots → 2 segments (open)
+        assert all(isinstance(s, geompp.LineSegment3D) for s in segs)
+        assert approx(segs[0].length(), 3.0)
+        assert approx(segs[1].length(), 4.0)
+        assert segs[0].first.almost_equals(geompp.Point3D(0, 0, 0))
+        assert segs[0].last.almost_equals(geompp.Point3D(3, 0, 0))
 
 
 # ─── Triangle2D ──────────────────────────────────────────────────────────────
@@ -761,9 +813,17 @@ class TestTriangle2D:
         assert not tri.contains(geompp.Point2D(5, 5))
 
     def test_interpolate(self, tri):
-        p = tri.interpolate(0.0, 0.0)
-        assert p is not None
-        assert isinstance(p, geompp.Point2D)
+        # vertices: (0,0)=P0, (4,0)=P1, (0,3)=P2
+        assert tri.interpolate(0.0, 0.0).almost_equals(geompp.Point2D(0, 0))
+        assert tri.interpolate(1.0, 0.0).almost_equals(geompp.Point2D(4, 0))
+        assert tri.interpolate(0.0, 1.0).almost_equals(geompp.Point2D(0, 3))
+        # centroid at s=1/3, t=1/3
+        c = tri.interpolate(1/3, 1/3)
+        assert c is not None
+        assert isinstance(c, geompp.Point2D)
+        # outside: s+t > 1 → None
+        assert tri.interpolate(0.8, 0.8) is None
+        assert tri.interpolate(1.0, 1.0) is None
 
     def test_intersection_with_line(self, tri):
         l = geompp.Line2D.make(geompp.Point2D(-1, 1), geompp.Point2D(5, 1))
@@ -851,6 +911,19 @@ class TestTriangle3D:
 
         # flipping ref flips the result
         assert not tri.is_ccw(geompp.Vector3D(0, 0, -1))
+
+    def test_interpolate(self, tri):
+        # fixture: P0=(0,0,0), P1=(1,0,0), P2=(0,1,0)
+        assert tri.interpolate(0.0, 0.0).almost_equals(geompp.Point3D(0, 0, 0))
+        assert tri.interpolate(1.0, 0.0).almost_equals(geompp.Point3D(1, 0, 0))
+        assert tri.interpolate(0.0, 1.0).almost_equals(geompp.Point3D(0, 1, 0))
+        # centroid at s=1/3, t=1/3
+        c = tri.interpolate(1/3, 1/3)
+        assert c is not None
+        assert isinstance(c, geompp.Point3D)
+        # outside: s+t > 1 → None
+        assert tri.interpolate(0.8, 0.8) is None
+        assert tri.interpolate(1.0, 1.0) is None
 
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle3D.from_wkt(tri.to_wkt())

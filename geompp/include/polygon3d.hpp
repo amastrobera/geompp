@@ -3,6 +3,7 @@
 #include "constants.hpp"
 #include "plane.hpp"
 #include "point3d.hpp"
+#include "segment_iterator3d.hpp"
 #include "vector3d.hpp"
 
 #include <optional>
@@ -32,12 +33,11 @@ class Polygon3D {
   inline Plane GetPlane() const { return PLANE; }
 
   bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
+  SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
   double Area() const;
-  double Perimeter() const;
+  inline double Perimeter() const { return PERIMETER; }
   double DistanceTo(Point3D const& point) const;
-  double Location(Point3D const& point) const;
-  Point3D Interpolate(double pct) const;
 
   std::string ToWkt() const;
   static Polygon3D FromWkt(std::string const& wkt);
@@ -61,9 +61,11 @@ class Polygon3D {
   std::vector<Point3D> VERTICES;
   std::vector<std::vector<Point3D>> HOLES;
   Plane PLANE;
+  double PERIMETER;
 
-  Polygon3D(std::vector<Point3D> const& points, Plane const& plane);
-  Polygon3D(std::vector<Point3D> const& points, Plane const& plane, std::vector<std::vector<Point3D>> const& holes);
+  Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter);
+  Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
+            std::vector<std::vector<Point3D>> const& holes);
 };
 
 #pragma region Operator Overloading

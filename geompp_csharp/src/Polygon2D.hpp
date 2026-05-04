@@ -30,8 +30,6 @@ public:
     double   Area();
     double   Perimeter();
     double   DistanceTo(Point2D^ point);
-    double   Location(Point2D^ point);
-    Point2D^ Interpolate(double pct);
     bool     Contains(Point2D^ point);
 
     System::String^ ToWkt();

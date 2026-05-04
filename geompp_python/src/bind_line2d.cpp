@@ -16,7 +16,6 @@ void bind_line2d(py::module_& m) {
         .def_property_readonly("direction", &geompp::Line2D::Direction)
         .def("distance_to",  &geompp::Line2D::DistanceTo,  "point"_a)
         .def("project_onto", &geompp::Line2D::ProjectOnto, "point"_a)
-        .def("location",     &geompp::Line2D::Location,    "point"_a)
         .def("contains",     &geompp::Line2D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Line2D)
         BIND_SERIALIZATION(Line2D)

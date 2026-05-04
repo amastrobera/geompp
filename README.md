@@ -216,11 +216,12 @@
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).
 
-  | Status | Count | % |
-  |---|---|---|
-  | Tested | ~401 | ~92% |
-  | Untested | ~35 | ~8% |
-  | **Total** | **~436** | |
+  | Metric | Count | Notes |
+  |--------|-------|-------|
+  | Public methods | ~360 | Excl. ctors/dtors/operators |
+  | C++ tested | ~300 | ~83% |
+  | Python tested | ~160 | ~44% |
+  | Stubs (not yet impl.) | 21 | Polygon/Triangle intersection & containment |
 
   More on [test coverage](./test_coverage_report.md).
 

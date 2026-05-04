@@ -8,12 +8,9 @@
 
 #include "geompp_log.hpp"
 
-#include <algorithm>
 #include <format>
 #include <fstream>
 #include <limits>
-#include <numeric>
-#include <ranges>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
@@ -22,7 +19,7 @@ namespace geompp {
 
 #pragma region Constructors
 
-Polyline2D::Polyline2D(std::vector<Point2D>&& points) : KNOTS{std::move(points)} {}
+Polyline2D::Polyline2D(std::vector<Point2D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 Polyline2D Polyline2D::Make(std::vector<Point2D> const& points) {
   auto unique_points = remove_collinear(remove_duplicates(points));
@@ -31,32 +28,29 @@ Polyline2D Polyline2D::Make(std::vector<Point2D> const& points) {
     throw std::runtime_error("cannot built polyline with less than 2 unique non-collinear consecutive points");
   }
 
-  return Polyline2D(std::move(unique_points));
+  double length = 0;
+  for (int i = 0; i < unique_points.size() - 1; ++i) {
+    length += LineSegment2D::Make(unique_points[i], unique_points[1 + i]).Length();
+  }
+
+  return Polyline2D(std::move(unique_points), length);
 }
 
 Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
   if (this != &other) {
     KNOTS = other.KNOTS;
+    LENGTH = other.LENGTH;
   }
   return *this;
 }
 
-std::vector<LineSegment2D> Polyline2D::ToSegments() const {
-  std::vector<LineSegment2D> segs;
-
-  for (int i = 0; i < KNOTS.size() - 1; ++i) {
-    segs.push_back(LineSegment2D::Make(KNOTS[i], KNOTS[i + 1]));
-  }
-
-  return segs;
-}
-
-double Polyline2D::Length() const {
-  auto iterable_range = ToSegments() | std::ranges::views::transform([](LineSegment2D const& s) { return s.Length(); });
-  return std::accumulate(iterable_range.begin(), iterable_range.end(), 0);
-}
+SegmentRange2D Polyline2D::ToSegments() const { return SegmentRange2D(KNOTS); }
 
 bool Polyline2D::AlmostEquals(Polyline2D const& other, double epsilon) const {
+  if (compare(LENGTH, other.LENGTH, epsilon) != 0) {
+    return false;
+  }
+
   if (KNOTS.size() != other.KNOTS.size()) {
     return false;
   }
@@ -68,46 +62,50 @@ bool Polyline2D::AlmostEquals(Polyline2D const& other, double epsilon) const {
   return true;
 }
 
+#pragma endregion
+
+#pragma region line operations
+
+Point2D Polyline2D::ProjectOnto(Point2D const& point) const {
+  double min_dist = std::numeric_limits<double>::max();
+  Point2D result = KNOTS[0];
+
+  for (auto const& seg : ToSegments()) {
+    Point2D proj = seg.ProjectOnto(point);
+    double dist = (point - proj).Length();
+    if (compare(dist, min_dist) < 0) {
+      min_dist = dist;
+      result = proj;
+    }
+  }
+
+  return result;
+}
+
 double Polyline2D::Location(Point2D const& point) const {
+  if (!Contains(point)) {
+    return std::numeric_limits<double>::infinity();
+  }
+
   auto segs = ToSegments();
 
   // check if the point is in the middle of the polyline
   double tot_len = 0;
   for (int i = 0; i < segs.size(); ++i) {
-    if (segs[i].Contains(point)) {
-      tot_len += segs[i].Location(point);
+    auto seg = segs[i];
+    if (seg.Contains(point)) {
+      tot_len += seg.Location(point);
       return tot_len;
     }
-    tot_len += segs[i].Length();
-  }
-  // at this point tot_len == Lenght(), no need to call that loop again
-
-  // check if the point is behind the polyline (on the first "line")
-  if (compare((segs[0].Last() - segs[0].First()).Perp().Dot(point - segs[0].First()), 0) == 0) {  // collinearity check
-    return sign((point - segs[0].First()).Dot(segs[0].Last() - segs[0].First())) * segs[0].First().DistanceTo(point) /
-           tot_len;
+    tot_len += seg.Length();
   }
 
-  // check if the point is is beyond the polyline (on the last "line")
-  int n = segs.size();
-  if (compare((segs[n - 1].Last() - segs[n - 1].First()).Perp().Dot(point - segs[n - 1].First()), 0) ==
-      0) {  // collinearity check
-    return (tot_len + segs[n - 1].Last().DistanceTo(point)) / tot_len;
-  }
-
-  // the point is not located along the polyline or its first/last "line"
-  return std::numeric_limits<double>::infinity();
+  return tot_len / LENGTH;
 }
 
 Point2D Polyline2D::Interpolate(double pct) const {
-  // the point is behind the polyline
-  if (compare(pct, 0) < 0) {
-    return KNOTS[0];
-  }
-
-  // the point is beyond the polyline
-  if (compare(pct, 1.0) > 0) {
-    return KNOTS[KNOTS.size() - 1];
+  if (compare(pct, 0) < 0 || compare(pct, 1.0) > 0) {
+    throw std::invalid_argument("pct must be in [0, 1]");
   }
 
   // pct is within [0, 1]
@@ -128,16 +126,14 @@ Point2D Polyline2D::Interpolate(double pct) const {
 }
 
 double Polyline2D::DistanceTo(Point2D const& point) const {
-  std::vector<double> distances;
-  for (auto const& s : ToSegments()) {
-    distances.push_back(s.DistanceTo(point));
+  double min_dist = std::numeric_limits<double>::max();
+  for (auto const& seg : ToSegments()) {
+    double d = seg.DistanceTo(point);
+    if (d < min_dist) {
+      min_dist = d;
+    }
   }
-  return *std::min_element(distances.begin(), distances.end());
-  // std::vector<double> iterable_range =
-  //     ToSegments() | std::ranges::views::transform([&point, decimal_precision](LineSegment2D const& s) {
-  //       return s.DistanceTo(point);
-  //     });
-  // return std::min_element(iterable_range.begin(), iterable_range.end());
+  return min_dist;
 }
 
 #pragma endregion
@@ -163,16 +159,10 @@ std::ostream& operator<<(std::ostream& os, Polyline2D const& g) {
 #pragma region Geometrical Operations
 
 bool Polyline2D::Contains(Point2D const& point) const {
-  for (auto const& s : ToSegments()) {
-    if (s.Contains(point)) {
-      return true;
-    }
+  for (auto const& seg : ToSegments()) {
+    if (seg.Contains(point)) { return true; }
   }
   return false;
-  // return std::ranges::any_of(ToSegments() |
-  //                            std::ranges::views::transform([&point, decimal_precision](LineSegment2D const& s) {
-  //                              return s.Contains(point);
-  //                            }));
 }
 
 bool Polyline2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
@@ -328,7 +318,7 @@ Polyline2D Polyline2D::FromWkt(std::string const& wkt) {
       if (nums.size() != 2) {
         throw std::runtime_error("numbers");
       }
-      pt_vec.push_back({nums[0], nums[1]});
+      pt_vec.emplace_back(nums[0], nums[1]);  // emplace_back calling Point constructor directly
     }
 
     return Make(pt_vec);

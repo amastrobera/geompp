@@ -6,7 +6,10 @@ void bind_polyline2d(py::module_& m) {
         .def_static("make", &geompp::Polyline2D::Make, "points"_a)
         .def(py::init<const geompp::Polyline2D&>())
         .def("size",        &geompp::Polyline2D::Size)
-        .def("to_segments", &geompp::Polyline2D::ToSegments)
+        .def("to_segments", [](const geompp::Polyline2D& p) {
+            auto r = p.ToSegments();
+            return std::vector<geompp::LineSegment2D>(r.begin(), r.end());
+        })
         .def("length",      &geompp::Polyline2D::Length)
         .def("distance_to", &geompp::Polyline2D::DistanceTo,  "point"_a)
         .def("location",    &geompp::Polyline2D::Location,    "point"_a)

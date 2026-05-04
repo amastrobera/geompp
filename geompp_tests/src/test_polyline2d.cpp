@@ -35,17 +35,19 @@ TEST_F(Polyline2DTest, Constructor) {
   ASSERT_EQ(11, polyline.Length());
 
   // static assert (won't compile)
-  EXPECT_ANY_THROW(g::Polyline2D::Make({}));                            // cannot make a segment in 0 points
-  EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D::Zero()}));                // cannot make a segment in 1 sole point
-  EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D::Zero()}));  // cannot make a segment in 1 sole unique point
+  EXPECT_ANY_THROW(g::Polyline2D::Make({}));                    // cannot make a segment in 0 points
+  EXPECT_ANY_THROW(g::Polyline2D::Make({g::Point2D::Zero()}));  // cannot make a segment in 1 sole point
+  EXPECT_ANY_THROW(
+      g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D::Zero()}));  // cannot make a segment in 1 sole unique point
 
   EXPECT_NO_THROW(g::Polyline2D::Make(
       {g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 0)}));  // cannot make a segment in 1 sole unique point
-  EXPECT_EQ(
-      2, g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 0)}).Size());  // removed non-unique point
+  EXPECT_EQ(2, g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 0)})
+                   .Size());  // removed non-unique point
 
-  EXPECT_EQ(2,
-            g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(3, 0)}).Size());  // removed collinear point
+  EXPECT_EQ(
+      2,
+      g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(3, 0)}).Size());  // removed collinear point
 }
 
 TEST_F(Polyline2DTest, Contains) {
@@ -99,10 +101,9 @@ TEST_F(Polyline2DTest, Interpolate) {
   // on segment
   ASSERT_EQ(0.223, g::round(poly.Location(poly.Interpolate(0.223)), 3));
 
-  // on line
-  ASSERT_EQ(1.0, g::round(poly.Location(poly.Interpolate(1.2)), 1));
-
-  ASSERT_EQ(0.0, g::round(poly.Location(poly.Interpolate(-0.2)), 1));
+  // out of range throws
+  EXPECT_ANY_THROW(poly.Interpolate(1.2));
+  EXPECT_ANY_THROW(poly.Interpolate(-0.2));
 }
 
 TEST_F(Polyline2DTest, IntersectionWLine) {
@@ -382,8 +383,7 @@ TEST_F(Polyline2DTest, AlmostEquals) {
 
 TEST_F(Polyline2DTest, ToSegments) {
   geompp::DECIMAL_PRECISION = 4;
-  auto poly = g::Polyline2D::Make(
-      {g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto poly = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
 
   auto segs = poly.ToSegments();
   ASSERT_EQ(3, segs.size());

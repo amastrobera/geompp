@@ -6,7 +6,10 @@ void bind_polyline3d(py::module_& m) {
         .def_static("make", &geompp::Polyline3D::Make, "points"_a)
         .def(py::init<const geompp::Polyline3D&>())
         .def("size",        &geompp::Polyline3D::Size)
-        .def("to_segments", &geompp::Polyline3D::ToSegments)
+        .def("to_segments", [](const geompp::Polyline3D& p) {
+            auto r = p.ToSegments();
+            return std::vector<geompp::LineSegment3D>(r.begin(), r.end());
+        })
         .def("length",      &geompp::Polyline3D::Length)
         .def("distance_to", &geompp::Polyline3D::DistanceTo,  "point"_a)
         .def("location",    &geompp::Polyline3D::Location,    "point"_a)

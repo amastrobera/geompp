@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 #include "point2d.hpp"
+#include "segment_iterator2d.hpp"
 #include "vector2d.hpp"
 
 #include <optional>
@@ -30,12 +31,11 @@ class Polygon2D {
   Point2D const& operator[](int i) const;
 
   bool AlmostEquals(Polygon2D const& other, double epsilon = DOUBLE_EPSILON) const;
+  SegmentRange2D ToSegments() const;
   Point2D Centroid() const;
   double Area() const;
-  double Perimeter() const;
+  inline double Perimeter() const { return PERIMETER; }
   double DistanceTo(Point2D const& point) const;
-  double Location(Point2D const& point) const;
-  Point2D Interpolate(double pct) const;
 
   std::string ToWkt() const;
   static Polygon2D FromWkt(std::string const& wkt);
@@ -58,9 +58,10 @@ class Polygon2D {
  private:
   std::vector<Point2D> VERTICES;
   std::vector<std::vector<Point2D>> HOLES;
+  double PERIMETER;
 
-  Polygon2D(std::vector<Point2D> const& points);
-  Polygon2D(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes);
+  Polygon2D(std::vector<Point2D> const& points, double perimeter);
+  Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes);
 };
 
 #pragma region Operator Overloading

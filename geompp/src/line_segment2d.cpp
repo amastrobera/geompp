@@ -44,6 +44,24 @@ bool LineSegment2D::AlmostEquals(LineSegment2D const& other, double epsilon) con
 
 Line2D LineSegment2D::ToLine() const { return Line2D::Make(P0, P1); }
 
+#pragma endregion
+
+#pragma region line operations
+
+Point2D LineSegment2D::ProjectOnto(Point2D const& point) const {
+  auto dir_unit = (P1 - P0).Normalize();
+  double t = (point - P0).Dot(dir_unit);
+  // the point is behind the first point of the segment, or beyond the second point of the segment
+  if (compare(t, 0) <= 0) {
+    return P0;
+  }
+  // the point is beyond the second point of the segment
+  if (compare(t, Length()) >= 0) {
+    return P1;
+  }
+  return P0 + t * dir_unit;
+}
+
 double LineSegment2D::Location(Point2D const& point) const {
   if (!ToLine().Contains(point)) {
     return std::numeric_limits<double>::infinity();
@@ -65,20 +83,7 @@ Point2D LineSegment2D::Interpolate(double pct) const {
   return P0 + pct * (P1 - P0);
 }
 
-double LineSegment2D::DistanceTo(Point2D const& point) const {
-  auto line_eqv = ToLine();
-  auto proj = line_eqv.ProjectOnto(point);
-  double loc = Location(proj);
-
-  if (compare(loc, 0) < 0) {
-    return P0.DistanceTo(point);
-
-  } else if (compare(loc, 1.0) > 0) {
-    return P1.DistanceTo(point);
-  }
-
-  return line_eqv.DistanceTo(point);
-}
+double LineSegment2D::DistanceTo(Point2D const& point) const { return (point - ProjectOnto(point)).Length(); }
 
 #pragma endregion
 

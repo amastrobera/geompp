@@ -38,13 +38,23 @@ bool Ray3D::IsBehind(Point3D const& point) const { return compare(DIR.Dot(point 
 
 Line3D Ray3D::ToLine() const { return Line3D::Make(ORIGIN, DIR); }
 
-double Ray3D::DistanceTo(Point3D const& point) const {
-  return IsAhead(point) ? ToLine().DistanceTo(point) : ORIGIN.DistanceTo(point);
-}
-
 bool Ray3D::AlmostEquals(Ray3D const& other, double epsilon) const {
   return ORIGIN.AlmostEquals(other.ORIGIN, epsilon) && DIR.AlmostEquals(other.DIR, epsilon);
 }
+
+#pragma endregion
+
+#pragma region line operations
+
+Point3D Ray3D::ProjectOnto(Point3D const& point) const {
+  double t = (point - ORIGIN).Dot(DIR);
+  if (compare(t, 0) <= 0) {
+    return ORIGIN;
+  }
+  return ORIGIN + t * DIR;
+}
+
+double Ray3D::DistanceTo(Point3D const& point) const { return (point - ProjectOnto(point)).Length(); }
 
 #pragma endregion
 

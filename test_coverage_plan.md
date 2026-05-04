@@ -41,7 +41,7 @@ genhtml coverage.info --output-directory coverage_html
 
 | Class | What was added | Old → New coverage |
 |---|---|---|
-| `Triangle3D` | `Vertices`, `AlmostEquals`, `Perimeter`, `ToAxis`, `Interpolate`; documented throwing methods (`SignedArea`, `Area`, `DistanceTo`, `Location`, `Contains`, `Intersects/Intersection×Line3D`) | ~35% → ~90% |
+| `Triangle3D` | `Vertices`, `AlmostEquals`, `Perimeter`, `ToAxis`, `Interpolate`; documented throwing methods (`SignedArea`, `Area`, `DistanceTo`, `Contains`, `Intersects/Intersection×Line3D`) | ~35% → ~90% |
 | `Polyline2D` | `AlmostEquals`, `ToSegments` | ~90% → ~92% |
 | `LineSegment3D` | `DistanceTo`, `Intersects/Intersection×Ray3D`, `Intersects/Intersection×LineSegment3D` | ~81% → ~96% |
 

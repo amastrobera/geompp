@@ -32,8 +32,6 @@ public:
     double   Area();
     double   Perimeter();
     double   DistanceTo(Point3D^ point);
-    double   Location(Point3D^ point);
-    Point3D^ Interpolate(double pct);
     bool     Contains(Point3D^ point);
 
     System::String^ ToWkt();

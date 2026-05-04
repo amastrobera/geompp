@@ -16,7 +16,6 @@ void bind_line3d(py::module_& m) {
         .def_property_readonly("direction", &geompp::Line3D::Direction)
         .def("distance_to",  &geompp::Line3D::DistanceTo,  "point"_a)
         .def("project_onto", &geompp::Line3D::ProjectOnto, "point"_a)
-        .def("location",     &geompp::Line3D::Location,    "point"_a)
         .def("contains",     &geompp::Line3D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Line3D)
         BIND_SERIALIZATION(Line3D)

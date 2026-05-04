@@ -77,6 +77,10 @@ double Triangle3D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Len
 
 bool Triangle3D::IsCCW(Vector3D const& ref_normal) const { return SignedArea(ref_normal) > 0; }
 
+#pragma endregion
+
+#pragma region line operations
+
 double Triangle3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
 std::tuple<Vector3D, Vector3D> Triangle3D::ToAxis() const { return {P1 - P0, P2 - P0}; }
@@ -104,21 +108,6 @@ std::ostream& operator<<(std::ostream& os, Triangle3D const& g) {
 #pragma endregion
 
 #pragma region Geometrical Operations
-
-std::tuple<double, double> Triangle3D::Location(Point3D const& point) const {
-  throw std::runtime_error("not implemented");
-  // auto u = (P1 - P0);
-  // auto v = (P2 - P0);
-  // auto w = (point - P0);
-
-  // auto up = u.Perp();
-  // auto vp = v.Perp();
-
-  // double s = w.Dot(vp) / u.Dot(vp);
-  // double t = w.Dot(up) / v.Dot(up);
-
-  // return {s, t};
-}
 
 bool Triangle3D::Contains(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
@@ -186,7 +175,7 @@ Triangle3D Triangle3D::FromWkt(std::string const& wkt) {
       if (nums.size() != 3) {
         throw std::runtime_error("numbers");
       }
-      pt_vec.push_back({nums[0], nums[1], nums[2]});
+      pt_vec.emplace_back(nums[0], nums[1], nums[2]);
     }
 
     if (pt_vec.size() != 3) {

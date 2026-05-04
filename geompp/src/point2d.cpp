@@ -35,7 +35,7 @@ Point2D& Point2D::operator=(Point2D const& other) {
 #pragma region Collection Operations
 
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3) {
-  return compare((p2 - p1).Normalize().Perp().Dot((p3 - p1).Normalize()), 0) == 0;
+  return compare((p2 - p1).Cross(p3 - p1), 0) == 0;  // perp-product will be zero if points lie on the same line
 }
 
 std::vector<Point2D> remove_duplicates_from_sorted_list(std::vector<Point2D> const& points) {

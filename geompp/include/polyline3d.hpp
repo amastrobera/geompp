@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 #include "point3d.hpp"
+#include "segment_iterator3d.hpp"
 #include "vector3d.hpp"
 
 #include <optional>
@@ -28,14 +29,19 @@ class Polyline3D {
 
   inline int Size() const { return KNOTS.size(); }
   Point3D const& operator[](size_t i) const;
-  // TODO: it would be nice to have a "generator" with coroutines that "yields" point by point
 
   bool AlmostEquals(Polyline3D const& other, double epsilon = DOUBLE_EPSILON) const;
-  std::vector<LineSegment3D> ToSegments() const;
-  double Length() const;
+  SegmentRange3D ToSegments() const;
+  inline double Length() const { return LENGTH; }
+
+#pragma region line operations
+
+  Point3D ProjectOnto(Point3D const& point) const;
   double DistanceTo(Point3D const& point) const;
   double Location(Point3D const& point) const;
   Point3D Interpolate(double pct) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static Polyline3D FromWkt(std::string const& wkt);
@@ -62,8 +68,9 @@ class Polyline3D {
 
  private:
   std::vector<Point3D> KNOTS;
+  double LENGTH;
 
-  Polyline3D(std::vector<Point3D>&& points);
+  Polyline3D(std::vector<Point3D>&& points, double length);
 };
 
 #pragma region Operator Overloading

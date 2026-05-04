@@ -14,13 +14,15 @@ void bind_polygon3d(py::module_& m) {
              "points"_a, "holes"_a)
         .def(py::init<const geompp::Polygon3D&>())
         .def("size",        &geompp::Polygon3D::Size)
+        .def("to_segments", [](const geompp::Polygon3D& p) {
+            auto r = p.ToSegments();
+            return std::vector<geompp::LineSegment3D>(r.begin(), r.end());
+        })
         .def("get_plane",   &geompp::Polygon3D::GetPlane)
         .def("centroid",    &geompp::Polygon3D::Centroid)
         .def("area",        &geompp::Polygon3D::Area)
         .def("perimeter",   &geompp::Polygon3D::Perimeter)
         .def("distance_to", &geompp::Polygon3D::DistanceTo,  "point"_a)
-        .def("location",    &geompp::Polygon3D::Location,    "point"_a)
-        .def("interpolate", &geompp::Polygon3D::Interpolate, "pct"_a)
         .def("contains",    &geompp::Polygon3D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Polygon3D)
         BIND_SERIALIZATION(Polygon3D)

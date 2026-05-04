@@ -27,7 +27,13 @@ class Ray2D {
   bool IsAhead(Point2D const& point) const;
   bool IsBehind(Point2D const& point) const;
   Line2D ToLine() const;
+
+#pragma region line operations
+
+  Point2D ProjectOnto(Point2D const& point) const;
   double DistanceTo(Point2D const& point) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static Ray2D FromWkt(std::string const& wkt);

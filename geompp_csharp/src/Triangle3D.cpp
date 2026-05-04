@@ -1,4 +1,5 @@
 #include "Triangle3D.hpp"
+#include "Point2D.hpp"
 #include "Point3D.hpp"
 #include "Vector3D.hpp"
 #include "Line3D.hpp"
@@ -93,11 +94,6 @@ System::Tuple<Vector3D^, Vector3D^>^ Triangle3D::ToAxis() {
     return gcnew System::Tuple<Vector3D^, Vector3D^>(
         gcnew Vector3D(new geompp::Vector3D(u)),
         gcnew Vector3D(new geompp::Vector3D(v)));
-}
-
-System::Tuple<double, double>^ Triangle3D::Location(Point3D^ point) {
-    auto [s, t] = _native->Location(*point->_native);
-    return gcnew System::Tuple<double, double>(s, t);
 }
 
 Point3D^ Triangle3D::Interpolate(double s, double t) {

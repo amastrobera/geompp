@@ -252,4 +252,26 @@ TEST_F(Polygon2DTest, Perimeter_Triangle) {
   EXPECT_NEAR(12.0, p.Perimeter(), 1e-9);
 }
 
+TEST_F(Polygon2DTest, ToSegments) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto segs = p.ToSegments();
+
+  // N vertices → N segments (closed ring)
+  ASSERT_EQ(4, segs.size());
+
+  // first segment: (0,0) → (1,0)
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0)), segs[0]);
+
+  // last segment wraps back: (0,1) → (0,0)
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0, 1), g::Point2D(0, 0)), segs[3]);
+
+  // iterate via range-for
+  int count = 0;
+  for (auto const& s : segs) {
+    EXPECT_NEAR(1.0, s.Length(), 1e-9);
+    ++count;
+  }
+  EXPECT_EQ(4, count);
+}
+
 }  // namespace geompp_tests

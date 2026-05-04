@@ -28,9 +28,13 @@ class Line3D {
   inline Point3D const& Origin() const { return P0; }
   inline Vector3D const& Direction() const { return DIR; }
   bool AlmostEquals(Line3D const& other, double epsilon = DOUBLE_EPSILON) const;
+
+#pragma region line operations
+
   double DistanceTo(Point3D const& point) const;
   Point3D ProjectOnto(Point3D const& point) const;
-  double Location(Point3D const& point) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static Line3D FromWkt(std::string const& wkt);

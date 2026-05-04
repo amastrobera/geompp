@@ -1,5 +1,6 @@
 #include "polygon3d.hpp"
 
+#include "line_segment3d.hpp"
 #include "plane.hpp"
 #include "point3d.hpp"
 #include "utils.hpp"
@@ -354,6 +355,21 @@ TEST_F(Polygon3DTest, GetPlane_WithHoles) {
       g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
   auto p = g::Polygon3D::Make(outer, {hole});
   EXPECT_TRUE(p.GetPlane().normal().AlmostEquals(g::Vector3D::BasisZ()));
+}
+
+TEST_F(Polygon3DTest, ToSegments) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto segs = p.ToSegments();
+  ASSERT_EQ(4, segs.size());  // N vertices -> N segments (closed)
+  EXPECT_EQ(g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)), segs[0]);
+  EXPECT_EQ(g::LineSegment3D::Make(g::Point3D(0, 1, 0), g::Point3D(0, 0, 0)), segs[3]);  // wraps back
+  int count = 0;
+  for (auto const& s : segs) {
+    EXPECT_NEAR(1.0, s.Length(), 1e-9);
+    ++count;
+  }
+  EXPECT_EQ(4, count);
 }
 
 }  // namespace geompp_tests

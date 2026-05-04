@@ -69,14 +69,11 @@ double Triangle2D::Perimeter() const { return (P1 - P0).Length() + (P2 - P1).Len
 
 bool Triangle2D::IsCCW() const { return SignedArea() > 0; }
 
-double Triangle2D::DistanceTo(Point2D const& point) const {
-  if (Contains(point)) {
-    return 0;
-  }
-  return std::min(
-      std::min(LineSegment2D::Make(P0, P1).DistanceTo(point), LineSegment2D::Make(P1, P2).DistanceTo(point)),
-      LineSegment2D::Make(P2, P0).DistanceTo(point));
-}
+#pragma endregion
+
+#pragma region line operations
+
+double Triangle2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
 std::tuple<Vector2D, Vector2D> Triangle2D::ToAxis() const { return {P1 - P0, P2 - P0}; }
 
@@ -88,6 +85,8 @@ std::optional<Point2D> Triangle2D::Interpolate(double s, double t) const {
 
   return linear_combination({P0, P1, P2}, {1 - s - t, s, t});
 }
+
+#pragma endregion
 
 #pragma region Operator Overloading
 
@@ -102,24 +101,15 @@ std::ostream& operator<<(std::ostream& os, Triangle2D const& g) {
 
 #pragma region Geometrical Operations
 
-std::tuple<double, double> Triangle2D::Location(Point2D const& point) const {
-  auto u = (P1 - P0);
-  auto v = (P2 - P0);
-  auto w = (point - P0);
-
-  auto up = u.Perp();
-  auto vp = v.Perp();
-
-  double s = w.Dot(vp) / u.Dot(vp);
-  double t = w.Dot(up) / v.Dot(up);
-
-  return {s, t};
-}
-
 bool Triangle2D::Contains(Point2D const& point) const {
-  auto loc = Location(point);
-
-  return within_axis_boundary(std::get<0>(loc), std::get<1>(loc));
+  auto u = P1 - P0;
+  auto v = P2 - P0;
+  auto w = point - P0;
+  auto u_perp = u.Perp();
+  auto v_perp = v.Perp();
+  double s = w.Dot(v_perp) / u.Dot(v_perp);
+  double t = w.Dot(u_perp) / v.Dot(u_perp);
+  return within_axis_boundary(s, t);
 }
 
 bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
@@ -146,7 +136,7 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
 
   // sort them to get a line in the direction of the intersecting line
   std::sort(intersections.begin(), intersections.end(), [&](Point2D const& a, Point2D const& b) {
-    return line.Location(a) < line.Location(b);
+    return line.Origin().DistanceTo(a) < line.Origin().DistanceTo(b);
   });  // sort intersection points in the direction of the line
 
   std::vector<Point2D> unique_points = remove_duplicates_from_sorted_list(intersections);
@@ -304,7 +294,7 @@ Triangle2D Triangle2D::FromWkt(std::string const& wkt) {
       if (nums.size() != 2) {
         throw std::runtime_error("numbers");
       }
-      pt_vec.push_back({nums[0], nums[1]});
+      pt_vec.emplace_back(nums[0], nums[1]);
     }
 
     if (pt_vec.size() != 3) {
