@@ -33,7 +33,6 @@ public:
     double          Perimeter();
     double          DistanceTo(Point2D^ point);
     System::Tuple<Vector2D^, Vector2D^>^ ToAxis();
-    System::Tuple<double, double>^       Location(Point2D^ point);
     Point2D^                             Interpolate(double s, double t);  // nullptr if outside
 
     System::String^   ToWkt();

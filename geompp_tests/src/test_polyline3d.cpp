@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
+#include <limits>
 #include <vector>
 
 namespace g = geompp;
@@ -100,6 +101,14 @@ TEST_F(Polyline3DTest, Contains) {
   ASSERT_FALSE(poly.Contains(g::Point3D::Zero()));
 }
 
+TEST_F(Polyline3DTest, ProjectOnto) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto poly = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0)});
+
+  ASSERT_EQ(g::Point3D(4, 3, 0), poly.ProjectOnto(g::Point3D(2, 3, 0)));
+  ASSERT_EQ(g::Point3D(4, 2, 0), poly.ProjectOnto(g::Point3D(6, 2, 0)));
+}
+
 TEST_F(Polyline3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   std::vector<g::Point3D> pts{g::Point3D(-2, -5, 0), g::Point3D(-2, -3, 0), g::Point3D(2, -3, 0), g::Point3D(2, 2, 0)};
@@ -127,9 +136,9 @@ TEST_F(Polyline3DTest, Interpolate) {
   ASSERT_EQ(g::Point3D::Zero(), poly.Interpolate(0));
   ASSERT_EQ(g::Point3D(3, 0, 0), poly.Interpolate(1));
 
-  // clamped
-  ASSERT_EQ(g::Point3D::Zero(), poly.Interpolate(-0.5));
-  ASSERT_EQ(g::Point3D(3, 0, 0), poly.Interpolate(1.5));
+  // out of range throws
+  EXPECT_ANY_THROW(poly.Interpolate(-0.5));
+  EXPECT_ANY_THROW(poly.Interpolate(1.5));
 }
 
 TEST_F(Polyline3DTest, Location) {
@@ -144,10 +153,10 @@ TEST_F(Polyline3DTest, Location) {
   ASSERT_EQ(0.5, g::round(poly.Location(g::Point3D(1.5, 0, 0))));
 
   // before start: negative (distance to start / total length)
-  ASSERT_EQ(g::round(-1.0 / 3.0, 3), g::round(poly.Location(g::Point3D(-1, 0, 0)), 3));
+  ASSERT_EQ(std::numeric_limits<double>::infinity(), g::round(poly.Location(g::Point3D(-1, 0, 0)), 3));
 
   // beyond end: > 1
-  ASSERT_EQ(g::round(4.0 / 3.0, 3), g::round(poly.Location(g::Point3D(4, 0, 0)), 3));
+  ASSERT_EQ(std::numeric_limits<double>::infinity(), g::round(poly.Location(g::Point3D(4, 0, 0)), 3));
 
   // off-polyline: infinity
   ASSERT_TRUE(std::isinf(poly.Location(g::Point3D(1, 1, 0))));

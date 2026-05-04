@@ -10,8 +10,9 @@ void bind_ray3d(py::module_& m) {
         .def("is_ahead",    &geompp::Ray3D::IsAhead,    "point"_a)
         .def("is_behind",   &geompp::Ray3D::IsBehind,   "point"_a)
         .def("to_line",     &geompp::Ray3D::ToLine)
-        .def("distance_to", &geompp::Ray3D::DistanceTo, "point"_a)
-        .def("contains",    &geompp::Ray3D::Contains,   "point"_a)
+        .def("distance_to",  &geompp::Ray3D::DistanceTo,  "point"_a)
+        .def("project_onto", &geompp::Ray3D::ProjectOnto, "point"_a)
+        .def("contains",     &geompp::Ray3D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Ray3D)
         BIND_SERIALIZATION(Ray3D)
         .def("intersects",

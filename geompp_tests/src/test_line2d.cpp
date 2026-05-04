@@ -153,25 +153,6 @@ TEST_F(Line2DTest, DistanceTo) {
   EXPECT_EQ(7, g::round(line.DistanceTo(p8)));
 }
 
-TEST_F(Line2DTest, Location) {
-  geompp::DECIMAL_PRECISION = 4;
-  auto line = g::Line2D::Make(g::Point2D::Zero(), g::Point2D(3, 0));
-
-  // at origin: 0; at P1: dist(P0,P1) = 3
-  ASSERT_EQ(0.0, line.Location(g::Point2D::Zero()));
-  ASSERT_EQ(3.0, line.Location(g::Point2D(3, 0)));
-
-  // proportional along the line
-  ASSERT_EQ(1.0, line.Location(g::Point2D(1, 0)));
-
-  // behind origin: negative signed distance
-  ASSERT_EQ(-2.0, line.Location(g::Point2D(-2, 0)));
-
-  // off the line: NaN
-  ASSERT_TRUE(std::isnan(line.Location(g::Point2D(0, 1))));
-  ASSERT_TRUE(std::isnan(line.Location(g::Point2D(1, 1))));
-}
-
 TEST_F(Line2DTest, ProjectOnto) {
   geompp::DECIMAL_PRECISION = 4;
   auto line = g::Line2D::Make(g::Point2D::Zero(), g::Point2D(3, 0));

@@ -27,10 +27,15 @@ class Line2D {
   inline Point2D const& Last() const { return P1; }
   inline Point2D const& Origin() const { return P0; }
   inline Vector2D const& Direction() const { return DIR; }
+
   bool AlmostEquals(Line2D const& other, double epsilon = DOUBLE_EPSILON) const;
+
+#pragma region line operations
+
   double DistanceTo(Point2D const& point) const;
   Point2D ProjectOnto(Point2D const& point) const;
-  double Location(Point2D const& point) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static Line2D FromWkt(std::string const& wkt);

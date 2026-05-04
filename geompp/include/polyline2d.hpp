@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 #include "point2d.hpp"
+#include "segment_iterator2d.hpp"
 #include "vector2d.hpp"
 
 #include <optional>
@@ -28,14 +29,19 @@ class Polyline2D {
 
   inline int Size() const { return KNOTS.size(); }
   Point2D const& operator[](size_t i) const;
-  // TODO: it would be nice to have a "generator" with coroutines that "yields" point by point
 
   bool AlmostEquals(Polyline2D const& other, double epsilon = DOUBLE_EPSILON) const;
-  std::vector<LineSegment2D> ToSegments() const;
-  double Length() const;
+  SegmentRange2D ToSegments() const;
+  inline double Length() const { return LENGTH; }
+
+#pragma region line operations
+
+  Point2D ProjectOnto(Point2D const& point) const;
   double DistanceTo(Point2D const& point) const;
   double Location(Point2D const& point) const;
   Point2D Interpolate(double pct) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static Polyline2D FromWkt(std::string const& wkt);
@@ -62,8 +68,9 @@ class Polyline2D {
 
  private:
   std::vector<Point2D> KNOTS;
+  double LENGTH;
 
-  Polyline2D(std::vector<Point2D>&& points);
+  Polyline2D(std::vector<Point2D>&& points, double length);
 };
 
 #pragma region Operator Overloading

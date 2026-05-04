@@ -561,12 +561,6 @@ TEST_F(Triangle3DTest, DistanceTo) {
   EXPECT_ANY_THROW(t.DistanceTo(g::Point3D(0.5, 0.5, 0)));
 }
 
-TEST_F(Triangle3DTest, Location) {
-  // Location is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
-  EXPECT_ANY_THROW(t.Location(g::Point3D(0.5, 0.5, 0)));
-}
-
 TEST_F(Triangle3DTest, Contains) {
   // Contains is not yet implemented — throws
   auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));

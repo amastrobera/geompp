@@ -85,11 +85,6 @@ System::Tuple<Vector2D^, Vector2D^>^ Triangle2D::ToAxis() {
         gcnew Vector2D(new geompp::Vector2D(v)));
 }
 
-System::Tuple<double, double>^ Triangle2D::Location(Point2D^ point) {
-    auto [s, t] = _native->Location(*point->_native);
-    return gcnew System::Tuple<double, double>(s, t);
-}
-
 Point2D^ Triangle2D::Interpolate(double s, double t) {
     auto result = _native->Interpolate(s, t);
     if (!result.has_value()) return nullptr;

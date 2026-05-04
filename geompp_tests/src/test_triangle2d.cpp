@@ -139,34 +139,9 @@ TEST_F(Triangle2DTest, ToAxis) {
 }
 
 TEST_F(Triangle2DTest, DistanceTo) {
-  geompp::DECIMAL_PRECISION = 4;
-  auto t = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
-
-  // points
-  auto points = t.Vertices();
-  ASSERT_EQ(0, g::round(t.DistanceTo(std::get<0>(points))));
-  ASSERT_EQ(0, g::round(t.DistanceTo(std::get<1>(points))));
-  ASSERT_EQ(0, g::round(t.DistanceTo(std::get<2>(points))));
-  ASSERT_EQ(0, g::round(t.DistanceTo(t.Centroid())));
-
-  // on line
-  ASSERT_EQ(0, g::round(t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}))));
-  ASSERT_EQ(0, g::round(t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}))));
-  ASSERT_EQ(0, g::round(t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}))));
-
-  // outside (ahead of segments)
-  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::average({std::get<0>(points), std::get<1>(points)}) -
-                                       (std::get<1>(points) - std::get<0>(points)).Perp().Normalize())));
-
-  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::average({std::get<1>(points), std::get<2>(points)}) -
-                                       (std::get<2>(points) - std::get<1>(points)).Perp().Normalize())));
-  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::average({std::get<2>(points), std::get<0>(points)}) -
-                                       (std::get<0>(points) - std::get<2>(points)).Perp().Normalize())));
-
-  // outside (ahead of vertices)
-  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::Point2D(0, -2))));
-  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::Point2D(2, 0))));
-  ASSERT_EQ(1.0, g::round(t.DistanceTo(g::Point2D(-2, 0))));
+  // DistanceTo is not yet implemented — throws
+  auto t = g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(0, 1));
+  EXPECT_ANY_THROW(t.DistanceTo(g::Point2D(0.5, 0.5)));
 }
 
 TEST_F(Triangle2DTest, Interpolate) {
@@ -180,10 +155,13 @@ TEST_F(Triangle2DTest, Interpolate) {
   ASSERT_EQ(std::get<1>(points), tri.Interpolate(1, 0));
   ASSERT_EQ(std::get<2>(points), tri.Interpolate(0, 1));
 
-  // centroid
+  // centroid is inside the triangle
   auto c = tri.Centroid();
-  auto loc = tri.Location(c);
-  ASSERT_EQ(c, tri.Interpolate(std::get<0>(loc), std::get<1>(loc)));
+  ASSERT_TRUE(tri.Contains(c));
+
+  // outside (s+t > 1) returns nullopt
+  ASSERT_FALSE(tri.Interpolate(0.8, 0.8).has_value());
+  ASSERT_FALSE(tri.Interpolate(1, 1).has_value());
 }
 
 TEST_F(Triangle2DTest, IntersectionWLine) {

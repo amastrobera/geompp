@@ -11,14 +11,14 @@ void bind_free_functions(py::module_& m) {
               return geompp::are_collinear(p1, p2, p3);
           }, "p1"_a, "p2"_a, "p3"_a, "True if three 3D points are collinear.");
 
-    m.def("remove_duplicates_from_sorted_list",
+    m.def("remove_consecutive_duplicates",
           [](const std::vector<geompp::Point2D>& pts) {
-              return geompp::remove_duplicates_from_sorted_list(pts);
+              return geompp::remove_consecutive_duplicates(pts);
           }, "points"_a, "Remove consecutive duplicate 2D points.");
 
-    m.def("remove_duplicates_from_sorted_list",
+    m.def("remove_consecutive_duplicates",
           [](const std::vector<geompp::Point3D>& pts) {
-              return geompp::remove_duplicates_from_sorted_list(pts);
+              return geompp::remove_consecutive_duplicates(pts);
           }, "points"_a, "Remove consecutive duplicate 3D points.");
 
     m.def("remove_duplicates",

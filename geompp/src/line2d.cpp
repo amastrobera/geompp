@@ -43,6 +43,8 @@ Line2D& Line2D::operator=(Line2D const& other) {
   return *this;
 }
 
+#pragma endregion
+
 bool Line2D::AlmostEquals(Line2D const& other, double epsilon) const {
   // first check: are they parallel ?
   if (!DIR.AlmostEquals(other.DIR, epsilon) && !DIR.AlmostEquals(-other.DIR, epsilon)) {
@@ -58,16 +60,11 @@ bool Line2D::AlmostEquals(Line2D const& other, double epsilon) const {
   return true;  // no heading check at all
 }
 
-double Line2D::DistanceTo(Point2D const& point) const { return round(std::abs(DIR.Cross(point - P0))); }
+#pragma region line operations
+
+double Line2D::DistanceTo(Point2D const& point) const { return (point - ProjectOnto(point)).Length(); }
 
 Point2D Line2D::ProjectOnto(Point2D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
-
-double Line2D::Location(Point2D const& point) const {
-  if (!Contains(point)) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length();
-}
 
 #pragma endregion
 
@@ -84,7 +81,7 @@ std::ostream& operator<<(std::ostream& os, Line2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Line2D::Contains(Point2D const& point) const { return compare((point - P0).Cross(DIR), 0) == 0; }
+bool Line2D::Contains(Point2D const& point) const { return are_collinear(P0, P1, point); }
 
 bool Line2D::Intersects(Line2D const& other) const {
   // very easy to verify in 2D plane

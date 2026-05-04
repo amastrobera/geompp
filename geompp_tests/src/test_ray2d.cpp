@@ -194,6 +194,14 @@ TEST_F(Ray2DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
+TEST_F(Ray2DTest, ProjectOnto) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto ray = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+
+  ASSERT_EQ(g::Point2D(3, 0), ray.ProjectOnto(g::Point2D(3, 5)));
+  ASSERT_EQ(g::Point2D::Zero(), ray.ProjectOnto(g::Point2D(-2, 3)));
+}
+
 TEST_F(Ray2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto ray = g::Ray2D::FromWkt("RAY (0 0, 1 0)");

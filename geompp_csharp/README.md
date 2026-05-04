@@ -19,7 +19,7 @@ dotnet add package GeomPP
 or in your `.csproj`:
 
 ```xml
-<PackageReference Include="GeomPP" Version="0.1.0" />
+<PackageReference Include="GeomPP" Version="0.6.0" />
 ```
 
 ---

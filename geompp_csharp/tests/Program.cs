@@ -1,5 +1,6 @@
 using GeomPP;
 using Geompp.Extensions;
+using System.IO;
 
 // ── Tiny test harness ─────────────────────────────────────────────────────────
 
@@ -176,6 +177,18 @@ Test("Contains_PointOffLine", () => {
   IsFalse(Line2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(2, 1)));
 });
 
+Test("DistanceTo_PointAboveLine", () => {
+  var l = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  Eq(3.0, l.DistanceTo(new Point2D(2, 3)));
+});
+
+Test("ProjectOnto_PointAboveLine", () => {
+  var proj = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0))
+                   .ProjectOnto(new Point2D(3, 5));
+  Eq(3.0, proj.X);
+  Eq(0.0, proj.Y);
+});
+
 // ── Line3D ────────────────────────────────────────────────────────────────────
 Console.WriteLine("\nLine3D");
 
@@ -216,6 +229,18 @@ Test("ProjectOnto_PointAboveLine", () => {
   Eq(0.0, proj.Z);
 });
 
+Test("Contains_PointOnLine", () => {
+  IsTrue(Line3D.Make(new Point3D(0, 0, 0), new Point3D(3, 0, 0)).Contains(new Point3D(1, 0, 0)));
+});
+
+Test("Contains_PointOffLine", () => {
+  IsFalse(Line3D.Make(new Point3D(0, 0, 0), new Point3D(3, 0, 0)).Contains(new Point3D(1, 1, 0)));
+});
+
+Test("DistanceTo_PointAboveLine", () => {
+  Eq(3.0, Line3D.Make(new Point3D(0, 0, 0), new Point3D(3, 0, 0)).DistanceTo(new Point3D(0, 3, 0)));
+});
+
 // ── LineSegment2D ─────────────────────────────────────────────────────────────
 Console.WriteLine("\nLineSegment2D");
 
@@ -243,6 +268,260 @@ Test("Contains_PointOnSegment", () => {
 
 Test("Contains_PointBeyondEnd_False", () => {
   IsFalse(LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(5, 0)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  Eq(3.0, LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).DistanceTo(new Point2D(2, 3)));
+});
+
+Test("Location_Midpoint_IsHalf", () => {
+  Eq(0.5, LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Location(new Point2D(2, 0)));
+});
+
+Test("Interpolate_Midpoint", () => {
+  var mid = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Interpolate(0.5);
+  NotNull(mid);
+  Eq(2.0, mid!.X);
+  Eq(0.0, mid.Y);
+});
+
+// ── LineSegment3D ─────────────────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment3D");
+
+Test("Contains_PointOnSegment", () => {
+  IsTrue(LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).Contains(new Point3D(2, 0, 0)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  Eq(3.0, LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).DistanceTo(new Point3D(2, 3, 0)));
+});
+
+Test("Location_Midpoint_IsHalf", () => {
+  Eq(0.5, LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).Location(new Point3D(2, 0, 0)));
+});
+
+Test("Interpolate_Midpoint", () => {
+  var mid = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).Interpolate(0.5);
+  NotNull(mid);
+  Eq(2.0, mid!.X);
+  Eq(0.0, mid.Y);
+  Eq(0.0, mid.Z);
+});
+
+// ── Ray2D ─────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nRay2D");
+
+Test("Contains_PointOnRay", () => {
+  IsTrue(Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0)).Contains(new Point2D(3, 0)));
+});
+
+Test("Contains_PointBehindOrigin_False", () => {
+  IsFalse(Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0)).Contains(new Point2D(-1, 0)));
+});
+
+Test("DistanceTo_PointAboveRay", () => {
+  Eq(4.0, Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0)).DistanceTo(new Point2D(3, 4)));
+});
+
+Test("DistanceTo_PointBehindOrigin", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  Eq(new Point2D(0, 0).DistanceTo(new Point2D(-5, 10)), r.DistanceTo(new Point2D(-5, 10)));
+});
+
+// ── Ray3D ─────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nRay3D");
+
+Test("Contains_PointOnRay", () => {
+  IsTrue(Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).Contains(new Point3D(3, 0, 0)));
+});
+
+Test("Contains_PointOffRay_False", () => {
+  IsFalse(Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).Contains(new Point3D(3, 1, 0)));
+});
+
+Test("Contains_PointBehindOrigin_False", () => {
+  IsFalse(Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).Contains(new Point3D(-1, 0, 0)));
+});
+
+Test("DistanceTo_PointAboveRay", () => {
+  Eq(4.0, Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).DistanceTo(new Point3D(3, 4, 0)));
+});
+
+Test("DistanceTo_PointBehindOrigin", () => {
+  Eq(2.0, Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).DistanceTo(new Point3D(-2, 0, 0)));
+});
+
+// ── Polyline2D ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPolyline2D");
+
+Test("Contains_PointOnPolyline", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  IsTrue(pl.Contains(new Point2D(2, 0)));
+});
+
+Test("Contains_PointOffPolyline_False", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  IsFalse(pl.Contains(new Point2D(2, 1)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  Eq(2.0, pl.DistanceTo(new Point2D(2, 3)));
+});
+
+Test("Location_StartPoint_IsZero", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  Eq(0.0, pl.Location(new Point2D(0, 0)));
+});
+
+Test("Location_EndPoint_IsOne", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  Eq(1.0, pl.Location(new Point2D(4, 4)));
+});
+
+Test("Interpolate_StartPoint", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var p = pl.Interpolate(0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+});
+
+Test("Interpolate_EndPoint", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var p = pl.Interpolate(1.0);
+  NotNull(p);
+  Eq(4.0, p!.X);
+  Eq(4.0, p.Y);
+});
+
+// ── Polyline3D ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPolyline3D");
+
+Test("Contains_PointOnPolyline", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  IsTrue(pl.Contains(new Point3D(2, 0, 0)));
+});
+
+Test("Contains_PointOffPolyline_False", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  IsFalse(pl.Contains(new Point3D(2, 1, 0)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  Eq(2.0, pl.DistanceTo(new Point3D(2, 3, 0)));
+});
+
+Test("Location_StartPoint_IsZero", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  Eq(0.0, pl.Location(new Point3D(0, 0, 0)));
+});
+
+Test("Location_EndPoint_IsOne", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  Eq(1.0, pl.Location(new Point3D(4, 4, 0)));
+});
+
+Test("Interpolate_StartPoint", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var p = pl.Interpolate(0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+Test("Interpolate_EndPoint", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var p = pl.Interpolate(1.0);
+  NotNull(p);
+  Eq(4.0, p!.X);
+  Eq(4.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+// ── Triangle2D (Contains, Interpolate) ────────────────────────────────────────
+Console.WriteLine("\nTriangle2D (additional)");
+
+Test("Contains_PointInside_True", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  IsTrue(t.Contains(new Point2D(1, 1)));
+});
+
+Test("Contains_PointOutside_False", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  IsFalse(t.Contains(new Point2D(5, 5)));
+});
+
+Test("Interpolate_AtP0_ReturnsP0", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  var p = t.Interpolate(0.0, 0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+});
+
+Test("Interpolate_AtP1_ReturnsP1", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  var p = t.Interpolate(1.0, 0.0);
+  NotNull(p);
+  Eq(4.0, p!.X);
+  Eq(0.0, p.Y);
+});
+
+Test("Interpolate_OutsideTriangle_ReturnsNull", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  IsNull(t.Interpolate(0.8, 0.8));
+});
+
+// ── Triangle3D (Interpolate) ───────────────────────────────────────────────────
+Console.WriteLine("\nTriangle3D (additional)");
+
+Test("Interpolate_AtP0_ReturnsP0", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var p = t.Interpolate(0.0, 0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+Test("Interpolate_AtP1_ReturnsP1", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var p = t.Interpolate(1.0, 0.0);
+  NotNull(p);
+  Eq(1.0, p!.X);
+  Eq(0.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+Test("Interpolate_OutsideTriangle_ReturnsNull", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  IsNull(t.Interpolate(0.8, 0.8));
+});
+
+// ── BBox2D ────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBBox2D");
+
+Test("Contains_InsidePoint_True", () => {
+  var bb = new BBox2D(new Point2D(0, 0), new Point2D(10, 10));
+  IsTrue(bb.Contains(new Point2D(5, 5)));
+  IsFalse(bb.Contains(new Point2D(11, 5)));
+});
+
+// ── Plane (DistanceTo, ProjectOnto) ───────────────────────────────────────────
+Console.WriteLine("\nPlane (additional)");
+
+Test("DistanceTo_PointAbovePlane", () => {
+  Eq(3.0, Plane.XY().DistanceTo(new Point3D(0, 0, 3)));
+});
+
+Test("ProjectOnto_PointAbovePlane", () => {
+  var proj = Plane.XY().ProjectOnto(new Point3D(1, 2, 5));
+  Eq(1.0, proj.X);
+  Eq(2.0, proj.Y);
+  Eq(0.0, proj.Z);
 });
 
 // ── BBox3D ────────────────────────────────────────────────────────────────────
@@ -491,6 +770,342 @@ Test("GetPlane_ContainsAllVertices", () => {
   NotNull(pl);
   IsTrue(pl!.Contains(new Point3D(0,0,3)), "origin vertex must lie on plane");
   IsTrue(pl.Contains(new Point3D(1,1,3)), "far vertex must lie on plane");
+});
+
+// ── Vector2D ──────────────────────────────────────────────────────────────────
+Console.WriteLine("\nVector2D");
+
+Test("Create_AccessXY", () => {
+  var v = new Vector2D(3.0, 4.0);
+  Eq(3.0, v.X);
+  Eq(4.0, v.Y);
+});
+
+Test("Length_KnownValue", () => Eq(5.0, new Vector2D(3.0, 4.0).Length()));
+
+Test("AlmostEquals_SameVector", () => IsTrue(new Vector2D(1.0, 2.0).AlmostEquals(new Vector2D(1.0, 2.0))));
+
+Test("AlmostEquals_DifferentVector", () => IsFalse(new Vector2D(1.0, 0.0).AlmostEquals(new Vector2D(0.0, 1.0))));
+
+Test("BasisX_IsUnitX", () => {
+  var v = Vector2D.BasisX();
+  Eq(1.0, v.X);
+  Eq(0.0, v.Y);
+  Eq(1.0, v.Length());
+});
+
+Test("BasisY_IsUnitY", () => {
+  var v = Vector2D.BasisY();
+  Eq(0.0, v.X);
+  Eq(1.0, v.Y);
+  Eq(1.0, v.Length());
+});
+
+Test("Dot_PerpendicularVectors_IsZero", () => Eq(0.0, Vector2D.BasisX().Dot(Vector2D.BasisY())));
+
+Test("Dot_SameVector_IsOne", () => Eq(1.0, Vector2D.BasisX().Dot(Vector2D.BasisX())));
+
+Test("Cross_CCW_IsPositive", () => Eq(1.0, Vector2D.BasisX().Cross(Vector2D.BasisY())));
+
+Test("Cross_CW_IsNegative", () => Eq(-1.0, Vector2D.BasisY().Cross(Vector2D.BasisX())));
+
+Test("Perp_OfBasisX_IsBasisY", () => {
+  var p = Vector2D.BasisX().Perp();
+  Eq(0.0, p.X);
+  Eq(1.0, p.Y);
+});
+
+Test("Normalize_UnitLength", () => Eq(1.0, new Vector2D(3.0, 4.0).Normalize().Length()));
+
+Test("ToPoint_MatchesComponents", () => {
+  var pt = new Vector2D(2.0, 3.0).ToPoint();
+  Eq(2.0, pt.X);
+  Eq(3.0, pt.Y);
+});
+
+Test("Add_TwoVectors", () => {
+  var r = Vector2D.BasisX() + Vector2D.BasisY();
+  Eq(1.0, r.X);
+  Eq(1.0, r.Y);
+});
+
+Test("Subtract_TwoVectors", () => {
+  var r = Vector2D.BasisX() - Vector2D.BasisY();
+  Eq(1.0, r.X);
+  Eq(-1.0, r.Y);
+});
+
+Test("ScalarMultiply", () => {
+  var r = Vector2D.BasisX() * 3.0;
+  Eq(3.0, r.X);
+  Eq(0.0, r.Y);
+});
+
+Test("ScalarDivide", () => {
+  var r = new Vector2D(4.0, 0.0) / 2.0;
+  Eq(2.0, r.X);
+  Eq(0.0, r.Y);
+});
+
+Test("UnaryNegate", () => {
+  var r = -Vector2D.BasisX();
+  Eq(-1.0, r.X);
+  Eq(0.0, r.Y);
+});
+
+Test("Equality_SameVectors", () => IsTrue(Vector2D.BasisX() == Vector2D.BasisX()));
+
+Test("Equality_DifferentVectors", () => IsFalse(Vector2D.BasisX() == Vector2D.BasisY()));
+
+Test("DotOperator_MatchesMethod", () => {
+  var u = new Vector2D(1.0, 2.0);
+  var v = new Vector2D(3.0, 4.0);
+  Eq(u.Dot(v), u * v);
+});
+
+Test("VectorPlusPoint", () => {
+  var pt = Vector2D.BasisX() + new Point2D(1.0, 1.0);
+  Eq(2.0, pt.X);
+  Eq(1.0, pt.Y);
+});
+
+Test("WktRoundTrip", () => {
+  var v = new Vector2D(1.5, 2.5);
+  IsTrue(v.AlmostEquals(Vector2D.FromWkt(v.ToWkt())));
+});
+
+// ── WktParser ─────────────────────────────────────────────────────────────────
+Console.WriteLine("\nWktParser");
+
+string MakeTempWktFile(params string[] lines) {
+  var path = Path.GetTempFileName();
+  File.WriteAllLines(path, lines);
+  return path;
+}
+
+Test("Open_ValidFile_NoThrow", () => {
+  var path = MakeTempWktFile("POINT (1 2)");
+  using (var parser = WktParser.Open(path)) { NotNull(parser); }
+  File.Delete(path);
+});
+
+Test("GetFilePath_MatchesInput", () => {
+  var path = MakeTempWktFile("POINT (1 2)");
+  using (var parser = WktParser.Open(path)) {
+    IsTrue(parser.GetFilePath() == path, "file path mismatch");
+  }
+  File.Delete(path);
+});
+
+Test("HasNext_TrueWhenFileHasContent", () => {
+  var path = MakeTempWktFile("POINT (1 2)");
+  using (var parser = WktParser.Open(path)) { IsTrue(parser.HasNext()); }
+  File.Delete(path);
+});
+
+Test("Next_ReturnsPoint2D_WithCorrectCoords", () => {
+  var path = MakeTempWktFile("POINT (3 4)");
+  using (var parser = WktParser.Open(path)) {
+    var pt = parser.Next() as Point2D;
+    NotNull(pt, "expected Point2D");
+    Eq(3.0, pt!.X);
+    Eq(4.0, pt.Y);
+  }
+  File.Delete(path);
+});
+
+Test("Next_ReturnsPoint3D", () => {
+  var path = MakeTempWktFile("POINT (1 2 3)");
+  using (var parser = WktParser.Open(path)) {
+    NotNull(parser.Next() as Point3D, "expected Point3D");
+  }
+  File.Delete(path);
+});
+
+Test("Next_ReturnsLineSegment2D", () => {
+  var path = MakeTempWktFile("LINESTRING (0 0, 1 0)");
+  using (var parser = WktParser.Open(path)) {
+    NotNull(parser.Next() as LineSegment2D, "expected LineSegment2D");
+  }
+  File.Delete(path);
+});
+
+Test("Next_MultipleLines_InOrder", () => {
+  var path = MakeTempWktFile("POINT (1 0)", "POINT (2 0)");
+  using (var parser = WktParser.Open(path)) {
+    var a = (parser.Next() as Point2D)!;
+    var b = (parser.Next() as Point2D)!;
+    Eq(1.0, a.X);
+    Eq(2.0, b.X);
+  }
+  File.Delete(path);
+});
+
+Test("Next_ReturnsNullAfterExhausted", () => {
+  var path = MakeTempWktFile("POINT (1 2)");
+  using (var parser = WktParser.Open(path)) {
+    parser.Next();
+    IsNull(parser.Next(), "should return null when exhausted");
+  }
+  File.Delete(path);
+});
+
+Test("ToWkt_Point2D_ContainsCoordinates", () => {
+  var pt = new Point2D(5.0, 6.0);
+  var wkt = WktParser.ToWkt(pt);
+  NotNull(wkt);
+  IsTrue(wkt!.Contains("POINT"), "missing POINT keyword");
+  IsTrue(wkt.Contains("5"), "missing x");
+  IsTrue(wkt.Contains("6"), "missing y");
+});
+
+// ── GeometryCollection2D ──────────────────────────────────────────────────────
+Console.WriteLine("\nGeometryCollection2D");
+
+Test("DefaultConstructor_SizeZero", () => Eq(0, new GeometryCollection2D().Size(), 0));
+
+Test("AddPoint_SizeBecomesOne", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(new Point2D(1, 2));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("AddMultipleTypes_SizeIsCorrect", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(new Point2D(0, 0));
+  gc.Add(LineSegment2D.Make(new Point2D(0, 0), new Point2D(1, 0)));
+  Eq(2, gc.Size(), 0);
+});
+
+Test("Get_ReturnsCorrectType", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(new Point2D(3, 4));
+  var pt = gc.Get(0) as Point2D;
+  NotNull(pt, "expected Point2D");
+  Eq(3.0, pt!.X);
+  Eq(4.0, pt.Y);
+});
+
+Test("AlmostEquals_SameCollections", () => {
+  var a = new GeometryCollection2D();
+  a.Add(new Point2D(1, 2));
+  var b = new GeometryCollection2D();
+  b.Add(new Point2D(1, 2));
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_DifferentCollections", () => {
+  var a = new GeometryCollection2D();
+  a.Add(new Point2D(1, 2));
+  var b = new GeometryCollection2D();
+  b.Add(new Point2D(9, 9));
+  IsFalse(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_BothEmpty", () => {
+  IsTrue(new GeometryCollection2D().AlmostEquals(new GeometryCollection2D()));
+});
+
+Test("ToWkt_Empty_ContainsEMPTY", () => {
+  IsTrue(new GeometryCollection2D().ToWkt().Contains("EMPTY"));
+});
+
+Test("ToWkt_WithPoint_ContainsKeywords", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(new Point2D(1, 2));
+  var wkt = gc.ToWkt();
+  IsTrue(wkt.Contains("GEOMETRYCOLLECTION"), "missing GEOMETRYCOLLECTION");
+  IsTrue(wkt.Contains("POINT"), "missing POINT");
+});
+
+Test("FromWkt_RoundTrip", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(new Point2D(1, 2));
+  IsTrue(gc.AlmostEquals(GeometryCollection2D.FromWkt(gc.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(new Point2D(7, 8));
+  var path = Path.GetTempFileName();
+  gc.ToFile(path);
+  IsTrue(gc.AlmostEquals(GeometryCollection2D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── GeometryCollection3D ──────────────────────────────────────────────────────
+Console.WriteLine("\nGeometryCollection3D");
+
+Test("DefaultConstructor_SizeZero", () => Eq(0, new GeometryCollection3D().Size(), 0));
+
+Test("AddPoint_SizeBecomesOne", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(new Point3D(1, 2, 3));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("AddMultipleTypes_SizeIsCorrect", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(new Point3D(0, 0, 0));
+  gc.Add(LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0)));
+  Eq(2, gc.Size(), 0);
+});
+
+Test("Get_ReturnsCorrectType", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(new Point3D(1, 2, 3));
+  var pt = gc.Get(0) as Point3D;
+  NotNull(pt, "expected Point3D");
+  Eq(1.0, pt!.X);
+  Eq(2.0, pt.Y);
+  Eq(3.0, pt.Z);
+});
+
+Test("AlmostEquals_SameCollections", () => {
+  var a = new GeometryCollection3D();
+  a.Add(new Point3D(1, 2, 3));
+  var b = new GeometryCollection3D();
+  b.Add(new Point3D(1, 2, 3));
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_DifferentCollections", () => {
+  var a = new GeometryCollection3D();
+  a.Add(new Point3D(1, 2, 3));
+  var b = new GeometryCollection3D();
+  b.Add(new Point3D(9, 9, 9));
+  IsFalse(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_BothEmpty", () => {
+  IsTrue(new GeometryCollection3D().AlmostEquals(new GeometryCollection3D()));
+});
+
+Test("ToWkt_Empty_ContainsEMPTY", () => {
+  IsTrue(new GeometryCollection3D().ToWkt().Contains("EMPTY"));
+});
+
+Test("ToWkt_WithPoint_ContainsKeywords", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(new Point3D(1, 2, 3));
+  var wkt = gc.ToWkt();
+  IsTrue(wkt.Contains("GEOMETRYCOLLECTION"), "missing GEOMETRYCOLLECTION");
+  IsTrue(wkt.Contains("POINT"), "missing POINT");
+});
+
+Test("FromWkt_RoundTrip", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(new Point3D(1, 2, 3));
+  IsTrue(gc.AlmostEquals(GeometryCollection3D.FromWkt(gc.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(new Point3D(7, 8, 9));
+  var path = Path.GetTempFileName();
+  gc.ToFile(path);
+  IsTrue(gc.AlmostEquals(GeometryCollection3D.FromFile(path)));
+  File.Delete(path);
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

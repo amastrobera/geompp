@@ -43,6 +43,8 @@ Line3D& Line3D::operator=(Line3D const& other) {
   return *this;
 }
 
+#pragma endregion
+
 bool Line3D::AlmostEquals(Line3D const& other, double epsilon) const {
   // first check: are they parallel ?
   if (!DIR.AlmostEquals(other.DIR, epsilon) && !DIR.AlmostEquals(-other.DIR, epsilon)) {
@@ -58,16 +60,11 @@ bool Line3D::AlmostEquals(Line3D const& other, double epsilon) const {
   return true;  // no heading check at all
 }
 
+#pragma region line operations
+
 double Line3D::DistanceTo(Point3D const& point) const { return (point - ProjectOnto(point)).Length(); }
 
 Point3D Line3D::ProjectOnto(Point3D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
-
-double Line3D::Location(Point3D const& point) const {
-  if (!Contains(point)) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  return sign((point - P0).Dot(P1 - P0)) * (point - P0).Length();
-}
 
 #pragma endregion
 

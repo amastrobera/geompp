@@ -91,14 +91,6 @@ double Polygon3D::DistanceTo(Point3D^ point) {
     return _native->DistanceTo(*point->_native);
 }
 
-double Polygon3D::Location(Point3D^ point) {
-    return _native->Location(*point->_native);
-}
-
-Point3D^ Polygon3D::Interpolate(double pct) {
-    return gcnew Point3D(new geompp::Point3D(_native->Interpolate(pct)));
-}
-
 bool Polygon3D::Contains(Point3D^ point) {
     return _native->Contains(*point->_native);
 }

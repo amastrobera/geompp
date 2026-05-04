@@ -7,6 +7,7 @@
 
 namespace GeomPP {
 
+ref class Point2D;
 ref class Point3D;
 ref class Vector3D;
 ref class Line3D;
@@ -37,7 +38,6 @@ public:
     double     Perimeter();
     double     DistanceTo(Point3D^ point);
     System::Tuple<Vector3D^, Vector3D^>^ ToAxis();
-    System::Tuple<double, double>^       Location(Point3D^ point);
     Point3D^                             Interpolate(double s, double t);  // nullptr if outside
 
     System::String^   ToWkt();

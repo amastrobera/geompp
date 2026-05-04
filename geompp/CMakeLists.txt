@@ -29,6 +29,8 @@ FetchContent_MakeAvailable(glog)
 
 # Add the library
 add_library(${PROJECT_NAME}
+    include/segment_iterator2d.hpp
+    include/segment_iterator3d.hpp
     src/constants.cpp
     src/geompp_log.cpp
     src/utils.cpp

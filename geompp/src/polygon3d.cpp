@@ -20,7 +20,7 @@ namespace geompp {
 #pragma region Constructors
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
-  auto unique_points = remove_duplicates(points);
+  auto unique_points = remove_collinear(points);
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
@@ -36,12 +36,19 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
     throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
   auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
-  return {unique_points, outer_plane};
+
+  double perimeter = 0;
+  int n0 = unique_points.size();
+  for (int i = 0; i < n0; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % n0]);
+  }
+
+  return {unique_points, outer_plane, perimeter};
 }
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes) {
   auto unique_points =
-      remove_collinear(remove_duplicates_from_sorted_list(points));  // remove duplicates and collinear points
+      remove_collinear(remove_consecutive_duplicates(points));  // remove duplicates and collinear points
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
@@ -61,7 +68,7 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
 
   std::vector<std::vector<Point3D>> unique_holes_points;
   for (auto const& hole : holes) {
-    auto unique_hole_points = remove_collinear(remove_duplicates_from_sorted_list(hole));
+    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(hole));
 
     if (unique_hole_points.size() < 3) {
       throw std::runtime_error(std::format(
@@ -87,18 +94,28 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
     unique_holes_points.push_back(unique_hole_points);
   }
 
-  return {unique_points, outer_plane, unique_holes_points};
+  double perimeter = 0;
+  int nh = unique_points.size();
+  for (int i = 0; i < nh; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % nh]);
+  }
+
+  return {unique_points, outer_plane, perimeter, unique_holes_points};
 }
 
-Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane) : VERTICES(points), PLANE(plane) {}
+Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter)
+    : VERTICES(points), PLANE(plane), PERIMETER(perimeter) {}
 
-Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane,
+Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
                      std::vector<std::vector<Point3D>> const& holes)
-    : VERTICES(points), PLANE(plane), HOLES(holes) {}
+    : VERTICES(points), PLANE(plane), PERIMETER(perimeter), HOLES(holes) {}
 
 Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   if (this != &other) {
     VERTICES = other.VERTICES;
+    HOLES = other.HOLES;
+    PLANE = other.PLANE;
+    PERIMETER = other.PERIMETER;
   }
   return *this;
 }
@@ -131,6 +148,8 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   }
   return true;
 }
+
+SegmentRange3D Polygon3D::ToSegments() const { return SegmentRange3D(VERTICES, true); }
 
 Point3D Polygon3D::Centroid() const {
   Point3D cs = centroid(VERTICES, PLANE);
@@ -166,20 +185,7 @@ double Polygon3D::Area() const {
   return area;
 }
 
-double Polygon3D::Perimeter() const {
-  double perimeter = 0;
-  int n = VERTICES.size();
-  for (int i = 0; i < n; ++i) {
-    perimeter += VERTICES[i].DistanceTo(VERTICES[(i + 1) % n]);
-  }
-  return perimeter;
-}
-
 double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
-
-double Polygon3D::Location(Point3D const& point) const { throw std::runtime_error("not implemented"); }
-
-Point3D Polygon3D::Interpolate(double pct) const { throw std::runtime_error("not implemented"); }
 
 #pragma region Operator Overloading
 

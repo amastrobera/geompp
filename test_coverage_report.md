@@ -1,54 +1,88 @@
 # Test Coverage Report
 
+_Last updated: 2026-05-04_
+
 ## Overall
 
-| Status | Count | % |
-|---|---|---|
-| Tested | ~401 | ~92% |
-| Untested | ~35 | ~8% |
-| **Total** | **~436** | |
+| Metric | Count | Notes |
+|--------|-------|-------|
+| Public methods (total) | ~360 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
+| Stubs (`throw "not implemented"`) | 21 | Listed per class below |
+| C++ explicit tests | ~300 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~166 | At least one `test_*` function calls the method |
+| C# explicit tests | ~120 | At least one test in `Program.cs` exercises the method |
 
 ---
 
-## By Class (sorted lowest → highest coverage)
+## By Class
 
-| Class | Tested | Untested | Coverage |
-|---|---|---|---|
-| `Line2D` | 11 | 7 (`AlmostEquals`, `ProjectOnto`, `Location`, `Intersects`/`Intersection` ×`Ray2D`, `Intersects`/`Intersection` ×`LineSegment2D`) | ~61% |
-| `Ray3D` | 12 | 6 (`Contains`, `DistanceTo`, `Intersects`/`Intersection` ×`Ray3D`, `Intersects`/`Intersection` ×`LineSegment3D`) | ~67% |
-| `Vector2D` | 14 | 6 (`Length`, `Normalize`, `AlmostEquals`, unary `-`, `operator-`, `operator/`) | ~70% |
-| `Line3D` | 14 | 5 (`DistanceTo`, `Intersects`/`Intersection` ×`Ray3D`, `Intersects`/`Intersection` ×`LineSegment3D`) | ~75% |
-| `BBox2D` | 9 | 2 (`BBox2D(Polyline2D)`, `BBox2D(Polygon2D)`) | ~82% |
-| `GeometryCollection2D` | 19 | 3 (`operator=`, `operator<<`, `FromFile`) | ~86% |
-| `GeometryCollection3D` | 18 | 3 (`operator=`, `operator<<`, `FromFile`) | ~86% |
-| `LineSegment2D` | 14 | 2 (`Length`, `ToLine`) | ~87% |
-| `Ray2D` | 16 | 2 (`AlmostEquals`, `ToLine`) | ~89% |
-| `Triangle3D` | 19 | 2 (`operator=`, `operator<<`) | ~90% |
-| `Polygon2D` | 11 | 1 (`operator<<`) | ~92% |
-| `Polygon3D` | 14 | 1 (`operator<<`) | ~93% |
-| `Polyline2D` | 23 | 2 (`operator=`, `operator<<`) | ~92% |
-| `Polyline3D` | 23 | 2 (`operator=`, `operator<<`) | ~92% |
-| `Triangle2D` | 21 | 1 (`AlmostEquals`) | ~94% |
-| `Point2D` | 20 | 1 (`linear_combination`) | ~95% |
-| `LineSegment3D` | 22 | 1 (`operator<<`) | ~96% |
-| `BBox3D` | 12 | 0 | **100%** |
-| `Plane` + free functions | 21 | 0 | **100%** |
-| `Point3D` | 21 | 0 | **100%** |
-| `Vector3D` | 22 | 0 | **100%** |
-| `utils.hpp` | 12 | 0 | **100%** |
-| `WktParser` | 4 | 0 | **100%** |
+Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit test (C++ or Python)
+
+| Class | C++ tested | Py tested | CS tested | Stubs ★ | Notable gaps ○ |
+|-------|-----------|----------|----------|---------|----------------|
+| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py) |
+| `Point3D` | ✓ all key | ✓ most | ✓ most | — | — |
+| `Vector2D` | ✓ most | ✓ most | ✓ partial | — | Many arithmetic operators (both) |
+| `Vector3D` | ✓ most | ✓ most | ✓ most | — | Many arithmetic operators (both); `IsParallel` (C++) |
+| `Line2D` | ✓ most | ✓ partial | ✓ most | — | `Intersects`/`Intersection` ×`Ray2D`, ×`Segment2D` (Py) |
+| `Line3D` | ✓ most | ○ thin | ✓ most | — | `Contains`, `Intersects`/`Intersection` ×`Ray3D`, ×`Segment3D` (both) |
+| `Ray2D` | ✓ most | ✓ partial | — | — | `ToLine` (Py) |
+| `Ray3D` | ✓ most | ○ thin | — | — | `Contains`, `Intersects`/`Intersection` ×`Segment3D` (Py) |
+| `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py) |
+| `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
+| `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py) |
+| `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
+| `Polygon2D` | ✓ core | ✓ core | ✓ partial | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py) |
+| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py) |
+| `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, all `Intersection` (Py) |
+| `Triangle3D` | ✓ partial | ✓ partial | ✓ partial | `DistanceTo` ★ `Contains` ★ `Intersects(△)` ★ `Intersection(×Line/Ray/Seg/△)` ★ | `Perimeter`, `ToAxis` (Py); most `Intersects`/`Intersection` (Py) |
+| `Plane` | ✓ all key | ✓ all key | — | — | `axis_u`, `axis_v`, `ProjectInto`, `Evaluate`, `FromOriginAndAxes` (Py) |
+| `BBox2D` | ✓ most | ✓ partial | — | — | `BBox2D(Polyline2D)`, `BBox2D(Polygon2D)` (C++); most ctors (Py) |
+| `BBox3D` | ✓ all key | ○ thin | — | — | `min`, `max`, `Contains`, all shape ctors (Py) |
+| `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |
+| `GeometryCollection2D` | ✓ core | ✓ partial | ✓ most | — | — |
+| `GeometryCollection3D` | ✓ core | ✓ partial | ✓ most | — | — |
+
+---
+
+## Stub Methods (21 total)
+
+These methods are declared in the public API but `throw std::runtime_error("not implemented")`.
+Each has a `EXPECT_ANY_THROW` test confirming the throw.
+
+| Class | Method |
+|-------|--------|
+| `Polygon2D` | `DistanceTo(Point2D)` |
+| `Polygon2D` | `Contains(Point2D)` |
+| `Polygon2D` | `Intersection(Line2D)` |
+| `Polygon2D` | `Intersection(Ray2D)` |
+| `Polygon2D` | `Intersection(LineSegment2D)` |
+| `Polygon3D` | `DistanceTo(Point3D)` |
+| `Polygon3D` | `Contains(Point3D)` |
+| `Polygon3D` | `Intersection(Line3D)` |
+| `Polygon3D` | `Intersection(Ray3D)` |
+| `Polygon3D` | `Intersection(LineSegment3D)` |
+| `Triangle2D` | `DistanceTo(Point2D)` |
+| `Triangle2D` | `Intersects(Triangle2D)` |
+| `Triangle2D` | `Intersection(Triangle2D)` |
+| `Triangle3D` | `DistanceTo(Point3D)` |
+| `Triangle3D` | `Contains(Point3D)` |
+| `Triangle3D` | `Intersects(Triangle3D)` |
+| `Triangle3D` | `Intersection(Line3D)` |
+| `Triangle3D` | `Intersection(Ray3D)` |
+| `Triangle3D` | `Intersection(LineSegment3D)` |
+| `Triangle3D` | `Intersection(Triangle3D)` |
+| `Polygon2D::FromWkt` | (parses but returns broken result — fix tracked separately) |
 
 ---
 
 ## Key Takeaways
 
-- **No class is at 0%** — all geometry classes and utilities have at least some test coverage.
-- **`Line2D`, `Ray3D`, `Vector2D`, `Line3D`** remain the weakest — all lack several geometric operations (intersections, distance, normalization).
-- **`operator<<` and `operator=`** are the most common "last mile" gaps — they appear across `Triangle3D`, `Polygon2D`, `Polygon3D`, `Polyline2D`, `Polyline3D`, `LineSegment3D`, `GeometryCollection2D`, and `GeometryCollection3D`.
-- **`BBox3D`, `Point3D`, `Vector3D`, `utils.hpp`, `WktParser`, `Plane`** are at **100%**.
-- **`GeometryCollection2D`/`3D`** are newly added with ~86% coverage.
-- **`Plane`** reached **100%** with the addition of `closest_world_plane_to`, `are_coplanar`, `are_ccw`, `are_cw` tests and `operator==` coverage.
-- **2D side** continues to be strong overall; the biggest remaining gaps are in the 2D intersection/distance helpers (`Line2D`, `Vector2D`, `Ray3D`).
+- **No class is at 0%** — all geometry classes have at least some test coverage.
+- **Python binding tests are the biggest gap**: `LineSegment3D`, `Polyline3D`, `BBox3D`, `Line3D`, `Ray3D` are thin or untested in Python.
+- **Stub cluster**: `Polygon2D/3D` and `Triangle2D/3D` all have unimplemented intersection and containment methods. These are the primary next implementation targets.
+- **`Plane`, `Point2D`, `Point3D`, `Vector2D`, `Vector3D`** have excellent coverage in both C++ and Python.
+- **Operator overloads** (`operator<<`, `operator=`, arithmetic) are implicitly exercised by other tests even when not explicitly targeted.
 
 ---
 
@@ -61,17 +95,12 @@ cmake -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
       ..
 cmake --build .
-
-# Run the test suite
 ./geompp_tests/geompp_tests
-
-# Collect and display a summary
 lcov --capture --directory . --output-file coverage.info
 lcov --remove coverage.info '*/build/_deps/*' --output-file coverage.info
 genhtml coverage.info --output-directory coverage_html
-# Open coverage_html/index.html in a browser
 ```
 
 ---
 
-*See `test_coverage_plan.md` for the full prioritized list of missing test cases.*
+_See `test_coverage_plan.md` for the prioritized list of missing test cases._

@@ -30,7 +30,6 @@ public:
     bool            AlmostEquals(Line3D^ other, double epsilon);
     double          DistanceTo(Point3D^ point);
     Point3D^        ProjectOnto(Point3D^ point);
-    double          Location(Point3D^ point);
 
     System::String^ ToWkt();
     static Line3D^  FromWkt(System::String^ wkt);

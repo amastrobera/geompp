@@ -34,11 +34,15 @@ class Triangle2D {
   double Area() const;
   double Perimeter() const;
   bool IsCCW() const;
+
+#pragma region line operations
+
   double DistanceTo(Point2D const& point) const;
   std::tuple<Vector2D, Vector2D> ToAxis()
-      const;  // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
-  std::tuple<double, double> Location(Point2D const& point) const;  // coordinates of axis U, and axis V
+      const;                                     // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
   std::optional<Point2D> Interpolate(double s, double t) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static Triangle2D FromWkt(std::string const& wkt);

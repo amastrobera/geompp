@@ -41,7 +41,7 @@ class Point2D {
 
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3);
 
-std::vector<Point2D> remove_duplicates_from_sorted_list(std::vector<Point2D> const& points);
+std::vector<Point2D> remove_consecutive_duplicates(std::vector<Point2D> const& points);
 
 std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points);
 

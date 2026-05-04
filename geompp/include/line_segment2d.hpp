@@ -26,9 +26,15 @@ class LineSegment2D {
   bool AlmostEquals(LineSegment2D const& other, double epsilon = DOUBLE_EPSILON) const;
   Line2D ToLine() const;
   double Length() const;
+
+#pragma region line operations
+
+  Point2D ProjectOnto(Point2D const& point) const;
   double DistanceTo(Point2D const& point) const;
   double Location(Point2D const& point) const;
   Point2D Interpolate(double pct) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static LineSegment2D FromWkt(std::string const& wkt);

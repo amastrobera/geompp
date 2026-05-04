@@ -26,9 +26,15 @@ class LineSegment3D {
   bool AlmostEquals(LineSegment3D const& other, double epsilon = DOUBLE_EPSILON) const;
   Line3D ToLine() const;
   double Length() const;
+
+#pragma region line operations
+
+  Point3D ProjectOnto(Point3D const& point) const;
   double DistanceTo(Point3D const& point) const;
   double Location(Point3D const& point) const;
   Point3D Interpolate(double pct) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static LineSegment3D FromWkt(std::string const& wkt);

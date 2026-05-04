@@ -10,8 +10,9 @@ void bind_ray2d(py::module_& m) {
         .def("is_ahead",    &geompp::Ray2D::IsAhead,    "point"_a)
         .def("is_behind",   &geompp::Ray2D::IsBehind,   "point"_a)
         .def("to_line",     &geompp::Ray2D::ToLine)
-        .def("distance_to", &geompp::Ray2D::DistanceTo, "point"_a)
-        .def("contains",    &geompp::Ray2D::Contains,   "point"_a)
+        .def("distance_to",  &geompp::Ray2D::DistanceTo,  "point"_a)
+        .def("project_onto", &geompp::Ray2D::ProjectOnto, "point"_a)
+        .def("contains",     &geompp::Ray2D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Ray2D)
         BIND_SERIALIZATION(Ray2D)
         .def("intersects",

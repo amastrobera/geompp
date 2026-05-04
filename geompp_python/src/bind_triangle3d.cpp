@@ -22,10 +22,6 @@ void bind_triangle3d(py::module_& m) {
             auto [u, v] = t.ToAxis();
             return py::make_tuple(py::cast(u), py::cast(v));
         })
-        .def("location", [](const geompp::Triangle3D& t, const geompp::Point3D& p) {
-            auto [s, tt] = t.Location(p);
-            return py::make_tuple(s, tt);
-        }, "point"_a)
         .def("interpolate", [](const geompp::Triangle3D& t, double s, double tt) -> py::object {
             auto r = t.Interpolate(s, tt);
             if (!r.has_value()) return py::none();

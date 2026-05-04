@@ -19,7 +19,7 @@ namespace geompp {
 #pragma region Constructors
 
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
-  auto unique_points = remove_duplicates(points);
+  auto unique_points = remove_collinear(points);
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
@@ -31,12 +31,18 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
     throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
-  return {unique_points};
+  double perimeter = 0;
+  int n0 = unique_points.size();
+  for (int i = 0; i < n0; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % n0]);
+  }
+
+  return {unique_points, perimeter};
 }
 
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes) {
   auto unique_points =
-      remove_collinear(remove_duplicates_from_sorted_list(points));  // remove duplicates and collinear points
+      remove_collinear(remove_consecutive_duplicates(points));  // remove duplicates and collinear points
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
@@ -50,7 +56,7 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
 
   std::vector<std::vector<Point2D>> unique_holes_points;
   for (auto const& hole : holes) {
-    auto unique_hole_points = remove_collinear(remove_duplicates_from_sorted_list(hole));
+    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(hole));
 
     if (unique_hole_points.size() < 3) {
       throw std::runtime_error(std::format(
@@ -65,17 +71,26 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
     unique_holes_points.push_back(unique_hole_points);
   }
 
-  return {unique_points, unique_holes_points};
+  double perimeter = 0;
+  int nh = unique_points.size();
+  for (int i = 0; i < nh; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % nh]);
+  }
+
+  return {unique_points, perimeter, unique_holes_points};
 }
 
-Polygon2D::Polygon2D(std::vector<Point2D> const& points) : VERTICES(points) {}
+Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter) : VERTICES(points), PERIMETER(perimeter) {}
 
-Polygon2D::Polygon2D(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes)
-    : VERTICES(points), HOLES(holes) {}
+Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,
+                     std::vector<std::vector<Point2D>> const& holes)
+    : VERTICES(points), HOLES(holes), PERIMETER(perimeter) {}
 
 Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   if (this != &other) {
     VERTICES = other.VERTICES;
+    HOLES = other.HOLES;
+    PERIMETER = other.PERIMETER;
   }
   return *this;
 }
@@ -108,6 +123,8 @@ bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
   }
   return true;
 }
+
+SegmentRange2D Polygon2D::ToSegments() const { return SegmentRange2D(VERTICES, true); }
 
 Point2D Polygon2D::Centroid() const {
   Point2D cs = centroid(VERTICES);
@@ -146,20 +163,7 @@ double Polygon2D::Area() const {
   return area;
 }
 
-double Polygon2D::Perimeter() const {
-  double perimeter = 0;
-  int n = VERTICES.size();
-  for (int i = 0; i < n; ++i) {
-    perimeter += VERTICES[i].DistanceTo(VERTICES[(i + 1) % n]);
-  }
-  return perimeter;
-}
-
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
-
-double Polygon2D::Location(Point2D const& point) const { throw std::runtime_error("not implemented"); }
-
-Point2D Polygon2D::Interpolate(double pct) const { throw std::runtime_error("not implemented"); }
 
 #pragma region Operator Overloading
 
@@ -321,7 +325,7 @@ Polygon2D Polygon2D::FromWkt(std::string const& wkt) {
           end_inner_loop + polygon_loops_wkt.substr(end_inner_loop + 1).find(',');  // find the comma separator of loops
     }
 
-    return {points, holes};
+    return Make(points, holes);
 
   } catch (std::exception const& e) {
     GEOMPP_LOG(ERROR) << e.what();

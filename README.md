@@ -216,11 +216,13 @@
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).
 
-  | Status | Count | % |
-  |---|---|---|
-  | Tested | ~401 | ~92% |
-  | Untested | ~35 | ~8% |
-  | **Total** | **~436** | |
+  | Metric | Count | Notes |
+  |--------|-------|-------|
+  | Public methods | ~360 | Excl. ctors/dtors/operators |
+  | C++ tested | ~300 | ~83% |
+  | Python tested | ~166 | ~46% |
+  | C# tested | ~120 | ~33% |
+  | Stubs (not yet impl.) | 21 | Polygon/Triangle intersection & containment |
 
   More on [test coverage](./test_coverage_report.md).
 
@@ -228,6 +230,9 @@
   ## For developers
 
   ### Docker Dev Environment
+
+  You can inspect the `Dockerfile.lin` (or `.win`) to see what the system dependencies are. 
+
   ```bash
   cd docker
   .\build.bat -image Linux    # or -image Windows
@@ -239,15 +244,6 @@
 
   ### Linux
 
-  Install g++13:
-  ```bash
-  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  sudo apt install -y g++-13
-  sudo rm -f /usr/bin/g++ /usr/bin/c++
-  sudo ln -s /usr/bin/g++-13 /usr/bin/g++
-  sudo ln -s /usr/bin/c++-13 /usr/bin/c++
-  ```
-
   Build the library and (optionally) the Python bindings
   ```bash
   mkdir build && cd build
@@ -258,9 +254,21 @@
 
   Run tests
   ```bash
+  # from the build directory
   ./geompp_tests/geompp_tests
   ./geompp_tests/geompp_tests --gtest_filter="Point2D*"
   ./geompp_tests/geompp_tests --gtest_filter="Point2D.ToFile"
+
+  # or 
+  ctest [--build-config Debug]
+  ```
+
+  Python bindings and tests (if you did cmake with the flag -DBUILD_PYTHON=ON)
+  ```bash
+  # from the build directory
+  pip install pytest # useful only the first time
+  pip install --no-build-isolation -e ./geompp_python # faster iteration while tweaking bindings
+  pytest geompp_python/tests/ -v [-k "BBox3D"]
   ```
 
 
@@ -293,9 +301,13 @@
   # alternatively
   ctest --test-dir build_win/geompp_tests --build-config Debug
   [ctest --test-dir build_win/geompp_tests --build-config Release]
+  ```
 
+  Python bindings and tests (if you did cmake with the flag -DBUILD_PYTHON=ON)
+  ```powershell
   # smoke tests on python bindings 
   pip install pytest # useful only the first time
+  Remove-Item S:\development\geompp\geompp_python\geompp\_geompp.cp314-win_amd64.pyd # in case you have already built it before
   pip install --no-build-isolation -e ./geompp_python # faster iteration while tweaking bindings
   pytest geompp_python/tests/ -v [-k "BBox3D"]
   ```

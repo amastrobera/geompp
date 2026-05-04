@@ -70,10 +70,6 @@ Point3D^ Line3D::ProjectOnto(Point3D^ point) {
     return gcnew Point3D(new geompp::Point3D(_native->ProjectOnto(*point->_native)));
 }
 
-double Line3D::Location(Point3D^ point) {
-    return _native->Location(*point->_native);
-}
-
 System::String^ Line3D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }

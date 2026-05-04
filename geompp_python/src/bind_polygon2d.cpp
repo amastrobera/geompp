@@ -14,12 +14,14 @@ void bind_polygon2d(py::module_& m) {
              "points"_a, "holes"_a)
         .def(py::init<const geompp::Polygon2D&>())
         .def("size",        &geompp::Polygon2D::Size)
+        .def("to_segments", [](const geompp::Polygon2D& p) {
+            auto r = p.ToSegments();
+            return std::vector<geompp::LineSegment2D>(r.begin(), r.end());
+        })
         .def("centroid",    &geompp::Polygon2D::Centroid)
         .def("area",        &geompp::Polygon2D::Area)
         .def("perimeter",   &geompp::Polygon2D::Perimeter)
         .def("distance_to", &geompp::Polygon2D::DistanceTo,  "point"_a)
-        .def("location",    &geompp::Polygon2D::Location,    "point"_a)
-        .def("interpolate", &geompp::Polygon2D::Interpolate, "pct"_a)
         .def("contains",    &geompp::Polygon2D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Polygon2D)
         BIND_SERIALIZATION(Polygon2D)

@@ -3,6 +3,7 @@
 #include "constants.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
+#include "point2d.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
 #include "vector3d.hpp"
@@ -38,12 +39,16 @@ class Triangle3D {
       const;  // if negative the order of points is clock-wise, otherwise it's counter-clockwise
   double Area() const;
   double Perimeter() const;
-  double DistanceTo(Point3D const& point) const;
   bool IsCCW(Vector3D const& ref_normal) const;
+
+#pragma region line operations
+
+  double DistanceTo(Point3D const& point) const;
   std::tuple<Vector3D, Vector3D> ToAxis()
-      const;  // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
-  std::tuple<double, double> Location(Point3D const& point) const;  // coordinates of axis U, and axis V
+      const;                                     // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
   std::optional<Point3D> Interpolate(double s, double t) const;
+
+#pragma endregion
 
   std::string ToWkt() const;
   static Triangle3D FromWkt(std::string const& wkt);
