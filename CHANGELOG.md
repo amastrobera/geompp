@@ -11,7 +11,9 @@ Each release covers all three packages at the same version:
 
 ---
 
-## [Unreleased]
+## [0.6.0] - 2026-05-04
+
+> C++ library — tagged `v0.6.0` · C# / NuGet — tagged `csharp-v0.6.0` · Python / PyPI — tagged `python-v0.6.0`
 
 > Touches `Polyline2D`, `Polyline3D`, `Polygon2D`, `Polygon3D`, `Triangle2D`, `Triangle3D`.
 
