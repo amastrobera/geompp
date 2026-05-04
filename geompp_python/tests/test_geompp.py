@@ -837,7 +837,7 @@ class TestPolyline2D:
         assert approx(pline.distance_to(geompp.Point2D(0, 1)), 1.0)
 
     def test_project_onto(self, pline):
-        assert pline.project_onto(geompp.Point2D(2, 3)).almost_equals(geompp.Point2D(2, 0))
+        assert pline.project_onto(geompp.Point2D(2, 3)).almost_equals(geompp.Point2D(3, 3))
         assert pline.project_onto(geompp.Point2D(6, 2)).almost_equals(geompp.Point2D(3, 2))
 
     def test_to_segments(self, pline):
@@ -902,7 +902,7 @@ class TestPolyline3D:
     def test_project_onto(self):
         pts = [geompp.Point3D(0,0,0), geompp.Point3D(3,0,0), geompp.Point3D(3,4,0)]
         pl = geompp.Polyline3D.make(pts)
-        assert pl.project_onto(geompp.Point3D(2,3,0)).almost_equals(geompp.Point3D(2,0,0))
+        assert pl.project_onto(geompp.Point3D(2,3,0)).almost_equals(geompp.Point3D(3,3,0))
         assert pl.project_onto(geompp.Point3D(6,2,0)).almost_equals(geompp.Point3D(3,2,0))
 
 
@@ -1289,9 +1289,9 @@ class TestFreeFunctions:
         result = geompp.linear_combination(pts, [0.0, 1.0])
         assert approx(result.x, 1.0)
 
-    def test_remove_duplicates_from_sorted_list_2d(self):
+    def test_remove_consecutive_duplicates_2d(self):
         pts = [geompp.Point2D(0, 0), geompp.Point2D(0, 0), geompp.Point2D(1, 0)]
-        result = geompp.remove_duplicates_from_sorted_list(pts)
+        result = geompp.remove_consecutive_duplicates(pts)
         assert len(result) == 2
 
     def test_are_ccw_2d_true(self):

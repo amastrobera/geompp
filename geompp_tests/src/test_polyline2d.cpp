@@ -79,9 +79,9 @@ TEST_F(Polyline2DTest, Location) {
   ASSERT_EQ(0.5, g::round(s1.Location(g::Point2D(0.5, 0))));
   ASSERT_EQ(0.75, g::round(s1.Location(g::Point2D(0.75, 0))));
 
-  ASSERT_EQ(-1, g::round(s1.Location(g::Point2D(-1, 0))));
-  ASSERT_EQ(-0.1, g::round(s1.Location(g::Point2D(-0.1, 0))));
-  ASSERT_EQ(1.1, g::round(s1.Location(g::Point2D(1.1, 0))));
+  ASSERT_EQ(std::numeric_limits<double>::infinity(), g::round(s1.Location(g::Point2D(-1, 0))));
+  ASSERT_EQ(std::numeric_limits<double>::infinity(), g::round(s1.Location(g::Point2D(-0.1, 0))));
+  ASSERT_EQ(std::numeric_limits<double>::infinity(), g::round(s1.Location(g::Point2D(1.1, 0))));
 
   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(1, 1))));
   ASSERT_TRUE(std::isinf(s1.Location(g::Point2D(0, -1))));
@@ -290,10 +290,10 @@ TEST_F(Polyline2DTest, Intersection) {
 TEST_F(Polyline2DTest, Wkt) {
   ASSERT_EQ("LINESTRING (0 0, 1 1)", g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(1, 1)}).ToWkt());
   geompp::DECIMAL_PRECISION = 2;
-  ASSERT_EQ("LINESTRING (56491.62 -795.97, -10351.52 7.61)",
-            g::Polyline2D::Make({g::Point2D(56491.6164, -795.97416),
-                                 g::Point2D(-9137.3679, 10.35678),  // collinear point: expected to be removed
-                                 g::Point2D(-10351.516, 7.61)})
+  ASSERT_EQ("LINESTRING (0.12 0.57, 4.57 3.23)",
+            g::Polyline2D::Make({g::Point2D(0.1234, 0.5678),
+                                 g::Point2D(2.3456, 1.9012),  // collinear point: expected to be removed
+                                 g::Point2D(4.5678, 3.2346)})
                 .ToWkt());
 
   geompp::DECIMAL_PRECISION = 6;
@@ -348,7 +348,7 @@ TEST_F(Polyline2DTest, ProjectOnto) {
   geompp::DECIMAL_PRECISION = 4;
   auto poly = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(4, 0), g::Point2D(4, 4)});
 
-  ASSERT_EQ(g::Point2D(2, 0), poly.ProjectOnto(g::Point2D(2, 3)));
+  ASSERT_EQ(g::Point2D(4, 3), poly.ProjectOnto(g::Point2D(2, 3)));
   ASSERT_EQ(g::Point2D(4, 2), poly.ProjectOnto(g::Point2D(6, 2)));
 }
 

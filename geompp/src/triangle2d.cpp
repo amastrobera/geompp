@@ -139,7 +139,7 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
     return line.Origin().DistanceTo(a) < line.Origin().DistanceTo(b);
   });  // sort intersection points in the direction of the line
 
-  std::vector<Point2D> unique_points = remove_duplicates_from_sorted_list(intersections);
+  std::vector<Point2D> unique_points = remove_consecutive_duplicates(intersections);
 
   if (unique_points.empty()) {
     return std::nullopt;

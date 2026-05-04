@@ -22,7 +22,7 @@ Free functions
     are_ccw(points[, ref_plane])
     are_cw(points[, ref_plane])
     remove_duplicates(points)
-    remove_duplicates_from_sorted_list(points)
+    remove_consecutive_duplicates(points)
     remove_collinear(points)
     linear_combination(points, weights)
     average(points)
@@ -83,7 +83,7 @@ from ._geompp import (  # noqa: F401
     are_ccw,
     are_cw,
     remove_duplicates,
-    remove_duplicates_from_sorted_list,
+    remove_consecutive_duplicates,
     remove_collinear,
     linear_combination,
     average,
@@ -103,7 +103,7 @@ __all__ = [
     "WktParser",
     "Axis",
     "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
-    "remove_duplicates", "remove_duplicates_from_sorted_list",
+    "remove_duplicates", "remove_consecutive_duplicates",
     "remove_collinear", "linear_combination", "average",
     "signed_area", "centroid",
 ]

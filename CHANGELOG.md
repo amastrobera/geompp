@@ -17,6 +17,11 @@ Each release covers all three packages at the same version:
 
 ### Changed
 
+**C++ core / Python bindings**
+- `Polyline2D::Make` and `Polyline3D::Make` — fixed: now call `remove_collinear(points)` instead of `remove_collinear(remove_duplicates(points))`. `remove_duplicates` removed all duplicate points regardless of position, silently corrupting self-intersecting or backtracking paths; `remove_collinear` already handles consecutive duplicates as a degenerate collinear triplet, so the extra pass was both wrong and redundant.
+- `Polygon2D::Make` and `Polygon3D::Make` (no-holes overload) — fixed: now call `remove_collinear(points)`, consistent with the with-holes overload. Previously the no-holes path only called `remove_duplicates`, skipping collinear simplification.
+- `remove_duplicates_from_sorted_list()` renamed to `remove_consecutive_duplicates()` (Point2D and Point3D overloads). The old name was misleading — the function removes consecutive equal elements, not all duplicates from a sorted container. Affects `geompp::remove_consecutive_duplicates`, `geompp.remove_consecutive_duplicates` (Python), and all internal callers (`Polygon2D::Make`, `Polygon3D::Make`, `Triangle2D::Intersection`).
+
 **C++ core**
 - `Polyline2D::Length()` and `Polyline3D::Length()` — now inline cached getters; value is pre-computed in `Make()` and stored as a private member. No change to public API.
 - `Polygon2D::Perimeter()` and `Polygon3D::Perimeter()` — same inline-cached pattern. No change to public API.
@@ -30,6 +35,21 @@ Each release covers all three packages at the same version:
 - `Polyline2D::Interpolate()` and `Polyline3D::Interpolate()` — now throws `std::invalid_argument` when `pct` is outside `[0, 1]`; previously clamped silently.
 - `Triangle2D::Contains()` — inlines the removed `Location()` math directly; behaviour unchanged.
 - `Triangle2D::DistanceTo()` — reverted to `throw std::runtime_error("not implemented")`; previous implementation was incorrect.
+
+### Added
+
+**Python / PyPI**
+- `LineSegment2D.project_onto()`, `LineSegment3D.project_onto()`, `Ray2D.project_onto()`, `Ray3D.project_onto()`, `Polyline2D.project_onto()`, `Polyline3D.project_onto()` — bound from the existing C++ `ProjectOnto(Point)` method; was callable from C++ and C# but missing from Python bindings.
+
+### Fixed
+
+**C++ core**
+- `Polyline2D::Location()` and `Polyline3D::Location()` — corrected unit mismatch: `seg.Location(point)` returns a [0, 1] fraction but was treated as a raw length accumulator; result is now `(tot_len + seg.Location(point) * seg.Length()) / LENGTH`.
+- `Polyline2D::Interpolate()` and `Polyline3D::Interpolate()` — corrected unit mismatch: `pct` ∈ [0, 1] was compared directly against cumulative segment lengths; fixed by computing `target = pct * LENGTH` before the selection loop.
+- `WktParser::FromWkt()` — `LINESTRING` WKT strings were silently parsed as `Line2D`/`Line3D` because the `LINE` prefix check ran before the `LINESTRING` check; fixed by moving the `LINESTRING` branch first.
+
+**C# / NuGet**
+- `Line2D` binding — removed spurious `Location(Point2D^)` declaration and implementation; the backing `geompp::Line2D` has no such method, causing a build failure.
 
 ### Removed (breaking)
 
@@ -62,6 +82,15 @@ Each release covers all three packages at the same version:
 - `TestPolyline2D`, `TestPolyline3D`: updated `test_interpolate` — added `pytest.raises` for out-of-range `pct`.
 - `TestTriangle2D`: removed `test_location`; expanded `test_interpolate` (vertex checks, outside returns `None`).
 - `TestTriangle3D`: added `test_interpolate` (vertices, centroid, outside returns `None`).
+
+**C# (`geompp_csharp/tests`)**
+- `Vector2D`: added ~12 tests covering `AlmostEquals`, arithmetic operators, `Length`, `Dot`, `Cross`, `Normalize`, `Perp`, `IsParallel`, `IsPerpendicular`.
+- `WktParser`: added 10 tests (`Open_ValidFile_NoThrow`, `Next_Returns*` for Point2D/3D, LineSegment2D/3D, Polyline2D/3D, `Next_SkipsComments`, `FromWkt_Point2D`, `ToWkt_Point2D`); all file-using tests wrapped in `using (var parser = ...)` blocks to ensure `Dispose()` closes the `std::ifstream` before `File.Delete`.
+- `GeometryCollection2D` and `GeometryCollection3D`: added ~15 tests each covering `Add`, `Get`, `Size`, `AlmostEquals`, `ToWkt`, `FromWkt`, `ToFile`/`FromFile`.
+- `Polyline2D` / `Polyline3D`: corrected `DistanceTo_PointAboveSegment` — expected distance changed from `3.0` to `2.0`: for polyline `(0,0)→(4,0)→(4,4)` and point `(2,3)`, the nearest point is on the vertical segment at `(4,3)`, distance 2.
+
+**Python (`geompp_python/tests`)**
+- `TestPolyline2D` / `TestPolyline3D`: corrected `test_project_onto` — expected `project_onto(Point(2,3))` updated to `Point(3,3)` (nearest, distance 1) from `Point(2,0)` (distance 3).
 
 ---
 

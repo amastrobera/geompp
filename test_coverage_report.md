@@ -9,7 +9,8 @@ _Last updated: 2026-05-04_
 | Public methods (total) | ~360 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
 | Stubs (`throw "not implemented"`) | 21 | Listed per class below |
 | C++ explicit tests | ~300 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~160 | At least one `test_*` function calls the method |
+| Python explicit tests | ~166 | At least one `test_*` function calls the method |
+| C# explicit tests | ~120 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -17,27 +18,30 @@ _Last updated: 2026-05-04_
 
 Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit test (C++ or Python)
 
-| Class | C++ tested | Py tested | Stubs ★ | Notable gaps ○ |
-|-------|-----------|----------|---------|----------------|
-| `Point2D` | ✓ all key | ✓ most | — | `linear_combination` (Py) |
-| `Point3D` | ✓ all key | ✓ most | — | — |
-| `Vector2D` | ✓ most | ✓ most | — | Many arithmetic operators (both) |
-| `Vector3D` | ✓ most | ✓ most | — | Many arithmetic operators (both); `IsParallel` (C++) |
-| `Line2D` | ✓ most | ✓ partial | — | `Intersects`/`Intersection` ×`Ray2D`, ×`Segment2D` (Py) |
-| `Line3D` | ✓ most | ○ thin | — | `Contains`, `Intersects`/`Intersection` ×`Ray3D`, ×`Segment3D` (both) |
-| `Ray2D` | ✓ most | ✓ partial | — | `ProjectOnto`, `ToLine` (Py) |
-| `Ray3D` | ✓ most | ○ thin | — | `Contains`, `ProjectOnto`, `Intersects`/`Intersection` ×`Segment3D` (Py) |
-| `LineSegment2D` | ✓ most | ✓ most | — | `ProjectOnto`, `ToLine` (Py) |
-| `LineSegment3D` | ✓ all key | ○ thin | — | `First`, `Last`, `AlmostEquals`, `ProjectOnto`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
-| `Polyline2D` | ✓ all key | ✓ partial | — | `ProjectOnto` (both); `DistanceTo`, `Location` (Py) |
-| `Polyline3D` | ✓ all key | ○ thin | — | `ProjectOnto` (both); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
-| `Polygon2D` | ✓ core | ✓ core | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py) |
-| `Polygon3D` | ✓ core | ✓ core | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py) |
-| `Triangle2D` | ✓ most | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, all `Intersection` (Py) |
-| `Triangle3D` | ✓ partial | ✓ partial | `DistanceTo` ★ `Contains` ★ `Intersects(△)` ★ `Intersection(×Line/Ray/Seg/△)` ★ | `Perimeter`, `ToAxis` (Py); most `Intersects`/`Intersection` (Py) |
-| `Plane` | ✓ all key | ✓ all key | — | `axis_u`, `axis_v`, `ProjectInto`, `Evaluate`, `FromOriginAndAxes` (Py) |
-| `BBox2D` | ✓ most | ✓ partial | — | `BBox2D(Polyline2D)`, `BBox2D(Polygon2D)` (C++); most ctors (Py) |
-| `BBox3D` | ✓ all key | ○ thin | — | `min`, `max`, `Contains`, all shape ctors (Py) |
+| Class | C++ tested | Py tested | CS tested | Stubs ★ | Notable gaps ○ |
+|-------|-----------|----------|----------|---------|----------------|
+| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py) |
+| `Point3D` | ✓ all key | ✓ most | ✓ most | — | — |
+| `Vector2D` | ✓ most | ✓ most | ✓ partial | — | Many arithmetic operators (both) |
+| `Vector3D` | ✓ most | ✓ most | ✓ most | — | Many arithmetic operators (both); `IsParallel` (C++) |
+| `Line2D` | ✓ most | ✓ partial | ✓ most | — | `Intersects`/`Intersection` ×`Ray2D`, ×`Segment2D` (Py) |
+| `Line3D` | ✓ most | ○ thin | ✓ most | — | `Contains`, `Intersects`/`Intersection` ×`Ray3D`, ×`Segment3D` (both) |
+| `Ray2D` | ✓ most | ✓ partial | — | — | `ToLine` (Py) |
+| `Ray3D` | ✓ most | ○ thin | — | — | `Contains`, `Intersects`/`Intersection` ×`Segment3D` (Py) |
+| `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py) |
+| `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
+| `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py) |
+| `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
+| `Polygon2D` | ✓ core | ✓ core | ✓ partial | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py) |
+| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py) |
+| `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, all `Intersection` (Py) |
+| `Triangle3D` | ✓ partial | ✓ partial | ✓ partial | `DistanceTo` ★ `Contains` ★ `Intersects(△)` ★ `Intersection(×Line/Ray/Seg/△)` ★ | `Perimeter`, `ToAxis` (Py); most `Intersects`/`Intersection` (Py) |
+| `Plane` | ✓ all key | ✓ all key | — | — | `axis_u`, `axis_v`, `ProjectInto`, `Evaluate`, `FromOriginAndAxes` (Py) |
+| `BBox2D` | ✓ most | ✓ partial | — | — | `BBox2D(Polyline2D)`, `BBox2D(Polygon2D)` (C++); most ctors (Py) |
+| `BBox3D` | ✓ all key | ○ thin | — | — | `min`, `max`, `Contains`, all shape ctors (Py) |
+| `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |
+| `GeometryCollection2D` | ✓ core | ✓ partial | ✓ most | — | — |
+| `GeometryCollection3D` | ✓ core | ✓ partial | ✓ most | — | — |
 
 ---
 

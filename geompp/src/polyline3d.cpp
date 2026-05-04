@@ -22,7 +22,7 @@ namespace geompp {
 Polyline3D::Polyline3D(std::vector<Point3D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 Polyline3D Polyline3D::Make(std::vector<Point3D> const& points) {
-  auto unique_points = remove_collinear(remove_duplicates(points));
+  auto unique_points = remove_collinear(points);
 
   if (unique_points.size() < 2) {
     throw std::runtime_error("cannot built polyline with less than 2 unique non-collinear consecutive points");
@@ -89,13 +89,11 @@ double Polyline3D::Location(Point3D const& point) const {
 
   auto segs = ToSegments();
 
-  // check if the point is in the middle of the polyline
   double tot_len = 0;
   for (int i = 0; i < segs.size(); ++i) {
     auto seg = segs[i];
     if (seg.Contains(point)) {
-      tot_len += seg.Location(point);
-      return tot_len;
+      return (tot_len + seg.Location(point) * seg.Length()) / LENGTH;
     }
     tot_len += seg.Length();
   }
@@ -107,14 +105,14 @@ Point3D Polyline3D::Interpolate(double pct) const {
     throw std::invalid_argument("pct must be in [0, 1]");
   }
 
-  // pct is within [0, 1]
+  double target = pct * LENGTH;
   double len_to_i = 0;
   double len_i = 0;
   for (int i = 0; i < KNOTS.size() - 1; ++i) {
     len_i = KNOTS[i].DistanceTo(KNOTS[i + 1]);
 
-    if (compare(pct, len_to_i + len_i) <= 0) {
-      double pct_i = pct - len_to_i;
+    if (compare(target, len_to_i + len_i) <= 0) {
+      double pct_i = (target - len_to_i) / len_i;
       return KNOTS[i] + pct_i * (KNOTS[i + 1] - KNOTS[i]);
     }
 

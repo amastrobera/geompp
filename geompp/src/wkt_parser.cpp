@@ -133,6 +133,25 @@ WktParser::ReturnSet WktParser::FromWkt(std::string const& wkt) {
       throw std::runtime_error("bad number format, not 2D or 3D");
     }
 
+    if (clean_line.find("LINESTRING", 0) == 0) {
+      if (GetNumberOfElementsInBetween(clean_line) == 2) {
+        switch (GetDimentionMultiElementCommaSeparated(clean_line)) {
+          case Dimention::TWO:
+            return LineSegment2D::FromWkt(clean_line);
+          case Dimention::THREE:
+            return LineSegment3D::FromWkt(clean_line);
+        }
+      } else {
+        switch (GetDimentionMultiElementCommaSeparated(clean_line)) {
+          case Dimention::TWO:
+            return Polyline2D::FromWkt(clean_line);
+          case Dimention::THREE:
+            return Polyline3D::FromWkt(clean_line);
+        }
+      }
+      throw std::runtime_error("bad number format, not 2D or 3D");
+    }
+
     if (clean_line.find("LINE", 0) == 0) {
       switch (GetDimentionMultiElementCommaSeparated(clean_line)) {
         case Dimention::TWO:
@@ -149,25 +168,6 @@ WktParser::ReturnSet WktParser::FromWkt(std::string const& wkt) {
           return Ray2D::FromWkt(clean_line);
         case Dimention::THREE:
           return Ray3D::FromWkt(clean_line);
-      }
-      throw std::runtime_error("bad number format, not 2D or 3D");
-    }
-
-    if (clean_line.find("LINESTRING", 0) == 0) {
-      if (GetNumberOfElementsInBetween(clean_line) == 2) {
-        switch (GetDimentionMultiElementCommaSeparated(clean_line)) {
-          case Dimention::TWO:
-            return LineSegment2D::FromWkt(clean_line);
-          case Dimention::THREE:
-            return LineSegment3D::FromWkt(clean_line);
-        }
-      } else {
-        switch (GetDimentionMultiElementCommaSeparated(clean_line)) {
-          case Dimention::TWO:
-            return Polyline2D::FromWkt(clean_line);
-          case Dimention::THREE:
-            return Polyline3D::FromWkt(clean_line);
-        }
       }
       throw std::runtime_error("bad number format, not 2D or 3D");
     }

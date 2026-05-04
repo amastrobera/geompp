@@ -20,7 +20,7 @@ namespace geompp {
 #pragma region Constructors
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
-  auto unique_points = remove_duplicates(points);
+  auto unique_points = remove_collinear(points);
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
@@ -48,7 +48,7 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes) {
   auto unique_points =
-      remove_collinear(remove_duplicates_from_sorted_list(points));  // remove duplicates and collinear points
+      remove_collinear(remove_consecutive_duplicates(points));  // remove duplicates and collinear points
 
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
@@ -68,7 +68,7 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
 
   std::vector<std::vector<Point3D>> unique_holes_points;
   for (auto const& hole : holes) {
-    auto unique_hole_points = remove_collinear(remove_duplicates_from_sorted_list(hole));
+    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(hole));
 
     if (unique_hole_points.size() < 3) {
       throw std::runtime_error(std::format(

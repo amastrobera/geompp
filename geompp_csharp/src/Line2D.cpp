@@ -70,10 +70,6 @@ Point2D^ Line2D::ProjectOnto(Point2D^ point) {
     return gcnew Point2D(new geompp::Point2D(_native->ProjectOnto(*point->_native)));
 }
 
-double Line2D::Location(Point2D^ point) {
-    return _native->Location(*point->_native);
-}
-
 System::String^ Line2D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }
