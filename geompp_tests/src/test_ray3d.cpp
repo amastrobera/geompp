@@ -166,6 +166,23 @@ TEST_F(Ray3DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "from file = " << r.ToWkt();
 }
 
+TEST_F(Ray3DTest, Contains) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+
+  ASSERT_TRUE(r.Contains(g::Point3D(3, 0, 0)));
+  ASSERT_FALSE(r.Contains(g::Point3D(3, 1, 0)));
+  ASSERT_FALSE(r.Contains(g::Point3D(-1, 0, 0)));
+}
+
+TEST_F(Ray3DTest, ProjectOnto) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+
+  ASSERT_EQ(g::Point3D(3, 0, 0), r.ProjectOnto(g::Point3D(3, 5, 0)));
+  ASSERT_EQ(g::Point3D::Zero(), r.ProjectOnto(g::Point3D(-2, 3, 0)));
+}
+
 TEST_F(Ray3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());

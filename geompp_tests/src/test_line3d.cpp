@@ -164,6 +164,14 @@ TEST_F(Line3DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "from file = " << l.ToWkt();
 }
 
+TEST_F(Line3DTest, Contains) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto l = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(3, 0, 0));
+
+  ASSERT_TRUE(l.Contains(g::Point3D(1, 0, 0)));
+  ASSERT_FALSE(l.Contains(g::Point3D(1, 1, 0)));
+}
+
 TEST_F(Line3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   // horizontal line along X-axis

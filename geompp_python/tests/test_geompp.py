@@ -251,6 +251,17 @@ class TestLineSegment2D:
         assert not s1.intersects(s2)
         assert s1.intersection(s2) is None
 
+    def test_location(self, seg):
+        assert approx(seg.location(geompp.Point2D(0, 0)), 0.0)
+        assert approx(seg.location(geompp.Point2D(4, 0)), 1.0)
+        assert approx(seg.location(geompp.Point2D(2, 0)), 0.5)
+        assert math.isinf(seg.location(geompp.Point2D(2, 1)))
+
+    def test_project_onto(self, seg):
+        assert seg.project_onto(geompp.Point2D(2, 3)).almost_equals(geompp.Point2D(2, 0))
+        assert seg.project_onto(geompp.Point2D(-1, 2)).almost_equals(geompp.Point2D(0, 0))
+        assert seg.project_onto(geompp.Point2D(5, 2)).almost_equals(geompp.Point2D(4, 0))
+
     def test_wkt_roundtrip(self, seg):
         seg2 = geompp.LineSegment2D.from_wkt(seg.to_wkt())
         assert seg.almost_equals(seg2)
@@ -266,6 +277,30 @@ class TestLineSegment3D:
     def test_contains(self):
         s = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(0, 0, 4))
         assert s.contains(geompp.Point3D(0, 0, 2))
+
+    def test_location(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(0,0,0), geompp.Point3D(4,0,0))
+        assert approx(s.location(geompp.Point3D(0,0,0)), 0.0)
+        assert approx(s.location(geompp.Point3D(4,0,0)), 1.0)
+        assert approx(s.location(geompp.Point3D(2,0,0)), 0.5)
+        assert math.isinf(s.location(geompp.Point3D(2,1,0)))
+
+    def test_distance_to(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(0,0,0), geompp.Point3D(4,0,0))
+        assert approx(s.distance_to(geompp.Point3D(2, 3, 0)), 3.0)
+        assert approx(s.distance_to(geompp.Point3D(2, 0, 0)), 0.0)
+
+    def test_interpolate(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(0,0,0), geompp.Point3D(4,0,0))
+        assert s.interpolate(0.0).almost_equals(geompp.Point3D(0,0,0))
+        assert s.interpolate(1.0).almost_equals(geompp.Point3D(4,0,0))
+        assert s.interpolate(0.5).almost_equals(geompp.Point3D(2,0,0))
+
+    def test_project_onto(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(0,0,0), geompp.Point3D(4,0,0))
+        assert s.project_onto(geompp.Point3D(2,3,0)).almost_equals(geompp.Point3D(2,0,0))
+        assert s.project_onto(geompp.Point3D(-1,2,0)).almost_equals(geompp.Point3D(0,0,0))
+        assert s.project_onto(geompp.Point3D(5,2,0)).almost_equals(geompp.Point3D(4,0,0))
 
 
 # ─── Line2D ──────────────────────────────────────────────────────────────────
@@ -325,6 +360,20 @@ class TestLine2D:
 # ─── Line3D ──────────────────────────────────────────────────────────────────
 
 class TestLine3D:
+    def test_contains(self):
+        l = geompp.Line3D.make(geompp.Point3D(0,0,0), geompp.Point3D(3,0,0))
+        assert l.contains(geompp.Point3D(1,0,0))
+        assert not l.contains(geompp.Point3D(1,1,0))
+
+    def test_distance_to(self):
+        l = geompp.Line3D.make(geompp.Point3D(0,0,0), geompp.Point3D(3,0,0))
+        assert approx(l.distance_to(geompp.Point3D(0,3,0)), 3.0)
+
+    def test_project_onto(self):
+        l = geompp.Line3D.make(geompp.Point3D(0,0,0), geompp.Point3D(3,0,0))
+        p = l.project_onto(geompp.Point3D(2,3,0))
+        assert p.almost_equals(geompp.Point3D(2,0,0))
+
     def test_intersection_with_segment(self):
         l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(0, 0, 1))
         s = geompp.LineSegment3D.make(geompp.Point3D(0, -1, 2), geompp.Point3D(0, 1, 2))
@@ -352,6 +401,14 @@ class TestRay2D:
         assert ray.contains(geompp.Point2D(5, 0))
         assert not ray.contains(geompp.Point2D(-1, 0))
 
+    def test_distance_to(self, ray):
+        assert approx(ray.distance_to(geompp.Point2D(3, 4)), 4.0)
+        assert approx(ray.distance_to(geompp.Point2D(3, 0)), 0.0)
+
+    def test_project_onto(self, ray):
+        assert ray.project_onto(geompp.Point2D(3, 5)).almost_equals(geompp.Point2D(3, 0))
+        assert ray.project_onto(geompp.Point2D(-2, 3)).almost_equals(geompp.Point2D(0, 0))
+
     def test_intersection_with_segment(self, ray):
         s = geompp.LineSegment2D.make(geompp.Point2D(3, -1), geompp.Point2D(3, 1))
         assert ray.intersects(s)
@@ -367,6 +424,22 @@ class TestRay3D:
         r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(0, 0, 1))
         assert r.is_ahead(geompp.Point3D(0, 0, 5))
         assert r.is_behind(geompp.Point3D(0, 0, -1))
+
+    def test_contains(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0,0,0), geompp.Vector3D(1,0,0))
+        assert r.contains(geompp.Point3D(3,0,0))
+        assert not r.contains(geompp.Point3D(3,1,0))
+        assert not r.contains(geompp.Point3D(-1,0,0))
+
+    def test_distance_to(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0,0,0), geompp.Vector3D(1,0,0))
+        assert approx(r.distance_to(geompp.Point3D(3,4,0)), 4.0)
+        assert approx(r.distance_to(geompp.Point3D(-2,0,0)), 2.0)
+
+    def test_project_onto(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0,0,0), geompp.Vector3D(1,0,0))
+        assert r.project_onto(geompp.Point3D(3,5,0)).almost_equals(geompp.Point3D(3,0,0))
+        assert r.project_onto(geompp.Point3D(-2,3,0)).almost_equals(geompp.Point3D(0,0,0))
 
 
 # ─── Polygon2D ───────────────────────────────────────────────────────────────
@@ -753,6 +826,20 @@ class TestPolyline2D:
         p2 = geompp.Polyline2D.from_wkt(pline.to_wkt())
         assert pline.almost_equals(p2)
 
+    def test_location(self, pline):
+        assert approx(pline.location(geompp.Point2D(0, 0)), 0.0)
+        assert approx(pline.location(geompp.Point2D(3, 4)), 1.0)
+        assert math.isinf(pline.location(geompp.Point2D(1, 1)))
+
+    def test_distance_to(self, pline):
+        assert approx(pline.distance_to(geompp.Point2D(0, 0)), 0.0)
+        assert approx(pline.distance_to(geompp.Point2D(1, 0)), 0.0)
+        assert approx(pline.distance_to(geompp.Point2D(0, 1)), 1.0)
+
+    def test_project_onto(self, pline):
+        assert pline.project_onto(geompp.Point2D(2, 3)).almost_equals(geompp.Point2D(2, 0))
+        assert pline.project_onto(geompp.Point2D(6, 2)).almost_equals(geompp.Point2D(3, 2))
+
     def test_to_segments(self, pline):
         segs = pline.to_segments()
         assert len(segs) == 2  # 3 knots → 2 segments (open)
@@ -781,6 +868,42 @@ class TestPolyline3D:
         assert approx(segs[1].length(), 4.0)
         assert segs[0].first.almost_equals(geompp.Point3D(0, 0, 0))
         assert segs[0].last.almost_equals(geompp.Point3D(3, 0, 0))
+
+    def test_contains(self):
+        pts = [geompp.Point3D(0,0,0), geompp.Point3D(3,0,0), geompp.Point3D(3,4,0)]
+        pl = geompp.Polyline3D.make(pts)
+        assert pl.contains(geompp.Point3D(1,0,0))
+        assert not pl.contains(geompp.Point3D(1,1,0))
+
+    def test_location(self):
+        pts = [geompp.Point3D(0,0,0), geompp.Point3D(3,0,0), geompp.Point3D(3,4,0)]
+        pl = geompp.Polyline3D.make(pts)
+        assert approx(pl.location(geompp.Point3D(0,0,0)), 0.0)
+        assert approx(pl.location(geompp.Point3D(3,4,0)), 1.0)
+        assert math.isinf(pl.location(geompp.Point3D(1,1,0)))
+
+    def test_distance_to(self):
+        pts = [geompp.Point3D(0,0,0), geompp.Point3D(3,0,0), geompp.Point3D(3,4,0)]
+        pl = geompp.Polyline3D.make(pts)
+        assert approx(pl.distance_to(geompp.Point3D(0,0,0)), 0.0)
+        assert approx(pl.distance_to(geompp.Point3D(1,0,0)), 0.0)
+        assert approx(pl.distance_to(geompp.Point3D(0,1,0)), 1.0)
+
+    def test_interpolate(self):
+        pts = [geompp.Point3D(0,0,0), geompp.Point3D(3,0,0), geompp.Point3D(3,4,0)]
+        pl = geompp.Polyline3D.make(pts)
+        assert pl.interpolate(0.0).almost_equals(geompp.Point3D(0,0,0))
+        assert pl.interpolate(1.0).almost_equals(geompp.Point3D(3,4,0))
+        with pytest.raises(Exception):
+            pl.interpolate(1.2)
+        with pytest.raises(Exception):
+            pl.interpolate(-0.1)
+
+    def test_project_onto(self):
+        pts = [geompp.Point3D(0,0,0), geompp.Point3D(3,0,0), geompp.Point3D(3,4,0)]
+        pl = geompp.Polyline3D.make(pts)
+        assert pl.project_onto(geompp.Point3D(2,3,0)).almost_equals(geompp.Point3D(2,0,0))
+        assert pl.project_onto(geompp.Point3D(6,2,0)).almost_equals(geompp.Point3D(3,2,0))
 
 
 # ─── Triangle2D ──────────────────────────────────────────────────────────────

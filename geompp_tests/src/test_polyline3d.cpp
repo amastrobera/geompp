@@ -100,6 +100,14 @@ TEST_F(Polyline3DTest, Contains) {
   ASSERT_FALSE(poly.Contains(g::Point3D::Zero()));
 }
 
+TEST_F(Polyline3DTest, ProjectOnto) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto poly = g::Polyline3D::Make({g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0)});
+
+  ASSERT_EQ(g::Point3D(2, 0, 0), poly.ProjectOnto(g::Point3D(2, 3, 0)));
+  ASSERT_EQ(g::Point3D(4, 2, 0), poly.ProjectOnto(g::Point3D(6, 2, 0)));
+}
+
 TEST_F(Polyline3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   std::vector<g::Point3D> pts{g::Point3D(-2, -5, 0), g::Point3D(-2, -3, 0), g::Point3D(2, -3, 0), g::Point3D(2, 2, 0)};

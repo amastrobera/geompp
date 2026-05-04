@@ -293,6 +293,15 @@ TEST_F(LineSegment2DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
+TEST_F(LineSegment2DTest, ProjectOnto) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(4, 0));
+
+  ASSERT_EQ(g::Point2D(2, 0), seg.ProjectOnto(g::Point2D(2, 3)));
+  ASSERT_EQ(g::Point2D::Zero(), seg.ProjectOnto(g::Point2D(-1, 2)));
+  ASSERT_EQ(g::Point2D(4, 0), seg.ProjectOnto(g::Point2D(5, 2)));
+}
+
 TEST_F(LineSegment2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto seg = g::LineSegment2D::FromWkt("LINESTRING (0 0, 3 0)");

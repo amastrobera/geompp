@@ -252,6 +252,16 @@ TEST_F(Polygon2DTest, Perimeter_Triangle) {
   EXPECT_NEAR(12.0, p.Perimeter(), 1e-9);
 }
 
+TEST_F(Polygon2DTest, DistanceTo) {
+  auto poly = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  EXPECT_ANY_THROW(poly.DistanceTo(g::Point2D(0.5, 0.5)));
+}
+
+TEST_F(Polygon2DTest, Contains) {
+  auto poly = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  EXPECT_ANY_THROW(poly.Contains(g::Point2D(0.5, 0.5)));
+}
+
 TEST_F(Polygon2DTest, ToSegments) {
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   auto segs = p.ToSegments();

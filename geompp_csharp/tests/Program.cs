@@ -176,6 +176,18 @@ Test("Contains_PointOffLine", () => {
   IsFalse(Line2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(2, 1)));
 });
 
+Test("DistanceTo_PointAboveLine", () => {
+  var l = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  Eq(3.0, l.DistanceTo(new Point2D(2, 3)));
+});
+
+Test("ProjectOnto_PointAboveLine", () => {
+  var proj = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0))
+                   .ProjectOnto(new Point2D(3, 5));
+  Eq(3.0, proj.X);
+  Eq(0.0, proj.Y);
+});
+
 // ── Line3D ────────────────────────────────────────────────────────────────────
 Console.WriteLine("\nLine3D");
 
@@ -216,6 +228,18 @@ Test("ProjectOnto_PointAboveLine", () => {
   Eq(0.0, proj.Z);
 });
 
+Test("Contains_PointOnLine", () => {
+  IsTrue(Line3D.Make(new Point3D(0, 0, 0), new Point3D(3, 0, 0)).Contains(new Point3D(1, 0, 0)));
+});
+
+Test("Contains_PointOffLine", () => {
+  IsFalse(Line3D.Make(new Point3D(0, 0, 0), new Point3D(3, 0, 0)).Contains(new Point3D(1, 1, 0)));
+});
+
+Test("DistanceTo_PointAboveLine", () => {
+  Eq(3.0, Line3D.Make(new Point3D(0, 0, 0), new Point3D(3, 0, 0)).DistanceTo(new Point3D(0, 3, 0)));
+});
+
 // ── LineSegment2D ─────────────────────────────────────────────────────────────
 Console.WriteLine("\nLineSegment2D");
 
@@ -243,6 +267,260 @@ Test("Contains_PointOnSegment", () => {
 
 Test("Contains_PointBeyondEnd_False", () => {
   IsFalse(LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Contains(new Point2D(5, 0)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  Eq(3.0, LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).DistanceTo(new Point2D(2, 3)));
+});
+
+Test("Location_Midpoint_IsHalf", () => {
+  Eq(0.5, LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Location(new Point2D(2, 0)));
+});
+
+Test("Interpolate_Midpoint", () => {
+  var mid = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0)).Interpolate(0.5);
+  NotNull(mid);
+  Eq(2.0, mid!.X);
+  Eq(0.0, mid.Y);
+});
+
+// ── LineSegment3D ─────────────────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment3D");
+
+Test("Contains_PointOnSegment", () => {
+  IsTrue(LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).Contains(new Point3D(2, 0, 0)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  Eq(3.0, LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).DistanceTo(new Point3D(2, 3, 0)));
+});
+
+Test("Location_Midpoint_IsHalf", () => {
+  Eq(0.5, LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).Location(new Point3D(2, 0, 0)));
+});
+
+Test("Interpolate_Midpoint", () => {
+  var mid = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0)).Interpolate(0.5);
+  NotNull(mid);
+  Eq(2.0, mid!.X);
+  Eq(0.0, mid.Y);
+  Eq(0.0, mid.Z);
+});
+
+// ── Ray2D ─────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nRay2D");
+
+Test("Contains_PointOnRay", () => {
+  IsTrue(Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0)).Contains(new Point2D(3, 0)));
+});
+
+Test("Contains_PointBehindOrigin_False", () => {
+  IsFalse(Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0)).Contains(new Point2D(-1, 0)));
+});
+
+Test("DistanceTo_PointAboveRay", () => {
+  Eq(4.0, Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0)).DistanceTo(new Point2D(3, 4)));
+});
+
+Test("DistanceTo_PointBehindOrigin", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  Eq(new Point2D(0, 0).DistanceTo(new Point2D(-5, 10)), r.DistanceTo(new Point2D(-5, 10)));
+});
+
+// ── Ray3D ─────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nRay3D");
+
+Test("Contains_PointOnRay", () => {
+  IsTrue(Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).Contains(new Point3D(3, 0, 0)));
+});
+
+Test("Contains_PointOffRay_False", () => {
+  IsFalse(Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).Contains(new Point3D(3, 1, 0)));
+});
+
+Test("Contains_PointBehindOrigin_False", () => {
+  IsFalse(Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).Contains(new Point3D(-1, 0, 0)));
+});
+
+Test("DistanceTo_PointAboveRay", () => {
+  Eq(4.0, Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).DistanceTo(new Point3D(3, 4, 0)));
+});
+
+Test("DistanceTo_PointBehindOrigin", () => {
+  Eq(2.0, Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).DistanceTo(new Point3D(-2, 0, 0)));
+});
+
+// ── Polyline2D ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPolyline2D");
+
+Test("Contains_PointOnPolyline", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  IsTrue(pl.Contains(new Point2D(2, 0)));
+});
+
+Test("Contains_PointOffPolyline_False", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  IsFalse(pl.Contains(new Point2D(2, 1)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  Eq(3.0, pl.DistanceTo(new Point2D(2, 3)));
+});
+
+Test("Location_StartPoint_IsZero", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  Eq(0.0, pl.Location(new Point2D(0, 0)));
+});
+
+Test("Location_EndPoint_IsOne", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  Eq(1.0, pl.Location(new Point2D(4, 4)));
+});
+
+Test("Interpolate_StartPoint", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var p = pl.Interpolate(0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+});
+
+Test("Interpolate_EndPoint", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var p = pl.Interpolate(1.0);
+  NotNull(p);
+  Eq(4.0, p!.X);
+  Eq(4.0, p.Y);
+});
+
+// ── Polyline3D ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nPolyline3D");
+
+Test("Contains_PointOnPolyline", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  IsTrue(pl.Contains(new Point3D(2, 0, 0)));
+});
+
+Test("Contains_PointOffPolyline_False", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  IsFalse(pl.Contains(new Point3D(2, 1, 0)));
+});
+
+Test("DistanceTo_PointAboveSegment", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  Eq(3.0, pl.DistanceTo(new Point3D(2, 3, 0)));
+});
+
+Test("Location_StartPoint_IsZero", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  Eq(0.0, pl.Location(new Point3D(0, 0, 0)));
+});
+
+Test("Location_EndPoint_IsOne", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  Eq(1.0, pl.Location(new Point3D(4, 4, 0)));
+});
+
+Test("Interpolate_StartPoint", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var p = pl.Interpolate(0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+Test("Interpolate_EndPoint", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var p = pl.Interpolate(1.0);
+  NotNull(p);
+  Eq(4.0, p!.X);
+  Eq(4.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+// ── Triangle2D (Contains, Interpolate) ────────────────────────────────────────
+Console.WriteLine("\nTriangle2D (additional)");
+
+Test("Contains_PointInside_True", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  IsTrue(t.Contains(new Point2D(1, 1)));
+});
+
+Test("Contains_PointOutside_False", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  IsFalse(t.Contains(new Point2D(5, 5)));
+});
+
+Test("Interpolate_AtP0_ReturnsP0", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  var p = t.Interpolate(0.0, 0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+});
+
+Test("Interpolate_AtP1_ReturnsP1", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  var p = t.Interpolate(1.0, 0.0);
+  NotNull(p);
+  Eq(4.0, p!.X);
+  Eq(0.0, p.Y);
+});
+
+Test("Interpolate_OutsideTriangle_ReturnsNull", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  IsNull(t.Interpolate(0.8, 0.8));
+});
+
+// ── Triangle3D (Interpolate) ───────────────────────────────────────────────────
+Console.WriteLine("\nTriangle3D (additional)");
+
+Test("Interpolate_AtP0_ReturnsP0", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var p = t.Interpolate(0.0, 0.0);
+  NotNull(p);
+  Eq(0.0, p!.X);
+  Eq(0.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+Test("Interpolate_AtP1_ReturnsP1", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var p = t.Interpolate(1.0, 0.0);
+  NotNull(p);
+  Eq(1.0, p!.X);
+  Eq(0.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+Test("Interpolate_OutsideTriangle_ReturnsNull", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  IsNull(t.Interpolate(0.8, 0.8));
+});
+
+// ── BBox2D ────────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBBox2D");
+
+Test("Contains_InsidePoint_True", () => {
+  var bb = new BBox2D(new Point2D(0, 0), new Point2D(10, 10));
+  IsTrue(bb.Contains(new Point2D(5, 5)));
+  IsFalse(bb.Contains(new Point2D(11, 5)));
+});
+
+// ── Plane (DistanceTo, ProjectOnto) ───────────────────────────────────────────
+Console.WriteLine("\nPlane (additional)");
+
+Test("DistanceTo_PointAbovePlane", () => {
+  Eq(3.0, Plane.XY().DistanceTo(new Point3D(0, 0, 3)));
+});
+
+Test("ProjectOnto_PointAbovePlane", () => {
+  var proj = Plane.XY().ProjectOnto(new Point3D(1, 2, 5));
+  Eq(1.0, proj.X);
+  Eq(2.0, proj.Y);
+  Eq(0.0, proj.Z);
 });
 
 // ── BBox3D ────────────────────────────────────────────────────────────────────

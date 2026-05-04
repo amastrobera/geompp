@@ -344,6 +344,14 @@ TEST_F(Polyline2DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
+TEST_F(Polyline2DTest, ProjectOnto) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto poly = g::Polyline2D::Make({g::Point2D::Zero(), g::Point2D(4, 0), g::Point2D(4, 4)});
+
+  ASSERT_EQ(g::Point2D(2, 0), poly.ProjectOnto(g::Point2D(2, 3)));
+  ASSERT_EQ(g::Point2D(4, 2), poly.ProjectOnto(g::Point2D(6, 2)));
+}
+
 TEST_F(Polyline2DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   std::vector<g::Point2D> points{g::Point2D(-2, -5), g::Point2D(-2, -3), g::Point2D(2, -3), g::Point2D(2, 2)};

@@ -357,6 +357,16 @@ TEST_F(Polygon3DTest, GetPlane_WithHoles) {
   EXPECT_TRUE(p.GetPlane().normal().AlmostEquals(g::Vector3D::BasisZ()));
 }
 
+TEST_F(Polygon3DTest, DistanceTo) {
+  auto poly = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_ANY_THROW(poly.DistanceTo(g::Point3D(0.5, 0.5, 0)));
+}
+
+TEST_F(Polygon3DTest, Contains) {
+  auto poly = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_ANY_THROW(poly.Contains(g::Point3D(0.5, 0.5, 0)));
+}
+
 TEST_F(Polygon3DTest, ToSegments) {
   auto p = g::Polygon3D::Make(
       {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});

@@ -205,6 +205,15 @@ TEST_F(LineSegment3DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "from file = " << s.ToWkt();
 }
 
+TEST_F(LineSegment3DTest, ProjectOnto) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
+
+  ASSERT_EQ(g::Point3D(2, 0, 0), seg.ProjectOnto(g::Point3D(2, 3, 0)));
+  ASSERT_EQ(g::Point3D::Zero(), seg.ProjectOnto(g::Point3D(-1, 2, 0)));
+  ASSERT_EQ(g::Point3D(4, 0, 0), seg.ProjectOnto(g::Point3D(5, 2, 0)));
+}
+
 TEST_F(LineSegment3DTest, DistanceTo) {
   geompp::DECIMAL_PRECISION = 4;
   auto seg = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));
