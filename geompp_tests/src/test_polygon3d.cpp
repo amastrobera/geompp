@@ -363,8 +363,30 @@ TEST_F(Polygon3DTest, DistanceTo) {
 }
 
 TEST_F(Polygon3DTest, Contains) {
-  auto poly = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
-  EXPECT_ANY_THROW(poly.Contains(g::Point3D(0.5, 0.5, 0)));
+  // unit square in XY plane
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_TRUE(sq.Contains(g::Point3D(0.5, 0.5, 0)));   // center
+  EXPECT_TRUE(sq.Contains(g::Point3D(0.1, 0.1, 0)));   // near corner
+  EXPECT_TRUE(sq.Contains(g::Point3D(0.9, 0.9, 0)));   // near corner
+  EXPECT_FALSE(sq.Contains(g::Point3D(-0.1, 0.5, 0))); // left of square
+  EXPECT_FALSE(sq.Contains(g::Point3D(1.1, 0.5, 0)));  // right of square
+  EXPECT_FALSE(sq.Contains(g::Point3D(0.5, 0.5, 1)));  // off-plane
+  EXPECT_FALSE(sq.Contains(g::Point3D(0.5, 0.5, -1))); // off-plane
+
+  // 4x4 square with 2x2 centred hole, in XY plane
+  auto outer = std::vector<g::Point3D>{{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
+  auto hole  = std::vector<g::Point3D>{{1,1,0}, {1,3,0}, {3,3,0}, {3,1,0}};
+  auto poly  = g::Polygon3D::Make(outer, {hole});
+  EXPECT_TRUE(poly.Contains(g::Point3D(0.5, 0.5, 0)));  // inner ring of outer, outside hole
+  EXPECT_TRUE(poly.Contains(g::Point3D(3.5, 3.5, 0)));  // inner ring of outer, outside hole
+  EXPECT_FALSE(poly.Contains(g::Point3D(2, 2, 0)));     // inside hole
+  EXPECT_FALSE(poly.Contains(g::Point3D(-1, 2, 0)));    // outside outer
+  EXPECT_FALSE(poly.Contains(g::Point3D(2, 2, 1)));     // above plane
+
+  // non-XY plane: square in YZ plane at x=0
+  auto yz_sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(0,1,0), g::Point3D(0,1,1), g::Point3D(0,0,1)});
+  EXPECT_TRUE(yz_sq.Contains(g::Point3D(0, 0.5, 0.5)));   // center of YZ square
+  EXPECT_FALSE(yz_sq.Contains(g::Point3D(1, 0.5, 0.5)));  // off-plane
 }
 
 TEST_F(Polygon3DTest, ToSegments) {

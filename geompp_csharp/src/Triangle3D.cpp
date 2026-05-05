@@ -102,6 +102,13 @@ Point3D^ Triangle3D::Interpolate(double s, double t) {
     return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
+System::Tuple<double, double>^ Triangle3D::Location(Point3D^ point) {
+    auto result = _native->Location(*point->_native);
+    if (!result.has_value()) return nullptr;
+    auto [s, t] = result.value();
+    return gcnew System::Tuple<double, double>(s, t);
+}
+
 System::String^ Triangle3D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }

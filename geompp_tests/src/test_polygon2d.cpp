@@ -258,8 +258,25 @@ TEST_F(Polygon2DTest, DistanceTo) {
 }
 
 TEST_F(Polygon2DTest, Contains) {
-  auto poly = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
-  EXPECT_ANY_THROW(poly.Contains(g::Point2D(0.5, 0.5)));
+  // unit square
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  EXPECT_TRUE(sq.Contains(g::Point2D(0.5, 0.5)));    // center
+  EXPECT_TRUE(sq.Contains(g::Point2D(0.1, 0.1)));    // near corner
+  EXPECT_TRUE(sq.Contains(g::Point2D(0.9, 0.9)));    // near corner
+  EXPECT_FALSE(sq.Contains(g::Point2D(-0.1, 0.5)));  // left of square
+  EXPECT_FALSE(sq.Contains(g::Point2D(1.1, 0.5)));   // right of square
+  EXPECT_FALSE(sq.Contains(g::Point2D(0.5, -0.1)));  // below square
+  EXPECT_FALSE(sq.Contains(g::Point2D(0.5, 1.1)));   // above square
+  EXPECT_FALSE(sq.Contains(g::Point2D(5, 5)));        // far outside
+
+  // 4x4 square with 2x2 centred hole
+  auto outer = std::vector<g::Point2D>{{0,0}, {4,0}, {4,4}, {0,4}};
+  auto hole  = std::vector<g::Point2D>{{1,1}, {1,3}, {3,3}, {3,1}};
+  auto poly  = g::Polygon2D::Make(outer, {hole});
+  EXPECT_TRUE(poly.Contains(g::Point2D(0.5, 0.5)));  // inner ring of outer, outside hole
+  EXPECT_TRUE(poly.Contains(g::Point2D(3.5, 3.5)));  // inner ring of outer, outside hole
+  EXPECT_FALSE(poly.Contains(g::Point2D(2, 2)));     // inside hole
+  EXPECT_FALSE(poly.Contains(g::Point2D(-1, 2)));    // outside outer
 }
 
 TEST_F(Polygon2DTest, ToSegments) {

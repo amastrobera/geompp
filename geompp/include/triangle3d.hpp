@@ -47,6 +47,7 @@ class Triangle3D {
   std::tuple<Vector3D, Vector3D> ToAxis()
       const;                                     // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
   std::optional<Point3D> Interpolate(double s, double t) const;
+  std::optional<std::tuple<double, double>> Location(Point3D const& point) const;
 
 #pragma endregion
 

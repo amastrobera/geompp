@@ -1,9 +1,12 @@
 #include "triangle3d.hpp"
 
+#include "bbox3d.hpp"
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
+#include "point2d.hpp"
 #include "polygon3d.hpp"
 #include "ray3d.hpp"
+#include "triangle2d.hpp"
 #include "utils.hpp"
 
 #include "geompp_log.hpp"
@@ -94,6 +97,26 @@ std::optional<Point3D> Triangle3D::Interpolate(double s, double t) const {
   return linear_combination({P0, P1, P2}, {1 - s - t, s, t});
 }
 
+std::optional<std::tuple<double, double>> Triangle3D::Location(Point3D const& point) const {
+  if (!ToPlane().Contains(point)) {
+    return std::nullopt;
+  }
+
+  auto n = ToPlane().normal();
+  auto u = P1 - P0;
+  auto v = P2 - P0;
+  auto w = point - P0;
+  auto u_perp = n.Cross(u);
+  auto v_perp = n.Cross(v);
+  double s = w.Dot(v_perp) / u.Dot(v_perp);  // guaranteed non zero (triangle ctor)
+  double t = w.Dot(u_perp) / v.Dot(u_perp);  // guaranteed non zero (triangle ctor)
+
+  if (!within_axis_boundary(s, t)) {
+    return std::nullopt;
+  }
+  return std::make_tuple(s, t);
+}
+
 #pragma endregion
 
 #pragma region Operator Overloading
@@ -109,7 +132,12 @@ std::ostream& operator<<(std::ostream& os, Triangle3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Triangle3D::Contains(Point3D const& point) const { throw std::runtime_error("not implemented"); }
+bool Triangle3D::Contains(Point3D const& point) const {
+  if (!BBox3D(*this).Contains(point)) {
+    return false;
+  }
+  return Location(point).has_value();
+}
 
 bool Triangle3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 

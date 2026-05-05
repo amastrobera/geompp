@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(geompp VERSION 0.5.0)
+project(geompp VERSION 0.7.0)
 
 
 # Specify the C++ standard

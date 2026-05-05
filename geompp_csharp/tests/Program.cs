@@ -637,6 +637,74 @@ Test("IsCCW_FlippedRef_FlipsResult", () => {
   IsFalse(t.IsCCW(new Vector3D(0, 0, -1)), "CW when ref is flipped");
 });
 
+Test("Location_Vertices_ReturnExpectedCoords", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+  // location non-null ↔ contains true
+  var st0 = t.Location(new Point3D(0, 0, 0));  NotNull(st0);  Eq(0.0, st0!.Item1);  Eq(0.0, st0.Item2);  IsTrue(t.Contains(new Point3D(0, 0, 0)));
+  var st1 = t.Location(new Point3D(2, 0, 0));  NotNull(st1);  Eq(1.0, st1!.Item1);  Eq(0.0, st1.Item2);  IsTrue(t.Contains(new Point3D(2, 0, 0)));
+  var st2 = t.Location(new Point3D(0, 2, 0));  NotNull(st2);  Eq(0.0, st2!.Item1);  Eq(1.0, st2.Item2);  IsTrue(t.Contains(new Point3D(0, 2, 0)));
+});
+
+Test("Location_Centroid_OneThirdEach", () => {
+  var t  = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+  var c  = t.Centroid()!;
+  var st = t.Location(c);
+  NotNull(st);
+  Eq(1.0 / 3.0, st!.Item1);
+  Eq(1.0 / 3.0, st.Item2);
+  IsTrue(t.Contains(c));  // location non-null ↔ contains true
+});
+
+Test("Location_NullImpliesNotContained", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+  // location null ↔ contains false
+  IsNull(t.Location(new Point3D(0.3, 0.3,  1)));  IsFalse(t.Contains(new Point3D(0.3, 0.3,  1)));
+  IsNull(t.Location(new Point3D(0.3, 0.3, -1)));  IsFalse(t.Contains(new Point3D(0.3, 0.3, -1)));
+  IsNull(t.Location(new Point3D(-1,  0,    0)));  IsFalse(t.Contains(new Point3D(-1,  0,    0)));
+  IsNull(t.Location(new Point3D(2,   2,    0)));  IsFalse(t.Contains(new Point3D(2,   2,    0)));
+});
+
+Test("Location_RoundTrip_A_And_B", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+
+  // round-trip A: Interpolate(Location(p)) == p
+  var p  = new Point3D(0.5, 0.5, 0);
+  var st = t.Location(p);
+  NotNull(st);
+  var p_back = t.Interpolate(st!.Item1, st.Item2);
+  NotNull(p_back);
+  IsTrue(p.AlmostEquals(p_back!), "A: Interpolate(Location(p)) must recover p");
+
+  // round-trip B: Location(Interpolate(s,t)) == (s,t)
+  double s_in = 0.25, t_in = 0.25;
+  var q = t.Interpolate(s_in, t_in);
+  NotNull(q);
+  IsTrue(t.Contains(q!), "Interpolate result must be inside the triangle");
+  var st_q = t.Location(q!);
+  NotNull(st_q);
+  Eq(s_in, st_q!.Item1);
+  Eq(t_in, st_q.Item2);
+});
+
+Test("Contains_InteriorPoint_True", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+  IsTrue(t.Contains(t.Centroid()!), "centroid must be inside");
+  IsTrue(t.Contains(new Point3D(0.1, 0.1, 0)), "near-origin interior");
+});
+
+Test("Contains_ExteriorPoint_False", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+  IsFalse(t.Contains(new Point3D(-0.5, 0.5, 0)),  "left of triangle");
+  IsFalse(t.Contains(new Point3D(0.5, -0.5, 0)),  "below triangle");
+  IsFalse(t.Contains(new Point3D(1.5, 1.5, 0)),   "past hypotenuse");
+});
+
+Test("Contains_OffPlane_False", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+  IsFalse(t.Contains(new Point3D(0.3, 0.3, 1)),  "above plane");
+  IsFalse(t.Contains(new Point3D(0.3, 0.3, -1)), "below plane");
+});
+
 // ── Triangle2D ────────────────────────────────────────────────────────────────
 Console.WriteLine("\nTriangle2D");
 
@@ -652,6 +720,57 @@ Test("IsCCW_CW_ReturnsFalse_2D", () => {
   IsFalse(t.IsCCW(), "CW triangle should return false");
   IsTrue(t.SignedArea() < 0, "CW triangle should have negative signed area");
   IsTrue(t.IsCCW() == (t.SignedArea() > 0), "IsCCW must match sign of SignedArea");
+});
+
+Test("Location_Vertices_ReturnExpectedCoords_2D", () => {
+  var t = Triangle2D.Make(new Point2D(0, -1), new Point2D(1, 0), new Point2D(-1, 0));
+  var p0 = new Point2D(0, -1);
+  var st0 = t.Location(p0);  NotNull(st0);  Eq(0.0, st0!.Item1);  Eq(0.0, st0.Item2);  IsTrue(t.Contains(p0));
+  var p1 = new Point2D(1, 0);
+  var st1 = t.Location(p1);  NotNull(st1);  Eq(1.0, st1!.Item1);  Eq(0.0, st1.Item2);  IsTrue(t.Contains(p1));
+  var p2 = new Point2D(-1, 0);
+  var st2 = t.Location(p2);  NotNull(st2);  Eq(0.0, st2!.Item1);  Eq(1.0, st2.Item2);  IsTrue(t.Contains(p2));
+});
+
+Test("Location_Centroid_OneThirdEach_2D", () => {
+  var t  = Triangle2D.Make(new Point2D(0, -1), new Point2D(1, 0), new Point2D(-1, 0));
+  var c  = t.Centroid()!;
+  var st = t.Location(c);
+  NotNull(st);
+  Eq(1.0 / 3.0, st!.Item1);
+  Eq(1.0 / 3.0, st.Item2);
+  IsTrue(t.Contains(c));
+});
+
+Test("Location_NullImpliesNotContained_2D", () => {
+  var t = Triangle2D.Make(new Point2D(0, -1), new Point2D(1, 0), new Point2D(-1, 0));
+  var outside1 = new Point2D(0,  1);
+  var outside2 = new Point2D(2,  0);
+  var outside3 = new Point2D(0, -2);
+  IsNull(t.Location(outside1)); IsFalse(t.Contains(outside1), "above base: location null → contains false");
+  IsNull(t.Location(outside2)); IsFalse(t.Contains(outside2), "right of P1: location null → contains false");
+  IsNull(t.Location(outside3)); IsFalse(t.Contains(outside3), "below P0: location null → contains false");
+});
+
+Test("Location_RoundTrip_A_And_B_2D", () => {
+  var t = Triangle2D.Make(new Point2D(0, -1), new Point2D(1, 0), new Point2D(-1, 0));
+  // Round-trip A: Location → Interpolate recovers original point
+  var p     = new Point2D(0, -0.5);
+  var st    = t.Location(p);
+  NotNull(st);
+  IsTrue(t.Contains(p));
+  var p_back = t.Interpolate(st!.Item1, st.Item2);
+  NotNull(p_back);
+  IsTrue(p.AlmostEquals(p_back!), "round-trip A must recover original point");
+  // Round-trip B: Interpolate → Location recovers original (s,t)
+  double s_in = 0.25, t_in = 0.25;
+  var q = t.Interpolate(s_in, t_in);
+  NotNull(q);
+  IsTrue(t.Contains(q!));
+  var st_q = t.Location(q!);
+  NotNull(st_q);
+  Eq(s_in, st_q!.Item1);
+  Eq(t_in, st_q.Item2);
 });
 
 // ── GeomUtil / List<Point3D> extensions ───────────────────────────────────────
@@ -730,6 +849,35 @@ Test("Centroid_Rectangle", () => {
   Eq(2.0, c!.X); Eq(1.0, c.Y);
 });
 
+Test("Contains_Interior_True", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Contains(new Point2D(0.5, 0.5)), "center must be inside");
+  IsTrue(sq.Contains(new Point2D(0.1, 0.1)), "near corner must be inside");
+});
+
+Test("Contains_Exterior_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsFalse(sq.Contains(new Point2D(-0.1, 0.5)), "left of square");
+  IsFalse(sq.Contains(new Point2D(1.1,  0.5)), "right of square");
+  IsFalse(sq.Contains(new Point2D(0.5, -0.1)), "below square");
+  IsFalse(sq.Contains(new Point2D(0.5,  1.1)), "above square");
+});
+
+Test("Contains_WithHole_InsideOuter_OutsideHole_True", () => {
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
+  var poly  = Polygon2D.Make(outer, new[] { hole });
+  IsTrue(poly.Contains(new Point2D(0.5, 0.5)), "inside outer, outside hole");
+  IsTrue(poly.Contains(new Point2D(3.5, 3.5)), "inside outer, outside hole");
+});
+
+Test("Contains_WithHole_InsideHole_False", () => {
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
+  var poly  = Polygon2D.Make(outer, new[] { hole });
+  IsFalse(poly.Contains(new Point2D(2, 2)), "inside hole must be false");
+});
+
 // ── Polygon3D ─────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPolygon3D");
 
@@ -770,6 +918,40 @@ Test("GetPlane_ContainsAllVertices", () => {
   NotNull(pl);
   IsTrue(pl!.Contains(new Point3D(0,0,3)), "origin vertex must lie on plane");
   IsTrue(pl.Contains(new Point3D(1,1,3)), "far vertex must lie on plane");
+});
+
+Test("Contains_Interior_True", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(sq.Contains(new Point3D(0.5, 0.5, 0)), "center must be inside");
+  IsTrue(sq.Contains(new Point3D(0.1, 0.1, 0)), "near corner must be inside");
+});
+
+Test("Contains_Exterior_False", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsFalse(sq.Contains(new Point3D(-0.1, 0.5, 0)), "left of square");
+  IsFalse(sq.Contains(new Point3D(1.1,  0.5, 0)), "right of square");
+});
+
+Test("Contains_OffPlane_False", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsFalse(sq.Contains(new Point3D(0.5, 0.5,  1)), "above plane");
+  IsFalse(sq.Contains(new Point3D(0.5, 0.5, -1)), "below plane");
+});
+
+Test("Contains_WithHole_InsideOuter_OutsideHole_True", () => {
+  var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+  var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
+  var poly  = Polygon3D.Make(outer, new[] { hole });
+  IsTrue(poly.Contains(new Point3D(0.5, 0.5, 0)), "inside outer, outside hole");
+  IsTrue(poly.Contains(new Point3D(3.5, 3.5, 0)), "inside outer, outside hole");
+});
+
+Test("Contains_WithHole_InsideHole_False", () => {
+  var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+  var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
+  var poly  = Polygon3D.Make(outer, new[] { hole });
+  IsFalse(poly.Contains(new Point3D(2, 2, 0)), "inside hole must be false");
+  IsFalse(poly.Contains(new Point3D(2, 2, 1)), "above plane must be false");
 });
 
 // ── Vector2D ──────────────────────────────────────────────────────────────────
@@ -1106,6 +1288,1231 @@ Test("ToFile_FromFile_RoundTrip", () => {
   gc.ToFile(path);
   IsTrue(gc.AlmostEquals(GeometryCollection3D.FromFile(path)));
   File.Delete(path);
+});
+
+// ── Point2D (additional) ──────────────────────────────────────────────────────
+Console.WriteLine("\nPoint2D (additional)");
+
+Test("ToVector_MatchesXY", () => {
+  var v = new Point2D(3.0, 4.0).ToVector();
+  Eq(3.0, v.X);
+  Eq(4.0, v.Y);
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var p = new Point2D(1.5, 2.5);
+  var path = Path.GetTempFileName();
+  p.ToFile(path);
+  var q = Point2D.FromFile(path);
+  IsTrue(p.AlmostEquals(q));
+  File.Delete(path);
+});
+
+Test("SubtractPoints_ReturnsVector", () => {
+  var v = new Point2D(5.0, 3.0) - new Point2D(2.0, 1.0);
+  Eq(3.0, v.X);
+  Eq(2.0, v.Y);
+});
+
+Test("SubtractVector_ReturnsPoint", () => {
+  var p = new Point2D(5.0, 3.0) - new Vector2D(2.0, 1.0);
+  Eq(3.0, p.X);
+  Eq(2.0, p.Y);
+});
+
+Test("ScalarMultiply_Point", () => {
+  var p = new Point2D(2.0, 3.0) * 2.0;
+  Eq(4.0, p.X);
+  Eq(6.0, p.Y);
+});
+
+// ── Point3D (additional) ──────────────────────────────────────────────────────
+Console.WriteLine("\nPoint3D (additional)");
+
+Test("Zero_IsOrigin", () => {
+  var z = Point3D.Zero();
+  Eq(0.0, z.X);
+  Eq(0.0, z.Y);
+  Eq(0.0, z.Z);
+});
+
+Test("ToVector_MatchesXYZ", () => {
+  var v = new Point3D(1.0, 2.0, 3.0).ToVector();
+  Eq(1.0, v.X);
+  Eq(2.0, v.Y);
+  Eq(3.0, v.Z);
+});
+
+Test("AlmostEquals_SamePoint_True", () => {
+  IsTrue(new Point3D(1.0, 2.0, 3.0).AlmostEquals(new Point3D(1.0, 2.0, 3.0)));
+});
+
+Test("AlmostEquals_DifferentPoint_False", () => {
+  IsFalse(new Point3D(0.0, 0.0, 0.0).AlmostEquals(new Point3D(1.0, 0.0, 0.0)));
+});
+
+Test("SubtractPoints_ReturnsVector", () => {
+  var v = new Point3D(5.0, 3.0, 1.0) - new Point3D(2.0, 1.0, 0.0);
+  Eq(3.0, v.X);
+  Eq(2.0, v.Y);
+  Eq(1.0, v.Z);
+});
+
+Test("SubtractVector_ReturnsPoint", () => {
+  var p = new Point3D(5.0, 3.0, 1.0) - new Vector3D(2.0, 1.0, 1.0);
+  Eq(3.0, p.X);
+  Eq(2.0, p.Y);
+  Eq(0.0, p.Z);
+});
+
+Test("ScalarMultiply_Point", () => {
+  var p = new Point3D(1.0, 2.0, 3.0) * 3.0;
+  Eq(3.0, p.X);
+  Eq(6.0, p.Y);
+  Eq(9.0, p.Z);
+});
+
+Test("WktRoundTrip", () => {
+  var p = new Point3D(1.5, 2.5, 3.5);
+  IsTrue(p.AlmostEquals(Point3D.FromWkt(p.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var p = new Point3D(7.0, 8.0, 9.0);
+  var path = Path.GetTempFileName();
+  p.ToFile(path);
+  IsTrue(p.AlmostEquals(Point3D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Vector3D (additional) ─────────────────────────────────────────────────────
+Console.WriteLine("\nVector3D (additional)");
+
+Test("ToPoint_MatchesXYZ", () => {
+  var pt = new Vector3D(1.0, 2.0, 3.0).ToPoint();
+  Eq(1.0, pt.X);
+  Eq(2.0, pt.Y);
+  Eq(3.0, pt.Z);
+});
+
+// ── Line2D (additional) ───────────────────────────────────────────────────────
+Console.WriteLine("\nLine2D (additional)");
+
+Test("AlmostEquals_SameLine_True", () => {
+  var l1 = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var l2 = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  IsTrue(l1.AlmostEquals(l2));
+});
+
+Test("Intersects_Ray2D_True", () => {
+  var l = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var r = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, 1));
+  IsTrue(l.Intersects(r));
+});
+
+Test("Intersects_Ray2D_False", () => {
+  // Ray pointing away — origin behind line, ray going further behind
+  var l = Line2D.Make(new Point2D(0, 1), new Point2D(4, 1));
+  var r = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, -1));
+  IsFalse(l.Intersects(r));
+});
+
+Test("Intersects_Seg2D_True", () => {
+  var l   = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  IsTrue(l.Intersects(seg));
+});
+
+Test("Intersects_Seg2D_False", () => {
+  // Segment parallel to and above the line — no crossing
+  var l   = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var seg = LineSegment2D.Make(new Point2D(0, 1), new Point2D(4, 1));
+  IsFalse(l.Intersects(seg));
+});
+
+Test("Intersection_Ray2D_Hit", () => {
+  var l = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var r = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, 1));
+  var pt = l.Intersection(r);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Intersection_Ray2D_Miss", () => {
+  var l = Line2D.Make(new Point2D(0, 1), new Point2D(4, 1));
+  var r = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, -1));
+  IsNull(l.Intersection(r));
+});
+
+Test("Intersection_Seg2D_Hit", () => {
+  var l   = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  var pt  = l.Intersection(seg);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Intersection_Seg2D_Miss", () => {
+  var l   = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var seg = LineSegment2D.Make(new Point2D(0, 1), new Point2D(4, 1));
+  IsNull(l.Intersection(seg));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var l    = Line2D.Make(new Point2D(1, 2), new Point2D(3, 4));
+  var path = Path.GetTempFileName();
+  l.ToFile(path);
+  IsTrue(l.AlmostEquals(Line2D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Line3D (additional) ───────────────────────────────────────────────────────
+Console.WriteLine("\nLine3D (additional)");
+
+Test("AlmostEquals_SameLine_True", () => {
+  var l1 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var l2 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  IsTrue(l1.AlmostEquals(l2));
+});
+
+Test("Intersects_Ray3D_True", () => {
+  var l = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var r = Ray3D.Make(new Point3D(2, -2, 0), new Vector3D(0, 1, 0));
+  IsTrue(l.Intersects(r));
+});
+
+Test("Intersects_Seg3D_True", () => {
+  var l   = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  IsTrue(l.Intersects(seg));
+});
+
+Test("Intersection_Ray3D_Hit", () => {
+  var l  = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var r  = Ray3D.Make(new Point3D(2, -2, 0), new Vector3D(0, 1, 0));
+  var pt = l.Intersection(r);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var l    = Line3D.Make(new Point3D(1, 2, 3), new Point3D(4, 5, 6));
+  var path = Path.GetTempFileName();
+  l.ToFile(path);
+  IsTrue(l.AlmostEquals(Line3D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── LineSegment2D (additional) ────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment2D (additional)");
+
+Test("ToLine_ReturnsLine2D", () => {
+  var seg  = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var line = seg.ToLine();
+  NotNull(line);
+  IsTrue(line is Line2D);
+});
+
+Test("AlmostEquals_SameSeg_True", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var b = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_DiffSeg_False", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var b = LineSegment2D.Make(new Point2D(0, 0), new Point2D(0, 4));
+  IsFalse(a.AlmostEquals(b));
+});
+
+Test("Intersects_Ray2D_True", () => {
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  var r   = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsTrue(seg.Intersects(r));
+});
+
+Test("Intersects_Seg2D_True", () => {
+  var a = LineSegment2D.Make(new Point2D(0, -1), new Point2D(0, 1));
+  var b = LineSegment2D.Make(new Point2D(-1, 0), new Point2D(1, 0));
+  IsTrue(a.Intersects(b));
+});
+
+Test("Intersects_Seg2D_False", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var b = LineSegment2D.Make(new Point2D(2, 0), new Point2D(3, 0));
+  IsFalse(a.Intersects(b));
+});
+
+Test("Intersection_Ray2D_Hit", () => {
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  var r   = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var pt  = seg.Intersection(r);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Intersection_Seg2D_Hit", () => {
+  var a  = LineSegment2D.Make(new Point2D(0, -1), new Point2D(0, 1));
+  var b  = LineSegment2D.Make(new Point2D(-1, 0), new Point2D(1, 0));
+  var pt = a.Intersection(b);
+  NotNull(pt);
+  Eq(0.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Intersection_Seg2D_Miss", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var b = LineSegment2D.Make(new Point2D(2, 0), new Point2D(3, 0));
+  IsNull(a.Intersection(b));
+});
+
+Test("WktRoundTrip", () => {
+  var seg = LineSegment2D.Make(new Point2D(1, 2), new Point2D(3, 4));
+  IsTrue(seg.AlmostEquals(LineSegment2D.FromWkt(seg.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var seg  = LineSegment2D.Make(new Point2D(1, 2), new Point2D(3, 4));
+  var path = Path.GetTempFileName();
+  seg.ToFile(path);
+  IsTrue(seg.AlmostEquals(LineSegment2D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── LineSegment3D (additional) ────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment3D (additional)");
+
+Test("Length_KnownValue", () => {
+  Eq(5.0, LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(3, 4, 0)).Length());
+});
+
+Test("AlmostEquals_SameSeg_True", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("ToLine_ReturnsLine3D", () => {
+  var seg  = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var line = seg.ToLine();
+  NotNull(line);
+  IsTrue(line is Line3D);
+});
+
+Test("Intersects_Line3D_True", () => {
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  var l   = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  IsTrue(seg.Intersects(l));
+});
+
+Test("Intersects_Ray3D_True", () => {
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  var r   = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(seg.Intersects(r));
+});
+
+Test("Intersects_Seg3D_True", () => {
+  var a = LineSegment3D.Make(new Point3D(0, -1, 0), new Point3D(0, 1, 0));
+  var b = LineSegment3D.Make(new Point3D(-1, 0, 0), new Point3D(1, 0, 0));
+  IsTrue(a.Intersects(b));
+});
+
+Test("Intersects_Seg3D_False", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(2, 0, 0), new Point3D(3, 0, 0));
+  IsFalse(a.Intersects(b));
+});
+
+Test("Intersection_Line3D_Hit", () => {
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  var l   = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var pt  = seg.Intersection(l);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Ray3D_Hit", () => {
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  var r   = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var pt  = seg.Intersection(r);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Seg3D_Hit", () => {
+  var a  = LineSegment3D.Make(new Point3D(0, -1, 0), new Point3D(0, 1, 0));
+  var b  = LineSegment3D.Make(new Point3D(-1, 0, 0), new Point3D(1, 0, 0));
+  var pt = a.Intersection(b);
+  NotNull(pt);
+  Eq(0.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Seg3D_Miss", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(2, 0, 0), new Point3D(3, 0, 0));
+  IsNull(a.Intersection(b));
+});
+
+Test("WktRoundTrip", () => {
+  var seg = LineSegment3D.Make(new Point3D(1, 2, 3), new Point3D(4, 5, 6));
+  IsTrue(seg.AlmostEquals(LineSegment3D.FromWkt(seg.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var seg  = LineSegment3D.Make(new Point3D(1, 2, 3), new Point3D(4, 5, 6));
+  var path = Path.GetTempFileName();
+  seg.ToFile(path);
+  IsTrue(seg.AlmostEquals(LineSegment3D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Ray2D (additional) ────────────────────────────────────────────────────────
+Console.WriteLine("\nRay2D (additional)");
+
+Test("IsAhead_PointInFront_True", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsTrue(r.IsAhead(new Point2D(5, 0)));
+});
+
+Test("IsAhead_PointBehind_False", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsFalse(r.IsAhead(new Point2D(-1, 0)));
+});
+
+Test("IsBehind_PointBehind_True", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsTrue(r.IsBehind(new Point2D(-1, 0)));
+});
+
+Test("IsBehind_PointInFront_False", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsFalse(r.IsBehind(new Point2D(5, 0)));
+});
+
+Test("Intersects_Line2D_True", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var l = Line2D.Make(new Point2D(2, -2), new Point2D(2, 2));
+  IsTrue(r.Intersects(l));
+});
+
+Test("Intersects_Ray2D_True", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, 1));
+  IsTrue(r1.Intersects(r2));
+});
+
+Test("Intersects_Ray2D_False", () => {
+  // Both rays point away from each other
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(-1, 0));
+  var r2 = Ray2D.Make(new Point2D(4, 0), new Vector2D(1, 0));
+  IsFalse(r1.Intersects(r2));
+});
+
+Test("Intersects_Seg2D_True", () => {
+  var r   = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  IsTrue(r.Intersects(seg));
+});
+
+Test("Intersection_Line2D_Hit", () => {
+  var r  = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var l  = Line2D.Make(new Point2D(2, -2), new Point2D(2, 2));
+  var pt = r.Intersection(l);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Intersection_Ray2D_Hit", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, 1));
+  var pt = r1.Intersection(r2);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("Intersection_Ray2D_Miss", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(-1, 0));
+  var r2 = Ray2D.Make(new Point2D(4, 0), new Vector2D(1, 0));
+  IsNull(r1.Intersection(r2));
+});
+
+Test("Intersection_Seg2D_Hit", () => {
+  var r   = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  var pt  = r.Intersection(seg);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+});
+
+Test("ToLine_ReturnsLine2D", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  NotNull(r.ToLine());
+  IsTrue(r.ToLine() is Line2D);
+});
+
+Test("AlmostEquals_SameRay_True", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsTrue(r1.AlmostEquals(r2));
+});
+
+Test("WktRoundTrip", () => {
+  var r = Ray2D.Make(new Point2D(1, 2), new Vector2D(1, 0));
+  IsTrue(r.AlmostEquals(Ray2D.FromWkt(r.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var r    = Ray2D.Make(new Point2D(1, 2), new Vector2D(1, 0));
+  var path = Path.GetTempFileName();
+  r.ToFile(path);
+  IsTrue(r.AlmostEquals(Ray2D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Ray3D (additional) ────────────────────────────────────────────────────────
+Console.WriteLine("\nRay3D (additional)");
+
+Test("IsAhead_PointInFront_True", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(r.IsAhead(new Point3D(5, 0, 0)));
+});
+
+Test("IsAhead_PointBehind_False", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsFalse(r.IsAhead(new Point3D(-1, 0, 0)));
+});
+
+Test("IsBehind_PointBehind_True", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(r.IsBehind(new Point3D(-1, 0, 0)));
+});
+
+Test("IsBehind_PointInFront_False", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsFalse(r.IsBehind(new Point3D(5, 0, 0)));
+});
+
+Test("Intersects_Line3D_True", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var l = Line3D.Make(new Point3D(2, -2, 0), new Point3D(2, 2, 0));
+  IsTrue(r.Intersects(l));
+});
+
+Test("Intersects_Ray3D_True", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(2, -2, 0), new Vector3D(0, 1, 0));
+  IsTrue(r1.Intersects(r2));
+});
+
+Test("Intersects_Ray3D_False", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(-1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(4, 0, 0), new Vector3D(1, 0, 0));
+  IsFalse(r1.Intersects(r2));
+});
+
+Test("Intersects_Seg3D_True", () => {
+  var r   = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  IsTrue(r.Intersects(seg));
+});
+
+Test("Intersection_Line3D_Hit", () => {
+  var r  = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var l  = Line3D.Make(new Point3D(2, -2, 0), new Point3D(2, 2, 0));
+  var pt = r.Intersection(l);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Ray3D_Hit", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(2, -2, 0), new Vector3D(0, 1, 0));
+  var pt = r1.Intersection(r2);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Ray3D_Miss", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(-1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(4, 0, 0), new Vector3D(1, 0, 0));
+  IsNull(r1.Intersection(r2));
+});
+
+Test("Intersection_Seg3D_Hit", () => {
+  var r   = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  var pt  = r.Intersection(seg);
+  NotNull(pt);
+  Eq(2.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("ToLine_ReturnsLine3D", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  NotNull(r.ToLine());
+  IsTrue(r.ToLine() is Line3D);
+});
+
+Test("AlmostEquals_SameRay_True", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(r1.AlmostEquals(r2));
+});
+
+Test("WktRoundTrip", () => {
+  var r = Ray3D.Make(new Point3D(1, 2, 3), new Vector3D(1, 0, 0));
+  IsTrue(r.AlmostEquals(Ray3D.FromWkt(r.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var r    = Ray3D.Make(new Point3D(1, 2, 3), new Vector3D(1, 0, 0));
+  var path = Path.GetTempFileName();
+  r.ToFile(path);
+  IsTrue(r.AlmostEquals(Ray3D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Polyline2D (additional) ───────────────────────────────────────────────────
+Console.WriteLine("\nPolyline2D (additional)");
+
+Test("Length_LShapedPolyline", () => {
+  // Two segments each of length 4 → total 8
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  Eq(8.0, pl.Length());
+});
+
+Test("ToSegments_CountAndType", () => {
+  var pl   = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var segs = pl.ToSegments();
+  Eq(2, segs.Length, 0);
+  IsTrue(segs[0] is LineSegment2D);
+});
+
+Test("AlmostEquals_SamePolyline_True", () => {
+  var a = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var b = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_DiffPolyline_False", () => {
+  var a = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0) });
+  var b = Polyline2D.Make(new Point2D[] { new(0,0), new(0,4) });
+  IsFalse(a.AlmostEquals(b));
+});
+
+Test("Intersects_Line2D_True", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var l  = Line2D.Make(new Point2D(2, -2), new Point2D(2, 2));
+  IsTrue(pl.Intersects(l));
+});
+
+Test("Intersects_Ray2D_True", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var r  = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, 1));
+  IsTrue(pl.Intersects(r));
+});
+
+Test("Intersects_Seg2D_True", () => {
+  var pl  = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  IsTrue(pl.Intersects(seg));
+});
+
+Test("Intersects_Polyline2D_True", () => {
+  var a = Polyline2D.Make(new Point2D[] { new(0,-1), new(0,1) });
+  var b = Polyline2D.Make(new Point2D[] { new(-1,0), new(1,0) });
+  IsTrue(a.Intersects(b));
+});
+
+Test("Intersection_Line2D_ReturnsNonNull", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var l  = Line2D.Make(new Point2D(2, -2), new Point2D(2, 2));
+  NotNull(pl.Intersection(l));
+});
+
+Test("Intersection_Ray2D_ReturnsNonNull", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var r  = Ray2D.Make(new Point2D(2, -2), new Vector2D(0, 1));
+  NotNull(pl.Intersection(r));
+});
+
+Test("Intersection_Seg2D_ReturnsNonNull", () => {
+  var pl  = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var seg = LineSegment2D.Make(new Point2D(2, -1), new Point2D(2, 1));
+  NotNull(pl.Intersection(seg));
+});
+
+Test("Intersection_Polyline2D_ReturnsNonNull", () => {
+  var a = Polyline2D.Make(new Point2D[] { new(0,-1), new(0,1) });
+  var b = Polyline2D.Make(new Point2D[] { new(-1,0), new(1,0) });
+  NotNull(a.Intersection(b));
+});
+
+Test("Intersection_NoHit_ReturnsNull", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(1,0) });
+  var l  = Line2D.Make(new Point2D(0, 5), new Point2D(1, 5));
+  IsNull(pl.Intersection(l));
+});
+
+Test("WktRoundTrip", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  IsTrue(pl.AlmostEquals(Polyline2D.FromWkt(pl.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var pl   = Polyline2D.Make(new Point2D[] { new(1,2), new(3,4), new(5,6) });
+  var path = Path.GetTempFileName();
+  pl.ToFile(path);
+  IsTrue(pl.AlmostEquals(Polyline2D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Polyline3D (additional) ───────────────────────────────────────────────────
+Console.WriteLine("\nPolyline3D (additional)");
+
+Test("Length_LShapedPolyline", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  Eq(8.0, pl.Length());
+});
+
+Test("ToSegments_CountAndType", () => {
+  var pl   = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var segs = pl.ToSegments();
+  Eq(2, segs.Length, 0);
+  IsTrue(segs[0] is LineSegment3D);
+});
+
+Test("AlmostEquals_SamePolyline_True", () => {
+  var a = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0) });
+  var b = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0) });
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("Indexer_ReturnsCorrectPoint", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(1,2,3), new(4,5,6), new(7,8,9) });
+  Eq(4.0, pl[1].X);
+  Eq(5.0, pl[1].Y);
+  Eq(6.0, pl[1].Z);
+});
+
+Test("Intersects_Line3D_True", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var l  = Line3D.Make(new Point3D(2,-2,0), new Point3D(2,2,0));
+  IsTrue(pl.Intersects(l));
+});
+
+Test("Intersects_Ray3D_True", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var r  = Ray3D.Make(new Point3D(2,-2,0), new Vector3D(0,1,0));
+  IsTrue(pl.Intersects(r));
+});
+
+Test("Intersects_Seg3D_True", () => {
+  var pl  = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var seg = LineSegment3D.Make(new Point3D(2,-1,0), new Point3D(2,1,0));
+  IsTrue(pl.Intersects(seg));
+});
+
+Test("Intersects_Polyline3D_True", () => {
+  var a = Polyline3D.Make(new Point3D[] { new(0,-1,0), new(0,1,0) });
+  var b = Polyline3D.Make(new Point3D[] { new(-1,0,0), new(1,0,0) });
+  IsTrue(a.Intersects(b));
+});
+
+Test("Intersection_Line3D_ReturnsNonNull", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var l  = Line3D.Make(new Point3D(2,-2,0), new Point3D(2,2,0));
+  NotNull(pl.Intersection(l));
+});
+
+Test("Intersection_Ray3D_ReturnsNonNull", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var r  = Ray3D.Make(new Point3D(2,-2,0), new Vector3D(0,1,0));
+  NotNull(pl.Intersection(r));
+});
+
+Test("Intersection_Seg3D_ReturnsNonNull", () => {
+  var pl  = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  var seg = LineSegment3D.Make(new Point3D(2,-1,0), new Point3D(2,1,0));
+  NotNull(pl.Intersection(seg));
+});
+
+Test("Intersection_Polyline3D_ReturnsNonNull", () => {
+  var a = Polyline3D.Make(new Point3D[] { new(0,-1,0), new(0,1,0) });
+  var b = Polyline3D.Make(new Point3D[] { new(-1,0,0), new(1,0,0) });
+  NotNull(a.Intersection(b));
+});
+
+Test("WktRoundTrip", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) });
+  IsTrue(pl.AlmostEquals(Polyline3D.FromWkt(pl.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var pl   = Polyline3D.Make(new Point3D[] { new(1,2,3), new(4,5,6) });
+  var path = Path.GetTempFileName();
+  pl.ToFile(path);
+  IsTrue(pl.AlmostEquals(Polyline3D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Polygon2D (additional) ────────────────────────────────────────────────────
+Console.WriteLine("\nPolygon2D (additional)");
+
+Test("Area_UnitSquare", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  Eq(1.0, p.Area());
+});
+
+Test("Area_WithHole", () => {
+  // 4x4 square minus 2x2 inner hole → area = 16 - 4 = 12
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(1,1), new(3,1), new(3,3), new(1,3) };
+  var p = Polygon2D.Make(outer, new[] { hole });
+  Eq(12.0, p.Area());
+});
+
+Test("AlmostEquals_SamePoly_True", () => {
+  var a = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var b = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_DiffPoly_False", () => {
+  var a = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var b = Polygon2D.Make(new Point2D[] { new(0,0), new(2,0), new(2,2), new(0,2) });
+  IsFalse(a.AlmostEquals(b));
+});
+
+Test("Indexer_ReturnsCorrectVertex", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  Eq(1.0, p[1].X);
+  Eq(0.0, p[1].Y);
+});
+
+Test("WktRoundTrip", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(p.AlmostEquals(Polygon2D.FromWkt(p.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var p    = Polygon2D.Make(new Point2D[] { new(0,0), new(2,0), new(2,2), new(0,2) });
+  var path = Path.GetTempFileName();
+  p.ToFile(path);
+  IsTrue(p.AlmostEquals(Polygon2D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Polygon3D (additional) ────────────────────────────────────────────────────
+Console.WriteLine("\nPolygon3D (additional)");
+
+Test("Area_UnitSquare", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  Eq(1.0, p.Area());
+});
+
+Test("AlmostEquals_SamePoly_True", () => {
+  var a = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  var b = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("Indexer_ReturnsCorrectVertex", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  Eq(1.0, p[1].X);
+  Eq(0.0, p[1].Y);
+  Eq(0.0, p[1].Z);
+});
+
+Test("WktRoundTrip", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(p.AlmostEquals(Polygon3D.FromWkt(p.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var p    = Polygon3D.Make(new Point3D[] { new(0,0,0), new(2,0,0), new(2,2,0), new(0,2,0) });
+  var path = Path.GetTempFileName();
+  p.ToFile(path);
+  IsTrue(p.AlmostEquals(Polygon3D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Triangle2D (additional methods) ──────────────────────────────────────────
+Console.WriteLine("\nTriangle2D (new methods)");
+
+Test("Area_RightTriangle", () => {
+  var t = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  Eq(6.0, t.Area());
+});
+
+Test("Perimeter_RightTriangle", () => {
+  var t = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  Eq(12.0, t.Perimeter());
+});
+
+Test("Centroid_KnownValue", () => {
+  var t = Triangle2D.Make(new Point2D(0,0), new Point2D(3,0), new Point2D(0,3));
+  var c = t.Centroid();
+  Eq(1.0, c.X);
+  Eq(1.0, c.Y);
+});
+
+Test("Vertices_ReturnsThreePoints", () => {
+  var t = Triangle2D.Make(new Point2D(0,0), new Point2D(1,0), new Point2D(0,1));
+  var v = t.Vertices();
+  NotNull(v);
+  Eq(0.0, v.Item1.X); Eq(0.0, v.Item1.Y);
+  Eq(1.0, v.Item2.X); Eq(0.0, v.Item2.Y);
+  Eq(0.0, v.Item3.X); Eq(1.0, v.Item3.Y);
+});
+
+Test("ToPolygon_ReturnsPolygon2D", () => {
+  var t = Triangle2D.Make(new Point2D(0,0), new Point2D(1,0), new Point2D(0,1));
+  var poly = t.ToPolygon();
+  NotNull(poly);
+  IsTrue(poly is Polygon2D);
+  Eq(3, poly.Size(), 0);
+});
+
+Test("ToAxis_ReturnsTwoVectors", () => {
+  var t    = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  var axis = t.ToAxis();
+  NotNull(axis);
+  NotNull(axis.Item1);
+  NotNull(axis.Item2);
+  IsTrue(axis.Item1.Length() > 0, "axis u must have non-zero length");
+  IsTrue(axis.Item2.Length() > 0, "axis v must have non-zero length");
+});
+
+Test("WktRoundTrip", () => {
+  var t = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  IsTrue(t.AlmostEquals(Triangle2D.FromWkt(t.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var t    = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  var path = Path.GetTempFileName();
+  t.ToFile(path);
+  IsTrue(t.AlmostEquals(Triangle2D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── Triangle3D (additional methods) ──────────────────────────────────────────
+Console.WriteLine("\nTriangle3D (new methods)");
+
+Test("Perimeter_RightTriangleLegs1x1", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  Eq(1.0 + 1.0 + Math.Sqrt(2), t.Perimeter());
+});
+
+Test("Centroid_KnownValue", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(3,0,0), new Point3D(0,3,0));
+  var c = t.Centroid();
+  Eq(1.0, c.X);
+  Eq(1.0, c.Y);
+  Eq(0.0, c.Z);
+});
+
+Test("Vertices_ReturnsThreePoints", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  var v = t.Vertices();
+  NotNull(v);
+  Eq(0.0, v.Item1.X); Eq(0.0, v.Item1.Y); Eq(0.0, v.Item1.Z);
+  Eq(1.0, v.Item2.X); Eq(0.0, v.Item2.Y); Eq(0.0, v.Item2.Z);
+  Eq(0.0, v.Item3.X); Eq(1.0, v.Item3.Y); Eq(0.0, v.Item3.Z);
+});
+
+Test("ToPolygon_ReturnsPolygon3D", () => {
+  var t    = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  var poly = t.ToPolygon();
+  NotNull(poly);
+  IsTrue(poly is Polygon3D);
+  Eq(3, poly.Size(), 0);
+});
+
+Test("ToAxis_ReturnsTwoVectors", () => {
+  var t    = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,3,0));
+  var axis = t.ToAxis();
+  NotNull(axis);
+  NotNull(axis.Item1);
+  NotNull(axis.Item2);
+  IsTrue(axis.Item1.Length() > 0, "axis u must have non-zero length");
+  IsTrue(axis.Item2.Length() > 0, "axis v must have non-zero length");
+});
+
+Test("WktRoundTrip", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  IsTrue(t.AlmostEquals(Triangle3D.FromWkt(t.ToWkt())));
+});
+
+Test("ToFile_FromFile_RoundTrip", () => {
+  var t    = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,3,0));
+  var path = Path.GetTempFileName();
+  t.ToFile(path);
+  IsTrue(t.AlmostEquals(Triangle3D.FromFile(path)));
+  File.Delete(path);
+});
+
+// ── BBox2D (additional) ───────────────────────────────────────────────────────
+Console.WriteLine("\nBBox2D (additional)");
+
+Test("FromPoints_MinMax", () => {
+  var bb = new BBox2D(new Point2D(1, 2), new Point2D(5, 6));
+  Eq(1.0, bb.Min().X); Eq(2.0, bb.Min().Y);
+  Eq(5.0, bb.Max().X); Eq(6.0, bb.Max().Y);
+});
+
+Test("FromLineSegment_SpansEndpoints", () => {
+  var bb = new BBox2D(LineSegment2D.Make(new Point2D(-1,-2), new Point2D(3,4)));
+  Eq(-1.0, bb.Min().X); Eq(-2.0, bb.Min().Y);
+  Eq( 3.0, bb.Max().X); Eq( 4.0, bb.Max().Y);
+});
+
+Test("FromPolyline_SpansAllKnots", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,5), new(3,0), new(1,2) });
+  var bb = new BBox2D(pl);
+  Eq(0.0, bb.Min().X); Eq(0.0, bb.Min().Y);
+  Eq(3.0, bb.Max().X); Eq(5.0, bb.Max().Y);
+});
+
+Test("FromPolygon_SpansAllVertices", () => {
+  var p  = Polygon2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,3), new(0,3) });
+  var bb = new BBox2D(p);
+  Eq(0.0, bb.Min().X); Eq(0.0, bb.Min().Y);
+  Eq(4.0, bb.Max().X); Eq(3.0, bb.Max().Y);
+});
+
+Test("FromTriangle_SpansAllVertices", () => {
+  var t  = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  var bb = new BBox2D(t);
+  Eq(0.0, bb.Min().X); Eq(0.0, bb.Min().Y);
+  Eq(4.0, bb.Max().X); Eq(3.0, bb.Max().Y);
+});
+
+Test("AlmostEquals_SameBBox_True", () => {
+  var a = new BBox2D(new Point2D(0,0), new Point2D(1,1));
+  var b = new BBox2D(new Point2D(0,0), new Point2D(1,1));
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_DiffBBox_False", () => {
+  var a = new BBox2D(new Point2D(0,0), new Point2D(1,1));
+  var b = new BBox2D(new Point2D(0,0), new Point2D(2,2));
+  IsFalse(a.AlmostEquals(b));
+});
+
+// ── BBox3D (additional) ───────────────────────────────────────────────────────
+Console.WriteLine("\nBBox3D (additional)");
+
+Test("AlmostEquals_SameBBox_True", () => {
+  var a = new BBox3D(new Point3D(0,0,0), new Point3D(1,2,3));
+  var b = new BBox3D(new Point3D(0,0,0), new Point3D(1,2,3));
+  IsTrue(a.AlmostEquals(b));
+});
+
+Test("AlmostEquals_DiffBBox_False", () => {
+  var a = new BBox3D(new Point3D(0,0,0), new Point3D(1,1,1));
+  var b = new BBox3D(new Point3D(0,0,0), new Point3D(2,2,2));
+  IsFalse(a.AlmostEquals(b));
+});
+
+// ── Plane (additional) ────────────────────────────────────────────────────────
+Console.WriteLine("\nPlane (additional)");
+
+Test("XY_NormalIsZ", () => {
+  var pl = Plane.XY();
+  Eq(0.0, pl.Normal().X);
+  Eq(0.0, pl.Normal().Y);
+  Eq(1.0, pl.Normal().Z);
+});
+
+Test("YZ_NormalIsX", () => {
+  var pl = Plane.YZ();
+  Eq(1.0, Math.Abs(pl.Normal().X));
+  Eq(0.0, pl.Normal().Y);
+  Eq(0.0, pl.Normal().Z);
+});
+
+Test("ZX_NormalIsY", () => {
+  var pl = Plane.ZX();
+  Eq(0.0, pl.Normal().X);
+  Eq(1.0, Math.Abs(pl.Normal().Y));
+  Eq(0.0, pl.Normal().Z);
+});
+
+Test("FromOriginAndNormal_NormalMatchesInput", () => {
+  var pl = Plane.FromOriginAndNormal(new Point3D(0,0,5), new Vector3D(0,0,1));
+  Eq(0.0, pl.Normal().X);
+  Eq(0.0, pl.Normal().Y);
+  Eq(1.0, pl.Normal().Z);
+});
+
+Test("FromOriginAndAxes_AxesMatchInput", () => {
+  var pl = Plane.FromOriginAndAxes(new Point3D(0,0,0), new Vector3D(1,0,0), new Vector3D(0,1,0));
+  Eq(1.0, pl.AxisU().X);
+  Eq(0.0, pl.AxisU().Y);
+  Eq(0.0, pl.AxisV().X);
+  Eq(1.0, pl.AxisV().Y);
+});
+
+Test("From3Points_NormalPointsInZ", () => {
+  var pl = Plane.From3Points(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  Eq(1.0, Math.Abs(pl.Normal().Z));
+});
+
+Test("Contains_PointOnPlane_True", () => {
+  var pl = Plane.XY();
+  IsTrue(pl.Contains(new Point3D(3, 4, 0)));
+});
+
+Test("Contains_PointOffPlane_False", () => {
+  var pl = Plane.XY();
+  IsFalse(pl.Contains(new Point3D(3, 4, 1)));
+});
+
+Test("SignedDistanceTo_PositiveSide", () => {
+  Eq(2.0, Plane.XY().SignedDistanceTo(new Point3D(0,0,2)));
+});
+
+Test("SignedDistanceTo_NegativeSide", () => {
+  IsTrue(Plane.XY().SignedDistanceTo(new Point3D(0,0,-3)) < 0, "point below XY should be negative");
+});
+
+Test("Intersects_Line3D_True", () => {
+  var pl = Plane.XY();
+  var l  = Line3D.Make(new Point3D(0,0,-1), new Point3D(0,0,1));
+  IsTrue(pl.Intersects(l));
+});
+
+Test("Intersection_Line3D_Hit", () => {
+  var pl = Plane.XY();
+  var l  = Line3D.Make(new Point3D(0,0,-1), new Point3D(0,0,1));
+  var pt = pl.Intersection(l);
+  NotNull(pt);
+  Eq(0.0, pt!.X);
+  Eq(0.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("AxisU_IsUnitLength", () => {
+  Eq(1.0, Plane.XY().AxisU().Length());
+});
+
+Test("AxisV_IsUnitLength", () => {
+  Eq(1.0, Plane.XY().AxisV().Length());
+});
+
+Test("ProjectInto_ReturnsPoint2D_UVCoords", () => {
+  // XY plane: origin (0,0,0), u=X, v=Y
+  // A point (3,4,0) on the XY plane should project to UV=(3,4)
+  var pl = Plane.XY();
+  var uv = pl.ProjectInto(new Point3D(3, 4, 0));
+  NotNull(uv);
+  Eq(3.0, uv.X);
+  Eq(4.0, uv.Y);
+});
+
+Test("Evaluate_UV_ReturnsPoint3D", () => {
+  // XY plane: Evaluate(3,4) in UV should return (3,4,0) in 3D
+  var pl = Plane.XY();
+  var pt = pl.Evaluate(new Point2D(3, 4));
+  NotNull(pt);
+  Eq(3.0, pt.X);
+  Eq(4.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("AlmostEquals_SamePlane_True", () => {
+  IsTrue(Plane.XY().AlmostEquals(Plane.XY()));
+});
+
+Test("AlmostEquals_DiffPlane_False", () => {
+  IsFalse(Plane.XY().AlmostEquals(Plane.YZ()));
+});
+
+// ── GeometryCollection2D (additional) ────────────────────────────────────────
+Console.WriteLine("\nGeometryCollection2D (additional)");
+
+Test("Add_Line2D_SizeIncreases", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(Line2D.Make(new Point2D(0,0), new Point2D(1,0)));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Ray2D_SizeIncreases", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(Ray2D.Make(new Point2D(0,0), new Vector2D(1,0)));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Polyline2D_SizeIncreases", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(Polyline2D.Make(new Point2D[] { new(0,0), new(1,0) }));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Polygon2D_SizeIncreases", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) }));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Triangle2D_SizeIncreases", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(Triangle2D.Make(new Point2D(0,0), new Point2D(1,0), new Point2D(0,1)));
+  Eq(1, gc.Size(), 0);
+});
+
+// ── GeometryCollection3D (additional) ────────────────────────────────────────
+Console.WriteLine("\nGeometryCollection3D (additional)");
+
+Test("Add_Line3D_SizeIncreases", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(Line3D.Make(new Point3D(0,0,0), new Point3D(1,0,0)));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Ray3D_SizeIncreases", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(Ray3D.Make(new Point3D(0,0,0), new Vector3D(1,0,0)));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Polyline3D_SizeIncreases", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(Polyline3D.Make(new Point3D[] { new(0,0,0), new(1,0,0) }));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Polygon3D_SizeIncreases", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) }));
+  Eq(1, gc.Size(), 0);
+});
+
+Test("Add_Triangle3D_SizeIncreases", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0)));
+  Eq(1, gc.Size(), 0);
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

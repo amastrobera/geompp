@@ -1,5 +1,6 @@
 #include "triangle2d.hpp"
 
+#include "bbox2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "polygon2d.hpp"
@@ -86,6 +87,21 @@ std::optional<Point2D> Triangle2D::Interpolate(double s, double t) const {
   return linear_combination({P0, P1, P2}, {1 - s - t, s, t});
 }
 
+std::optional<std::tuple<double, double>> Triangle2D::Location(Point2D const& point) const {
+  auto u = P1 - P0;
+  auto v = P2 - P0;
+  auto w = point - P0;
+  auto u_perp = u.Perp();
+  auto v_perp = v.Perp();
+  double s = w.Dot(v_perp) / u.Dot(v_perp);  // guaranteed non zero (triangle ctor)
+  double t = w.Dot(u_perp) / v.Dot(u_perp);  // guaranteed non zero (triangle ctor)
+
+  if (!within_axis_boundary(s, t)) {
+    return std::nullopt;
+  }
+  return std::make_tuple(s, t);
+}
+
 #pragma endregion
 
 #pragma region Operator Overloading
@@ -102,14 +118,10 @@ std::ostream& operator<<(std::ostream& os, Triangle2D const& g) {
 #pragma region Geometrical Operations
 
 bool Triangle2D::Contains(Point2D const& point) const {
-  auto u = P1 - P0;
-  auto v = P2 - P0;
-  auto w = point - P0;
-  auto u_perp = u.Perp();
-  auto v_perp = v.Perp();
-  double s = w.Dot(v_perp) / u.Dot(v_perp);
-  double t = w.Dot(u_perp) / v.Dot(u_perp);
-  return within_axis_boundary(s, t);
+  if (!BBox2D(*this).Contains(point)) {
+    return false;
+  }
+  return Location(point).has_value();
 }
 
 bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }

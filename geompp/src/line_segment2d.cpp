@@ -83,6 +83,12 @@ Point2D LineSegment2D::Interpolate(double pct) const {
   return P0 + pct * (P1 - P0);
 }
 
+bool LineSegment2D::IsLeft(Point2D const& p) const {
+  // elegant use of primitives, but calls many constructors
+  // return compare((P1 - P0).Cross(p.ToVector()), 0) > 0;
+  return compare((P1.x() - P0.x()) * (p.y() - P0.y()) - (P1.y() - P0.y()) * (p.x() - P0.x()), 0) > 0;
+}
+
 double LineSegment2D::DistanceTo(Point2D const& point) const { return (point - ProjectOnto(point)).Length(); }
 
 #pragma endregion

@@ -39,8 +39,9 @@ class Triangle2D {
 
   double DistanceTo(Point2D const& point) const;
   std::tuple<Vector2D, Vector2D> ToAxis()
-      const;                                     // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
+      const;  // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
   std::optional<Point2D> Interpolate(double s, double t) const;
+  std::optional<std::tuple<double, double>> Location(Point2D const& point) const;
 
 #pragma endregion
 

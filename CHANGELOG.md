@@ -11,6 +11,57 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.7.0] - 2026-05-06
+
+> C++ library — tagged `v0.7.0` · C# / NuGet — tagged `csharp-v0.7.0` · Python / PyPI — tagged `python-v0.7.0`
+
+> Touches `Triangle2D`, `Triangle3D`, `Polygon2D`, `Polygon3D`.
+
+### Added
+
+**C++ core**
+- `Triangle2D::Location(Point2D const&)` → `std::optional<std::tuple<double, double>>` — returns barycentric coordinates `(s, t)` where `P = P0 + s·(P1−P0) + t·(P2−P0)`, if the point is inside or on the boundary; `nullopt` if outside. Inverse of `Interpolate`. Implemented via 2D perpendicular dot products (`u.Perp()` / `v.Perp()`).
+- `Triangle3D::Location(Point3D const&)` → `std::optional<std::tuple<double, double>>` — same semantics; returns `nullopt` also when the point is off the triangle's plane. Implemented via 3D cross-product isolating each barycentric coordinate without any 2D projection.
+
+**Python / PyPI**
+- `Triangle2D.location(point)` → `tuple[float, float] | None` — Python binding for the new `Location` method.
+- `Triangle3D.location(point)` → `tuple[float, float] | None` — Python binding for the new `Location` method.
+
+**C# / NuGet**
+- `Triangle2D.Location(Point2D^ point)` → `Tuple<double, double>^` (or `null` if outside) — C# binding for the new `Location` method.
+- `Triangle3D.Location(Point3D^ point)` → `Tuple<double, double>^` (or `null` if off-plane or outside) — C# binding for the new `Location` method.
+
+### Changed
+
+**C++ core**
+- `Triangle2D::Contains(Point2D const&)` — rewritten to delegate entirely to `Location(point).has_value()`. Behavior is unchanged; implementation is now consistent and symmetric with `Interpolate`.
+- `Triangle3D::Contains(Point3D const&)` — was an unimplemented stub (`throw std::runtime_error("not implemented")`); now fully implemented. Rejects off-plane points via `BBox3D` and plane check, then delegates to `Location(point).has_value()`. No 2D projection is performed.
+- `Polygon2D::Contains(Point2D const&)` — was an unimplemented stub; now implemented using a winding-number algorithm. Returns `true` for strictly interior points.
+- `Polygon3D::Contains(Point3D const&)` — was an unimplemented stub; now implemented. Returns `false` immediately for off-plane points; projects to 2D and applies the winding-number algorithm for in-plane points.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_triangle2d.cpp`: `Location` test rewritten — `check_inside` / `check_outside` lambdas that assert `Location` value AND `Contains` status together; round-trip A (`Interpolate(Location(p)) == p`) and round-trip B (`Location(Interpolate(s,t)) == (s,t)`).
+- `test_triangle3d.cpp`: `Location` test added — same `check_inside` / `check_outside` / round-trip structure; off-plane point asserts both `Location == nullopt` and `Contains == false`.
+- `test_polygon2d.cpp`: `Contains` test completed — interior points, near-corner interior points, exterior points; plus a polygon-with-hole case (inside outer ring but outside hole → true; inside hole → false).
+- `test_polygon3d.cpp`: `Contains` test completed — same coverage as 2D plus an off-plane point asserting `false`; also a YZ-plane polygon case.
+
+**Python (`geompp_python/tests`)**
+- `TestTriangle2D.test_location`: rewritten with `check_inside`/`check_outside` helpers and both round-trips.
+- `TestTriangle3D.test_location`: added — same structure, including off-plane case.
+- `TestPolygon2D.test_contains`: completed — interior, near-corner, exterior, and polygon-with-hole cases.
+- `TestPolygon3D.test_contains`: completed — same plus off-plane assertion.
+
+**C# (`geompp_csharp/tests`)**
+- `Triangle2D` — `Location_Vertices_ReturnExpectedCoords_2D`, `Location_Centroid_OneThirdEach_2D`, `Location_NullImpliesNotContained_2D`, `Location_RoundTrip_A_And_B_2D`: each asserts `Location` value AND paired `Contains` call; round-trips A and B included.
+- `Triangle3D` — `Location_Vertices_ReturnExpectedCoords`, `Location_Centroid_OneThirdEach`, `Location_NullImpliesNotContained`, `Location_RoundTrip_A_And_B`: same relationship-focused structure.
+- `Polygon2D` — `Contains_Interior_True`, `Contains_Exterior_False`, `Contains_WithHole` added.
+- `Polygon3D` — `Contains_Interior_True`, `Contains_OffPlane_False`, `Contains_WithHole` added.
+- `Triangle3D` — `Contains_Interior_True`, `Contains_OffPlane_False` added (delegating to `Location`).
+
+---
+
 ## [0.6.0] - 2026-05-04
 
 > C++ library — tagged `v0.6.0` · C# / NuGet — tagged `csharp-v0.6.0` · Python / PyPI — tagged `python-v0.6.0`

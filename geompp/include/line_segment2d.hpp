@@ -33,6 +33,7 @@ class LineSegment2D {
   double DistanceTo(Point2D const& point) const;
   double Location(Point2D const& point) const;
   Point2D Interpolate(double pct) const;
+  bool IsLeft(Point2D const& p) const;
 
 #pragma endregion
 

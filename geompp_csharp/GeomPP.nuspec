@@ -2,12 +2,13 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>GeomPP</id>
-    <version>0.1.1</version>
+    <version>0.7.0</version>
     <authors>Angelo Mastro</authors>
     <owners>Angelo Mastro</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <license type="expression">MIT</license>
     <projectUrl>https://github.com/amastrobera/geompp</projectUrl>
+    <readme>README.md</readme>
     <description>
       C# bindings for geompp, a C++20 geometry library.
       Provides Point2D/3D, Vector2D/3D, Line2D/3D, Ray2D/3D, LineSegment2D/3D,
@@ -15,7 +16,12 @@
       operator support, intersection queries, WKT serialization, and file I/O.
       Built with C++/CLI for Windows x64. Targets both .NET 10 and .NET Framework 4.8.
     </description>
-    <releaseNotes>0.1.1: Bug fix — Line3D::Intersection(sc, tc) parameter tc was passed by value instead of by reference, leaving the caller's variable uninitialized in Debug builds.</releaseNotes>
+    <!--
+      <releaseNotes> is overwritten by the CI (nuget-publish.yml) before packing:
+      it extracts the matching ## [version] block from CHANGELOG.md and injects it here.
+      The text below is only a local fallback for manual nuget pack runs.
+    -->
+    <releaseNotes>See CHANGELOG.md at https://github.com/amastrobera/geompp/blob/master/CHANGELOG.md</releaseNotes>
     <tags>geometry 3d 2d computational-geometry gis math csharp dotnet</tags>
     <repository type="git" url="https://github.com/amastrobera/geompp" />
     <!--
@@ -37,5 +43,7 @@
     -->
     <file src="x64\Release\GeomPP.dll"       target="lib\net10.0-windows7.0\GeomPP.dll" />
     <file src="x64\Release_Net48\GeomPP.dll" target="lib\net48\GeomPP.dll" />
+    <!-- Bundled so NuGet.org renders the <readme> element on the package page -->
+    <file src="README.md"                    target="README.md" />
   </files>
 </package>

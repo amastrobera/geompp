@@ -1,5 +1,6 @@
 #include "polygon2d.hpp"
 
+#include "bbox2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "ray2d.hpp"
@@ -15,6 +16,48 @@
 #include <stdexcept>
 
 namespace geompp {
+
+namespace {
+
+bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p) {
+  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) > 0;
+}
+
+bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p) {
+  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) < 0;
+}
+
+int wn_count(std::vector<Point2D> const& vertices, Point2D const& p) {
+  int wn = 0;
+
+  int i2 = -1;
+  int n = vertices.size();
+  for (int i1 = 0; i1 < n; ++i1) {
+    i2 = (i1 + 1) % n;
+
+    auto const& v1 = vertices[i1];
+    auto const& v2 = vertices[i2];
+
+    if (compare(v1.y(), p.y()) <= 0) {   // edge from v(i) to v(i+1) is starts below p
+      if (compare(v2.y(), p.y()) > 0) {  //     ... and ends above p (upward crossing)
+        if (is_left(v1, v2, p)) {        //     p left of the edge
+          ++wn;                          // valid up-intersect
+        }
+      }
+
+    } else {                              // edge from v(i) to v(i+1) is starts above p
+      if (compare(v2.y(), p.y()) <= 0) {  //     ... and ends below p (downward crossing)
+        if (is_right(v1, v2, p)) {        //     p is right of the edge
+          --wn;                           // valid down-intersect
+        }
+      }
+    }
+  }
+
+  return wn;
+}
+
+}  // namespace
 
 #pragma region Constructors
 
@@ -185,7 +228,25 @@ std::ostream& operator<<(std::ostream& os, Polygon2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Polygon2D::Contains(Point2D const& point) const { throw std::runtime_error("not implemented"); }
+// winding number method
+bool Polygon2D::Contains(Point2D const& point) const {
+  // quick rejection with bounding box
+  if (!BBox2D(*this).Contains(point)) {
+    return false;
+  }
+
+  int wn = 0;
+
+  // perimeter
+  wn += wn_count(VERTICES, point);  // CCW will increase it
+
+  // holes
+  for (auto const& hole : HOLES) {
+    wn += wn_count(hole, point);  // CW will decrease it
+  }
+
+  return wn != 0;  // zero if the point is outside
+}
 
 bool Polygon2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 

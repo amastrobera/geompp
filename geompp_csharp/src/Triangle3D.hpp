@@ -39,6 +39,7 @@ public:
     double     DistanceTo(Point3D^ point);
     System::Tuple<Vector3D^, Vector3D^>^ ToAxis();
     Point3D^                             Interpolate(double s, double t);  // nullptr if outside
+    System::Tuple<double, double>^       Location(Point3D^ point);         // nullptr if off-plane
 
     System::String^   ToWkt();
     static Triangle3D^ FromWkt(System::String^ wkt);

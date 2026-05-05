@@ -34,6 +34,7 @@ public:
     double          DistanceTo(Point2D^ point);
     System::Tuple<Vector2D^, Vector2D^>^ ToAxis();
     Point2D^                             Interpolate(double s, double t);  // nullptr if outside
+    System::Tuple<double, double>^       Location(Point2D^ point);         // nullptr if outside triangle
 
     System::String^   ToWkt();
     static Triangle2D^ FromWkt(System::String^ wkt);

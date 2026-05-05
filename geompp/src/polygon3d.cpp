@@ -1,8 +1,11 @@
 #include "polygon3d.hpp"
 
+#include "bbox3d.hpp"
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
+#include "point2d.hpp"
+#include "polygon2d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
 
@@ -12,6 +15,7 @@
 #include <format>
 #include <fstream>
 #include <limits>
+#include <ranges>
 #include <sstream>
 #include <stdexcept>
 
@@ -207,7 +211,31 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Polygon3D::Contains(Point3D const& point) const { throw std::runtime_error("not implemented"); }
+bool Polygon3D::Contains(Point3D const& point) const {
+  // quick rejection with bounding box
+  if (!BBox3D(*this).Contains(point)) {
+    return false;
+  }
+
+  // another quick rejection: if not on the plane, can't belong to the polygon
+  if (!PLANE.Contains(point)) {
+    return false;
+  }
+
+  // final test: project all in 2D, and verify in 2D
+  auto project_view = VERTICES | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
+  std::vector<Point2D> outer2d(project_view.begin(), project_view.end());
+
+  std::vector<std::vector<Point2D>> inners2d;
+  for (auto const& hole : HOLES) {
+    auto project_view_h = hole | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
+    inners2d.push_back(std::vector<Point2D>(project_view_h.begin(), project_view_h.end()));
+  }
+
+  auto proj_poly = Polygon2D::Make(outer2d, inners2d);
+
+  return proj_poly.Contains(PLANE.ProjectInto(point));
+}
 
 bool Polygon3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 
