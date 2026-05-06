@@ -11,51 +11,6 @@ Each release covers all three packages at the same version:
 
 ---
 
-## [0.8.0] - 2026-05-06
-
-> C++ library — tagged `v0.8.0` · C# / NuGet — tagged `csharp-v0.8.0` · Python / PyPI — tagged `python-v0.8.0`
-
-> Touches `Polygon2D`, `Polygon3D`.
-
-### Added
-
-**C++ core**
-- `Polygon2D::IsOnBoundary(Point2D const&) const` — returns `true` if the point lies exactly on an edge (outer ring or any hole boundary); uses `LineSegment2D::Contains` per edge, which tolerates floating-point rounding up to `DECIMAL_PRECISION` digits.
-- `Polygon3D::IsOnBoundary(Point3D const&) const` — same semantics; rejects off-plane points immediately, then projects to 2D and delegates to `Polygon2D::IsOnBoundary`.
-
-**Python / PyPI**
-- `Polygon2D.is_on_boundary(point)` → `bool` — Python binding for the new method.
-- `Polygon3D.is_on_boundary(point)` → `bool` — Python binding for the new method.
-
-**C# / NuGet**
-- `Polygon2D.IsOnBoundary(Point2D^ point)` → `bool` — C# binding for the new method.
-- `Polygon3D.IsOnBoundary(Point3D^ point)` → `bool` — C# binding for the new method.
-
-### Fixed
-
-**C++ core**
-- `Polygon2D::Contains(Point2D const&)` — fixed inverted boundary logic: the winding-number check now runs only for interior classification; `IsOnBoundary` is called first and short-circuits to `true` before the winding count. Previously the order was reversed, causing interior points to return `false` when `IsOnBoundary` returned `false`.
-- `Polygon2D::FromWkt` / `Polygon3D::FromWkt` — were throwing for valid WKT strings in C++ tests (leftover `EXPECT_ANY_THROW` from when the function was a stub); tests updated to expect successful parse and verify vertex count and first point.
-- `Triangle3DTest::Contains_OnBoundary` — off-plane assertion changed from `z=0.001` to `z=0.01`; with `DECIMAL_PRECISION=3` the epsilon is exactly `0.001`, so the old value was within tolerance and the point was classified as on-plane.
-
-### Tests
-
-**C++ (`geompp_tests`)**
-- `test_polygon2d.cpp`: `IsOnBoundary_True` — all four vertices, all four edge midpoints, outer-ring edge, and hole boundary edge; `IsOnBoundary_False` — interior point, two exterior points, interior-of-hole point.
-- `test_polygon3d.cpp`: same coverage in 3D; also tests a YZ-plane polygon and an off-plane point.
-- `test_polygon2d.cpp` / `test_polygon3d.cpp`: `Wkt` and `FromFile` tests updated to verify round-trip rather than expect a throw.
-- `test_triangle3d.cpp`: `Contains_OnBoundary` — off-plane assertion fixed to `z=0.01`.
-
-**Python (`geompp_python/tests`)**
-- `TestPolygon2D.test_is_on_boundary`: vertices, edge midpoints, interior/exterior false cases, hole boundary true and false cases.
-- `TestPolygon3D.test_is_on_boundary`: same in 3D plus off-plane false case.
-
-**C# (`geompp_csharp/tests`)**
-- `Polygon2D` — `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False`: vertices, edge midpoints, outer and hole edges, interior, outside.
-- `Polygon3D` — `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False`: same in 3D plus off-plane false case.
-
----
-
 ## [0.7.0] - 2026-05-06
 
 > C++ library — tagged `v0.7.0` · C# / NuGet — tagged `csharp-v0.7.0` · Python / PyPI — tagged `python-v0.7.0`
@@ -67,42 +22,58 @@ Each release covers all three packages at the same version:
 **C++ core**
 - `Triangle2D::Location(Point2D const&)` → `std::optional<std::tuple<double, double>>` — returns barycentric coordinates `(s, t)` where `P = P0 + s·(P1−P0) + t·(P2−P0)`, if the point is inside or on the boundary; `nullopt` if outside. Inverse of `Interpolate`. Implemented via 2D perpendicular dot products (`u.Perp()` / `v.Perp()`).
 - `Triangle3D::Location(Point3D const&)` → `std::optional<std::tuple<double, double>>` — same semantics; returns `nullopt` also when the point is off the triangle's plane. Implemented via 3D cross-product isolating each barycentric coordinate without any 2D projection.
+- `Polygon2D::IsOnBoundary(Point2D const&) const` — returns `true` if the point lies exactly on an edge (outer ring or any hole boundary); uses `LineSegment2D::Contains` per edge, which tolerates floating-point rounding up to `DECIMAL_PRECISION` digits.
+- `Polygon3D::IsOnBoundary(Point3D const&) const` — same semantics; rejects off-plane points immediately, then projects to 2D and delegates to `Polygon2D::IsOnBoundary`.
 
 **Python / PyPI**
 - `Triangle2D.location(point)` → `tuple[float, float] | None` — Python binding for the new `Location` method.
 - `Triangle3D.location(point)` → `tuple[float, float] | None` — Python binding for the new `Location` method.
+- `Polygon2D.is_on_boundary(point)` → `bool` — Python binding for the new method.
+- `Polygon3D.is_on_boundary(point)` → `bool` — Python binding for the new method.
 
 **C# / NuGet**
 - `Triangle2D.Location(Point2D^ point)` → `Tuple<double, double>^` (or `null` if outside) — C# binding for the new `Location` method.
 - `Triangle3D.Location(Point3D^ point)` → `Tuple<double, double>^` (or `null` if off-plane or outside) — C# binding for the new `Location` method.
+- `Polygon2D.IsOnBoundary(Point2D^ point)` → `bool` — C# binding for the new method.
+- `Polygon3D.IsOnBoundary(Point3D^ point)` → `bool` — C# binding for the new method.
 
 ### Changed
 
 **C++ core**
 - `Triangle2D::Contains(Point2D const&)` — rewritten to delegate entirely to `Location(point).has_value()`. Behavior is unchanged; implementation is now consistent and symmetric with `Interpolate`.
 - `Triangle3D::Contains(Point3D const&)` — was an unimplemented stub (`throw std::runtime_error("not implemented")`); now fully implemented. Rejects off-plane points via `BBox3D` and plane check, then delegates to `Location(point).has_value()`. No 2D projection is performed.
-- `Polygon2D::Contains(Point2D const&)` — was an unimplemented stub; now implemented using a winding-number algorithm. Returns `true` for strictly interior points.
+- `Polygon2D::Contains(Point2D const&)` — was an unimplemented stub; now implemented using a winding-number algorithm with boundary-inclusive semantics: calls `IsOnBoundary` first, then falls back to winding number for strictly interior points.
 - `Polygon3D::Contains(Point3D const&)` — was an unimplemented stub; now implemented. Returns `false` immediately for off-plane points; projects to 2D and applies the winding-number algorithm for in-plane points.
+
+### Fixed
+
+**C++ core**
+- `Polygon2D::Contains(Point2D const&)` — fixed inverted boundary logic: `IsOnBoundary` is called first and short-circuits to `true`; previously the order was reversed, causing interior points to return `false`.
+- `Polygon2D::FromWkt` / `Polygon3D::FromWkt` — were throwing for valid WKT strings in C++ tests (leftover `EXPECT_ANY_THROW` from when the function was a stub); tests updated to expect successful parse and verify vertex count and first point.
+- `Triangle3DTest::Contains_OnBoundary` — off-plane assertion changed from `z=0.001` to `z=0.01`; with `DECIMAL_PRECISION=3` the epsilon is exactly `0.001`, so the old value was within tolerance and the point was classified as on-plane.
 
 ### Tests
 
 **C++ (`geompp_tests`)**
 - `test_triangle2d.cpp`: `Location` test rewritten — `check_inside` / `check_outside` lambdas that assert `Location` value AND `Contains` status together; round-trip A (`Interpolate(Location(p)) == p`) and round-trip B (`Location(Interpolate(s,t)) == (s,t)`).
 - `test_triangle3d.cpp`: `Location` test added — same `check_inside` / `check_outside` / round-trip structure; off-plane point asserts both `Location == nullopt` and `Contains == false`.
-- `test_polygon2d.cpp`: `Contains` test completed — interior points, near-corner interior points, exterior points; plus a polygon-with-hole case (inside outer ring but outside hole → true; inside hole → false).
-- `test_polygon3d.cpp`: `Contains` test completed — same coverage as 2D plus an off-plane point asserting `false`; also a YZ-plane polygon case.
+- `test_triangle3d.cpp`: `Contains_OnBoundary` — off-plane assertion fixed to `z=0.01`.
+- `test_polygon2d.cpp`: `Contains` test completed — interior, near-corner, exterior, and polygon-with-hole cases. `Contains_OnBoundary` — vertices, edge midpoints, and hole boundary. `IsOnBoundary_True` / `IsOnBoundary_False` — explicit standalone tests. `Wkt` and `FromFile` updated to verify successful round-trip.
+- `test_polygon3d.cpp`: same coverage as 2D plus off-plane and YZ-plane cases.
 
 **Python (`geompp_python/tests`)**
 - `TestTriangle2D.test_location`: rewritten with `check_inside`/`check_outside` helpers and both round-trips.
 - `TestTriangle3D.test_location`: added — same structure, including off-plane case.
-- `TestPolygon2D.test_contains`: completed — interior, near-corner, exterior, and polygon-with-hole cases.
+- `TestPolygon2D.test_contains`: completed — interior, near-corner, exterior, polygon-with-hole, and boundary cases.
 - `TestPolygon3D.test_contains`: completed — same plus off-plane assertion.
+- `TestPolygon2D.test_is_on_boundary`: vertices, edge midpoints, interior/exterior false cases, hole boundary true and false cases.
+- `TestPolygon3D.test_is_on_boundary`: same in 3D plus off-plane false case.
 
 **C# (`geompp_csharp/tests`)**
 - `Triangle2D` — `Location_Vertices_ReturnExpectedCoords_2D`, `Location_Centroid_OneThirdEach_2D`, `Location_NullImpliesNotContained_2D`, `Location_RoundTrip_A_And_B_2D`: each asserts `Location` value AND paired `Contains` call; round-trips A and B included.
 - `Triangle3D` — `Location_Vertices_ReturnExpectedCoords`, `Location_Centroid_OneThirdEach`, `Location_NullImpliesNotContained`, `Location_RoundTrip_A_And_B`: same relationship-focused structure.
-- `Polygon2D` — `Contains_Interior_True`, `Contains_Exterior_False`, `Contains_WithHole` added.
-- `Polygon3D` — `Contains_Interior_True`, `Contains_OffPlane_False`, `Contains_WithHole` added.
+- `Polygon2D` — `Contains_Interior_True`, `Contains_Exterior_False`, `Contains_WithHole`, `Contains_OnBoundary_True`, `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False` added.
+- `Polygon3D` — `Contains_Interior_True`, `Contains_OffPlane_False`, `Contains_WithHole`, `Contains_OnBoundary_True`, `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False` added.
 - `Triangle3D` — `Contains_Interior_True`, `Contains_OffPlane_False` added (delegating to `Location`).
 
 ---
