@@ -31,6 +31,7 @@ public:
     double   Perimeter();
     double   DistanceTo(Point2D^ point);
     bool     Contains(Point2D^ point);
+    bool     IsOnBoundary(Point2D^ point);
 
     System::String^ ToWkt();
     static Polygon2D^ FromWkt(System::String^ wkt);

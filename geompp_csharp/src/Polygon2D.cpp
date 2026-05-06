@@ -90,6 +90,10 @@ bool Polygon2D::Contains(Point2D^ point) {
     return _native->Contains(*point->_native);
 }
 
+bool Polygon2D::IsOnBoundary(Point2D^ point) {
+    return _native->IsOnBoundary(*point->_native);
+}
+
 System::String^ Polygon2D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }

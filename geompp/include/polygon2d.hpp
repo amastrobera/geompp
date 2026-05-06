@@ -46,6 +46,7 @@ class Polygon2D {
 
 #pragma region Geometrical Operations
   bool Contains(Point2D const& point) const;
+  bool IsOnBoundary(Point2D const& point) const;
   using ReturnSet = std::optional<std::variant<Point2D>>;
   bool Intersects(Line2D const& line) const;
   bool Intersects(Ray2D const& ray) const;

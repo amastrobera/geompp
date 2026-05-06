@@ -310,6 +310,29 @@ TEST_F(Triangle3DTest, Constructor) {
 ////   ASSERT_FALSE(s3.Intersects(r2_rev));
 //// }
 
+TEST_F(Triangle3DTest, Contains_OnBoundary) {
+  // right triangle in XY plane: P0=(0,0,0), P1=(4,0,0), P2=(0,3,0)
+  auto t = g::Triangle3D::Make(g::Point3D(0,0,0), g::Point3D(4,0,0), g::Point3D(0,3,0));
+
+  // vertices
+  EXPECT_TRUE(t.Contains(g::Point3D(0, 0, 0)));
+  EXPECT_TRUE(t.Contains(g::Point3D(4, 0, 0)));
+  EXPECT_TRUE(t.Contains(g::Point3D(0, 3, 0)));
+
+  // edge midpoints
+  EXPECT_TRUE(t.Contains(g::Point3D(2,   0,   0)));  // base
+  EXPECT_TRUE(t.Contains(g::Point3D(0,   1.5, 0)));  // left edge
+  EXPECT_TRUE(t.Contains(g::Point3D(2,   1.5, 0)));  // hypotenuse
+
+  // off-plane is always false, even if (x,y) projection would be inside
+  EXPECT_FALSE(t.Contains(g::Point3D(2, 0, 1)));
+  EXPECT_FALSE(t.Contains(g::Point3D(0, 0, 0.01)));  // 0.001 == epsilon, use 0.01
+
+  // just outside
+  EXPECT_FALSE(t.Contains(g::Point3D(2,   -0.01, 0)));
+  EXPECT_FALSE(t.Contains(g::Point3D(-0.01, 1.5, 0)));
+}
+
 TEST_F(Triangle3DTest, Wkt) {
   ASSERT_EQ("TRIANGLE (0 0 1, 1 1 1, 0 2 1)",
             g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 1), g::Point3D(0, 2, 1)).ToWkt());

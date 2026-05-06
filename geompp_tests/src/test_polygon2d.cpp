@@ -74,8 +74,13 @@ TEST_F(Polygon2DTest, Wkt) {
   auto p2 = g::Polygon2D::Make({g::Point2D(0.123, 0.456), g::Point2D(8.789, 0.123), g::Point2D(4.321, 7.654)});
   ASSERT_EQ("POLYGON ((0.12 0.46, 8.79 0.12, 4.32 7.65, 0.12 0.46))", p2.ToWkt());
 
-  // FromWkt is not yet implemented — all calls throw
-  EXPECT_ANY_THROW(g::Polygon2D::FromWkt("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"));
+  // FromWkt round-trips correctly
+  geompp::DECIMAL_PRECISION = 4;
+  auto q = g::Polygon2D::FromWkt("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))");
+  EXPECT_EQ(4, q.Size());
+  EXPECT_EQ(g::Point2D(0, 0), q[0]);
+  EXPECT_EQ(g::Point2D(1, 0), q[1]);
+  // invalid input still throws
   EXPECT_ANY_THROW(g::Polygon2D::FromWkt("anything"));
 }
 
@@ -132,10 +137,10 @@ TEST_F(Polygon2DTest, ToFile) {
 }
 
 TEST_F(Polygon2DTest, FromFile) {
-  // FromFile calls FromWkt which is not yet implemented
   std::string path = (test_res_path / "polygon2d" / "polygon.wkt").string();
   ASSERT_TRUE(fs::exists(path));
-  EXPECT_ANY_THROW(g::Polygon2D::FromFile(path));
+  auto p = g::Polygon2D::FromFile(path);
+  EXPECT_EQ(4, p.Size());
 }
 
 // ---- Area -------------------------------------------------------------------
@@ -277,6 +282,74 @@ TEST_F(Polygon2DTest, Contains) {
   EXPECT_TRUE(poly.Contains(g::Point2D(3.5, 3.5)));  // inner ring of outer, outside hole
   EXPECT_FALSE(poly.Contains(g::Point2D(2, 2)));     // inside hole
   EXPECT_FALSE(poly.Contains(g::Point2D(-1, 2)));    // outside outer
+}
+
+TEST_F(Polygon2DTest, Contains_OnBoundary) {
+  // Boundary is included (matches Triangle behaviour).
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+
+  // vertices
+  EXPECT_TRUE(sq.Contains(g::Point2D(0, 0)));    // bottom-left vertex
+  EXPECT_TRUE(sq.Contains(g::Point2D(1, 0)));    // bottom-right vertex
+  EXPECT_TRUE(sq.Contains(g::Point2D(1, 1)));    // top-right vertex
+  EXPECT_TRUE(sq.Contains(g::Point2D(0, 1)));    // top-left vertex
+
+  // edge midpoints (horizontal, vertical)
+  EXPECT_TRUE(sq.Contains(g::Point2D(0.5, 0)));  // bottom edge
+  EXPECT_TRUE(sq.Contains(g::Point2D(1,   0.5)));// right edge
+  EXPECT_TRUE(sq.Contains(g::Point2D(0.5, 1)));  // top edge
+  EXPECT_TRUE(sq.Contains(g::Point2D(0,   0.5)));// left edge
+
+  // polygon with hole: boundary of outer ring and boundary of hole both count
+  auto outer = std::vector<g::Point2D>{{0,0}, {4,0}, {4,4}, {0,4}};
+  auto hole  = std::vector<g::Point2D>{{1,1}, {1,3}, {3,3}, {3,1}};
+  auto poly  = g::Polygon2D::Make(outer, {hole});
+  EXPECT_TRUE(poly.Contains(g::Point2D(2,   0)));  // outer bottom edge
+  EXPECT_TRUE(poly.Contains(g::Point2D(4,   2)));  // outer right edge
+  EXPECT_TRUE(poly.Contains(g::Point2D(2,   1)));  // hole bottom edge
+  EXPECT_TRUE(poly.Contains(g::Point2D(1,   2)));  // hole left edge
+}
+
+TEST_F(Polygon2DTest, IsOnBoundary_True) {
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+
+  // all four vertices
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0,   0)));
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(1,   0)));
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(1,   1)));
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0,   1)));
+
+  // edge midpoints
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0.5, 0)));    // bottom
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(1,   0.5)));  // right
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0.5, 1)));    // top
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0,   0.5)));  // left
+
+  // hole boundary: both outer and hole edges count
+  auto outer = std::vector<g::Point2D>{{0,0}, {4,0}, {4,4}, {0,4}};
+  auto hole  = std::vector<g::Point2D>{{1,1}, {1,3}, {3,3}, {3,1}};
+  auto poly  = g::Polygon2D::Make(outer, {hole});
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(2, 0)));  // outer bottom
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(4, 2)));  // outer right
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(2, 1)));  // hole bottom
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(1, 2)));  // hole left
+}
+
+TEST_F(Polygon2DTest, IsOnBoundary_False) {
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(0.5, 0.5)));   // interior
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(-0.1, 0.5)));  // outside left
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(1.1,  0.5)));  // outside right
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(0.5, -0.1)));  // outside below
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(0.5,  1.1)));  // outside above
+
+  // interior of polygon with hole is not boundary
+  auto outer = std::vector<g::Point2D>{{0,0}, {4,0}, {4,4}, {0,4}};
+  auto hole  = std::vector<g::Point2D>{{1,1}, {1,3}, {3,3}, {3,1}};
+  auto poly  = g::Polygon2D::Make(outer, {hole});
+  EXPECT_FALSE(poly.IsOnBoundary(g::Point2D(0.5, 0.5)));  // interior strip
+  EXPECT_FALSE(poly.IsOnBoundary(g::Point2D(2,   2)));    // inside hole
 }
 
 TEST_F(Polygon2DTest, ToSegments) {

@@ -11,6 +11,51 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.8.0] - 2026-05-06
+
+> C++ library — tagged `v0.8.0` · C# / NuGet — tagged `csharp-v0.8.0` · Python / PyPI — tagged `python-v0.8.0`
+
+> Touches `Polygon2D`, `Polygon3D`.
+
+### Added
+
+**C++ core**
+- `Polygon2D::IsOnBoundary(Point2D const&) const` — returns `true` if the point lies exactly on an edge (outer ring or any hole boundary); uses `LineSegment2D::Contains` per edge, which tolerates floating-point rounding up to `DECIMAL_PRECISION` digits.
+- `Polygon3D::IsOnBoundary(Point3D const&) const` — same semantics; rejects off-plane points immediately, then projects to 2D and delegates to `Polygon2D::IsOnBoundary`.
+
+**Python / PyPI**
+- `Polygon2D.is_on_boundary(point)` → `bool` — Python binding for the new method.
+- `Polygon3D.is_on_boundary(point)` → `bool` — Python binding for the new method.
+
+**C# / NuGet**
+- `Polygon2D.IsOnBoundary(Point2D^ point)` → `bool` — C# binding for the new method.
+- `Polygon3D.IsOnBoundary(Point3D^ point)` → `bool` — C# binding for the new method.
+
+### Fixed
+
+**C++ core**
+- `Polygon2D::Contains(Point2D const&)` — fixed inverted boundary logic: the winding-number check now runs only for interior classification; `IsOnBoundary` is called first and short-circuits to `true` before the winding count. Previously the order was reversed, causing interior points to return `false` when `IsOnBoundary` returned `false`.
+- `Polygon2D::FromWkt` / `Polygon3D::FromWkt` — were throwing for valid WKT strings in C++ tests (leftover `EXPECT_ANY_THROW` from when the function was a stub); tests updated to expect successful parse and verify vertex count and first point.
+- `Triangle3DTest::Contains_OnBoundary` — off-plane assertion changed from `z=0.001` to `z=0.01`; with `DECIMAL_PRECISION=3` the epsilon is exactly `0.001`, so the old value was within tolerance and the point was classified as on-plane.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_polygon2d.cpp`: `IsOnBoundary_True` — all four vertices, all four edge midpoints, outer-ring edge, and hole boundary edge; `IsOnBoundary_False` — interior point, two exterior points, interior-of-hole point.
+- `test_polygon3d.cpp`: same coverage in 3D; also tests a YZ-plane polygon and an off-plane point.
+- `test_polygon2d.cpp` / `test_polygon3d.cpp`: `Wkt` and `FromFile` tests updated to verify round-trip rather than expect a throw.
+- `test_triangle3d.cpp`: `Contains_OnBoundary` — off-plane assertion fixed to `z=0.01`.
+
+**Python (`geompp_python/tests`)**
+- `TestPolygon2D.test_is_on_boundary`: vertices, edge midpoints, interior/exterior false cases, hole boundary true and false cases.
+- `TestPolygon3D.test_is_on_boundary`: same in 3D plus off-plane false case.
+
+**C# (`geompp_csharp/tests`)**
+- `Polygon2D` — `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False`: vertices, edge midpoints, outer and hole edges, interior, outside.
+- `Polygon3D` — `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False`: same in 3D plus off-plane false case.
+
+---
+
 ## [0.7.0] - 2026-05-06
 
 > C++ library — tagged `v0.7.0` · C# / NuGet — tagged `csharp-v0.7.0` · Python / PyPI — tagged `python-v0.7.0`

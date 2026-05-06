@@ -228,24 +228,43 @@ std::ostream& operator<<(std::ostream& os, Polygon2D const& g) {
 
 #pragma region Geometrical Operations
 
-// winding number method
+bool Polygon2D::IsOnBoundary(Point2D const& point) const {
+  int n = VERTICES.size();
+  for (int i = 0; i < n; ++i) {
+    if (LineSegment2D::Make(VERTICES[i], VERTICES[(i + 1) % n]).Contains(point)) {
+      return true;
+    }
+  }
+  for (auto const& hole : HOLES) {
+    int nh = hole.size();
+    for (int i = 0; i < nh; ++i) {
+      if (LineSegment2D::Make(hole[i], hole[(i + 1) % nh]).Contains(point)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// winding number method — boundary-inclusive (matches Triangle behaviour)
 bool Polygon2D::Contains(Point2D const& point) const {
-  // quick rejection with bounding box
+  // quick rejection (outside of bounding box)
   if (!BBox2D(*this).Contains(point)) {
     return false;
   }
 
-  int wn = 0;
-
-  // perimeter
-  wn += wn_count(VERTICES, point);  // CCW will increase it
-
-  // holes
-  for (auto const& hole : HOLES) {
-    wn += wn_count(hole, point);  // CW will decrease it
+  // containment on boundaries (slow?)
+  if (IsOnBoundary(point)) {
+    return true;
   }
 
-  return wn != 0;  // zero if the point is outside
+  // strict containment: winding number method
+  int wn = 0;
+  wn += wn_count(VERTICES, point);
+  for (auto const& hole : HOLES) {
+    wn += wn_count(hole, point);
+  }
+  return wn != 0;  // wn == 0 if the point is outside
 }
 
 bool Polygon2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
@@ -308,9 +327,7 @@ std::string Polygon2D::ToWkt() const {
 
 Polygon2D Polygon2D::FromWkt(std::string const& wkt) {
   try {
-    std::size_t end_gtype, end_pn;
-
-    end_gtype = wkt.find('(');
+    std::size_t end_gtype = wkt.find('(');
     if (end_gtype == std::string::npos) {
       throw std::runtime_error("brakets");
     }
@@ -320,73 +337,52 @@ Polygon2D Polygon2D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_pn = wkt.substr(end_gtype + 1).rfind(')');
-    if (end_pn == std::string::npos) {
-      throw std::runtime_error("brakets");
+    std::size_t outer_close = wkt.rfind(')');
+    if (outer_close == std::string::npos) {
+      throw std::runtime_error("brakets (outer close)");
     }
 
-    std::string polygon_loops_wkt = wkt.substr(end_gtype + 1, end_pn);
+    // Content between outermost parens: e.g. "(x y, ...), (hx hy, ...)"
+    std::string content = wkt.substr(end_gtype + 1, outer_close - end_gtype - 1);
 
-    // find outer loop (first loop)
-    std::vector<Point2D> points;
-    std::size_t start_outer_loop, end_outer_loop;
-    {
-      start_outer_loop = end_gtype + 1 + polygon_loops_wkt.find('(');
-      if (start_outer_loop == std::string::npos) {
-        throw std::runtime_error("brakets (outer)");
+    // Parse each ring by scanning for '(' ... ')' pairs
+    std::vector<std::vector<Point2D>> rings;
+    std::size_t pos = 0;
+    while (pos < content.size()) {
+      std::size_t ring_open = content.find('(', pos);
+      if (ring_open == std::string::npos) {
+        break;
+      }
+      std::size_t ring_close = content.find(')', ring_open);
+      if (ring_close == std::string::npos) {
+        throw std::runtime_error("brakets (ring close)");
       }
 
-      end_outer_loop = end_gtype + 1 + polygon_loops_wkt.find(')');
-      if (end_pn == std::string::npos) {
-        throw std::runtime_error("brakets (outer/end)");
-      }
-
-      std::string outer_loop_str = wkt.substr(start_outer_loop + 1, end_outer_loop - start_outer_loop - 1);
-
-      for (std::string const& wkt_str : geompp::tokenize_string(outer_loop_str, ',')) {
-        std::string wkt_trimmed = geompp::trim(wkt_str);
-        auto nums = geompp::tokenize_to_doubles(wkt_trimmed);
+      std::string ring_str = content.substr(ring_open + 1, ring_close - ring_open - 1);
+      std::vector<Point2D> ring;
+      for (std::string const& tok : geompp::tokenize_string(ring_str, ',')) {
+        std::string trimmed = geompp::trim(tok);
+        auto nums = geompp::tokenize_to_doubles(trimmed);
         if (nums.size() != 2) {
           throw std::runtime_error("numbers");
         }
-        points.emplace_back(nums[0], nums[1]);
+        ring.emplace_back(nums[0], nums[1]);
       }
+      // WKT rings close by repeating the first point — drop it before passing to Make
+      if (ring.size() > 1 && ring.back().AlmostEquals(ring.front())) {
+        ring.pop_back();
+      }
+      rings.push_back(ring);
+      pos = ring_close + 1;
     }
 
-    // find holes (other loops)
-    std::vector<std::vector<Point2D>> holes;
-    std::size_t start_inner_loop =
-        polygon_loops_wkt.substr(end_outer_loop + 1).find(',');  // find the comma separator of loops
-    std::size_t end_inner_loop;
-    while (start_inner_loop != std::string::npos) {
-      start_inner_loop = start_inner_loop + polygon_loops_wkt.substr(end_outer_loop + 1).find('(');
-      if (start_inner_loop == std::string::npos) {
-        throw std::runtime_error("brakets (inner)");
-      }
-
-      end_inner_loop = start_inner_loop + polygon_loops_wkt.substr(end_outer_loop + 1).find(')');
-      if (end_inner_loop == std::string::npos) {
-        throw std::runtime_error("brakets (inner/end)");
-      }
-
-      std::vector<Point2D> hole;
-      std::string inner_loop_str = wkt.substr(start_inner_loop + 1, end_inner_loop - start_inner_loop - 1);
-      for (std::string const& wkt_str : geompp::tokenize_string(inner_loop_str, ',')) {
-        std::string wkt_trimmed = geompp::trim(wkt_str);
-        auto nums = geompp::tokenize_to_doubles(wkt_trimmed);
-        if (nums.size() != 2) {
-          throw std::runtime_error("numbers");
-        }
-        hole.emplace_back(nums[0], nums[1]);
-      }
-      holes.push_back(hole);
-
-      // reset to next comma separator of loops
-      start_inner_loop =
-          end_inner_loop + polygon_loops_wkt.substr(end_inner_loop + 1).find(',');  // find the comma separator of loops
+    if (rings.empty()) {
+      throw std::runtime_error("no rings");
     }
 
-    return Make(points, holes);
+    std::vector<Point2D> outer_ring = rings[0];
+    std::vector<std::vector<Point2D>> holes(rings.begin() + 1, rings.end());
+    return Make(outer_ring, holes);
 
   } catch (std::exception const& e) {
     GEOMPP_LOG(ERROR) << e.what();

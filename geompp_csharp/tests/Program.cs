@@ -454,6 +454,19 @@ Test("Contains_PointOutside_False", () => {
   IsFalse(t.Contains(new Point2D(5, 5)));
 });
 
+Test("Contains_OnBoundary_True", () => {
+  // right triangle P0=(0,0), P1=(4,0), P2=(0,3)
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
+  IsTrue(t.Contains(new Point2D(0,   0)),   "vertex P0");
+  IsTrue(t.Contains(new Point2D(4,   0)),   "vertex P1");
+  IsTrue(t.Contains(new Point2D(0,   3)),   "vertex P2");
+  IsTrue(t.Contains(new Point2D(2,   0)),   "base edge midpoint");
+  IsTrue(t.Contains(new Point2D(0,   1.5)), "left edge midpoint");
+  IsTrue(t.Contains(new Point2D(2,   1.5)), "hypotenuse midpoint");
+  IsFalse(t.Contains(new Point2D(2,  -0.01)), "just below base");
+  IsFalse(t.Contains(new Point2D(-0.01, 1.5)), "just left of edge");
+});
+
 Test("Interpolate_AtP0_ReturnsP0", () => {
   var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
   var p = t.Interpolate(0.0, 0.0);
@@ -705,6 +718,18 @@ Test("Contains_OffPlane_False", () => {
   IsFalse(t.Contains(new Point3D(0.3, 0.3, -1)), "below plane");
 });
 
+Test("Contains_OnBoundary_True", () => {
+  // right triangle P0=(0,0,0), P1=(2,0,0), P2=(0,2,0)
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(0, 2, 0));
+  IsTrue(t.Contains(new Point3D(0, 0, 0)),  "vertex P0");
+  IsTrue(t.Contains(new Point3D(2, 0, 0)),  "vertex P1");
+  IsTrue(t.Contains(new Point3D(0, 2, 0)),  "vertex P2");
+  IsTrue(t.Contains(new Point3D(1, 0, 0)),  "base edge midpoint");
+  IsTrue(t.Contains(new Point3D(0, 1, 0)),  "left edge midpoint");
+  IsTrue(t.Contains(new Point3D(1, 1, 0)),  "hypotenuse midpoint");
+  IsFalse(t.Contains(new Point3D(1, 0, 0.01)), "just off-plane");
+});
+
 // ── Triangle2D ────────────────────────────────────────────────────────────────
 Console.WriteLine("\nTriangle2D");
 
@@ -878,6 +903,57 @@ Test("Contains_WithHole_InsideHole_False", () => {
   IsFalse(poly.Contains(new Point2D(2, 2)), "inside hole must be false");
 });
 
+Test("Contains_OnBoundary_True", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Contains(new Point2D(0,   0)),   "vertex (0,0)");
+  IsTrue(sq.Contains(new Point2D(1,   0)),   "vertex (1,0)");
+  IsTrue(sq.Contains(new Point2D(1,   1)),   "vertex (1,1)");
+  IsTrue(sq.Contains(new Point2D(0,   1)),   "vertex (0,1)");
+  IsTrue(sq.Contains(new Point2D(0.5, 0)),   "bottom edge midpoint");
+  IsTrue(sq.Contains(new Point2D(1,   0.5)), "right edge midpoint");
+  IsTrue(sq.Contains(new Point2D(0.5, 1)),   "top edge midpoint");
+  IsTrue(sq.Contains(new Point2D(0,   0.5)), "left edge midpoint");
+  // hole boundary is also included
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
+  var poly  = Polygon2D.Make(outer, new[] { hole });
+  IsTrue(poly.Contains(new Point2D(2, 0)), "outer bottom edge");
+  IsTrue(poly.Contains(new Point2D(4, 2)), "outer right edge");
+  IsTrue(poly.Contains(new Point2D(2, 1)), "hole bottom edge");
+  IsTrue(poly.Contains(new Point2D(1, 2)), "hole left edge");
+});
+
+Test("IsOnBoundary_OnEdge_True", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.IsOnBoundary(new Point2D(0,   0)),   "vertex (0,0)");
+  IsTrue(sq.IsOnBoundary(new Point2D(1,   0)),   "vertex (1,0)");
+  IsTrue(sq.IsOnBoundary(new Point2D(1,   1)),   "vertex (1,1)");
+  IsTrue(sq.IsOnBoundary(new Point2D(0,   1)),   "vertex (0,1)");
+  IsTrue(sq.IsOnBoundary(new Point2D(0.5, 0)),   "bottom edge midpoint");
+  IsTrue(sq.IsOnBoundary(new Point2D(1,   0.5)), "right edge midpoint");
+  IsTrue(sq.IsOnBoundary(new Point2D(0.5, 1)),   "top edge midpoint");
+  IsTrue(sq.IsOnBoundary(new Point2D(0,   0.5)), "left edge midpoint");
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
+  var poly  = Polygon2D.Make(outer, new[] { hole });
+  IsTrue(poly.IsOnBoundary(new Point2D(2, 0)), "outer bottom edge");
+  IsTrue(poly.IsOnBoundary(new Point2D(4, 2)), "outer right edge");
+  IsTrue(poly.IsOnBoundary(new Point2D(2, 1)), "hole bottom edge");
+  IsTrue(poly.IsOnBoundary(new Point2D(1, 2)), "hole left edge");
+});
+
+Test("IsOnBoundary_Interior_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsFalse(sq.IsOnBoundary(new Point2D(0.5, 0.5)),  "interior");
+  IsFalse(sq.IsOnBoundary(new Point2D(-0.1, 0.5)), "outside left");
+  IsFalse(sq.IsOnBoundary(new Point2D(1.1,  0.5)), "outside right");
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
+  var poly  = Polygon2D.Make(outer, new[] { hole });
+  IsFalse(poly.IsOnBoundary(new Point2D(0.5, 0.5)), "interior strip");
+  IsFalse(poly.IsOnBoundary(new Point2D(2,   2)),   "inside hole");
+});
+
 // ── Polygon3D ─────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPolygon3D");
 
@@ -952,6 +1028,54 @@ Test("Contains_WithHole_InsideHole_False", () => {
   var poly  = Polygon3D.Make(outer, new[] { hole });
   IsFalse(poly.Contains(new Point3D(2, 2, 0)), "inside hole must be false");
   IsFalse(poly.Contains(new Point3D(2, 2, 1)), "above plane must be false");
+});
+
+Test("Contains_OnBoundary_True", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(sq.Contains(new Point3D(0,   0,   0)), "vertex (0,0,0)");
+  IsTrue(sq.Contains(new Point3D(1,   0,   0)), "vertex (1,0,0)");
+  IsTrue(sq.Contains(new Point3D(1,   1,   0)), "vertex (1,1,0)");
+  IsTrue(sq.Contains(new Point3D(0,   1,   0)), "vertex (0,1,0)");
+  IsTrue(sq.Contains(new Point3D(0.5, 0,   0)), "bottom edge midpoint");
+  IsTrue(sq.Contains(new Point3D(1,   0.5, 0)), "right edge midpoint");
+  IsTrue(sq.Contains(new Point3D(0.5, 1,   0)), "top edge midpoint");
+  IsTrue(sq.Contains(new Point3D(0,   0.5, 0)), "left edge midpoint");
+  var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+  var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
+  var poly  = Polygon3D.Make(outer, new[] { hole });
+  IsTrue(poly.Contains(new Point3D(2, 0, 0)), "outer bottom edge");
+  IsTrue(poly.Contains(new Point3D(2, 1, 0)), "hole bottom edge");
+});
+
+Test("IsOnBoundary_OnEdge_True", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(sq.IsOnBoundary(new Point3D(0,   0,   0)), "vertex (0,0,0)");
+  IsTrue(sq.IsOnBoundary(new Point3D(1,   0,   0)), "vertex (1,0,0)");
+  IsTrue(sq.IsOnBoundary(new Point3D(1,   1,   0)), "vertex (1,1,0)");
+  IsTrue(sq.IsOnBoundary(new Point3D(0,   1,   0)), "vertex (0,1,0)");
+  IsTrue(sq.IsOnBoundary(new Point3D(0.5, 0,   0)), "bottom edge midpoint");
+  IsTrue(sq.IsOnBoundary(new Point3D(1,   0.5, 0)), "right edge midpoint");
+  IsTrue(sq.IsOnBoundary(new Point3D(0.5, 1,   0)), "top edge midpoint");
+  IsTrue(sq.IsOnBoundary(new Point3D(0,   0.5, 0)), "left edge midpoint");
+  var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+  var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
+  var poly  = Polygon3D.Make(outer, new[] { hole });
+  IsTrue(poly.IsOnBoundary(new Point3D(2, 0, 0)), "outer bottom edge");
+  IsTrue(poly.IsOnBoundary(new Point3D(4, 2, 0)), "outer right edge");
+  IsTrue(poly.IsOnBoundary(new Point3D(2, 1, 0)), "hole bottom edge");
+  IsTrue(poly.IsOnBoundary(new Point3D(1, 2, 0)), "hole left edge");
+});
+
+Test("IsOnBoundary_Interior_False", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsFalse(sq.IsOnBoundary(new Point3D(0.5, 0.5, 0)),    "interior");
+  IsFalse(sq.IsOnBoundary(new Point3D(-0.1, 0.5, 0)),   "outside left");
+  IsFalse(sq.IsOnBoundary(new Point3D(0.5,  0.5, 0.01)), "off-plane");
+  var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+  var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
+  var poly  = Polygon3D.Make(outer, new[] { hole });
+  IsFalse(poly.IsOnBoundary(new Point3D(0.5, 0.5, 0)), "interior strip");
+  IsFalse(poly.IsOnBoundary(new Point3D(2,   2,   0)), "inside hole");
 });
 
 // ── Vector2D ──────────────────────────────────────────────────────────────────

@@ -81,8 +81,13 @@ TEST_F(Polygon3DTest, Wkt) {
       {g::Point3D(0.123, 0.456, 0), g::Point3D(8.789, 0.123, 0), g::Point3D(4.321, 7.654, 0)});
   ASSERT_EQ("POLYGON ((0.12 0.46 0, 8.79 0.12 0, 4.32 7.65 0, 0.12 0.46 0))", p2.ToWkt());
 
-  // FromWkt is not yet implemented — all calls throw
-  EXPECT_ANY_THROW(g::Polygon3D::FromWkt("POLYGON ((0 0 0, 1 0 0, 1 1 0, 0 1 0, 0 0 0))"));
+  // FromWkt round-trips correctly
+  geompp::DECIMAL_PRECISION = 4;
+  auto q = g::Polygon3D::FromWkt("POLYGON ((0 0 0, 1 0 0, 1 1 0, 0 1 0, 0 0 0))");
+  EXPECT_EQ(4, q.Size());
+  EXPECT_EQ(g::Point3D(0, 0, 0), q[0]);
+  EXPECT_EQ(g::Point3D(1, 0, 0), q[1]);
+  // invalid input still throws
   EXPECT_ANY_THROW(g::Polygon3D::FromWkt("anything"));
 }
 
@@ -159,10 +164,10 @@ TEST_F(Polygon3DTest, ToFile) {
 }
 
 TEST_F(Polygon3DTest, FromFile) {
-  // FromFile calls FromWkt which is not yet implemented
   std::string path = (test_res_path / "polygon3d" / "polygon.wkt").string();
   ASSERT_TRUE(fs::exists(path));
-  EXPECT_ANY_THROW(g::Polygon3D::FromFile(path));
+  auto p = g::Polygon3D::FromFile(path);
+  EXPECT_EQ(4, p.Size());
 }
 
 // ---- Centroid ---------------------------------------------------------------
@@ -387,6 +392,80 @@ TEST_F(Polygon3DTest, Contains) {
   auto yz_sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(0,1,0), g::Point3D(0,1,1), g::Point3D(0,0,1)});
   EXPECT_TRUE(yz_sq.Contains(g::Point3D(0, 0.5, 0.5)));   // center of YZ square
   EXPECT_FALSE(yz_sq.Contains(g::Point3D(1, 0.5, 0.5)));  // off-plane
+}
+
+TEST_F(Polygon3DTest, Contains_OnBoundary) {
+  // Boundary is included (delegates to Polygon2D after projection).
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+
+  // vertices
+  EXPECT_TRUE(sq.Contains(g::Point3D(0, 0, 0)));
+  EXPECT_TRUE(sq.Contains(g::Point3D(1, 0, 0)));
+  EXPECT_TRUE(sq.Contains(g::Point3D(1, 1, 0)));
+  EXPECT_TRUE(sq.Contains(g::Point3D(0, 1, 0)));
+
+  // edge midpoints
+  EXPECT_TRUE(sq.Contains(g::Point3D(0.5, 0,   0)));  // bottom edge
+  EXPECT_TRUE(sq.Contains(g::Point3D(1,   0.5, 0)));  // right edge
+  EXPECT_TRUE(sq.Contains(g::Point3D(0.5, 1,   0)));  // top edge
+  EXPECT_TRUE(sq.Contains(g::Point3D(0,   0.5, 0)));  // left edge
+
+  // non-XY plane: YZ square at x=0
+  auto yz = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(0,1,0), g::Point3D(0,1,1), g::Point3D(0,0,1)});
+  EXPECT_TRUE(yz.Contains(g::Point3D(0, 0.5, 0)));  // bottom edge midpoint
+  EXPECT_TRUE(yz.Contains(g::Point3D(0, 0,   0)));  // vertex
+
+  // hole boundary
+  auto outer = std::vector<g::Point3D>{{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
+  auto hole  = std::vector<g::Point3D>{{1,1,0}, {1,3,0}, {3,3,0}, {3,1,0}};
+  auto poly  = g::Polygon3D::Make(outer, {hole});
+  EXPECT_TRUE(poly.Contains(g::Point3D(2, 0, 0)));  // outer bottom edge
+  EXPECT_TRUE(poly.Contains(g::Point3D(2, 1, 0)));  // hole bottom edge
+}
+
+TEST_F(Polygon3DTest, IsOnBoundary_True) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+
+  // all four vertices
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0,   0,   0)));
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(1,   0,   0)));
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(1,   1,   0)));
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0,   1,   0)));
+
+  // edge midpoints
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0.5, 0,   0)));  // bottom
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(1,   0.5, 0)));  // right
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0.5, 1,   0)));  // top
+  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0,   0.5, 0)));  // left
+
+  // non-XY plane: YZ square at x=0
+  auto yz = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(0,1,0), g::Point3D(0,1,1), g::Point3D(0,0,1)});
+  EXPECT_TRUE(yz.IsOnBoundary(g::Point3D(0, 0.5, 0)));  // bottom edge midpoint
+  EXPECT_TRUE(yz.IsOnBoundary(g::Point3D(0, 0,   0)));  // vertex
+
+  // hole boundary
+  auto outer = std::vector<g::Point3D>{{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
+  auto hole  = std::vector<g::Point3D>{{1,1,0}, {1,3,0}, {3,3,0}, {3,1,0}};
+  auto poly  = g::Polygon3D::Make(outer, {hole});
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(2, 0, 0)));  // outer bottom
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(4, 2, 0)));  // outer right
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(2, 1, 0)));  // hole bottom
+  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(1, 2, 0)));  // hole left
+}
+
+TEST_F(Polygon3DTest, IsOnBoundary_False) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point3D(0.5, 0.5, 0)));   // interior
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point3D(-0.1, 0.5, 0)));  // outside left
+  EXPECT_FALSE(sq.IsOnBoundary(g::Point3D(0.5,  0.5, 0.01)));  // off-plane
+
+  // interior of polygon with hole is not boundary
+  auto outer = std::vector<g::Point3D>{{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
+  auto hole  = std::vector<g::Point3D>{{1,1,0}, {1,3,0}, {3,3,0}, {3,1,0}};
+  auto poly  = g::Polygon3D::Make(outer, {hole});
+  EXPECT_FALSE(poly.IsOnBoundary(g::Point3D(0.5, 0.5, 0)));  // interior strip
+  EXPECT_FALSE(poly.IsOnBoundary(g::Point3D(2,   2,   0)));  // inside hole
 }
 
 TEST_F(Polygon3DTest, ToSegments) {

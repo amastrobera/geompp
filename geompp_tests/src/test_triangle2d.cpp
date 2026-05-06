@@ -77,6 +77,26 @@ TEST_F(Triangle2DTest, Contains) {
                           (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
 }
 
+TEST_F(Triangle2DTest, Contains_OnBoundary) {
+  // right triangle: P0=(0,0), P1=(4,0), P2=(0,3)
+  auto t = g::Triangle2D::Make(g::Point2D(0,0), g::Point2D(4,0), g::Point2D(0,3));
+
+  // vertices
+  EXPECT_TRUE(t.Contains(g::Point2D(0, 0)));
+  EXPECT_TRUE(t.Contains(g::Point2D(4, 0)));
+  EXPECT_TRUE(t.Contains(g::Point2D(0, 3)));
+
+  // edge midpoints
+  EXPECT_TRUE(t.Contains(g::Point2D(2, 0)));    // horizontal base
+  EXPECT_TRUE(t.Contains(g::Point2D(0, 1.5)));  // vertical left edge
+  EXPECT_TRUE(t.Contains(g::Point2D(2, 1.5)));  // hypotenuse midpoint
+
+  // just outside each edge
+  EXPECT_FALSE(t.Contains(g::Point2D(2,   -0.01)));  // below base
+  EXPECT_FALSE(t.Contains(g::Point2D(-0.01, 1.5)));  // left of vertical edge
+  EXPECT_FALSE(t.Contains(g::Point2D(2.5,  1.5)));   // outside hypotenuse
+}
+
 TEST_F(Triangle2DTest, Areas) {
   geompp::DECIMAL_PRECISION = 4;
   auto t_ccw = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));

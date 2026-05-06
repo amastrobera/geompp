@@ -48,6 +48,7 @@ class Polygon3D {
 
 #pragma region Geometrical Operations
   bool Contains(Point3D const& point) const;
+  bool IsOnBoundary(Point3D const& point) const;
   using ReturnSet = std::optional<std::variant<Point3D>>;
   bool Intersects(Line3D const& line) const;
   bool Intersects(Ray3D const& ray) const;

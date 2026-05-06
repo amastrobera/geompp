@@ -23,7 +23,8 @@ void bind_polygon3d(py::module_& m) {
         .def("area",        &geompp::Polygon3D::Area)
         .def("perimeter",   &geompp::Polygon3D::Perimeter)
         .def("distance_to", &geompp::Polygon3D::DistanceTo,  "point"_a)
-        .def("contains",    &geompp::Polygon3D::Contains,    "point"_a)
+        .def("contains",       &geompp::Polygon3D::Contains,      "point"_a)
+        .def("is_on_boundary", &geompp::Polygon3D::IsOnBoundary, "point"_a)
         BIND_ALMOST_EQUALS(Polygon3D)
         BIND_SERIALIZATION(Polygon3D)
         .def("intersects",

@@ -1067,6 +1067,52 @@ class TestPolygon2D:
         assert not poly.contains(geompp.Point2D(2, 2))   # inside hole
         assert not poly.contains(geompp.Point2D(-1, 2))  # outside outer
 
+        # boundary — vertices and edge midpoints are included
+        assert square.contains(geompp.Point2D(0,   0))    # bottom-left vertex
+        assert square.contains(geompp.Point2D(1,   0))    # bottom-right vertex
+        assert square.contains(geompp.Point2D(1,   1))    # top-right vertex
+        assert square.contains(geompp.Point2D(0,   1))    # top-left vertex
+        assert square.contains(geompp.Point2D(0.5, 0))    # bottom edge midpoint
+        assert square.contains(geompp.Point2D(1,   0.5))  # right edge midpoint
+        assert square.contains(geompp.Point2D(0.5, 1))    # top edge midpoint
+        assert square.contains(geompp.Point2D(0,   0.5))  # left edge midpoint
+        assert poly.contains(geompp.Point2D(2,   0))      # outer bottom edge
+        assert poly.contains(geompp.Point2D(4,   2))      # outer right edge
+        assert poly.contains(geompp.Point2D(2,   1))      # hole bottom edge
+        assert poly.contains(geompp.Point2D(1,   2))      # hole left edge
+
+    def test_is_on_boundary(self, square):
+        # vertices
+        assert square.is_on_boundary(geompp.Point2D(0,   0))
+        assert square.is_on_boundary(geompp.Point2D(1,   0))
+        assert square.is_on_boundary(geompp.Point2D(1,   1))
+        assert square.is_on_boundary(geompp.Point2D(0,   1))
+        # edge midpoints
+        assert square.is_on_boundary(geompp.Point2D(0.5, 0))
+        assert square.is_on_boundary(geompp.Point2D(1,   0.5))
+        assert square.is_on_boundary(geompp.Point2D(0.5, 1))
+        assert square.is_on_boundary(geompp.Point2D(0,   0.5))
+        # interior and outside must be False
+        assert not square.is_on_boundary(geompp.Point2D(0.5, 0.5))
+        assert not square.is_on_boundary(geompp.Point2D(-0.1, 0.5))
+        assert not square.is_on_boundary(geompp.Point2D(1.1,  0.5))
+        # hole boundary
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+            geompp.Point2D(3, 3), geompp.Point2D(3, 1),
+        ]
+        poly = geompp.Polygon2D.make(outer, [hole])
+        assert poly.is_on_boundary(geompp.Point2D(2, 0))  # outer bottom
+        assert poly.is_on_boundary(geompp.Point2D(4, 2))  # outer right
+        assert poly.is_on_boundary(geompp.Point2D(2, 1))  # hole bottom
+        assert poly.is_on_boundary(geompp.Point2D(1, 2))  # hole left
+        assert not poly.is_on_boundary(geompp.Point2D(0.5, 0.5))  # interior
+        assert not poly.is_on_boundary(geompp.Point2D(2,   2))    # inside hole
+
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
@@ -1312,6 +1358,16 @@ class TestPolygon3D:
         assert not poly.contains(geompp.Point3D(-1, 2, 0))  # outside outer
         assert not poly.contains(geompp.Point3D(2, 2, 1))   # above plane
 
+        # boundary — vertices and edge midpoints are included
+        assert sq.contains(geompp.Point3D(0,   0,   0))   # vertex
+        assert sq.contains(geompp.Point3D(1,   0,   0))   # vertex
+        assert sq.contains(geompp.Point3D(0.5, 0,   0))   # bottom edge midpoint
+        assert sq.contains(geompp.Point3D(1,   0.5, 0))   # right edge midpoint
+        assert sq.contains(geompp.Point3D(0.5, 1,   0))   # top edge midpoint
+        assert sq.contains(geompp.Point3D(0,   0.5, 0))   # left edge midpoint
+        assert poly.contains(geompp.Point3D(2,   0,   0))  # outer bottom edge
+        assert poly.contains(geompp.Point3D(2,   1,   0))  # hole bottom edge
+
         # square in YZ plane (x=0)
         yz_sq = geompp.Polygon3D.make([
             geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
@@ -1319,6 +1375,43 @@ class TestPolygon3D:
         ])
         assert yz_sq.contains(geompp.Point3D(0, 0.5, 0.5))
         assert not yz_sq.contains(geompp.Point3D(1, 0.5, 0.5))  # off-plane
+
+    def test_is_on_boundary(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        sq = geompp.Polygon3D.make(pts)
+        # vertices
+        assert sq.is_on_boundary(geompp.Point3D(0,   0,   0))
+        assert sq.is_on_boundary(geompp.Point3D(1,   0,   0))
+        assert sq.is_on_boundary(geompp.Point3D(1,   1,   0))
+        assert sq.is_on_boundary(geompp.Point3D(0,   1,   0))
+        # edge midpoints
+        assert sq.is_on_boundary(geompp.Point3D(0.5, 0,   0))
+        assert sq.is_on_boundary(geompp.Point3D(1,   0.5, 0))
+        assert sq.is_on_boundary(geompp.Point3D(0.5, 1,   0))
+        assert sq.is_on_boundary(geompp.Point3D(0,   0.5, 0))
+        # interior and outside must be False
+        assert not sq.is_on_boundary(geompp.Point3D(0.5, 0.5, 0))
+        assert not sq.is_on_boundary(geompp.Point3D(-0.1, 0.5, 0))
+        assert not sq.is_on_boundary(geompp.Point3D(0.5,  0.5, 0.01))  # off-plane
+        # hole boundary
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        poly = geompp.Polygon3D.make(outer, [hole])
+        assert poly.is_on_boundary(geompp.Point3D(2, 0, 0))  # outer bottom
+        assert poly.is_on_boundary(geompp.Point3D(4, 2, 0))  # outer right
+        assert poly.is_on_boundary(geompp.Point3D(2, 1, 0))  # hole bottom
+        assert poly.is_on_boundary(geompp.Point3D(1, 2, 0))  # hole left
+        assert not poly.is_on_boundary(geompp.Point3D(0.5, 0.5, 0))  # interior
+        assert not poly.is_on_boundary(geompp.Point3D(2,   2,   0))  # inside hole
 
 
 # ─── Free function centroid (3D) ─────────────────────────────────────────────
@@ -1959,6 +2052,18 @@ class TestTriangle3D:
         )
         assert t2.contains(t2.centroid())
         assert not t2.contains(geompp.Point3D(1, 0.5, 0.5))  # off-plane
+
+        # boundary — vertices and edge midpoints are included (P0,P1,P2 = (0,0,0),(1,0,0),(0,1,0))
+        p0 = geompp.Point3D(0, 0, 0)
+        p1 = geompp.Point3D(1, 0, 0)
+        p2 = geompp.Point3D(0, 1, 0)
+        assert tri.contains(p0)                                     # vertex P0
+        assert tri.contains(p1)                                     # vertex P1
+        assert tri.contains(p2)                                     # vertex P2
+        assert tri.contains(geompp.Point3D(0.5, 0,   0))           # base edge midpoint
+        assert tri.contains(geompp.Point3D(0,   0.5, 0))           # left edge midpoint
+        assert tri.contains(geompp.Point3D(0.5, 0.5, 0))           # hypotenuse midpoint
+        assert not tri.contains(geompp.Point3D(0.5, 0, 0.01))      # just off-plane
 
 
 # ─── BBox2D ──────────────────────────────────────────────────────────────────

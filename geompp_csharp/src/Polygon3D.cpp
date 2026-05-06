@@ -95,6 +95,10 @@ bool Polygon3D::Contains(Point3D^ point) {
     return _native->Contains(*point->_native);
 }
 
+bool Polygon3D::IsOnBoundary(Point3D^ point) {
+    return _native->IsOnBoundary(*point->_native);
+}
+
 System::String^ Polygon3D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }
