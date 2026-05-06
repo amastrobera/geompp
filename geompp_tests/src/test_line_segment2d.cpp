@@ -337,4 +337,41 @@ TEST_F(LineSegment2DTest, DistanceTo) {
   EXPECT_EQ(7, g::round(seg.DistanceTo(p8)));
 }
 
+TEST_F(LineSegment2DTest, IsLeft) {
+  // IsLeft tests the sign of the cross product (P1-P0) × p, where p is the
+  // absolute position vector of the query point (from the world origin).
+  // Formula: (P1.x - P0.x)*p.y - (P1.y - P0.y)*p.x > 0
+
+  // rightward segment at origin: formula = p.y
+  {
+    auto seg = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
+    ASSERT_TRUE(seg.IsLeft(g::Point2D(0, 1)));    // above → left
+    ASSERT_FALSE(seg.IsLeft(g::Point2D(0, -1)));  // below → right
+    ASSERT_FALSE(seg.IsLeft(g::Point2D(1, 0)));   // on the direction line → not left
+  }
+
+  // upward segment at origin: formula = -p.x
+  {
+    auto seg = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(0, 1));
+    ASSERT_TRUE(seg.IsLeft(g::Point2D(-1, 0)));   // left of upward → left
+    ASSERT_FALSE(seg.IsLeft(g::Point2D(1, 0)));   // right of upward → right
+    ASSERT_FALSE(seg.IsLeft(g::Point2D(0, 1)));   // collinear from origin → not left
+  }
+
+  // diagonal segment (0,0)→(1,1): formula = p.y - p.x
+  {
+    auto seg = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 1));
+    ASSERT_TRUE(seg.IsLeft(g::Point2D(0, 1)));    // above y=x → left
+    ASSERT_FALSE(seg.IsLeft(g::Point2D(1, 0)));   // below y=x → right
+    ASSERT_FALSE(seg.IsLeft(g::Point2D(1, 1)));   // on the line → not left
+  }
+
+  // reversed rightward (1,0)→(0,0): formula = -p.y
+  {
+    auto seg = g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D::Zero());
+    ASSERT_TRUE(seg.IsLeft(g::Point2D(0, -1)));   // below → left when going leftward
+    ASSERT_FALSE(seg.IsLeft(g::Point2D(0, 1)));   // above → right when going leftward
+  }
+}
+
 }  // namespace geompp_tests

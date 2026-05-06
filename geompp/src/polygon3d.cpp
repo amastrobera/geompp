@@ -1,8 +1,11 @@
 #include "polygon3d.hpp"
 
+#include "bbox3d.hpp"
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
+#include "point2d.hpp"
+#include "polygon2d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
 
@@ -12,6 +15,7 @@
 #include <format>
 #include <fstream>
 #include <limits>
+#include <ranges>
 #include <sstream>
 #include <stdexcept>
 
@@ -207,7 +211,49 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Polygon3D::Contains(Point3D const& point) const { throw std::runtime_error("not implemented"); }
+bool Polygon3D::IsOnBoundary(Point3D const& point) const {
+  if (!PLANE.Contains(point)) {
+    return false;
+  }
+
+  auto project_view = VERTICES | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
+  std::vector<Point2D> outer2d(project_view.begin(), project_view.end());
+
+  std::vector<std::vector<Point2D>> inners2d;
+  for (auto const& hole : HOLES) {
+    auto project_view_h = hole | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
+    inners2d.push_back(std::vector<Point2D>(project_view_h.begin(), project_view_h.end()));
+  }
+
+  auto proj_poly = Polygon2D::Make(outer2d, inners2d);
+  return proj_poly.IsOnBoundary(PLANE.ProjectInto(point));
+}
+
+bool Polygon3D::Contains(Point3D const& point) const {
+  // quick rejection with bounding box
+  if (!BBox3D(*this).Contains(point)) {
+    return false;
+  }
+
+  // another quick rejection: if not on the plane, can't belong to the polygon
+  if (!PLANE.Contains(point)) {
+    return false;
+  }
+
+  // final test: project all in 2D, and verify in 2D
+  auto project_view = VERTICES | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
+  std::vector<Point2D> outer2d(project_view.begin(), project_view.end());
+
+  std::vector<std::vector<Point2D>> inners2d;
+  for (auto const& hole : HOLES) {
+    auto project_view_h = hole | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
+    inners2d.push_back(std::vector<Point2D>(project_view_h.begin(), project_view_h.end()));
+  }
+
+  auto proj_poly = Polygon2D::Make(outer2d, inners2d);
+
+  return proj_poly.Contains(PLANE.ProjectInto(point));
+}
 
 bool Polygon3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
 
@@ -268,9 +314,7 @@ std::string Polygon3D::ToWkt() const {
 
 Polygon3D Polygon3D::FromWkt(std::string const& wkt) {
   try {
-    std::size_t end_gtype, end_pn;
-
-    end_gtype = wkt.find('(');
+    std::size_t end_gtype = wkt.find('(');
     if (end_gtype == std::string::npos) {
       throw std::runtime_error("brakets");
     }
@@ -280,73 +324,52 @@ Polygon3D Polygon3D::FromWkt(std::string const& wkt) {
       throw std::runtime_error("geometry name");
     }
 
-    end_pn = wkt.substr(end_gtype + 1).rfind(')');
-    if (end_pn == std::string::npos) {
-      throw std::runtime_error("brakets");
+    std::size_t outer_close = wkt.rfind(')');
+    if (outer_close == std::string::npos) {
+      throw std::runtime_error("brakets (outer close)");
     }
 
-    std::string polygon_loops_wkt = wkt.substr(end_gtype + 1, end_pn);
+    // Content between outermost parens: e.g. "(x y z, ...), (hx hy hz, ...)"
+    std::string content = wkt.substr(end_gtype + 1, outer_close - end_gtype - 1);
 
-    // find outer loop (first loop)
-    std::vector<Point3D> points;
-    std::size_t start_outer_loop, end_outer_loop;
-    {
-      start_outer_loop = end_gtype + polygon_loops_wkt.find('(');
-      if (start_outer_loop == std::string::npos) {
-        throw std::runtime_error("brakets (outer)");
+    // Parse each ring by scanning for '(' ... ')' pairs
+    std::vector<std::vector<Point3D>> rings;
+    std::size_t pos = 0;
+    while (pos < content.size()) {
+      std::size_t ring_open = content.find('(', pos);
+      if (ring_open == std::string::npos) {
+        break;
+      }
+      std::size_t ring_close = content.find(')', ring_open);
+      if (ring_close == std::string::npos) {
+        throw std::runtime_error("brakets (ring close)");
       }
 
-      end_outer_loop = end_gtype + polygon_loops_wkt.find(')');
-      if (end_pn == std::string::npos) {
-        throw std::runtime_error("brakets (outer/end)");
-      }
-
-      std::string outer_loop_str = wkt.substr(start_outer_loop + 1, end_outer_loop - start_outer_loop - 1);
-
-      for (std::string const& wkt_str : geompp::tokenize_string(outer_loop_str, ',')) {
-        std::string wkt_trimmed = geompp::trim(wkt_str);
-        auto nums = geompp::tokenize_to_doubles(wkt_trimmed);
+      std::string ring_str = content.substr(ring_open + 1, ring_close - ring_open - 1);
+      std::vector<Point3D> ring;
+      for (std::string const& tok : geompp::tokenize_string(ring_str, ',')) {
+        std::string trimmed = geompp::trim(tok);
+        auto nums = geompp::tokenize_to_doubles(trimmed);
         if (nums.size() != 3) {
           throw std::runtime_error("numbers");
         }
-        points.emplace_back(nums[0], nums[1], nums[2]);
+        ring.emplace_back(nums[0], nums[1], nums[2]);
       }
+      // WKT rings close by repeating the first point — drop it before passing to Make
+      if (ring.size() > 1 && ring.back().AlmostEquals(ring.front())) {
+        ring.pop_back();
+      }
+      rings.push_back(ring);
+      pos = ring_close + 1;
     }
 
-    // find holes (other loops)
-    std::vector<std::vector<Point3D>> holes;
-    std::size_t start_inner_loop =
-        polygon_loops_wkt.substr(end_outer_loop + 1).find(',');  // find the comma separator of loops
-    std::size_t end_inner_loop;
-    while (start_inner_loop != std::string::npos) {
-      start_inner_loop = start_inner_loop + polygon_loops_wkt.substr(end_outer_loop + 1).find('(');
-      if (start_inner_loop == std::string::npos) {
-        throw std::runtime_error("brakets (inner)");
-      }
-
-      end_inner_loop = start_inner_loop + polygon_loops_wkt.substr(end_outer_loop + 1).find(')');
-      if (end_inner_loop == std::string::npos) {
-        throw std::runtime_error("brakets (inner/end)");
-      }
-
-      std::vector<Point3D> hole;
-      std::string inner_loop_str = wkt.substr(start_inner_loop + 1, end_inner_loop - start_inner_loop - 1);
-      for (std::string const& wkt_str : geompp::tokenize_string(inner_loop_str, ',')) {
-        std::string wkt_trimmed = geompp::trim(wkt_str);
-        auto nums = geompp::tokenize_to_doubles(wkt_trimmed);
-        if (nums.size() != 3) {
-          throw std::runtime_error("numbers");
-        }
-        hole.emplace_back(nums[0], nums[1], nums[2]);
-      }
-      holes.push_back(hole);
-
-      // reset to next comma separator of loops
-      start_inner_loop =
-          end_inner_loop + polygon_loops_wkt.substr(end_inner_loop + 1).find(',');  // find the comma separator of loops
+    if (rings.empty()) {
+      throw std::runtime_error("no rings");
     }
 
-    return Make(points, holes);
+    std::vector<Point3D> outer_ring = rings[0];
+    std::vector<std::vector<Point3D>> holes(rings.begin() + 1, rings.end());
+    return Make(outer_ring, holes);
 
   } catch (std::exception const& e) {
     GEOMPP_LOG(ERROR) << e.what();

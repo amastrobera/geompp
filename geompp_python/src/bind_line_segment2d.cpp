@@ -14,6 +14,7 @@ void bind_line_segment2d(py::module_& m) {
         .def("location",     &geompp::LineSegment2D::Location,    "point"_a)
         .def("interpolate", &geompp::LineSegment2D::Interpolate, "pct"_a)
         .def("contains",    &geompp::LineSegment2D::Contains,    "point"_a)
+        .def("is_left",     &geompp::LineSegment2D::IsLeft,      "point"_a)
         BIND_ALMOST_EQUALS(LineSegment2D)
         BIND_SERIALIZATION(LineSegment2D)
         .def("intersects",

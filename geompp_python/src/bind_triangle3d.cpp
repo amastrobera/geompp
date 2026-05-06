@@ -27,6 +27,12 @@ void bind_triangle3d(py::module_& m) {
             if (!r.has_value()) return py::none();
             return py::cast(r.value());
         }, "s"_a, "t"_a)
+        .def("location", [](const geompp::Triangle3D& t, const geompp::Point3D& p) -> py::object {
+            auto r = t.Location(p);
+            if (!r.has_value()) return py::none();
+            auto [s, tt] = r.value();
+            return py::make_tuple(s, tt);
+        }, "point"_a)
         .def("contains",    &geompp::Triangle3D::Contains,   "point"_a)
         BIND_ALMOST_EQUALS(Triangle3D)
         BIND_SERIALIZATION(Triangle3D)

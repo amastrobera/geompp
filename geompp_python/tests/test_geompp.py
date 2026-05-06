@@ -106,6 +106,23 @@ class TestPoint2D:
     def test_repr(self):
         assert "POINT" in repr(geompp.Point2D(1, 2))
 
+    def test_to_vector(self):
+        v = geompp.Point2D(3.0, 4.0).to_vector()
+        assert isinstance(v, geompp.Vector2D)
+        assert approx(v.x, 3.0) and approx(v.y, 4.0)
+
+    def test_to_file_from_file(self):
+        p = geompp.Point2D(1.5, 2.5)
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            p.to_file(path)
+            assert os.path.exists(path)
+            p2 = geompp.Point2D.from_file(path)
+            assert p.almost_equals(p2)
+        finally:
+            os.unlink(path)
+
 
 # ─── Point3D ─────────────────────────────────────────────────────────────────
 
@@ -141,6 +158,46 @@ class TestPoint3D:
         p = geompp.Point3D(1, 2, 3)
         p2 = geompp.Point3D.from_wkt(p.to_wkt())
         assert p.almost_equals(p2)
+
+    def test_zero(self):
+        z = geompp.Point3D.zero()
+        assert approx(z.x, 0.0) and approx(z.y, 0.0) and approx(z.z, 0.0)
+
+    def test_to_vector(self):
+        v = geompp.Point3D(1.0, 2.0, 3.0).to_vector()
+        assert isinstance(v, geompp.Vector3D)
+        assert approx(v.x, 1.0) and approx(v.y, 2.0) and approx(v.z, 3.0)
+
+    def test_almost_equals(self):
+        p = geompp.Point3D(1.0, 2.0, 3.0)
+        assert p.almost_equals(geompp.Point3D(1.0, 2.0, 3.0))
+        assert not p.almost_equals(geompp.Point3D(1.0, 2.0, 3.1))
+
+    def test_sub_point_gives_vector(self):
+        v = geompp.Point3D(4, 5, 6) - geompp.Point3D(1, 2, 3)
+        assert isinstance(v, geompp.Vector3D)
+        assert approx(v.x, 3) and approx(v.y, 3) and approx(v.z, 3)
+
+    def test_sub_vector_gives_point(self):
+        p = geompp.Point3D(4, 5, 6) - geompp.Vector3D(1, 2, 3)
+        assert isinstance(p, geompp.Point3D)
+        assert approx(p.x, 3) and approx(p.y, 3) and approx(p.z, 3)
+
+    def test_scalar_mul(self):
+        p = geompp.Point3D(1, 2, 3) * 2
+        assert approx(p.x, 2) and approx(p.y, 4) and approx(p.z, 6)
+
+    def test_to_file_from_file(self):
+        p = geompp.Point3D(1.0, 2.0, 3.0)
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            p.to_file(path)
+            assert os.path.exists(path)
+            p2 = geompp.Point3D.from_file(path)
+            assert p.almost_equals(p2)
+        finally:
+            os.unlink(path)
 
 
 # ─── Vector2D ────────────────────────────────────────────────────────────────
@@ -188,6 +245,34 @@ class TestVector2D:
         p = geompp.Vector2D(1, 0).perp()
         assert approx(p.x, 0) and approx(p.y, 1)
 
+    def test_to_point(self):
+        pt = geompp.Vector2D(3.0, 4.0).to_point()
+        assert isinstance(pt, geompp.Point2D)
+        assert approx(pt.x, 3.0) and approx(pt.y, 4.0)
+
+    def test_almost_equals(self):
+        v = geompp.Vector2D(1.0, 2.0)
+        assert v.almost_equals(geompp.Vector2D(1.0, 2.0))
+        assert not v.almost_equals(geompp.Vector2D(1.0, 2.1))
+
+    def test_wkt_roundtrip(self):
+        v = geompp.Vector2D(1.0, 2.0)
+        wkt = v.to_wkt()
+        v2 = geompp.Vector2D.from_wkt(wkt)
+        assert v.almost_equals(v2)
+
+    def test_to_file_from_file(self):
+        v = geompp.Vector2D(1.5, 2.5)
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            v.to_file(path)
+            assert os.path.exists(path)
+            v2 = geompp.Vector2D.from_file(path)
+            assert v.almost_equals(v2)
+        finally:
+            os.unlink(path)
+
 
 # ─── Vector3D ────────────────────────────────────────────────────────────────
 
@@ -209,6 +294,57 @@ class TestVector3D:
         assert geompp.Vector3D(1, 3, 1).dominant_axis() == geompp.Axis.Y
         assert geompp.Vector3D(1, 1, 3).dominant_axis() == geompp.Axis.Z
         assert geompp.Vector3D.basis_z().dominant_axis() == geompp.Axis.Z
+
+    def test_to_point(self):
+        pt = geompp.Vector3D(1.0, 2.0, 3.0).to_point()
+        assert isinstance(pt, geompp.Point3D)
+        assert approx(pt.x, 1.0) and approx(pt.y, 2.0) and approx(pt.z, 3.0)
+
+    def test_length(self):
+        assert approx(geompp.Vector3D(0, 3, 4).length(), 5.0)
+
+    def test_dot(self):
+        assert approx(geompp.Vector3D(1, 0, 0).dot(geompp.Vector3D(0, 1, 0)), 0.0)
+        assert approx(geompp.Vector3D(1, 0, 0).dot(geompp.Vector3D(1, 0, 0)), 1.0)
+
+    def test_perp(self):
+        # perp of (1,0,0) should be a vector perpendicular to it
+        p = geompp.Vector3D(1, 0, 0).perp()
+        assert isinstance(p, geompp.Vector3D)
+        assert approx(geompp.Vector3D(1, 0, 0).dot(p), 0.0)
+
+    def test_normalize(self):
+        n = geompp.Vector3D(3, 4, 0).normalize()
+        assert approx(n.length(), 1.0)
+
+    def test_almost_equals(self):
+        v = geompp.Vector3D(1.0, 2.0, 3.0)
+        assert v.almost_equals(geompp.Vector3D(1.0, 2.0, 3.0))
+        assert not v.almost_equals(geompp.Vector3D(1.0, 2.0, 3.1))
+
+    def test_wkt_roundtrip(self):
+        v = geompp.Vector3D(1.0, 2.0, 3.0)
+        wkt = v.to_wkt()
+        v2 = geompp.Vector3D.from_wkt(wkt)
+        assert v.almost_equals(v2)
+
+    def test_to_file_from_file(self):
+        v = geompp.Vector3D(1.0, 2.0, 3.0)
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            v.to_file(path)
+            assert os.path.exists(path)
+            v2 = geompp.Vector3D.from_file(path)
+            assert v.almost_equals(v2)
+        finally:
+            os.unlink(path)
+
+    def test_basis_x_and_basis_y(self):
+        bx = geompp.Vector3D.basis_x()
+        assert approx(bx.x, 1) and approx(bx.y, 0) and approx(bx.z, 0)
+        by = geompp.Vector3D.basis_y()
+        assert approx(by.x, 0) and approx(by.y, 1) and approx(by.z, 0)
 
 
 # ─── LineSegment2D ───────────────────────────────────────────────────────────
@@ -262,9 +398,74 @@ class TestLineSegment2D:
         assert seg.project_onto(geompp.Point2D(-1, 2)).almost_equals(geompp.Point2D(0, 0))
         assert seg.project_onto(geompp.Point2D(5, 2)).almost_equals(geompp.Point2D(4, 0))
 
+    def test_is_left(self, seg):
+        # fixture: P0=(0,0), P1=(4,0). Direction=(4,0).
+        # formula: (4)*p.y - (0)*p.x = 4*p.y  → left iff p.y > 0
+        assert seg.is_left(geompp.Point2D(2, 1))    # above the rightward segment → left
+        assert not seg.is_left(geompp.Point2D(2, -1))  # below → right
+        assert not seg.is_left(geompp.Point2D(2, 0))   # on the axis → not left
+
+        # upward segment: P0=(0,0), P1=(0,1). formula: -p.x → left iff p.x < 0
+        up = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(0, 1))
+        assert up.is_left(geompp.Point2D(-1, 0))    # left of upward → left
+        assert not up.is_left(geompp.Point2D(1, 0)) # right of upward → right
+
+        # diagonal: P0=(0,0), P1=(1,1). formula: p.y - p.x → left iff p.y > p.x
+        diag = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        assert diag.is_left(geompp.Point2D(0, 1))    # above y=x → left
+        assert not diag.is_left(geompp.Point2D(1, 0))  # below y=x → right
+
+        # reversed segment: P0=(4,0), P1=(0,0). formula: -4*p.y → left iff p.y < 0
+        rev = geompp.LineSegment2D.make(geompp.Point2D(4, 0), geompp.Point2D(0, 0))
+        assert rev.is_left(geompp.Point2D(2, -1))   # below → left when going leftward
+        assert not rev.is_left(geompp.Point2D(2, 1))  # above → right when going leftward
+
     def test_wkt_roundtrip(self, seg):
         seg2 = geompp.LineSegment2D.from_wkt(seg.to_wkt())
         assert seg.almost_equals(seg2)
+
+    def test_to_line(self, seg):
+        l = seg.to_line()
+        assert isinstance(l, geompp.Line2D)
+        assert l.contains(seg.first)
+        assert l.contains(seg.last)
+
+    def test_to_file_from_file(self, seg):
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            seg.to_file(path)
+            assert os.path.exists(path)
+            seg2 = geompp.LineSegment2D.from_file(path)
+            assert seg.almost_equals(seg2)
+        finally:
+            os.unlink(path)
+
+    def test_intersects_line(self, seg):
+        # seg goes (0,0)→(4,0); a vertical line at x=2 hits it
+        l_hit = geompp.Line2D.make(geompp.Point2D(2, -1), geompp.Point2D(2, 1))
+        assert seg.intersects(l_hit)
+        hit = seg.intersection(l_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point2D)
+        assert approx(hit.x, 2) and approx(hit.y, 0)
+        # A line parallel and above — no intersection
+        l_miss = geompp.Line2D.make(geompp.Point2D(0, 1), geompp.Point2D(4, 1))
+        assert not seg.intersects(l_miss)
+        assert seg.intersection(l_miss) is None
+
+    def test_intersects_ray(self, seg):
+        # ray pointing downward, hitting the segment at (2, 0)
+        r_hit = geompp.Ray2D.make(geompp.Point2D(2, 3), geompp.Vector2D(0, -1))
+        assert seg.intersects(r_hit)
+        hit = seg.intersection(r_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point2D)
+        assert approx(hit.x, 2) and approx(hit.y, 0)
+        # ray pointing away — no intersection
+        r_miss = geompp.Ray2D.make(geompp.Point2D(2, 3), geompp.Vector2D(0, 1))
+        assert not seg.intersects(r_miss)
+        assert seg.intersection(r_miss) is None
 
 
 # ─── LineSegment3D ───────────────────────────────────────────────────────────
@@ -301,6 +502,72 @@ class TestLineSegment3D:
         assert s.project_onto(geompp.Point3D(2,3,0)).almost_equals(geompp.Point3D(2,0,0))
         assert s.project_onto(geompp.Point3D(-1,2,0)).almost_equals(geompp.Point3D(0,0,0))
         assert s.project_onto(geompp.Point3D(5,2,0)).almost_equals(geompp.Point3D(4,0,0))
+
+    def test_to_line(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        l = s.to_line()
+        assert isinstance(l, geompp.Line3D)
+        assert l.contains(s.first)
+        assert l.contains(s.last)
+
+    def test_to_file_from_file(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(1, 2, 3), geompp.Point3D(4, 5, 6))
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            s.to_file(path)
+            assert os.path.exists(path)
+            s2 = geompp.LineSegment3D.from_file(path)
+            assert s.almost_equals(s2)
+        finally:
+            os.unlink(path)
+
+    def test_intersects_line3d(self):
+        # segment along X axis; line along Y axis at (2,0,0) — coplanar crossing
+        s = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        l_hit = geompp.Line3D.make(geompp.Point3D(2, -1, 0), geompp.Point3D(2, 1, 0))
+        assert s.intersects(l_hit)
+        hit = s.intersection(l_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point3D)
+        assert approx(hit.x, 2) and approx(hit.y, 0) and approx(hit.z, 0)
+
+    def test_no_intersects_line3d(self):
+        # segment along X; parallel line above — no hit
+        s = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        l_miss = geompp.Line3D.make(geompp.Point3D(0, 1, 0), geompp.Point3D(4, 1, 0))
+        assert not s.intersects(l_miss)
+        assert s.intersection(l_miss) is None
+
+    def test_intersects_ray3d(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        r_hit = geompp.Ray3D.make(geompp.Point3D(2, 3, 0), geompp.Vector3D(0, -1, 0))
+        assert s.intersects(r_hit)
+        hit = s.intersection(r_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point3D)
+        assert approx(hit.x, 2) and approx(hit.y, 0) and approx(hit.z, 0)
+
+    def test_no_intersects_ray3d(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        r_miss = geompp.Ray3D.make(geompp.Point3D(2, 3, 0), geompp.Vector3D(0, 1, 0))
+        assert not s.intersects(r_miss)
+        assert s.intersection(r_miss) is None
+
+    def test_intersects_segment3d(self):
+        s1 = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        s2 = geompp.LineSegment3D.make(geompp.Point3D(2, -2, 0), geompp.Point3D(2, 2, 0))
+        assert s1.intersects(s2)
+        hit = s1.intersection(s2)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point3D)
+        assert approx(hit.x, 2) and approx(hit.y, 0) and approx(hit.z, 0)
+
+    def test_no_intersects_segment3d(self):
+        s1 = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0))
+        s2 = geompp.LineSegment3D.make(geompp.Point3D(3, -1, 0), geompp.Point3D(3, 1, 0))
+        assert not s1.intersects(s2)
+        assert s1.intersection(s2) is None
 
 
 # ─── Line2D ──────────────────────────────────────────────────────────────────
@@ -356,6 +623,43 @@ class TestLine2D:
         l2 = geompp.Line2D.from_wkt(hline.to_wkt())
         assert hline.almost_equals(l2)
 
+    def test_intersects_ray(self, hline):
+        # ray pointing upward from below y=0, crossing hline at (3,0)
+        r_hit = geompp.Ray2D.make(geompp.Point2D(3, -2), geompp.Vector2D(0, 1))
+        assert hline.intersects(r_hit)
+        hit = hline.intersection(r_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point2D)
+        assert approx(hit.x, 3) and approx(hit.y, 0)
+        # ray pointing upward from (0,1) — parallel but offset, no intersection with hline (y=0)
+        r_miss = geompp.Ray2D.make(geompp.Point2D(0, 1), geompp.Vector2D(0, 1))
+        assert not hline.intersects(r_miss)
+        assert hline.intersection(r_miss) is None
+
+    def test_intersects_segment(self, hline):
+        # vertical segment crossing y=0
+        s_hit = geompp.LineSegment2D.make(geompp.Point2D(3, -1), geompp.Point2D(3, 1))
+        assert hline.intersects(s_hit)
+        hit = hline.intersection(s_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point2D)
+        assert approx(hit.x, 3) and approx(hit.y, 0)
+        # segment entirely above — no hit
+        s_miss = geompp.LineSegment2D.make(geompp.Point2D(0, 1), geompp.Point2D(4, 1))
+        assert not hline.intersects(s_miss)
+        assert hline.intersection(s_miss) is None
+
+    def test_to_file_from_file(self, hline):
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            hline.to_file(path)
+            assert os.path.exists(path)
+            l2 = geompp.Line2D.from_file(path)
+            assert hline.almost_equals(l2)
+        finally:
+            os.unlink(path)
+
 
 # ─── Line3D ──────────────────────────────────────────────────────────────────
 
@@ -381,6 +685,44 @@ class TestLine3D:
         # (they cross at different z); just check the call works
         result = l.intersection(s)
         assert result is None or isinstance(result, geompp.Point3D)
+
+    def test_intersects_ray3d(self):
+        # line along X; ray along Y at x=2, z=0 — they cross at (2,0,0)
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        r_hit = geompp.Ray3D.make(geompp.Point3D(2, -3, 0), geompp.Vector3D(0, 1, 0))
+        assert l.intersects(r_hit)
+        hit = l.intersection(r_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point3D)
+        assert approx(hit.x, 2) and approx(hit.y, 0) and approx(hit.z, 0)
+
+    def test_no_intersects_ray3d(self):
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        # ray in a parallel plane (z=1) pointing along X — no crossing
+        r_miss = geompp.Ray3D.make(geompp.Point3D(0, 0, 1), geompp.Vector3D(1, 0, 0))
+        assert not l.intersects(r_miss)
+
+    def test_intersects_segment3d(self):
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        s_hit = geompp.LineSegment3D.make(geompp.Point3D(2, -2, 0), geompp.Point3D(2, 2, 0))
+        assert l.intersects(s_hit)
+
+    def test_no_intersects_segment3d(self):
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        s_miss = geompp.LineSegment3D.make(geompp.Point3D(0, 1, 0), geompp.Point3D(4, 1, 0))
+        assert not l.intersects(s_miss)
+
+    def test_to_file_from_file(self):
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            l.to_file(path)
+            assert os.path.exists(path)
+            l2 = geompp.Line3D.from_file(path)
+            assert l.almost_equals(l2)
+        finally:
+            os.unlink(path)
 
 
 # ─── Ray2D ───────────────────────────────────────────────────────────────────
@@ -416,6 +758,60 @@ class TestRay2D:
         assert hit is not None
         assert approx(hit.x, 3) and approx(hit.y, 0)
 
+    def test_to_line(self, ray):
+        l = ray.to_line()
+        assert isinstance(l, geompp.Line2D)
+        assert l.contains(ray.origin)
+
+    def test_almost_equals(self, ray):
+        ray2 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        assert ray.almost_equals(ray2)
+        ray3 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(0, 1))
+        assert not ray.almost_equals(ray3)
+
+    def test_wkt_roundtrip(self, ray):
+        wkt = ray.to_wkt()
+        ray2 = geompp.Ray2D.from_wkt(wkt)
+        assert ray.almost_equals(ray2)
+
+    def test_to_file_from_file(self, ray):
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            ray.to_file(path)
+            assert os.path.exists(path)
+            ray2 = geompp.Ray2D.from_file(path)
+            assert ray.almost_equals(ray2)
+        finally:
+            os.unlink(path)
+
+    def test_intersects_ray(self, ray):
+        # two rays from origin pointing right and upward at (5,0) — they share origin
+        r2 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(0, 1))
+        # rays from different origins that cross
+        r_hit = geompp.Ray2D.make(geompp.Point2D(3, -2), geompp.Vector2D(0, 1))
+        assert ray.intersects(r_hit)
+        hit = ray.intersection(r_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point2D)
+        assert approx(hit.x, 3) and approx(hit.y, 0)
+        # two parallel rays — no intersection
+        r_miss = geompp.Ray2D.make(geompp.Point2D(0, 1), geompp.Vector2D(1, 0))
+        assert not ray.intersects(r_miss)
+        assert ray.intersection(r_miss) is None
+
+    def test_intersection_with_line(self, ray):
+        l_hit = geompp.Line2D.make(geompp.Point2D(5, -1), geompp.Point2D(5, 1))
+        assert ray.intersects(l_hit)
+        hit = ray.intersection(l_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point2D)
+        assert approx(hit.x, 5) and approx(hit.y, 0)
+        # line parallel to ray — no intersection
+        l_miss = geompp.Line2D.make(geompp.Point2D(0, 1), geompp.Point2D(1, 1))
+        assert not ray.intersects(l_miss)
+        assert ray.intersection(l_miss) is None
+
 
 # ─── Ray3D ───────────────────────────────────────────────────────────────────
 
@@ -440,6 +836,75 @@ class TestRay3D:
         r = geompp.Ray3D.make(geompp.Point3D(0,0,0), geompp.Vector3D(1,0,0))
         assert r.project_onto(geompp.Point3D(3,5,0)).almost_equals(geompp.Point3D(3,0,0))
         assert r.project_onto(geompp.Point3D(-2,3,0)).almost_equals(geompp.Point3D(0,0,0))
+
+    def test_to_line(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        l = r.to_line()
+        assert isinstance(l, geompp.Line3D)
+        assert l.contains(r.origin)
+
+    def test_almost_equals(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        r2 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert r1.almost_equals(r2)
+        r3 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(0, 1, 0))
+        assert not r1.almost_equals(r3)
+
+    def test_wkt_roundtrip(self):
+        r = geompp.Ray3D.make(geompp.Point3D(1, 2, 3), geompp.Vector3D(1, 0, 0))
+        r2 = geompp.Ray3D.from_wkt(r.to_wkt())
+        assert r.almost_equals(r2)
+
+    def test_to_file_from_file(self):
+        r = geompp.Ray3D.make(geompp.Point3D(1, 2, 3), geompp.Vector3D(1, 0, 0))
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            r.to_file(path)
+            assert os.path.exists(path)
+            r2 = geompp.Ray3D.from_file(path)
+            assert r.almost_equals(r2)
+        finally:
+            os.unlink(path)
+
+    def test_intersects_line3d(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        l_hit = geompp.Line3D.make(geompp.Point3D(3, -2, 0), geompp.Point3D(3, 2, 0))
+        assert r.intersects(l_hit)
+        hit = r.intersection(l_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point3D)
+        assert approx(hit.x, 3) and approx(hit.y, 0) and approx(hit.z, 0)
+        # line parallel and offset — no intersection
+        l_miss = geompp.Line3D.make(geompp.Point3D(0, 1, 0), geompp.Point3D(4, 1, 0))
+        assert not r.intersects(l_miss)
+        assert r.intersection(l_miss) is None
+
+    def test_intersects_ray3d(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        r2 = geompp.Ray3D.make(geompp.Point3D(3, -2, 0), geompp.Vector3D(0, 1, 0))
+        assert r1.intersects(r2)
+        hit = r1.intersection(r2)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point3D)
+        assert approx(hit.x, 3) and approx(hit.y, 0) and approx(hit.z, 0)
+        # two parallel rays — no intersection
+        r_miss = geompp.Ray3D.make(geompp.Point3D(0, 1, 0), geompp.Vector3D(1, 0, 0))
+        assert not r1.intersects(r_miss)
+        assert r1.intersection(r_miss) is None
+
+    def test_intersects_segment3d(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        s_hit = geompp.LineSegment3D.make(geompp.Point3D(3, -2, 0), geompp.Point3D(3, 2, 0))
+        assert r.intersects(s_hit)
+        hit = r.intersection(s_hit)
+        assert hit is not None
+        assert isinstance(hit, geompp.Point3D)
+        assert approx(hit.x, 3) and approx(hit.y, 0) and approx(hit.z, 0)
+        # segment behind the ray — no intersection
+        s_miss = geompp.LineSegment3D.make(geompp.Point3D(-3, -2, 0), geompp.Point3D(-3, 2, 0))
+        assert not r.intersects(s_miss)
+        assert r.intersection(s_miss) is None
 
 
 # ─── Polygon2D ───────────────────────────────────────────────────────────────
@@ -552,6 +1017,101 @@ class TestPolygon2D:
         last = segs[3]
         assert last.first.almost_equals(geompp.Point2D(0, 1))
         assert last.last.almost_equals(geompp.Point2D(0, 0))
+
+    def test_almost_equals(self, square):
+        sq2 = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(1, 0),
+            geompp.Point2D(1, 1), geompp.Point2D(0, 1),
+        ])
+        assert square.almost_equals(sq2)
+        other = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(2, 0),
+            geompp.Point2D(2, 2), geompp.Point2D(0, 2),
+        ])
+        assert not square.almost_equals(other)
+
+    def test_to_file_from_file(self, square):
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            square.to_file(path)
+            assert os.path.exists(path)
+            sq2 = geompp.Polygon2D.from_file(path)
+            assert square.almost_equals(sq2)
+        finally:
+            os.unlink(path)
+
+    def test_contains(self, square):
+        # fixture: unit square (0,0)-(1,0)-(1,1)-(0,1)
+        assert square.contains(geompp.Point2D(0.5, 0.5))    # center
+        assert square.contains(geompp.Point2D(0.1, 0.1))    # near corner
+        assert square.contains(geompp.Point2D(0.9, 0.9))    # near opposite corner
+        assert not square.contains(geompp.Point2D(-0.1, 0.5))
+        assert not square.contains(geompp.Point2D(1.1, 0.5))
+        assert not square.contains(geompp.Point2D(0.5, -0.1))
+        assert not square.contains(geompp.Point2D(0.5, 1.1))
+        assert not square.contains(geompp.Point2D(5, 5))
+
+        # polygon with hole: 4×4 outer, 2×2 centred hole
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+            geompp.Point2D(3, 3), geompp.Point2D(3, 1),
+        ]
+        poly = geompp.Polygon2D.make(outer, [hole])
+        assert poly.contains(geompp.Point2D(0.5, 0.5))   # inside outer, outside hole
+        assert poly.contains(geompp.Point2D(3.5, 3.5))   # inside outer, outside hole
+        assert not poly.contains(geompp.Point2D(2, 2))   # inside hole
+        assert not poly.contains(geompp.Point2D(-1, 2))  # outside outer
+
+        # boundary — vertices and edge midpoints are included
+        assert square.contains(geompp.Point2D(0,   0))    # bottom-left vertex
+        assert square.contains(geompp.Point2D(1,   0))    # bottom-right vertex
+        assert square.contains(geompp.Point2D(1,   1))    # top-right vertex
+        assert square.contains(geompp.Point2D(0,   1))    # top-left vertex
+        assert square.contains(geompp.Point2D(0.5, 0))    # bottom edge midpoint
+        assert square.contains(geompp.Point2D(1,   0.5))  # right edge midpoint
+        assert square.contains(geompp.Point2D(0.5, 1))    # top edge midpoint
+        assert square.contains(geompp.Point2D(0,   0.5))  # left edge midpoint
+        assert poly.contains(geompp.Point2D(2,   0))      # outer bottom edge
+        assert poly.contains(geompp.Point2D(4,   2))      # outer right edge
+        assert poly.contains(geompp.Point2D(2,   1))      # hole bottom edge
+        assert poly.contains(geompp.Point2D(1,   2))      # hole left edge
+
+    def test_is_on_boundary(self, square):
+        # vertices
+        assert square.is_on_boundary(geompp.Point2D(0,   0))
+        assert square.is_on_boundary(geompp.Point2D(1,   0))
+        assert square.is_on_boundary(geompp.Point2D(1,   1))
+        assert square.is_on_boundary(geompp.Point2D(0,   1))
+        # edge midpoints
+        assert square.is_on_boundary(geompp.Point2D(0.5, 0))
+        assert square.is_on_boundary(geompp.Point2D(1,   0.5))
+        assert square.is_on_boundary(geompp.Point2D(0.5, 1))
+        assert square.is_on_boundary(geompp.Point2D(0,   0.5))
+        # interior and outside must be False
+        assert not square.is_on_boundary(geompp.Point2D(0.5, 0.5))
+        assert not square.is_on_boundary(geompp.Point2D(-0.1, 0.5))
+        assert not square.is_on_boundary(geompp.Point2D(1.1,  0.5))
+        # hole boundary
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+            geompp.Point2D(3, 3), geompp.Point2D(3, 1),
+        ]
+        poly = geompp.Polygon2D.make(outer, [hole])
+        assert poly.is_on_boundary(geompp.Point2D(2, 0))  # outer bottom
+        assert poly.is_on_boundary(geompp.Point2D(4, 2))  # outer right
+        assert poly.is_on_boundary(geompp.Point2D(2, 1))  # hole bottom
+        assert poly.is_on_boundary(geompp.Point2D(1, 2))  # hole left
+        assert not poly.is_on_boundary(geompp.Point2D(0.5, 0.5))  # interior
+        assert not poly.is_on_boundary(geompp.Point2D(2,   2))    # inside hole
 
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
@@ -737,6 +1297,122 @@ class TestPolygon3D:
         assert last.first.almost_equals(geompp.Point3D(0, 1, 0))
         assert last.last.almost_equals(geompp.Point3D(0, 0, 0))
 
+    def test_almost_equals(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        p1 = geompp.Polygon3D.make(pts)
+        p2 = geompp.Polygon3D.make(pts)
+        assert p1.almost_equals(p2)
+        other_pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0),
+            geompp.Point3D(2, 2, 0), geompp.Point3D(0, 2, 0),
+        ]
+        assert not p1.almost_equals(geompp.Polygon3D.make(other_pts))
+
+    def test_to_file_from_file(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        p = geompp.Polygon3D.make(pts)
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            p.to_file(path)
+            assert os.path.exists(path)
+            p2 = geompp.Polygon3D.from_file(path)
+            assert p.almost_equals(p2)
+        finally:
+            os.unlink(path)
+
+    def test_contains(self):
+        # unit square in XY plane
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        sq = geompp.Polygon3D.make(pts)
+        assert sq.contains(geompp.Point3D(0.5, 0.5, 0))    # center
+        assert sq.contains(geompp.Point3D(0.1, 0.1, 0))    # near corner
+        assert sq.contains(geompp.Point3D(0.9, 0.9, 0))    # near corner
+        assert not sq.contains(geompp.Point3D(-0.1, 0.5, 0))
+        assert not sq.contains(geompp.Point3D(1.1, 0.5, 0))
+        assert not sq.contains(geompp.Point3D(0.5, 0.5, 1))   # off-plane
+        assert not sq.contains(geompp.Point3D(0.5, 0.5, -1))  # off-plane
+
+        # polygon with hole in XY plane
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        poly = geompp.Polygon3D.make(outer, [hole])
+        assert poly.contains(geompp.Point3D(0.5, 0.5, 0))   # inside outer, outside hole
+        assert poly.contains(geompp.Point3D(3.5, 3.5, 0))   # inside outer, outside hole
+        assert not poly.contains(geompp.Point3D(2, 2, 0))   # inside hole
+        assert not poly.contains(geompp.Point3D(-1, 2, 0))  # outside outer
+        assert not poly.contains(geompp.Point3D(2, 2, 1))   # above plane
+
+        # boundary — vertices and edge midpoints are included
+        assert sq.contains(geompp.Point3D(0,   0,   0))   # vertex
+        assert sq.contains(geompp.Point3D(1,   0,   0))   # vertex
+        assert sq.contains(geompp.Point3D(0.5, 0,   0))   # bottom edge midpoint
+        assert sq.contains(geompp.Point3D(1,   0.5, 0))   # right edge midpoint
+        assert sq.contains(geompp.Point3D(0.5, 1,   0))   # top edge midpoint
+        assert sq.contains(geompp.Point3D(0,   0.5, 0))   # left edge midpoint
+        assert poly.contains(geompp.Point3D(2,   0,   0))  # outer bottom edge
+        assert poly.contains(geompp.Point3D(2,   1,   0))  # hole bottom edge
+
+        # square in YZ plane (x=0)
+        yz_sq = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+            geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
+        ])
+        assert yz_sq.contains(geompp.Point3D(0, 0.5, 0.5))
+        assert not yz_sq.contains(geompp.Point3D(1, 0.5, 0.5))  # off-plane
+
+    def test_is_on_boundary(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        sq = geompp.Polygon3D.make(pts)
+        # vertices
+        assert sq.is_on_boundary(geompp.Point3D(0,   0,   0))
+        assert sq.is_on_boundary(geompp.Point3D(1,   0,   0))
+        assert sq.is_on_boundary(geompp.Point3D(1,   1,   0))
+        assert sq.is_on_boundary(geompp.Point3D(0,   1,   0))
+        # edge midpoints
+        assert sq.is_on_boundary(geompp.Point3D(0.5, 0,   0))
+        assert sq.is_on_boundary(geompp.Point3D(1,   0.5, 0))
+        assert sq.is_on_boundary(geompp.Point3D(0.5, 1,   0))
+        assert sq.is_on_boundary(geompp.Point3D(0,   0.5, 0))
+        # interior and outside must be False
+        assert not sq.is_on_boundary(geompp.Point3D(0.5, 0.5, 0))
+        assert not sq.is_on_boundary(geompp.Point3D(-0.1, 0.5, 0))
+        assert not sq.is_on_boundary(geompp.Point3D(0.5,  0.5, 0.01))  # off-plane
+        # hole boundary
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        poly = geompp.Polygon3D.make(outer, [hole])
+        assert poly.is_on_boundary(geompp.Point3D(2, 0, 0))  # outer bottom
+        assert poly.is_on_boundary(geompp.Point3D(4, 2, 0))  # outer right
+        assert poly.is_on_boundary(geompp.Point3D(2, 1, 0))  # hole bottom
+        assert poly.is_on_boundary(geompp.Point3D(1, 2, 0))  # hole left
+        assert not poly.is_on_boundary(geompp.Point3D(0.5, 0.5, 0))  # interior
+        assert not poly.is_on_boundary(geompp.Point3D(2,   2,   0))  # inside hole
+
 
 # ─── Free function centroid (3D) ─────────────────────────────────────────────
 
@@ -849,6 +1525,48 @@ class TestPolyline2D:
         assert segs[0].first.almost_equals(geompp.Point2D(0, 0))
         assert segs[0].last.almost_equals(geompp.Point2D(3, 0))
 
+    def test_intersects_ray(self, pline):
+        # pline: (0,0)→(3,0)→(3,4). Ray pointing right at y=2 crosses vertical segment
+        r_hit = geompp.Ray2D.make(geompp.Point2D(0, 2), geompp.Vector2D(1, 0))
+        assert pline.intersects(r_hit)
+        hit = pline.intersection(r_hit)
+        assert hit is not None
+        # ray pointing away — no hit
+        r_miss = geompp.Ray2D.make(geompp.Point2D(5, 2), geompp.Vector2D(1, 0))
+        assert not pline.intersects(r_miss)
+        assert pline.intersection(r_miss) is None
+
+    def test_intersects_segment(self, pline):
+        s_hit = geompp.LineSegment2D.make(geompp.Point2D(1, -1), geompp.Point2D(1, 1))
+        assert pline.intersects(s_hit)
+        hit = pline.intersection(s_hit)
+        assert hit is not None
+        s_miss = geompp.LineSegment2D.make(geompp.Point2D(5, 0), geompp.Point2D(5, 4))
+        assert not pline.intersects(s_miss)
+        assert pline.intersection(s_miss) is None
+
+    def test_intersects_polyline(self, pline):
+        # crossing polyline
+        other_hit = geompp.Polyline2D.make([geompp.Point2D(1, -1), geompp.Point2D(1, 1)])
+        assert pline.intersects(other_hit)
+        hit = pline.intersection(other_hit)
+        assert hit is not None
+        # non-crossing polyline
+        other_miss = geompp.Polyline2D.make([geompp.Point2D(5, 0), geompp.Point2D(5, 4)])
+        assert not pline.intersects(other_miss)
+        assert pline.intersection(other_miss) is None
+
+    def test_to_file_from_file(self, pline):
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            pline.to_file(path)
+            assert os.path.exists(path)
+            pl2 = geompp.Polyline2D.from_file(path)
+            assert pline.almost_equals(pl2)
+        finally:
+            os.unlink(path)
+
 
 # ─── Polyline3D ──────────────────────────────────────────────────────────────
 
@@ -905,6 +1623,87 @@ class TestPolyline3D:
         assert pl.project_onto(geompp.Point3D(2,3,0)).almost_equals(geompp.Point3D(3,3,0))
         assert pl.project_onto(geompp.Point3D(6,2,0)).almost_equals(geompp.Point3D(3,2,0))
 
+    def test_almost_equals(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(3, 4, 0)]
+        pl1 = geompp.Polyline3D.make(pts)
+        pl2 = geompp.Polyline3D.make(pts)
+        assert pl1.almost_equals(pl2)
+        other = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0)])
+        assert not pl1.almost_equals(other)
+
+    def test_wkt_roundtrip(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(3, 4, 0)]
+        pl = geompp.Polyline3D.make(pts)
+        wkt = pl.to_wkt()
+        pl2 = geompp.Polyline3D.from_wkt(wkt)
+        assert pl.almost_equals(pl2)
+
+    def test_to_file_from_file(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(3, 4, 0)]
+        pl = geompp.Polyline3D.make(pts)
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            pl.to_file(path)
+            assert os.path.exists(path)
+            pl2 = geompp.Polyline3D.from_file(path)
+            assert pl.almost_equals(pl2)
+        finally:
+            os.unlink(path)
+
+    def test_len_and_getitem(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(3, 4, 0)]
+        pl = geompp.Polyline3D.make(pts)
+        assert len(pl) == 3
+        assert pl[0].almost_equals(geompp.Point3D(0, 0, 0))
+        assert pl[2].almost_equals(geompp.Point3D(3, 4, 0))
+        assert pl[-1].almost_equals(geompp.Point3D(3, 4, 0))
+        with pytest.raises(IndexError):
+            _ = pl[10]
+
+    def test_intersects_line3d(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0)]
+        pl = geompp.Polyline3D.make(pts)
+        l_hit = geompp.Line3D.make(geompp.Point3D(2, -1, 0), geompp.Point3D(2, 1, 0))
+        assert pl.intersects(l_hit)
+        hit = pl.intersection(l_hit)
+        assert hit is not None
+        l_miss = geompp.Line3D.make(geompp.Point3D(0, 1, 0), geompp.Point3D(4, 1, 0))
+        assert not pl.intersects(l_miss)
+        assert pl.intersection(l_miss) is None
+
+    def test_intersects_ray3d(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0)]
+        pl = geompp.Polyline3D.make(pts)
+        r_hit = geompp.Ray3D.make(geompp.Point3D(2, -3, 0), geompp.Vector3D(0, 1, 0))
+        assert pl.intersects(r_hit)
+        hit = pl.intersection(r_hit)
+        assert hit is not None
+        r_miss = geompp.Ray3D.make(geompp.Point3D(2, 3, 0), geompp.Vector3D(0, 1, 0))
+        assert not pl.intersects(r_miss)
+        assert pl.intersection(r_miss) is None
+
+    def test_intersects_segment3d(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0)]
+        pl = geompp.Polyline3D.make(pts)
+        s_hit = geompp.LineSegment3D.make(geompp.Point3D(2, -2, 0), geompp.Point3D(2, 2, 0))
+        assert pl.intersects(s_hit)
+        hit = pl.intersection(s_hit)
+        assert hit is not None
+        s_miss = geompp.LineSegment3D.make(geompp.Point3D(5, -2, 0), geompp.Point3D(5, 2, 0))
+        assert not pl.intersects(s_miss)
+        assert pl.intersection(s_miss) is None
+
+    def test_intersects_polyline3d(self):
+        pl1 = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0)])
+        pl2_hit = geompp.Polyline3D.make([geompp.Point3D(2, -2, 0), geompp.Point3D(2, 2, 0)])
+        assert pl1.intersects(pl2_hit)
+        hit = pl1.intersection(pl2_hit)
+        assert hit is not None
+        pl2_miss = geompp.Polyline3D.make([geompp.Point3D(5, -2, 0), geompp.Point3D(5, 2, 0)])
+        assert not pl1.intersects(pl2_miss)
+        assert pl1.intersection(pl2_miss) is None
+
 
 # ─── Triangle2D ──────────────────────────────────────────────────────────────
 
@@ -932,8 +1731,89 @@ class TestTriangle2D:
         assert approx(c.x, 4/3) and approx(c.y, 1.0)
 
     def test_contains(self, tri):
-        assert tri.contains(geompp.Point2D(1, 1))
-        assert not tri.contains(geompp.Point2D(5, 5))
+        v0, v1, v2 = tri.vertices  # (0,0), (4,0), (0,3)
+        c = tri.centroid()          # (4/3, 1.0)
+
+        def pt(x, y):
+            return geompp.Point2D(x, y)
+
+        def mid(a, b):
+            return pt((a.x + b.x) / 2, (a.y + b.y) / 2)
+
+        def beyond(corner):
+            return pt(c.x + 2 * (corner.x - c.x), c.y + 2 * (corner.y - c.y))
+
+        # corner points are on the boundary
+        assert tri.contains(v0)
+        assert tri.contains(v1)
+        assert tri.contains(v2)
+
+        # centroid is strictly inside
+        assert tri.contains(c)
+
+        # halfway between centroid and each corner
+        assert tri.contains(mid(c, v0))
+        assert tri.contains(mid(c, v1))
+        assert tri.contains(mid(c, v2))
+
+        # midpoints of edges (on boundary)
+        assert tri.contains(mid(v0, v1))
+        assert tri.contains(mid(v1, v2))
+        assert tri.contains(mid(v2, v0))
+
+        # extension beyond each corner along centroid→corner ray
+        assert not tri.contains(beyond(v0))
+        assert not tri.contains(beyond(v1))
+        assert not tri.contains(beyond(v2))
+
+        # clearly outside
+        assert not tri.contains(pt(5, 5))
+        assert not tri.contains(pt(-1, -1))
+        assert not tri.contains(pt(3, 3))
+
+    def test_location(self, tri):
+        # fixture: P0=(0,0), P1=(4,0), P2=(0,3)
+
+        # inside: location returns (s,t) AND contains agrees
+        def check_inside(p, exp_s, exp_t):
+            st = tri.location(p)
+            assert st is not None, f"expected location to be inside for {p}"
+            s, t = st
+            assert approx(s, exp_s) and approx(t, exp_t)
+            assert tri.contains(p)   # location non-null ↔ contains true
+
+        check_inside(geompp.Point2D(0, 0), 0.0, 0.0)   # P0
+        check_inside(geompp.Point2D(4, 0), 1.0, 0.0)   # P1
+        check_inside(geompp.Point2D(0, 3), 0.0, 1.0)   # P2
+        check_inside(tri.centroid(),        1/3, 1/3)
+
+        # outside: location is None AND contains is false
+        def check_outside(p):
+            assert tri.location(p) is None
+            assert not tri.contains(p)   # location null ↔ contains false
+
+        check_outside(geompp.Point2D(-1, -1))
+        check_outside(geompp.Point2D(5, 0))
+        check_outside(geompp.Point2D(0, 4))
+
+        # round-trip A: interpolate(location(p)) == p
+        p = geompp.Point2D(1, 0.5)
+        st = tri.location(p)
+        assert st is not None
+        s, t = st
+        p_back = tri.interpolate(s, t)
+        assert p_back is not None
+        assert p.almost_equals(p_back)
+
+        # round-trip B: location(interpolate(s,t)) == (s,t)
+        s_in, t_in = 0.25, 0.25
+        q = tri.interpolate(s_in, t_in)
+        assert q is not None
+        assert tri.contains(q)           # interpolate result is always inside
+        st_q = tri.location(q)
+        assert st_q is not None
+        s_back, t_back = st_q
+        assert approx(s_back, s_in) and approx(t_back, t_in)
 
     def test_interpolate(self, tri):
         # vertices: (0,0)=P0, (4,0)=P1, (0,3)=P2
@@ -972,6 +1852,29 @@ class TestTriangle2D:
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle2D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
+
+    def test_to_axis(self, tri):
+        # tri fixture: P0=(0,0), P1=(4,0), P2=(0,3)
+        # ToAxis() returns (P1-P0, P2-P0) — edge vectors, not normalized
+        axes = tri.to_axis()
+        assert isinstance(axes, tuple)
+        assert len(axes) == 2
+        u, v = axes
+        assert isinstance(u, geompp.Vector2D)
+        assert isinstance(v, geompp.Vector2D)
+        assert approx(u.x, 4.0) and approx(u.y, 0.0)
+        assert approx(v.x, 0.0) and approx(v.y, 3.0)
+
+    def test_to_file_from_file(self, tri):
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            tri.to_file(path)
+            assert os.path.exists(path)
+            tri2 = geompp.Triangle2D.from_file(path)
+            assert tri.almost_equals(tri2)
+        finally:
+            os.unlink(path)
 
 
 # ─── Triangle3D ──────────────────────────────────────────────────────────────
@@ -1052,6 +1955,116 @@ class TestTriangle3D:
         tri2 = geompp.Triangle3D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
 
+    def test_to_polygon(self, tri):
+        p = tri.to_polygon()
+        assert isinstance(p, geompp.Polygon3D)
+        assert len(p) == 3
+
+    def test_perimeter(self, tri):
+        # fixture: (0,0,0),(1,0,0),(0,1,0) — right triangle with legs 1,1 and hypotenuse sqrt(2)
+        assert approx(tri.perimeter(), 2.0 + math.sqrt(2.0))
+
+    def test_to_axis(self, tri):
+        axes = tri.to_axis()
+        assert isinstance(axes, tuple)
+        assert len(axes) == 2
+        u, v = axes
+        assert isinstance(u, geompp.Vector3D)
+        assert isinstance(v, geompp.Vector3D)
+        assert approx(u.length(), 1.0)
+        assert approx(v.length(), 1.0)
+
+    def test_to_file_from_file(self, tri):
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            tri.to_file(path)
+            assert os.path.exists(path)
+            tri2 = geompp.Triangle3D.from_file(path)
+            assert tri.almost_equals(tri2)
+        finally:
+            os.unlink(path)
+
+    def test_location(self, tri):
+        # fixture: P0=(0,0,0), P1=(1,0,0), P2=(0,1,0)
+
+        # inside: location returns (s,t) AND contains agrees
+        def check_inside(p, exp_s, exp_t):
+            st = tri.location(p)
+            assert st is not None, f"expected location to be inside for {p}"
+            s, t = st
+            assert approx(s, exp_s) and approx(t, exp_t)
+            assert tri.contains(p)   # location non-null ↔ contains true
+
+        check_inside(geompp.Point3D(0, 0, 0), 0.0, 0.0)   # P0
+        check_inside(geompp.Point3D(1, 0, 0), 1.0, 0.0)   # P1
+        check_inside(geompp.Point3D(0, 1, 0), 0.0, 1.0)   # P2
+        check_inside(tri.centroid(),            1/3, 1/3)
+
+        # outside: location is None AND contains is false
+        def check_outside(p):
+            assert tri.location(p) is None
+            assert not tri.contains(p)   # location null ↔ contains false
+
+        check_outside(geompp.Point3D(0.3, 0.3,  1))   # off-plane above
+        check_outside(geompp.Point3D(0.3, 0.3, -1))   # off-plane below
+        check_outside(geompp.Point3D(-0.5, 0, 0))      # outside in-plane
+        check_outside(geompp.Point3D(0.8, 0.8, 0))     # past hypotenuse
+
+        # round-trip A: interpolate(location(p)) == p
+        p = geompp.Point3D(0.25, 0.25, 0)
+        st = tri.location(p)
+        assert st is not None
+        s, t = st
+        p_back = tri.interpolate(s, t)
+        assert p_back is not None
+        assert p.almost_equals(p_back)
+
+        # round-trip B: location(interpolate(s,t)) == (s,t)
+        s_in, t_in = 0.25, 0.25
+        q = tri.interpolate(s_in, t_in)
+        assert q is not None
+        assert tri.contains(q)           # interpolate result is always inside
+        st_q = tri.location(q)
+        assert st_q is not None
+        s_back, t_back = st_q
+        assert approx(s_back, s_in) and approx(t_back, t_in)
+
+    def test_contains(self, tri):
+        # fixture: P0=(0,0,0), P1=(1,0,0), P2=(0,1,0)
+        # interior point
+        assert tri.contains(tri.centroid())
+        # near each vertex (but not exactly on it)
+        assert tri.contains(geompp.Point3D(0.05, 0.05, 0))
+        assert tri.contains(geompp.Point3D(0.9,  0.05, 0))
+        assert tri.contains(geompp.Point3D(0.05, 0.9,  0))
+        # clearly outside in the same plane
+        assert not tri.contains(geompp.Point3D(-0.5, 0.5, 0))
+        assert not tri.contains(geompp.Point3D(0.5, -0.5, 0))
+        assert not tri.contains(geompp.Point3D(0.8,  0.8,  0))  # past hypotenuse
+        # off-plane
+        assert not tri.contains(geompp.Point3D(0.3, 0.3,  1))
+        assert not tri.contains(geompp.Point3D(0.3, 0.3, -1))
+
+        # tilted triangle (in YZ plane, normal along X)
+        t2 = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 2, 0), geompp.Point3D(0, 0, 2)
+        )
+        assert t2.contains(t2.centroid())
+        assert not t2.contains(geompp.Point3D(1, 0.5, 0.5))  # off-plane
+
+        # boundary — vertices and edge midpoints are included (P0,P1,P2 = (0,0,0),(1,0,0),(0,1,0))
+        p0 = geompp.Point3D(0, 0, 0)
+        p1 = geompp.Point3D(1, 0, 0)
+        p2 = geompp.Point3D(0, 1, 0)
+        assert tri.contains(p0)                                     # vertex P0
+        assert tri.contains(p1)                                     # vertex P1
+        assert tri.contains(p2)                                     # vertex P2
+        assert tri.contains(geompp.Point3D(0.5, 0,   0))           # base edge midpoint
+        assert tri.contains(geompp.Point3D(0,   0.5, 0))           # left edge midpoint
+        assert tri.contains(geompp.Point3D(0.5, 0.5, 0))           # hypotenuse midpoint
+        assert not tri.contains(geompp.Point3D(0.5, 0, 0.01))      # just off-plane
+
 
 # ─── BBox2D ──────────────────────────────────────────────────────────────────
 
@@ -1070,6 +2083,42 @@ class TestBBox2D:
         bb1 = geompp.BBox2D(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
         bb2 = geompp.BBox2D(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
         assert bb1 == bb2
+
+    def test_from_line_segment2d(self):
+        s = geompp.LineSegment2D.make(geompp.Point2D(-1, -2), geompp.Point2D(3, 4))
+        bb = geompp.BBox2D(s)
+        assert approx(bb.min.x, -1) and approx(bb.min.y, -2)
+        assert approx(bb.max.x,  3) and approx(bb.max.y,  4)
+
+    def test_from_polyline2d(self):
+        pts = [geompp.Point2D(0, 5), geompp.Point2D(3, 0), geompp.Point2D(1, 2)]
+        bb = geompp.BBox2D(geompp.Polyline2D.make(pts))
+        assert approx(bb.min.x, 0) and approx(bb.min.y, 0)
+        assert approx(bb.max.x, 3) and approx(bb.max.y, 5)
+
+    def test_from_polygon2d(self):
+        sq = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 3), geompp.Point2D(0, 3),
+        ])
+        bb = geompp.BBox2D(sq)
+        assert approx(bb.min.x, 0) and approx(bb.min.y, 0)
+        assert approx(bb.max.x, 4) and approx(bb.max.y, 3)
+
+    def test_from_triangle2d(self):
+        tri = geompp.Triangle2D.make(
+            geompp.Point2D(0, 0), geompp.Point2D(3, 0), geompp.Point2D(0, 4)
+        )
+        bb = geompp.BBox2D(tri)
+        assert approx(bb.min.x, 0) and approx(bb.min.y, 0)
+        assert approx(bb.max.x, 3) and approx(bb.max.y, 4)
+
+    def test_almost_equals(self):
+        bb1 = geompp.BBox2D(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        bb2 = geompp.BBox2D(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        assert bb1.almost_equals(bb2)
+        bb3 = geompp.BBox2D(geompp.Point2D(0, 0), geompp.Point2D(2, 2))
+        assert not bb1.almost_equals(bb3)
 
 
 # ─── BBox3D ──────────────────────────────────────────────────────────────────
@@ -1110,6 +2159,13 @@ class TestBBox3D:
         bb = geompp.BBox3D(tri)
         assert approx(bb.min.x, 0) and approx(bb.min.y, 0) and approx(bb.min.z, 0)
         assert approx(bb.max.x, 2) and approx(bb.max.y, 3) and approx(bb.max.z, 4)
+
+    def test_almost_equals(self):
+        bb1 = geompp.BBox3D(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 2, 3))
+        bb2 = geompp.BBox3D(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 2, 3))
+        assert bb1.almost_equals(bb2)
+        bb3 = geompp.BBox3D(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 2, 4))
+        assert not bb1.almost_equals(bb3)
 
 
 # ─── Plane ───────────────────────────────────────────────────────────────────
@@ -1165,6 +2221,54 @@ class TestPlane:
         assert hit is not None
         assert isinstance(hit, geompp.Point3D)
         assert approx(hit.z, 0)
+
+    def test_from_origin_and_axes(self):
+        origin = geompp.Point3D(1, 2, 3)
+        u = geompp.Vector3D(1, 0, 0)
+        v = geompp.Vector3D(0, 1, 0)
+        pl = geompp.Plane.from_origin_and_axes(origin, u, v)
+        assert isinstance(pl, geompp.Plane)
+        assert pl.origin.almost_equals(origin)
+        # normal should be along Z (cross of X and Y)
+        assert approx(abs(pl.normal.z), 1.0)
+
+    def test_axis_u_and_axis_v(self):
+        pl = geompp.Plane.xy()
+        u = pl.axis_u
+        v = pl.axis_v
+        assert isinstance(u, geompp.Vector3D)
+        assert isinstance(v, geompp.Vector3D)
+        # both axes should be unit vectors lying in XY plane
+        assert approx(u.length(), 1.0)
+        assert approx(v.length(), 1.0)
+        assert approx(u.z, 0.0)
+        assert approx(v.z, 0.0)
+
+    def test_project_into(self):
+        pl = geompp.Plane.xy()
+        pt3 = geompp.Point3D(3, 4, 7)
+        uv = pl.project_into(pt3)
+        # project_into returns a 2D point (u, v) in plane coordinates
+        assert isinstance(uv, geompp.Point2D)
+
+    def test_evaluate(self):
+        pl = geompp.Plane.xy()
+        # evaluate at (u=1, v=0) using a Point2D — binding takes p2d: Point2D
+        p2d = geompp.Point2D(1.0, 0.0)
+        pt3 = pl.evaluate(p2d)
+        assert isinstance(pt3, geompp.Point3D)
+        assert approx(pt3.z, 0.0)
+
+    def test_project_into_then_evaluate_roundtrip(self):
+        pl = geompp.Plane.from_origin_and_axes(
+            geompp.Point3D(0, 0, 5),
+            geompp.Vector3D(1, 0, 0),
+            geompp.Vector3D(0, 1, 0),
+        )
+        pt = geompp.Point3D(3, 4, 5)
+        uv = pl.project_into(pt)
+        back = pl.evaluate(uv)
+        assert back.almost_equals(pt)
 
 
 # ─── WktParser ───────────────────────────────────────────────────────────────
@@ -1238,6 +2342,17 @@ class TestWktParser:
     def test_to_wkt_unsupported_type_raises(self):
         with pytest.raises(Exception):
             geompp.WktParser.to_wkt(42)
+
+    def test_get_file_path(self):
+        path = self._make_lsv_file(["POINT (1 2)"])
+        try:
+            parser = geompp.WktParser.open(path)
+            fp = parser.get_file_path()
+            assert isinstance(fp, str)
+            assert len(fp) > 0
+            del parser
+        finally:
+            os.unlink(path)
 
 
 # ─── Free functions ──────────────────────────────────────────────────────────
@@ -1559,6 +2674,54 @@ class TestGeometryCollection2D:
         finally:
             os.unlink(path)
 
+    def test_add_line2d(self):
+        gc = geompp.GeometryCollection2D()
+        l = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        gc.add(l)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Line2D)
+
+    def test_add_ray2d(self):
+        gc = geompp.GeometryCollection2D()
+        r = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        gc.add(r)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Ray2D)
+
+    def test_add_polyline2d(self):
+        gc = geompp.GeometryCollection2D()
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 1)])
+        gc.add(pl)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Polyline2D)
+
+    def test_add_polygon2d(self):
+        gc = geompp.GeometryCollection2D()
+        poly = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(1, 0),
+            geompp.Point2D(1, 1), geompp.Point2D(0, 1),
+        ])
+        gc.add(poly)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Polygon2D)
+
+    def test_from_file(self):
+        geompp.set_decimal_precision(4)
+        gc = geompp.GeometryCollection2D()
+        gc.add(geompp.Point2D(1, 2))
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            gc.to_file(path)
+            gc2 = geompp.GeometryCollection2D.from_file(path)
+            assert gc == gc2
+        finally:
+            os.unlink(path)
+
 
 # ─── GeometryCollection3D ─────────────────────────────────────────────────────
 
@@ -1652,3 +2815,52 @@ class TestGeometryCollection3D:
         gc.add(geompp.Point3D(1, 2, 3))
         gc2 = geompp.GeometryCollection3D.from_wkt(gc.to_wkt())
         assert gc == gc2
+
+    def test_add_line3d(self):
+        gc = geompp.GeometryCollection3D()
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        gc.add(l)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Line3D)
+
+    def test_add_ray3d(self):
+        gc = geompp.GeometryCollection3D()
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        gc.add(r)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Ray3D)
+
+    def test_add_polyline3d(self):
+        gc = geompp.GeometryCollection3D()
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 1)])
+        gc.add(pl)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Polyline3D)
+
+    def test_add_polygon3d(self):
+        gc = geompp.GeometryCollection3D()
+        poly = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ])
+        gc.add(poly)
+        assert gc.size() == 1
+        result = gc.get(0)
+        assert isinstance(result, geompp.Polygon3D)
+
+    def test_to_file_from_file(self):
+        geompp.set_decimal_precision(4)
+        gc = geompp.GeometryCollection3D()
+        gc.add(geompp.Point3D(1, 2, 3))
+        with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
+            path = f.name
+        try:
+            gc.to_file(path)
+            assert os.path.exists(path)
+            gc2 = geompp.GeometryCollection3D.from_file(path)
+            assert gc == gc2
+        finally:
+            os.unlink(path)

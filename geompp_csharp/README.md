@@ -8,6 +8,8 @@ Available on NuGet as [`GeomPP`](https://www.nuget.org/packages/GeomPP).
 
 Supports **.NET 8** (and later) and **.NET Framework 4.8**.
 
+**[Changelog](https://github.com/amastrobera/geompp/blob/master/CHANGELOG.md)** — full release notes for every version.
+
 ---
 
 ## Install
@@ -19,7 +21,7 @@ dotnet add package GeomPP
 or in your `.csproj`:
 
 ```xml
-<PackageReference Include="GeomPP" Version="0.6.0" />
+<PackageReference Include="GeomPP" Version="0.7.0" />
 ```
 
 ---

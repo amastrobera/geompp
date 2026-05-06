@@ -77,6 +77,26 @@ TEST_F(Triangle2DTest, Contains) {
                           (std::get<0>(points) - std::get<2>(points)).Perp().Normalize()));
 }
 
+TEST_F(Triangle2DTest, Contains_OnBoundary) {
+  // right triangle: P0=(0,0), P1=(4,0), P2=(0,3)
+  auto t = g::Triangle2D::Make(g::Point2D(0,0), g::Point2D(4,0), g::Point2D(0,3));
+
+  // vertices
+  EXPECT_TRUE(t.Contains(g::Point2D(0, 0)));
+  EXPECT_TRUE(t.Contains(g::Point2D(4, 0)));
+  EXPECT_TRUE(t.Contains(g::Point2D(0, 3)));
+
+  // edge midpoints
+  EXPECT_TRUE(t.Contains(g::Point2D(2, 0)));    // horizontal base
+  EXPECT_TRUE(t.Contains(g::Point2D(0, 1.5)));  // vertical left edge
+  EXPECT_TRUE(t.Contains(g::Point2D(2, 1.5)));  // hypotenuse midpoint
+
+  // just outside each edge
+  EXPECT_FALSE(t.Contains(g::Point2D(2,   -0.01)));  // below base
+  EXPECT_FALSE(t.Contains(g::Point2D(-0.01, 1.5)));  // left of vertical edge
+  EXPECT_FALSE(t.Contains(g::Point2D(2.5,  1.5)));   // outside hypotenuse
+}
+
 TEST_F(Triangle2DTest, Areas) {
   geompp::DECIMAL_PRECISION = 4;
   auto t_ccw = g::Triangle2D::Make(g::Point2D(-1, 1), g::Point2D(0, -1), g::Point2D(1, 1));
@@ -162,6 +182,54 @@ TEST_F(Triangle2DTest, Interpolate) {
   // outside (s+t > 1) returns nullopt
   ASSERT_FALSE(tri.Interpolate(0.8, 0.8).has_value());
   ASSERT_FALSE(tri.Interpolate(1, 1).has_value());
+}
+
+TEST_F(Triangle2DTest, Location) {
+  geompp::DECIMAL_PRECISION = 4;
+  // P0=(0,-1), P1=(1,0), P2=(-1,0)
+  auto t = g::Triangle2D::FromWkt("TRIANGLE (0 -1, 1 0, -1 0)");
+
+  // inside points: Location returns (s,t) AND Contains agrees
+  auto check_inside = [&](g::Point2D const& p, double exp_s, double exp_t) {
+    auto st = t.Location(p);
+    ASSERT_TRUE(st.has_value());
+    EXPECT_NEAR(exp_s, std::get<0>(*st), 1e-9);
+    EXPECT_NEAR(exp_t, std::get<1>(*st), 1e-9);
+    EXPECT_TRUE(t.Contains(p));   // Location non-null ↔ Contains true
+  };
+
+  check_inside(g::Point2D(0, -1),  0.0,       0.0);       // P0
+  check_inside(g::Point2D(1, 0),   1.0,       0.0);       // P1
+  check_inside(g::Point2D(-1, 0),  0.0,       1.0);       // P2
+  check_inside(t.Centroid(),       1.0 / 3.0, 1.0 / 3.0);
+
+  // outside points: Location is nullopt AND Contains agrees
+  auto check_outside = [&](g::Point2D const& p) {
+    EXPECT_FALSE(t.Location(p).has_value());
+    EXPECT_FALSE(t.Contains(p));  // Location null ↔ Contains false
+  };
+
+  check_outside(g::Point2D(0, 1));    // above base edge
+  check_outside(g::Point2D(2, 0));    // right of P1
+  check_outside(g::Point2D(0, -2));   // below P0
+
+  // round-trip A: Interpolate(Location(p)) == p
+  auto p = g::Point2D(0, -0.5);
+  auto st_p = t.Location(p);
+  ASSERT_TRUE(st_p.has_value());
+  auto p_back = t.Interpolate(std::get<0>(*st_p), std::get<1>(*st_p));
+  ASSERT_TRUE(p_back.has_value());
+  EXPECT_TRUE(p.AlmostEquals(*p_back));
+
+  // round-trip B: Location(Interpolate(s,t)) == (s,t)
+  double s_in = 0.25, t_in = 0.25;
+  auto q = t.Interpolate(s_in, t_in);
+  ASSERT_TRUE(q.has_value());
+  EXPECT_TRUE(t.Contains(*q));          // Interpolate result is always inside
+  auto st_q = t.Location(*q);
+  ASSERT_TRUE(st_q.has_value());
+  EXPECT_NEAR(s_in, std::get<0>(*st_q), 1e-9);
+  EXPECT_NEAR(t_in, std::get<1>(*st_q), 1e-9);
 }
 
 TEST_F(Triangle2DTest, IntersectionWLine) {

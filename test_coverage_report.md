@@ -1,16 +1,16 @@
 # Test Coverage Report
 
-_Last updated: 2026-05-04_
+_Last updated: 2026-05-06_
 
 ## Overall
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (total) | ~360 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
-| Stubs (`throw "not implemented"`) | 21 | Listed per class below |
-| C++ explicit tests | ~300 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~166 | At least one `test_*` function calls the method |
-| C# explicit tests | ~120 | At least one test in `Program.cs` exercises the method |
+| Public methods (total) | ~362 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
+| Stubs (`throw "not implemented"`) | 18 | Listed per class below |
+| C++ explicit tests | ~306 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~172 | At least one `test_*` function calls the method |
+| C# explicit tests | ~133 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -32,10 +32,10 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py) |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
-| `Polygon2D` | ✓ core | ✓ core | ✓ partial | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py) |
-| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `Contains` ★ `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py) |
-| `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, all `Intersection` (Py) |
-| `Triangle3D` | ✓ partial | ✓ partial | ✓ partial | `DistanceTo` ★ `Contains` ★ `Intersects(△)` ★ `Intersection(×Line/Ray/Seg/△)` ★ | `Perimeter`, `ToAxis` (Py); most `Intersects`/`Intersection` (Py) |
+| `Polygon2D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py) |
+| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py) |
+| `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, `Location`, all `Intersection` (Py) |
+| `Triangle3D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(×Line/Ray/Seg/△)` ★ | `Perimeter`, `ToAxis` (Py); most `Intersects`/`Intersection` (Py) |
 | `Plane` | ✓ all key | ✓ all key | — | — | `axis_u`, `axis_v`, `ProjectInto`, `Evaluate`, `FromOriginAndAxes` (Py) |
 | `BBox2D` | ✓ most | ✓ partial | — | — | `BBox2D(Polyline2D)`, `BBox2D(Polygon2D)` (C++); most ctors (Py) |
 | `BBox3D` | ✓ all key | ○ thin | — | — | `min`, `max`, `Contains`, all shape ctors (Py) |
@@ -45,7 +45,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 
 ---
 
-## Stub Methods (21 total)
+## Stub Methods (18 total)
 
 These methods are declared in the public API but `throw std::runtime_error("not implemented")`.
 Each has a `EXPECT_ANY_THROW` test confirming the throw.
@@ -53,12 +53,10 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 | Class | Method |
 |-------|--------|
 | `Polygon2D` | `DistanceTo(Point2D)` |
-| `Polygon2D` | `Contains(Point2D)` |
 | `Polygon2D` | `Intersection(Line2D)` |
 | `Polygon2D` | `Intersection(Ray2D)` |
 | `Polygon2D` | `Intersection(LineSegment2D)` |
 | `Polygon3D` | `DistanceTo(Point3D)` |
-| `Polygon3D` | `Contains(Point3D)` |
 | `Polygon3D` | `Intersection(Line3D)` |
 | `Polygon3D` | `Intersection(Ray3D)` |
 | `Polygon3D` | `Intersection(LineSegment3D)` |
@@ -66,7 +64,6 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 | `Triangle2D` | `Intersects(Triangle2D)` |
 | `Triangle2D` | `Intersection(Triangle2D)` |
 | `Triangle3D` | `DistanceTo(Point3D)` |
-| `Triangle3D` | `Contains(Point3D)` |
 | `Triangle3D` | `Intersects(Triangle3D)` |
 | `Triangle3D` | `Intersection(Line3D)` |
 | `Triangle3D` | `Intersection(Ray3D)` |

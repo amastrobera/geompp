@@ -91,6 +91,13 @@ Point2D^ Triangle2D::Interpolate(double s, double t) {
     return gcnew Point2D(new geompp::Point2D(result.value()));
 }
 
+System::Tuple<double, double>^ Triangle2D::Location(Point2D^ point) {
+    auto result = _native->Location(*point->_native);
+    if (!result.has_value()) return nullptr;
+    auto [s, t] = result.value();
+    return gcnew System::Tuple<double, double>(s, t);
+}
+
 System::String^ Triangle2D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }

@@ -310,6 +310,29 @@ TEST_F(Triangle3DTest, Constructor) {
 ////   ASSERT_FALSE(s3.Intersects(r2_rev));
 //// }
 
+TEST_F(Triangle3DTest, Contains_OnBoundary) {
+  // right triangle in XY plane: P0=(0,0,0), P1=(4,0,0), P2=(0,3,0)
+  auto t = g::Triangle3D::Make(g::Point3D(0,0,0), g::Point3D(4,0,0), g::Point3D(0,3,0));
+
+  // vertices
+  EXPECT_TRUE(t.Contains(g::Point3D(0, 0, 0)));
+  EXPECT_TRUE(t.Contains(g::Point3D(4, 0, 0)));
+  EXPECT_TRUE(t.Contains(g::Point3D(0, 3, 0)));
+
+  // edge midpoints
+  EXPECT_TRUE(t.Contains(g::Point3D(2,   0,   0)));  // base
+  EXPECT_TRUE(t.Contains(g::Point3D(0,   1.5, 0)));  // left edge
+  EXPECT_TRUE(t.Contains(g::Point3D(2,   1.5, 0)));  // hypotenuse
+
+  // off-plane is always false, even if (x,y) projection would be inside
+  EXPECT_FALSE(t.Contains(g::Point3D(2, 0, 1)));
+  EXPECT_FALSE(t.Contains(g::Point3D(0, 0, 0.01)));  // 0.001 == epsilon, use 0.01
+
+  // just outside
+  EXPECT_FALSE(t.Contains(g::Point3D(2,   -0.01, 0)));
+  EXPECT_FALSE(t.Contains(g::Point3D(-0.01, 1.5, 0)));
+}
+
 TEST_F(Triangle3DTest, Wkt) {
   ASSERT_EQ("TRIANGLE (0 0 1, 1 1 1, 0 2 1)",
             g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 1), g::Point3D(0, 2, 1)).ToWkt());
@@ -561,10 +584,80 @@ TEST_F(Triangle3DTest, DistanceTo) {
   EXPECT_ANY_THROW(t.DistanceTo(g::Point3D(0.5, 0.5, 0)));
 }
 
-TEST_F(Triangle3DTest, Contains) {
-  // Contains is not yet implemented — throws
+TEST_F(Triangle3DTest, Location) {
+  // P0=(0,0,0), P1=(2,0,0), P2=(0,2,0)
   auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
-  EXPECT_ANY_THROW(t.Contains(g::Point3D(0.5, 0.5, 0)));
+
+  // inside points: Location returns (s,t) AND Contains agrees
+  auto check_inside = [&](g::Point3D const& p, double exp_s, double exp_t) {
+    auto st = t.Location(p);
+    ASSERT_TRUE(st.has_value());
+    EXPECT_NEAR(exp_s, std::get<0>(*st), 1e-9);
+    EXPECT_NEAR(exp_t, std::get<1>(*st), 1e-9);
+    EXPECT_TRUE(t.Contains(p));   // Location non-null ↔ Contains true
+  };
+
+  check_inside(g::Point3D::Zero(),    0.0,       0.0);       // P0
+  check_inside(g::Point3D(2, 0, 0),  1.0,       0.0);       // P1
+  check_inside(g::Point3D(0, 2, 0),  0.0,       1.0);       // P2
+  check_inside(t.Centroid(),          1.0 / 3.0, 1.0 / 3.0);
+
+  // outside points: Location is nullopt AND Contains agrees
+  auto check_outside = [&](g::Point3D const& p) {
+    EXPECT_FALSE(t.Location(p).has_value());
+    EXPECT_FALSE(t.Contains(p));  // Location null ↔ Contains false
+  };
+
+  check_outside(g::Point3D(0.5, 0.5,  1));   // off-plane above
+  check_outside(g::Point3D(0.5, 0.5, -1));   // off-plane below
+  check_outside(g::Point3D(-1, 0, 0));        // outside in-plane
+  check_outside(g::Point3D(2, 2, 0));         // past hypotenuse
+
+  // round-trip A: Interpolate(Location(p)) == p
+  auto p = g::Point3D(0.5, 0.5, 0);
+  auto st_p = t.Location(p);
+  ASSERT_TRUE(st_p.has_value());
+  auto p_back = t.Interpolate(std::get<0>(*st_p), std::get<1>(*st_p));
+  ASSERT_TRUE(p_back.has_value());
+  EXPECT_TRUE(p.AlmostEquals(*p_back));
+
+  // round-trip B: Location(Interpolate(s,t)) == (s,t)
+  double s_in = 0.25, t_in = 0.25;
+  auto q = t.Interpolate(s_in, t_in);
+  ASSERT_TRUE(q.has_value());
+  EXPECT_TRUE(t.Contains(*q));          // Interpolate result is always inside
+  auto st_q = t.Location(*q);
+  ASSERT_TRUE(st_q.has_value());
+  EXPECT_NEAR(s_in, std::get<0>(*st_q), 1e-9);
+  EXPECT_NEAR(t_in, std::get<1>(*st_q), 1e-9);
+}
+
+TEST_F(Triangle3DTest, Contains) {
+  // XY-plane triangle: P0=(0,0,0), P1=(2,0,0), P2=(0,2,0)
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+  auto c = t.Centroid();
+
+  // corner points are on the boundary
+  ASSERT_TRUE(t.Contains(g::Point3D::Zero()));
+  ASSERT_TRUE(t.Contains(g::Point3D(2, 0, 0)));
+  ASSERT_TRUE(t.Contains(g::Point3D(0, 2, 0)));
+
+  // centroid is inside
+  ASSERT_TRUE(t.Contains(c));
+
+  // midpoints of edges (on boundary)
+  ASSERT_TRUE(t.Contains(g::Point3D(1, 0, 0)));    // midpoint P0-P1
+  ASSERT_TRUE(t.Contains(g::Point3D(0, 1, 0)));    // midpoint P0-P2
+  ASSERT_TRUE(t.Contains(g::Point3D(1, 1, 0)));    // midpoint P1-P2
+
+  // points outside in the plane
+  ASSERT_FALSE(t.Contains(g::Point3D(-0.5, 0, 0)));
+  ASSERT_FALSE(t.Contains(g::Point3D(0, -0.5, 0)));
+  ASSERT_FALSE(t.Contains(g::Point3D(1.5, 1.5, 0)));  // beyond hypotenuse
+
+  // point off the plane → outside regardless of XY position
+  ASSERT_FALSE(t.Contains(g::Point3D(0.5, 0.5, 1)));
+  ASSERT_FALSE(t.Contains(g::Point3D(0.5, 0.5, -1)));
 }
 
 TEST_F(Triangle3DTest, IntersectionWLine) {

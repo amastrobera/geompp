@@ -4,6 +4,8 @@
 
 Python bindings for [geompp](https://github.com/amastrobera/geompp) — a C++ 2D/3D geometry library.
 
+**[Changelog](https://github.com/amastrobera/geompp/blob/master/CHANGELOG.md)** — full release notes for every version.
+
 ## Install
 
 ```bash
