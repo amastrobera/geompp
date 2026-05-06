@@ -319,12 +319,12 @@ Polygon3D Polygon3D::FromWkt(std::string const& wkt) {
     std::vector<Point3D> points;
     std::size_t start_outer_loop, end_outer_loop;
     {
-      start_outer_loop = end_gtype + polygon_loops_wkt.find('(');
+      start_outer_loop = end_gtype + 1 + polygon_loops_wkt.find('(');
       if (start_outer_loop == std::string::npos) {
         throw std::runtime_error("brakets (outer)");
       }
 
-      end_outer_loop = end_gtype + polygon_loops_wkt.find(')');
+      end_outer_loop = end_gtype + 1 + polygon_loops_wkt.find(')');
       if (end_pn == std::string::npos) {
         throw std::runtime_error("brakets (outer/end)");
       }

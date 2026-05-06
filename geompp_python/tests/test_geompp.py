@@ -624,12 +624,13 @@ class TestLine2D:
         assert hline.almost_equals(l2)
 
     def test_intersects_ray(self, hline):
-        # ray pointing left along y=0, origin at (5,0) → hits hline
-        r_hit = geompp.Ray2D.make(geompp.Point2D(5, 0), geompp.Vector2D(-1, 0))
+        # ray pointing upward from below y=0, crossing hline at (3,0)
+        r_hit = geompp.Ray2D.make(geompp.Point2D(3, -2), geompp.Vector2D(0, 1))
         assert hline.intersects(r_hit)
         hit = hline.intersection(r_hit)
         assert hit is not None
         assert isinstance(hit, geompp.Point2D)
+        assert approx(hit.x, 3) and approx(hit.y, 0)
         # ray pointing upward from (0,1) — parallel but offset, no intersection with hline (y=0)
         r_miss = geompp.Ray2D.make(geompp.Point2D(0, 1), geompp.Vector2D(0, 1))
         assert not hline.intersects(r_miss)
@@ -1760,15 +1761,16 @@ class TestTriangle2D:
         assert tri.almost_equals(tri2)
 
     def test_to_axis(self, tri):
+        # tri fixture: P0=(0,0), P1=(4,0), P2=(0,3)
+        # ToAxis() returns (P1-P0, P2-P0) — edge vectors, not normalized
         axes = tri.to_axis()
         assert isinstance(axes, tuple)
         assert len(axes) == 2
         u, v = axes
         assert isinstance(u, geompp.Vector2D)
         assert isinstance(v, geompp.Vector2D)
-        # axes should be unit vectors
-        assert approx(u.length(), 1.0)
-        assert approx(v.length(), 1.0)
+        assert approx(u.x, 4.0) and approx(u.y, 0.0)
+        assert approx(v.x, 0.0) and approx(v.y, 3.0)
 
     def test_to_file_from_file(self, tri):
         with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:

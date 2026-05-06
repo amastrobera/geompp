@@ -2008,7 +2008,8 @@ Test("AlmostEquals_SamePolyline_True", () => {
 });
 
 Test("Indexer_ReturnsCorrectPoint", () => {
-  var pl = Polyline3D.Make(new Point3D[] { new(1,2,3), new(4,5,6), new(7,8,9) });
+  // (1,0,3) → (4,5,6) → (7,8,9): cross product (3,5,3)×(6,8,6) = (6,0,-6) ≠ 0 → non-collinear, middle kept
+  var pl = Polyline3D.Make(new Point3D[] { new(1,0,3), new(4,5,6), new(7,8,9) });
   Eq(4.0, pl[1].X);
   Eq(5.0, pl[1].Y);
   Eq(6.0, pl[1].Z);
@@ -2084,9 +2085,9 @@ Test("Area_UnitSquare", () => {
 });
 
 Test("Area_WithHole", () => {
-  // 4x4 square minus 2x2 inner hole → area = 16 - 4 = 12
+  // 4x4 square (CCW) minus 2x2 inner hole (CW) → area = 16 - 4 = 12
   var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
-  var hole  = new Point2D[] { new(1,1), new(3,1), new(3,3), new(1,3) };
+  var hole  = new Point2D[] { new(1,3), new(3,3), new(3,1), new(1,1) }; // CW winding
   var p = Polygon2D.Make(outer, new[] { hole });
   Eq(12.0, p.Area());
 });

@@ -43,7 +43,7 @@ BBox2D::BBox2D(Polyline2D const& s) {
     max_y = compare(s[i].y(), max_y) >= 0 ? s[i].y() : max_y;
 
     min_x = compare(s[i].x(), min_x) <= 0 ? s[i].x() : min_x;
-    min_x = compare(s[i].x(), min_y) <= 0 ? s[i].y() : min_y;
+    min_y = compare(s[i].y(), min_y) <= 0 ? s[i].y() : min_y;
   }
 
   MIN = {min_x, min_y};
