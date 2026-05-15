@@ -45,7 +45,7 @@ class Triangle3D {
 
   double DistanceTo(Point3D const& point) const;
   std::tuple<Vector3D, Vector3D> ToAxis()
-      const;                                     // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
+      const;  // returnx the axis U and axis V of the triangle (U = P1-P0, V = P2-P0)
   std::optional<Point3D> Interpolate(double s, double t) const;
   std::optional<std::tuple<double, double>> Location(Point3D const& point) const;
 
@@ -64,11 +64,13 @@ class Triangle3D {
   bool Intersects(Line3D const& line) const;
   bool Intersects(Ray3D const& ray) const;
   bool Intersects(LineSegment3D const& segment) const;
+  bool Intersects(Plane const& plane) const;
   bool Intersects(Triangle3D const& other) const;
 
   ReturnSet Intersection(Line3D const& line) const;
   ReturnSet Intersection(Ray3D const& ray) const;
   ReturnSet Intersection(LineSegment3D const& segment) const;
+  ReturnSet Intersection(Plane const& plane) const;
   ReturnSet Intersection(Triangle3D const& other) const;
 #pragma endregion
 

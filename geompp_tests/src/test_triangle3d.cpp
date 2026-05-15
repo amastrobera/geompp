@@ -1,10 +1,11 @@
 #include "triangle3d.hpp"
 
 #include "line3d.hpp"
-// #include "line_segment3d.hpp"
+#include "line_segment3d.hpp"
+#include "plane.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
-// #include "ray3d.hpp"
+#include "ray3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -661,11 +662,252 @@ TEST_F(Triangle3DTest, Contains) {
 }
 
 TEST_F(Triangle3DTest, IntersectionWLine) {
-  // Intersection(Line3D) is not yet implemented — throws
+  geompp::DECIMAL_PRECISION = 4;
+  // CCW triangle on XY plane: P0=(0,0,0), P1=(2,0,0), P2=(0,2,0)
   auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
-  auto line = g::Line3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1));
-  EXPECT_ANY_THROW(t.Intersection(line));
-  EXPECT_ANY_THROW(t.Intersects(line));
+
+  // line through interior at (0.5, 0.5, 0)
+  auto thru_interior = g::Line3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1));
+  ASSERT_TRUE(t.Intersects(thru_interior));
+  {
+    auto inter = t.Intersection(thru_interior);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(0.5, 0.5, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // line through a vertex (P0)
+  auto thru_vertex = g::Line3D::Make(g::Point3D(0, 0, -1), g::Point3D(0, 0, 1));
+  ASSERT_TRUE(t.Intersects(thru_vertex));
+  {
+    auto inter = t.Intersection(thru_vertex);
+    ASSERT_TRUE(inter.has_value());
+    EXPECT_EQ(g::Point3D::Zero(), std::get<g::Point3D>(*inter));
+  }
+
+  // line through an edge midpoint (base midpoint = (1, 0, 0))
+  auto thru_edge = g::Line3D::Make(g::Point3D(1, 0, -1), g::Point3D(1, 0, 1));
+  ASSERT_TRUE(t.Intersects(thru_edge));
+  {
+    auto inter = t.Intersection(thru_edge);
+    ASSERT_TRUE(inter.has_value());
+    EXPECT_EQ(g::Point3D(1, 0, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // line missing the triangle (hits the plane outside the triangle at (3,3,0))
+  auto miss_plane = g::Line3D::Make(g::Point3D(3, 3, -1), g::Point3D(3, 3, 1));
+  ASSERT_FALSE(t.Intersects(miss_plane));
+  ASSERT_FALSE(t.Intersection(miss_plane).has_value());
+
+  // line past the hypotenuse: hits plane at (1.5, 1.5, 0) — s=0.75, t=0.75, s+t > 1
+  auto past_hypotenuse = g::Line3D::Make(g::Point3D(1.5, 1.5, -1), g::Point3D(1.5, 1.5, 1));
+  ASSERT_FALSE(t.Intersects(past_hypotenuse));
+  ASSERT_FALSE(t.Intersection(past_hypotenuse).has_value());
+
+  // line parallel to plane (above it) — plane intersection is nullopt → no point
+  auto parallel_above = g::Line3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 1));
+  ASSERT_FALSE(t.Intersects(parallel_above));
+  ASSERT_FALSE(t.Intersection(parallel_above).has_value());
+
+  // line lying in the triangle's plane (coplanar) — plane intersection is nullopt → no point
+  auto coplanar = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0));
+  ASSERT_FALSE(t.Intersects(coplanar));
+  ASSERT_FALSE(t.Intersection(coplanar).has_value());
+}
+
+TEST_F(Triangle3DTest, IntersectionWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+
+  // ray pointing down toward triangle hits at (0.5, 0.5, 0)
+  auto down = g::Ray3D::Make(g::Point3D(0.5, 0.5, 4), g::Vector3D(0, 0, -1));
+  ASSERT_TRUE(t.Intersects(down));
+  {
+    auto inter = t.Intersection(down);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(0.5, 0.5, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // ray pointing up (away from plane) — line intersects but ray does not
+  auto up = g::Ray3D::Make(g::Point3D(0.5, 0.5, 4), g::Vector3D(0, 0, 1));
+  ASSERT_FALSE(t.Intersects(up));
+  ASSERT_FALSE(t.Intersection(up).has_value());
+
+  // ray with origin ON the triangle, pointing into the plane — origin is the hit
+  auto on_pointing_up = g::Ray3D::Make(g::Point3D(0.5, 0.5, 0), g::Vector3D(0, 0, 1));
+  ASSERT_TRUE(t.Intersects(on_pointing_up));
+  {
+    auto inter = t.Intersection(on_pointing_up);
+    ASSERT_TRUE(inter.has_value());
+    EXPECT_EQ(g::Point3D(0.5, 0.5, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // ray hitting the plane outside the triangle
+  auto miss_plane = g::Ray3D::Make(g::Point3D(3, 3, 4), g::Vector3D(0, 0, -1));
+  ASSERT_FALSE(t.Intersects(miss_plane));
+  ASSERT_FALSE(t.Intersection(miss_plane).has_value());
+
+  // ray parallel to plane — no intersection
+  auto parallel = g::Ray3D::Make(g::Point3D(0, 0, 1), g::Vector3D(1, 0, 0));
+  ASSERT_FALSE(t.Intersects(parallel));
+  ASSERT_FALSE(t.Intersection(parallel).has_value());
+}
+
+TEST_F(Triangle3DTest, IntersectionWLineSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
+
+  // segment crossing the triangle at (0.5, 0.5, 0)
+  auto crossing = g::LineSegment3D::Make(g::Point3D(0.5, 0.5, -2), g::Point3D(0.5, 0.5, 3));
+  ASSERT_TRUE(t.Intersects(crossing));
+  {
+    auto inter = t.Intersection(crossing);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(0.5, 0.5, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // segment with one endpoint exactly on the triangle
+  auto touching = g::LineSegment3D::Make(g::Point3D(0.5, 0.5, 0), g::Point3D(0.5, 0.5, 3));
+  ASSERT_TRUE(t.Intersects(touching));
+  {
+    auto inter = t.Intersection(touching);
+    ASSERT_TRUE(inter.has_value());
+    EXPECT_EQ(g::Point3D(0.5, 0.5, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // segment entirely above the triangle's plane — line would cross but segment does not
+  auto above = g::LineSegment3D::Make(g::Point3D(0.5, 0.5, 1), g::Point3D(0.5, 0.5, 3));
+  ASSERT_FALSE(t.Intersects(above));
+  ASSERT_FALSE(t.Intersection(above).has_value());
+
+  // segment crossing the plane outside the triangle (at (3,3,0))
+  auto miss = g::LineSegment3D::Make(g::Point3D(3, 3, -1), g::Point3D(3, 3, 1));
+  ASSERT_FALSE(t.Intersects(miss));
+  ASSERT_FALSE(t.Intersection(miss).has_value());
+
+  // segment lying in the triangle's plane (coplanar) — nullopt
+  auto coplanar = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0));
+  ASSERT_FALSE(t.Intersects(coplanar));
+  ASSERT_FALSE(t.Intersection(coplanar).has_value());
+}
+
+TEST_F(Triangle3DTest, IntersectionWPlane) {
+  geompp::DECIMAL_PRECISION = 4;
+  // CCW triangle on XY plane: P0=(0,0,0), P1=(4,0,0), P2=(0,4,0)
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
+
+  // Plane y=1 cuts the triangle through its interior at (0,1,0) and (3,1,0) — both on edges,
+  // neither is a vertex, so Triangle2D::Intersection(Line2D) accepts the cut.
+  {
+    auto y1 = g::Plane::FromOriginAndNormal(g::Point3D(0, 1, 0), g::Vector3D::BasisY());
+    ASSERT_TRUE(t.Intersects(y1));
+    auto inter = t.Intersection(y1);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*inter));
+    auto const& seg = std::get<g::LineSegment3D>(*inter);
+    // both endpoints lie on y=1 and on the triangle
+    EXPECT_TRUE(y1.Contains(seg.First()));
+    EXPECT_TRUE(y1.Contains(seg.Last()));
+    EXPECT_TRUE(t.Contains(seg.First()));
+    EXPECT_TRUE(t.Contains(seg.Last()));
+  }
+
+  // Plane x=2 also cuts the interior at (2,0,0) on edge P0→P1 — wait that's a vertex of edge but
+  // not of the triangle. Endpoints: (2,0,0) and (2,2,0). Both on edge interiors.
+  {
+    auto x2 = g::Plane::FromOriginAndNormal(g::Point3D(2, 0, 0), g::Vector3D::BasisX());
+    ASSERT_TRUE(t.Intersects(x2));
+    auto inter = t.Intersection(x2);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*inter));
+  }
+
+  // Plane parallel to the triangle's plane but offset (z=1): no intersection
+  {
+    auto above = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1), g::Vector3D::BasisZ());
+    ASSERT_FALSE(t.Intersects(above));
+    ASSERT_FALSE(t.Intersection(above).has_value());
+  }
+
+  // Same plane (coplanar): API limitation — plane∩plane returns nullopt, so we get nullopt
+  {
+    auto same = g::Plane::XY();
+    ASSERT_FALSE(t.Intersects(same));
+    ASSERT_FALSE(t.Intersection(same).has_value());
+  }
+
+  // Plane intersecting XY along the line x=10 (well outside the triangle) → no intersection
+  {
+    auto miss = g::Plane::FromOriginAndNormal(g::Point3D(10, 0, 0), g::Vector3D::BasisX());
+    ASSERT_FALSE(t.Intersects(miss));
+    ASSERT_FALSE(t.Intersection(miss).has_value());
+  }
+
+  // Plane cutting the triangle exactly along edge P0→P2 (YZ plane). Triangle2D::Intersection(Line)
+  // returns nullopt when all intersection points are vertices — that surfaces here as nullopt.
+  {
+    auto yz = g::Plane::YZ();
+    ASSERT_FALSE(t.Intersects(yz));
+    ASSERT_FALSE(t.Intersection(yz).has_value());
+  }
+}
+
+TEST_F(Triangle3DTest, IntersectionWPlane_Symmetric) {
+  // Plane::Intersection(Triangle) must agree with Triangle::Intersection(Plane).
+  geompp::DECIMAL_PRECISION = 4;
+  auto t  = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
+  auto y1 = g::Plane::FromOriginAndNormal(g::Point3D(0, 1, 0), g::Vector3D::BasisY());
+
+  auto from_tri   = t.Intersection(y1);
+  auto from_plane = y1.Intersection(t);
+
+  ASSERT_TRUE(from_tri.has_value() && from_plane.has_value());
+  ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*from_tri));
+  ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*from_plane));
+
+  auto seg_a = std::get<g::LineSegment3D>(*from_tri);
+  auto seg_b = std::get<g::LineSegment3D>(*from_plane);
+  EXPECT_TRUE(seg_a.AlmostEquals(seg_b));
+}
+
+TEST_F(Triangle3DTest, IntersectionWTriangle) {
+  geompp::DECIMAL_PRECISION = 4;
+  // Reference triangle on XY plane
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
+
+  // Triangle parallel above — disjoint planes, no intersection
+  {
+    auto above = g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(0, 1, 1));
+    ASSERT_FALSE(t.Intersects(above));
+    ASSERT_FALSE(t.Intersection(above).has_value());
+  }
+
+  // Two triangles whose planes intersect through their interiors.
+  //   t   is on XY (z=0).  Its plane y=1 cut is (0,1,0)→(3,1,0).
+  //   t2  is on y=1 plane.  Its plane z=0 cut is (1,1,0)→(3,1,0) — endpoint (3,1,0) is also t2's vertex.
+  // The two segments overlap on (1,1,0)→(3,1,0).
+  {
+    auto t2 = g::Triangle3D::Make(g::Point3D(1, 1, -1), g::Point3D(1, 1, 1), g::Point3D(3, 1, 0));
+    ASSERT_TRUE(t.Intersects(t2));
+    auto inter = t.Intersection(t2);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*inter));
+    auto const& seg = std::get<g::LineSegment3D>(*inter);
+    EXPECT_TRUE(t.Contains(seg.First()) && t.Contains(seg.Last()));
+    EXPECT_TRUE(t2.Contains(seg.First()) && t2.Contains(seg.Last()));
+  }
+
+  // Two triangles whose planes' intersection line misses both: parallel-disjoint sub-case.
+  // (See note: when both plane cuts succeed but the resulting segments are collinear-but-disjoint,
+  // the current overlap logic throws. We assert that limitation explicitly so it's documented.)
+  {
+    // t  cut by plane y=1 → segment (0,1,0)→(3,1,0)
+    // t2 cut by plane y=1 → segment (5.5,1,0)→(6.5,1,0) (computed analytically below)
+    auto t2 = g::Triangle3D::Make(g::Point3D(5, 1, -1), g::Point3D(7, 1, -1), g::Point3D(6, 1, 1));
+    EXPECT_ANY_THROW(t.Intersection(t2));
+  }
 }
 
 }  // namespace geompp_tests

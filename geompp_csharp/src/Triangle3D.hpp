@@ -52,12 +52,14 @@ public:
     bool Intersects(Line3D^ line);
     bool Intersects(Ray3D^ ray);
     bool Intersects(LineSegment3D^ segment);
+    bool Intersects(Plane^ plane);
     bool Intersects(Triangle3D^ other);
 
     // Intersection — optional<variant<Point3D,LineSegment3D,Triangle3D,Polygon3D>> → System::Object^
     System::Object^ Intersection(Line3D^ line);
     System::Object^ Intersection(Ray3D^ ray);
     System::Object^ Intersection(LineSegment3D^ other);
+    System::Object^ Intersection(Plane^ plane);
     System::Object^ Intersection(Triangle3D^ other);
 
     // Operator

@@ -145,7 +145,15 @@ Plane::ReturnSet Plane::Intersection(Plane const& plane) const {
 }
 
 Plane::ReturnSet Plane::Intersection(Triangle3D const& triangle) const {
-  throw std::runtime_error("not implemented yet");
+  // Delegate to Triangle3D::Intersection(Plane). Plane-triangle intersection can only produce a
+  // Point3D or a LineSegment3D — both are also valid alternatives of Plane::ReturnSet, so we
+  // unwrap and rewrap rather than returning the triangle-side variant directly (the two variants
+  // have different alternative sets).
+  auto result = triangle.Intersection(*this);
+  if (!result.has_value()) return std::nullopt;
+  if (std::holds_alternative<Point3D>(*result)) return std::get<Point3D>(*result);
+  if (std::holds_alternative<LineSegment3D>(*result)) return std::get<LineSegment3D>(*result);
+  return std::nullopt;
 }
 
 bool Plane::IsParallel(Line3D const& line) const { return compare(line.Direction().Dot(Normal), 0) == 0; }

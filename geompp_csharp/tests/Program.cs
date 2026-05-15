@@ -2422,6 +2422,135 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+// ── Triangle3D.Intersection (Line / Ray / Segment) ────────────────────────────
+Console.WriteLine("\nTriangle3D (Intersection Line / Ray / Segment)");
+
+Test("Intersects_Line3D_ThroughInterior_True", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var l = Line3D.Make(new Point3D(0.5, 0.5, -1), new Point3D(0.5, 0.5, 1));
+  IsTrue(t.Intersects(l));
+});
+
+Test("Intersection_Line3D_ReturnsPointInTriangle", () => {
+  var t  = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var l  = Line3D.Make(new Point3D(0.5, 0.5, -1), new Point3D(0.5, 0.5, 1));
+  var pt = t.Intersection(l) as Point3D;
+  NotNull(pt);
+  Eq(0.5, pt!.X);
+  Eq(0.5, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Line3D_MissPlaneOutsideTriangle_Null", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var l = Line3D.Make(new Point3D(3, 3, -1), new Point3D(3, 3, 1));
+  IsFalse(t.Intersects(l));
+  IsNull(t.Intersection(l), "line hits plane outside the triangle — no intersection");
+});
+
+Test("Intersection_Line3D_Coplanar_Null", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var l = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0));  // lies in the triangle's plane
+  IsFalse(t.Intersects(l));
+  IsNull(t.Intersection(l), "coplanar line — API limitation: returns null");
+});
+
+Test("Intersects_Ray3D_Down_True", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var r = Ray3D.Make(new Point3D(0.5, 0.5, 4), new Vector3D(0, 0, -1));
+  IsTrue(t.Intersects(r));
+});
+
+Test("Intersection_Ray3D_HitPoint", () => {
+  var t  = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var r  = Ray3D.Make(new Point3D(0.5, 0.5, 4), new Vector3D(0, 0, -1));
+  var pt = t.Intersection(r) as Point3D;
+  NotNull(pt);
+  Eq(0.5, pt!.X);
+  Eq(0.5, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Ray3D_PointingAway_Null", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var r = Ray3D.Make(new Point3D(0.5, 0.5, 4), new Vector3D(0, 0, 1));
+  IsNull(t.Intersection(r), "ray pointing away from plane — no intersection");
+});
+
+Test("Intersects_LineSegment3D_Crossing_True", () => {
+  var t   = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var seg = LineSegment3D.Make(new Point3D(0.5, 0.5, -2), new Point3D(0.5, 0.5, 3));
+  IsTrue(t.Intersects(seg));
+});
+
+Test("Intersection_LineSegment3D_HitPoint", () => {
+  var t   = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var seg = LineSegment3D.Make(new Point3D(0.5, 0.5, -2), new Point3D(0.5, 0.5, 3));
+  var pt  = t.Intersection(seg) as Point3D;
+  NotNull(pt);
+  Eq(0.5, pt!.X);
+  Eq(0.5, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_LineSegment3D_Above_Null", () => {
+  var t   = Triangle3D.Make(new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(0,2,0));
+  var seg = LineSegment3D.Make(new Point3D(0.5, 0.5, 1), new Point3D(0.5, 0.5, 3));
+  IsNull(t.Intersection(seg), "segment entirely above the plane — no intersection");
+});
+
+Test("Intersects_Plane_True", () => {
+  // Use a large enough triangle that plane y=1 cuts through edge interiors (not just vertices).
+  var t  = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  var y1 = Plane.FromOriginAndNormal(new Point3D(0,1,0), new Vector3D(0,1,0));
+  IsTrue(t.Intersects(y1), "plane y=1 cuts the triangle's interior");
+});
+
+Test("Intersection_Plane_ReturnsSegmentInBoth", () => {
+  var t   = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  var y1  = Plane.FromOriginAndNormal(new Point3D(0,1,0), new Vector3D(0,1,0));
+  var seg = t.Intersection(y1) as LineSegment3D;
+  NotNull(seg);
+  // both endpoints must lie on the triangle and on the plane
+  IsTrue(t.Contains(seg!.First()));
+  IsTrue(t.Contains(seg.Last()));
+  IsTrue(y1.Contains(seg.First()));
+  IsTrue(y1.Contains(seg.Last()));
+});
+
+Test("Intersection_Plane_ParallelAbove_Null", () => {
+  var t     = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  var above = Plane.FromOriginAndNormal(new Point3D(0,0,1), new Vector3D(0,0,1));
+  IsFalse(t.Intersects(above));
+  IsNull(t.Intersection(above), "plane parallel above the triangle — no intersection");
+});
+
+Test("Intersection_Plane_Coplanar_Null", () => {
+  var t = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  // same plane as the triangle — Plane∩Plane returns null (API limitation), so we get null here too
+  IsNull(t.Intersection(Plane.XY()), "coplanar plane — API limitation: returns null");
+});
+
+Test("Intersects_Triangle3D_ParallelAbove_False", () => {
+  var t1 = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  var t2 = Triangle3D.Make(new Point3D(0,0,1), new Point3D(1,0,1), new Point3D(0,1,1));
+  IsFalse(t1.Intersects(t2));
+  IsNull(t1.Intersection(t2));
+});
+
+Test("Intersection_Triangle3D_InteriorCut_ReturnsSegment", () => {
+  // t1 on XY, t2 on plane y=1 — their plane-cut segments overlap on (1,1,0)→(3,1,0).
+  var t1  = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  var t2  = Triangle3D.Make(new Point3D(1,1,-1), new Point3D(1,1,1), new Point3D(3,1,0));
+  IsTrue(t1.Intersects(t2));
+  var seg = t1.Intersection(t2) as LineSegment3D;
+  NotNull(seg);
+  IsTrue(t1.Contains(seg!.First()));
+  IsTrue(t1.Contains(seg.Last()));
+  IsTrue(t2.Contains(seg.First()));
+  IsTrue(t2.Contains(seg.Last()));
+});
+
 // ── BBox2D (additional) ───────────────────────────────────────────────────────
 Console.WriteLine("\nBBox2D (additional)");
 
@@ -2663,12 +2792,25 @@ Test("Intersection_Plane_Parallel_Null", () => {
   IsNull(p1.Intersection(p2), "parallel distinct planes should not intersect");
 });
 
-Test("Intersection_Triangle3D_Throws_NotImplemented", () => {
-  var pl  = Plane.XY();
-  var tri = Triangle3D.Make(new Point3D(0, 0, -1), new Point3D(2, 0, 1), new Point3D(0, 2, 1));
-  bool threw = false;
-  try { pl.Intersection(tri); } catch (Exception) { threw = true; }
-  IsTrue(threw, "Plane.Intersection(Triangle3D) is not implemented yet — should throw");
+Test("Intersection_Triangle3D_ReturnsSegment", () => {
+  // Plane.Intersection(Triangle3D) now delegates to Triangle3D.Intersection(Plane).
+  // Use plane y=1 so the cut goes through edge interiors (avoids the all-vertices nullopt rule).
+  var y1  = Plane.FromOriginAndNormal(new Point3D(0,1,0), new Vector3D(0,1,0));
+  var tri = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  IsTrue(y1.Intersects(tri));
+  var seg = y1.Intersection(tri) as LineSegment3D;
+  NotNull(seg);
+  IsTrue(y1.Contains(seg!.First()));
+  IsTrue(y1.Contains(seg.Last()));
+  IsTrue(tri.Contains(seg.First()));
+  IsTrue(tri.Contains(seg.Last()));
+});
+
+Test("Intersection_Triangle3D_ParallelPlane_Null", () => {
+  var above = Plane.FromOriginAndNormal(new Point3D(0,0,1), new Vector3D(0,0,1));
+  var tri   = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  IsFalse(above.Intersects(tri));
+  IsNull(above.Intersection(tri));
 });
 
 // ── Plane.IsParallel / IsCoplanar ────────────────────────────────────────────

@@ -2082,6 +2082,133 @@ class TestTriangle3D:
         assert tri.contains(geompp.Point3D(0.5, 0.5, 0))           # hypotenuse midpoint
         assert not tri.contains(geompp.Point3D(0.5, 0, 0.01))      # just off-plane
 
+    def test_intersection_with_line(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(0, 2, 0)
+        )
+
+        # line through interior at (0.5, 0.5, 0)
+        line_in = geompp.Line3D.make(geompp.Point3D(0.5, 0.5, -1), geompp.Point3D(0.5, 0.5, 1))
+        assert tri.intersects(line_in)
+        hit = tri.intersection(line_in)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+        # line missing the triangle (hits plane outside)
+        line_miss = geompp.Line3D.make(geompp.Point3D(3, 3, -1), geompp.Point3D(3, 3, 1))
+        assert not tri.intersects(line_miss)
+        assert tri.intersection(line_miss) is None
+
+        # coplanar line — API limitation: nullopt
+        line_coplanar = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        assert not tri.intersects(line_coplanar)
+        assert tri.intersection(line_coplanar) is None
+
+    def test_intersection_with_ray(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(0, 2, 0)
+        )
+
+        # ray pointing toward triangle from above
+        r_down = geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 4), geompp.Vector3D(0, 0, -1))
+        assert tri.intersects(r_down)
+        hit = tri.intersection(r_down)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+        # ray pointing away from the plane — no intersection
+        r_up = geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 4), geompp.Vector3D(0, 0, 1))
+        assert not tri.intersects(r_up)
+        assert tri.intersection(r_up) is None
+
+        # ray hitting plane outside the triangle
+        r_miss = geompp.Ray3D.make(geompp.Point3D(3, 3, 4), geompp.Vector3D(0, 0, -1))
+        assert not tri.intersects(r_miss)
+        assert tri.intersection(r_miss) is None
+
+    def test_intersection_with_line_segment(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(0, 2, 0)
+        )
+
+        seg_cross = geompp.LineSegment3D.make(
+            geompp.Point3D(0.5, 0.5, -2), geompp.Point3D(0.5, 0.5, 3)
+        )
+        assert tri.intersects(seg_cross)
+        hit = tri.intersection(seg_cross)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+        # segment entirely above the plane
+        seg_above = geompp.LineSegment3D.make(
+            geompp.Point3D(0.5, 0.5, 1), geompp.Point3D(0.5, 0.5, 3)
+        )
+        assert not tri.intersects(seg_above)
+        assert tri.intersection(seg_above) is None
+
+        # segment with an endpoint on the triangle
+        seg_touching = geompp.LineSegment3D.make(
+            geompp.Point3D(0.5, 0.5, 0), geompp.Point3D(0.5, 0.5, 3)
+        )
+        assert tri.intersects(seg_touching)
+        hit2 = tri.intersection(seg_touching)
+        assert isinstance(hit2, geompp.Point3D)
+        assert hit2.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+    def test_intersection_with_plane(self):
+        # Use a triangle large enough that the plane y=1 cuts through the *interior* of its edges
+        # (Triangle2D::Intersection(Line2D) returns None when all intersection points are vertices).
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 4, 0)
+        )
+
+        # Plane y=1 cuts the triangle through edge interiors → LineSegment3D
+        y1 = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 1, 0), geompp.Vector3D(0, 1, 0))
+        assert tri.intersects(y1)
+        seg = tri.intersection(y1)
+        assert isinstance(seg, geompp.LineSegment3D)
+        assert tri.contains(seg.first)
+        assert tri.contains(seg.last)
+        assert y1.contains(seg.first)
+        assert y1.contains(seg.last)
+
+        # Plane parallel above the triangle's plane → no intersection
+        above = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 1), geompp.Vector3D(0, 0, 1))
+        assert not tri.intersects(above)
+        assert tri.intersection(above) is None
+
+        # Coplanar plane (same as triangle's plane) → None (API limitation)
+        same = geompp.Plane.xy()
+        assert not tri.intersects(same)
+        assert tri.intersection(same) is None
+
+    def test_intersection_with_triangle(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 4, 0)
+        )
+
+        # Triangle parallel above — disjoint planes, no intersection
+        above = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 1), geompp.Point3D(1, 0, 1), geompp.Point3D(0, 1, 1)
+        )
+        assert not tri.intersects_triangle(above)
+        assert tri.intersection(above) is None
+
+        # Two triangles whose planes intersect through their interiors.
+        # tri  on XY:  plane y=1 cut is (0,1,0)→(3,1,0).
+        # tri2 on y=1: plane z=0 cut is (1,1,0)→(3,1,0).
+        # Overlap → LineSegment3D from (1,1,0) to (3,1,0).
+        tri2 = geompp.Triangle3D.make(
+            geompp.Point3D(1, 1, -1), geompp.Point3D(1, 1, 1), geompp.Point3D(3, 1, 0)
+        )
+        assert tri.intersects_triangle(tri2)
+        seg = tri.intersection(tri2)
+        assert isinstance(seg, geompp.LineSegment3D)
+        assert tri.contains(seg.first)
+        assert tri.contains(seg.last)
+        assert tri2.contains(seg.first)
+        assert tri2.contains(seg.last)
+
 
 # ─── BBox2D ──────────────────────────────────────────────────────────────────
 

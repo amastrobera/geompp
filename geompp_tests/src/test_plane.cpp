@@ -691,11 +691,33 @@ TEST_F(PlaneTest, IntersectionWPlane) {
   }
 }
 
-TEST_F(PlaneTest, IntersectionWTriangle_NotImplemented) {
-  auto xy = g::Plane::XY();
-  auto tri = g::Triangle3D::Make(g::Point3D(0, 0, -1), g::Point3D(2, 0, 1), g::Point3D(0, 2, 1));
-  EXPECT_ANY_THROW(xy.Intersection(tri));
-  EXPECT_ANY_THROW(xy.Intersects(tri));
+TEST_F(PlaneTest, IntersectionWTriangle) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
+
+  // Plane y=1 cuts the triangle's interior (endpoints (0,1,0) and (3,1,0) are on edge interiors,
+  // not vertices, so Triangle2D::Intersection accepts the cut).
+  {
+    auto y1 = g::Plane::FromOriginAndNormal(g::Point3D(0, 1, 0), g::Vector3D::BasisY());
+    ASSERT_TRUE(y1.Intersects(t));
+    auto inter = y1.Intersection(t);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*inter));
+  }
+
+  // Plane parallel above the triangle's plane — no intersection
+  {
+    auto above = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1), g::Vector3D::BasisZ());
+    ASSERT_FALSE(above.Intersects(t));
+    ASSERT_FALSE(above.Intersection(t).has_value());
+  }
+
+  // Coplanar plane (same as triangle's plane) — API limitation: nullopt
+  {
+    auto same = g::Plane::XY();
+    ASSERT_FALSE(same.Intersects(t));
+    ASSERT_FALSE(same.Intersection(t).has_value());
+  }
 }
 
 TEST_F(PlaneTest, IsParallelWLine) {

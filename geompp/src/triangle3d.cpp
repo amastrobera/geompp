@@ -1,9 +1,12 @@
 #include "triangle3d.hpp"
 
 #include "bbox3d.hpp"
+#include "line2d.hpp"
 #include "line3d.hpp"
+#include "line_segment2d.hpp"
 #include "line_segment3d.hpp"
 #include "point2d.hpp"
+#include "polygon2d.hpp"
 #include "polygon3d.hpp"
 #include "ray3d.hpp"
 #include "triangle2d.hpp"
@@ -145,20 +148,167 @@ bool Triangle3D::Intersects(Ray3D const& ray) const { return Intersection(ray).h
 
 bool Triangle3D::Intersects(LineSegment3D const& segment) const { return Intersection(segment).has_value(); }
 
-bool Triangle3D::Intersects(Triangle3D const& other) const { throw std::runtime_error("not implemented"); }
+bool Triangle3D::Intersects(Triangle3D const& other) const { return Intersection(other).has_value(); }
+
+bool Triangle3D::Intersects(Plane const& plane) const { return plane.Intersects(*this); }
 
 Triangle3D::ReturnSet Triangle3D::Intersection(Line3D const& line) const {
-  throw std::runtime_error("not implemented");
+  // intersection with the plane
+  auto t_plane = ToPlane();
+
+  auto plane_intersection = t_plane.Intersection(line);
+  if (!(plane_intersection.has_value() && std::holds_alternative<Point3D>(*plane_intersection))) {
+    return std::nullopt;
+  }
+  // the point of intersection on the plane
+  auto PI = std::get<Point3D>(*plane_intersection);
+
+  // ... does it belong to the triangle ?
+  // we could project and compute 2D but there is a quicker 3D direct approach
+  auto U = P1 - P0;
+  auto V = P2 - P0;
+  auto W = PI - P0;
+
+  double U2 = U.Dot(U);
+  double V2 = V.Dot(V);
+  double UV = U.Dot(V);
+  double WU = W.Dot(U);
+  double WV = W.Dot(V);
+
+  double D = UV * UV - U2 * V2;  // can never be zero since triangle is not degenerate (ctor guarantees unique points)
+
+  double sc = (UV * WV - V2 * WU) / D;
+  double tc = (UV * WU - U2 * WV) / D;
+
+  // test if the baricentric coordinates are within the triangle's axis range
+  if (!within_axis_boundary(sc, tc)) {
+    return std::nullopt;
+  }
+
+  return PI;
 }
 
-Triangle3D::ReturnSet Triangle3D::Intersection(Ray3D const& ray) const { throw std::runtime_error("not implemented"); }
+Triangle3D::ReturnSet Triangle3D::Intersection(Ray3D const& ray) const {
+  auto line_intersection = Intersection(ray.ToLine());
+  if (!(line_intersection.has_value() && std::holds_alternative<Point3D>(*line_intersection))) {
+    return std::nullopt;
+  }
+
+  auto PI = std::get<Point3D>(*line_intersection);
+
+  if (!ray.IsAhead(PI)) {
+    return std::nullopt;
+  }
+
+  return PI;
+}
 
 Triangle3D::ReturnSet Triangle3D::Intersection(LineSegment3D const& segment) const {
-  throw std::runtime_error("not implemented");
+  auto line_intersection = Intersection(segment.ToLine());
+  if (!(line_intersection.has_value() && std::holds_alternative<Point3D>(*line_intersection))) {
+    return std::nullopt;
+  }
+
+  auto PI = std::get<Point3D>(*line_intersection);
+
+  if (!segment.Contains(PI)) {
+    return std::nullopt;
+  }
+
+  return PI;
+}
+
+Triangle3D::ReturnSet Triangle3D::Intersection(Plane const& plane) const {
+  auto t_plane = ToPlane();
+  auto plane_intersection = t_plane.Intersection(plane);
+
+  if (!(plane_intersection.has_value() && std::holds_alternative<Line3D>(*plane_intersection))) {
+    return std::nullopt;
+  }
+
+  auto plane_intersection_line = std::get<Line3D>(*plane_intersection);
+
+  // evaluate in 2D
+  auto line2d = Line2D::Make(t_plane.ProjectInto(plane_intersection_line.First()),
+                             t_plane.ProjectInto(plane_intersection_line.Last()));
+
+  auto triangle2d = Triangle2D::Make(t_plane.ProjectInto(P0), t_plane.ProjectInto(P1), t_plane.ProjectInto(P2));
+
+  auto intersection_2d = triangle2d.Intersection(line2d);  // this can be either a point or a line segment - if not null
+
+  if (!intersection_2d.has_value()) {
+    return std::nullopt;
+  }
+
+  if (std::holds_alternative<Point2D>(*intersection_2d)) {
+    auto intersection_point_2d = std::get<Point2D>(*intersection_2d);
+    return t_plane.Evaluate(intersection_point_2d);
+  }
+
+  if (std::holds_alternative<LineSegment2D>(*intersection_2d)) {
+    auto intersection_segment_2d = std::get<LineSegment2D>(*intersection_2d);
+    return LineSegment3D::Make(t_plane.Evaluate(intersection_segment_2d.First()),
+                               t_plane.Evaluate(intersection_segment_2d.Last()));
+  }
+
+  throw std::runtime_error("unexpected type of intersection result");
 }
 
 Triangle3D::ReturnSet Triangle3D::Intersection(Triangle3D const& other) const {
-  throw std::runtime_error("not implemented");
+  auto t_plane = ToPlane();
+  auto other_plane = other.ToPlane();
+
+  // intersection of this triangle to other plane exists ?
+  auto t_plane_intersection = Intersection(other_plane);
+  if (!(t_plane_intersection.has_value() && std::holds_alternative<LineSegment3D>(*t_plane_intersection))) {
+    return std::nullopt;
+  }
+
+  // intersection of other triangle to this plane exists ?
+  auto other_plane_intersection = other.Intersection(t_plane);
+  if (!(other_plane_intersection.has_value() && std::holds_alternative<LineSegment3D>(*other_plane_intersection))) {
+    return std::nullopt;
+  }
+
+  // verify that they overlap and compute the overlapping segment (if any)
+  auto seg = std::get<LineSegment3D>(*t_plane_intersection);
+  auto other_seg = std::get<LineSegment3D>(*other_plane_intersection);
+
+  auto s1 = seg.First();
+  auto s2 = seg.Last();
+  auto o1 = other_seg.First();
+  auto o2 = other_seg.Last();
+
+  bool o1_in = seg.Contains(o1);
+  bool o2_in = seg.Contains(o2);
+  bool s1_in = other_seg.Contains(s1);
+  bool s2_in = other_seg.Contains(s2);
+
+  // case 1: overlap or full containment of one segment to another
+  //         s1 *-------------* s2
+  //     o1 *-----------------------* o2
+  if (s1_in && s2_in) {
+    return seg;
+  }
+  //     s1 *-----------------------* s2
+  //         o1 *-------------* o2
+  if (o1_in && o2_in) {
+    return other_seg;
+  }
+
+  // case 2 partial overlap
+  //                s1 *-------------* s2
+  //     o1 *-----------------* o2
+  if (s1_in && o2_in && !s2_in && !o1_in) {
+    return LineSegment3D::Make(s1, o2);
+  }
+  //    s1 *-------------* s2
+  //            o1 *-----------------* o2
+  if (!s1_in && !o2_in && o1_in && s2_in) {
+    return LineSegment3D::Make(o1, s2);
+  }
+
+  throw std::runtime_error("unexpected type of intersection result");
 }
 
 #pragma endregion
