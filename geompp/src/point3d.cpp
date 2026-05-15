@@ -16,6 +16,8 @@ Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
 
 Point3D::Point3D(Point3D const& p) : X(p.X), Y(p.Y), Z(p.Z) {}
 
+Point3D::Point3D(Vector3D const& v) : X(v.x()), Y(v.y()), Z(v.z()) {}
+
 bool Point3D::AlmostEquals(Point3D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
 }
@@ -181,7 +183,10 @@ bool operator==(Point3D const& lhs, Point3D const& rhs) { return lhs.AlmostEqual
 Point3D operator+(Point3D const& lhs, Vector3D const& rhs) {
   return {lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z()};
 }
-Point3D& operator+=(Point3D& lhs, Vector3D const& rhs) { lhs = lhs + rhs; return lhs; }
+Point3D& operator+=(Point3D& lhs, Vector3D const& rhs) {
+  lhs = lhs + rhs;
+  return lhs;
+}
 
 Vector3D operator-(Point3D const& lhs, Point3D const& rhs) {
   return {lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z()};

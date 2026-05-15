@@ -23,7 +23,35 @@ void bind_plane(py::module_& m) {
         BIND_ALMOST_EQUALS(Plane)
         .def("intersects",
              [](const geompp::Plane& pl, const geompp::Line3D& l) { return pl.Intersects(l); }, "line"_a)
+        .def("intersects",
+             [](const geompp::Plane& pl, const geompp::Ray3D& r) { return pl.Intersects(r); }, "ray"_a)
+        .def("intersects",
+             [](const geompp::Plane& pl, const geompp::LineSegment3D& s) { return pl.Intersects(s); }, "segment"_a)
+        .def("intersects",
+             [](const geompp::Plane& pl, const geompp::Plane& other) { return pl.Intersects(other); }, "other"_a)
+        .def("intersects",
+             [](const geompp::Plane& pl, const geompp::Triangle3D& t) { return pl.Intersects(t); }, "triangle"_a)
         .def("intersection",
              [](const geompp::Plane& pl, const geompp::Line3D& l) -> py::object { return opt_variant_to_py(pl.Intersection(l)); }, "line"_a)
+        .def("intersection",
+             [](const geompp::Plane& pl, const geompp::Ray3D& r) -> py::object { return opt_variant_to_py(pl.Intersection(r)); }, "ray"_a)
+        .def("intersection",
+             [](const geompp::Plane& pl, const geompp::LineSegment3D& s) -> py::object { return opt_variant_to_py(pl.Intersection(s)); }, "segment"_a)
+        .def("intersection",
+             [](const geompp::Plane& pl, const geompp::Plane& other) -> py::object { return opt_variant_to_py(pl.Intersection(other)); }, "other"_a)
+        .def("intersection",
+             [](const geompp::Plane& pl, const geompp::Triangle3D& t) -> py::object { return opt_variant_to_py(pl.Intersection(t)); }, "triangle"_a)
+        .def("is_parallel",
+             [](const geompp::Plane& pl, const geompp::Line3D& l) { return pl.IsParallel(l); }, "line"_a)
+        .def("is_parallel",
+             [](const geompp::Plane& pl, const geompp::Ray3D& r) { return pl.IsParallel(r); }, "ray"_a)
+        .def("is_parallel",
+             [](const geompp::Plane& pl, const geompp::LineSegment3D& s) { return pl.IsParallel(s); }, "segment"_a)
+        .def("is_coplanar",
+             [](const geompp::Plane& pl, const geompp::Line3D& l) { return pl.IsCoplanar(l); }, "line"_a)
+        .def("is_coplanar",
+             [](const geompp::Plane& pl, const geompp::Ray3D& r) { return pl.IsCoplanar(r); }, "ray"_a)
+        .def("is_coplanar",
+             [](const geompp::Plane& pl, const geompp::LineSegment3D& s) { return pl.IsCoplanar(s); }, "segment"_a)
         .def("__eq__", [](const geompp::Plane& a, const geompp::Plane& b) { return a == b; });
 }

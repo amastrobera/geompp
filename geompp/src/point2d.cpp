@@ -16,6 +16,8 @@ Point2D::Point2D(double x, double y) : X(x), Y(y) {}
 
 Point2D::Point2D(Point2D const& p) : X(p.X), Y(p.Y) {}
 
+Point2D::Point2D(Vector2D const& v) : X(v.x()), Y(v.y()) {}
+
 bool Point2D::AlmostEquals(Point2D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0;
 }

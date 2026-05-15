@@ -11,6 +11,9 @@ namespace GeomPP {
 Point2D::Point2D(double x, double y)
     : _native(new geompp::Point2D(x, y)) {}
 
+Point2D::Point2D(Vector2D^ v)
+    : _native(new geompp::Point2D(*v->_native)) {}
+
 Point2D::Point2D(geompp::Point2D* native)
     : _native(native) {}
 

@@ -86,6 +86,18 @@ Test("Zero_IsOrigin", () => {
   Eq(0.0, z.Y);
 });
 
+Test("CreateFromVector_CopiesComponents", () => {
+  var p = new Point2D(new Vector2D(3.0, -4.5));
+  Eq(3.0, p.X);
+  Eq(-4.5, p.Y);
+});
+
+Test("CreateFromVector_RoundtripViaToVector", () => {
+  var p0 = new Point2D(1.25, -2.75);
+  var p1 = new Point2D(p0.ToVector());
+  IsTrue(p0.AlmostEquals(p1));
+});
+
 // ── Point3D ───────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPoint3D");
 
@@ -98,6 +110,19 @@ Test("Create_AccessXYZ", () => {
 
 Test("DistanceTo_KnownValue", () => {
   Eq(1.0, new Point3D(0, 0, 0).DistanceTo(new Point3D(1, 0, 0)));
+});
+
+Test("CreateFromVector_CopiesComponents", () => {
+  var p = new Point3D(new Vector3D(3.0, -4.5, 6.25));
+  Eq(3.0, p.X);
+  Eq(-4.5, p.Y);
+  Eq(6.25, p.Z);
+});
+
+Test("CreateFromVector_RoundtripViaToVector", () => {
+  var p0 = new Point3D(1.25, -2.75, 0.5);
+  var p1 = new Point3D(p0.ToVector());
+  IsTrue(p0.AlmostEquals(p1));
 });
 
 // ── Vector3D ──────────────────────────────────────────────────────────────────
@@ -2572,6 +2597,120 @@ Test("AlmostEquals_SamePlane_True", () => {
 
 Test("AlmostEquals_DiffPlane_False", () => {
   IsFalse(Plane.XY().AlmostEquals(Plane.YZ()));
+});
+
+// ── Plane.Intersection / Intersects with Ray3D, LineSegment3D, Plane, Triangle3D ──
+
+Test("Intersects_Ray3D_True", () => {
+  var pl = Plane.XY();
+  var r  = Ray3D.Make(new Point3D(5, 3, 4), new Vector3D(0, 0, -1));
+  IsTrue(pl.Intersects(r));
+});
+
+Test("Intersection_Ray3D_HitPoint", () => {
+  var pt = Plane.XY().Intersection(Ray3D.Make(new Point3D(5, 3, 4), new Vector3D(0, 0, -1)));
+  NotNull(pt);
+  Eq(5.0, pt!.X);
+  Eq(3.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_Ray3D_PointingAway_Null", () => {
+  var pt = Plane.XY().Intersection(Ray3D.Make(new Point3D(5, 3, 4), new Vector3D(0, 0, 1)));
+  IsNull(pt, "ray pointing away from plane should not intersect");
+});
+
+Test("Intersects_LineSegment3D_True", () => {
+  var pl  = Plane.XY();
+  var seg = LineSegment3D.Make(new Point3D(5, 3, -2), new Point3D(5, 3, 4));
+  IsTrue(pl.Intersects(seg));
+});
+
+Test("Intersection_LineSegment3D_HitPoint", () => {
+  var pt = Plane.XY().Intersection(
+    LineSegment3D.Make(new Point3D(5, 3, -2), new Point3D(5, 3, 4)));
+  NotNull(pt);
+  Eq(5.0, pt!.X);
+  Eq(3.0, pt.Y);
+  Eq(0.0, pt.Z);
+});
+
+Test("Intersection_LineSegment3D_Above_Null", () => {
+  var pt = Plane.XY().Intersection(
+    LineSegment3D.Make(new Point3D(0, 0, 1), new Point3D(1, 1, 2)));
+  IsNull(pt, "segment entirely above plane should not intersect");
+});
+
+Test("Intersects_Plane_True", () => {
+  IsTrue(Plane.XY().Intersects(Plane.YZ()));
+});
+
+Test("Intersection_Plane_ReturnsLineInBothPlanes", () => {
+  var line = Plane.XY().Intersection(Plane.YZ());
+  NotNull(line);
+  // origin must lie on both planes (z=0, x=0)
+  Eq(0.0, line!.Origin().X);
+  Eq(0.0, line.Origin().Z);
+  // direction parallel to Y-axis
+  Eq(1.0, Math.Abs(line.Direction().Y));
+  Eq(0.0, line.Direction().X);
+  Eq(0.0, line.Direction().Z);
+});
+
+Test("Intersection_Plane_Parallel_Null", () => {
+  var p1 = Plane.FromOriginAndNormal(new Point3D(0, 0, 0), new Vector3D(0, 0, 1));
+  var p2 = Plane.FromOriginAndNormal(new Point3D(0, 0, 5), new Vector3D(0, 0, 1));
+  IsNull(p1.Intersection(p2), "parallel distinct planes should not intersect");
+});
+
+Test("Intersection_Triangle3D_Throws_NotImplemented", () => {
+  var pl  = Plane.XY();
+  var tri = Triangle3D.Make(new Point3D(0, 0, -1), new Point3D(2, 0, 1), new Point3D(0, 2, 1));
+  bool threw = false;
+  try { pl.Intersection(tri); } catch (Exception) { threw = true; }
+  IsTrue(threw, "Plane.Intersection(Triangle3D) is not implemented yet — should throw");
+});
+
+// ── Plane.IsParallel / IsCoplanar ────────────────────────────────────────────
+
+Test("IsParallel_LineInPlane_True", () => {
+  var line = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0));
+  IsTrue(Plane.XY().IsParallel(line));
+});
+
+Test("IsParallel_LinePerpendicular_False", () => {
+  var line = Line3D.Make(new Point3D(0, 0, 0), new Point3D(0, 0, 1));
+  IsFalse(Plane.XY().IsParallel(line));
+});
+
+Test("IsParallel_Ray_True", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 3), new Vector3D(1, 0, 0));
+  IsTrue(Plane.XY().IsParallel(ray));
+});
+
+Test("IsParallel_LineSegment_True", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 3), new Point3D(5, 0, 3));
+  IsTrue(Plane.XY().IsParallel(seg));
+});
+
+Test("IsCoplanar_LineInPlane_True", () => {
+  var line = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0));
+  IsTrue(Plane.XY().IsCoplanar(line));
+});
+
+Test("IsCoplanar_LineAbovePlane_False", () => {
+  var line = Line3D.Make(new Point3D(0, 0, 2), new Point3D(1, 0, 2));
+  IsFalse(Plane.XY().IsCoplanar(line));
+});
+
+Test("IsCoplanar_Ray_InPlane_True", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(Plane.XY().IsCoplanar(ray));
+});
+
+Test("IsCoplanar_LineSegment_AbovePlane_False", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 2), new Point3D(5, 0, 2));
+  IsFalse(Plane.XY().IsCoplanar(seg));
 });
 
 // ── GeometryCollection2D (additional) ────────────────────────────────────────

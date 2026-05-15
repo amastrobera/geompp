@@ -11,6 +11,9 @@ namespace GeomPP {
 Point3D::Point3D(double x, double y, double z)
     : _native(new geompp::Point3D(x, y, z)) {}
 
+Point3D::Point3D(Vector3D^ v)
+    : _native(new geompp::Point3D(*v->_native)) {}
+
 Point3D::Point3D(geompp::Point3D* native)
     : _native(native) {}
 

@@ -12,6 +12,7 @@ ref class Vector3D;  // forward declaration — defined in Vector3D.hpp
 public ref class Point3D {
 public:
     Point3D(double x, double y, double z);
+    Point3D(Vector3D^ v);
     ~Point3D();
     !Point3D();
 

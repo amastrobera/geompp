@@ -14,6 +14,7 @@ class Point2D {
  public:
   Point2D(double x, double y);
   Point2D(Point2D const&);
+  Point2D(Vector2D const&);
   Point2D(Point2D&&) = default;
   ~Point2D() = default;
 

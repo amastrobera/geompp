@@ -11,6 +11,9 @@ ref class Point2D;
 ref class Point3D;
 ref class Vector3D;
 ref class Line3D;
+ref class Ray3D;
+ref class LineSegment3D;
+ref class Triangle3D;
 
 public ref class Plane {
 public:
@@ -38,9 +41,24 @@ public:
 
     bool Contains(Point3D^ point);
 
-    // Intersection — optional<variant<Point3D>> → Point3D^ (nullptr = no intersection)
+    // Intersection — optional<variant<...>> → managed object (nullptr = no intersection / not the active alternative)
     bool     Intersects(Line3D^ line);
+    bool     Intersects(Ray3D^ ray);
+    bool     Intersects(LineSegment3D^ segment);
+    bool     Intersects(Plane^ other);
+    bool     Intersects(Triangle3D^ triangle);
     Point3D^ Intersection(Line3D^ line);
+    Point3D^ Intersection(Ray3D^ ray);
+    Point3D^ Intersection(LineSegment3D^ segment);
+    Line3D^  Intersection(Plane^ other);
+    Point3D^ Intersection(Triangle3D^ triangle);  // currently throws — Plane::Intersection(Triangle3D) is not implemented
+
+    bool IsParallel(Line3D^ line);
+    bool IsParallel(Ray3D^ ray);
+    bool IsParallel(LineSegment3D^ segment);
+    bool IsCoplanar(Line3D^ line);
+    bool IsCoplanar(Ray3D^ ray);
+    bool IsCoplanar(LineSegment3D^ segment);
 
     // Standard planes
     static Plane^ XY();

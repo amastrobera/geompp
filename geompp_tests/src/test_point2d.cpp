@@ -239,4 +239,22 @@ TEST_F(Point2DTest, Average) {
   ASSERT_EQ(g::Point2D(3.0 / pts.size(), -5.0 / pts.size()), g::average(pts));
 }
 
+TEST_F(Point2DTest, FromVector) {
+  // explicit construction from a vector copies x/y components
+  auto v = g::Vector2D(3.0, -4.5);
+  auto p = g::Point2D(v);
+  ASSERT_EQ(3.0, p.x());
+  ASSERT_EQ(-4.5, p.y());
+  ASSERT_EQ(g::Point2D(3.0, -4.5), p);
+
+  // implicit conversion: Point2D parameter accepts a Vector2D
+  auto via_implicit = [](g::Point2D const& q) { return q; }(g::Vector2D(7.5, 8.25));
+  ASSERT_EQ(g::Point2D(7.5, 8.25), via_implicit);
+
+  // round-trip: Point2D → Vector2D → Point2D
+  auto p0 = g::Point2D(1.25, -2.75);
+  auto roundtrip = g::Point2D(p0.ToVector());
+  ASSERT_EQ(p0, roundtrip);
+}
+
 }  // namespace geompp_tests

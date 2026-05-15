@@ -13,6 +13,9 @@
 namespace geompp {
 
 class Line3D;
+class Ray3D;
+class LineSegment3D;
+class Triangle3D;
 
 class Plane {
  public:
@@ -40,9 +43,27 @@ class Plane {
   Point3D Evaluate(Point2D const& p) const;
 
   bool Contains(Point3D const& point) const;
-  using ReturnSet = std::optional<std::variant<Point3D>>;
+
+  using ReturnSet = std::optional<std::variant<Point3D, Line3D, LineSegment3D>>;
+
   bool Intersects(Line3D const& line) const;
+  bool Intersects(Ray3D const& ray) const;
+  bool Intersects(LineSegment3D const& segment) const;
+  bool Intersects(Plane const& plane) const;
+  bool Intersects(Triangle3D const& triangle) const;
+
   ReturnSet Intersection(Line3D const& line) const;
+  ReturnSet Intersection(Ray3D const& ray) const;
+  ReturnSet Intersection(LineSegment3D const& segment) const;
+  ReturnSet Intersection(Plane const& plane) const;
+  ReturnSet Intersection(Triangle3D const& triangle) const;
+
+  bool IsParallel(Line3D const& line) const;
+  bool IsParallel(Ray3D const& ray) const;
+  bool IsParallel(LineSegment3D const& segment) const;
+  bool IsCoplanar(Line3D const& line) const;
+  bool IsCoplanar(Ray3D const& ray) const;
+  bool IsCoplanar(LineSegment3D const& segment) const;
 
 #pragma endregion
 
