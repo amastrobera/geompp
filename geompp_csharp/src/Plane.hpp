@@ -51,7 +51,7 @@ public:
     Point3D^ Intersection(Ray3D^ ray);
     Point3D^ Intersection(LineSegment3D^ segment);
     Line3D^  Intersection(Plane^ other);
-    Point3D^ Intersection(Triangle3D^ triangle);  // currently throws — Plane::Intersection(Triangle3D) is not implemented
+    System::Object^ Intersection(Triangle3D^ triangle);  // Point3D^ or LineSegment3D^ (or null)
 
     bool IsParallel(Line3D^ line);
     bool IsParallel(Ray3D^ ray);

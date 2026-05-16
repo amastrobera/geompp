@@ -137,12 +137,15 @@ Line3D^ Plane::Intersection(Plane^ other) {
     return gcnew Line3D(new geompp::Line3D(std::get<geompp::Line3D>(result.value())));
 }
 
-Point3D^ Plane::Intersection(Triangle3D^ triangle) {
-    // Plane::Intersection(Triangle3D) currently throws std::runtime_error("not implemented yet").
-    // Let the native exception propagate; managed code can catch it as System::Exception.
+System::Object^ Plane::Intersection(Triangle3D^ triangle) {
     auto result = _native->Intersection(*triangle->_native);
-    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) return nullptr;
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    if (!result.has_value()) return nullptr;
+    auto& val = result.value();
+    if (std::holds_alternative<geompp::Point3D>(val))
+        return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
+    if (std::holds_alternative<geompp::LineSegment3D>(val))
+        return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
+    return nullptr;
 }
 
 bool Plane::IsParallel(Line3D^ line) {

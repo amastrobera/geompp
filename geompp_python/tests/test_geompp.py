@@ -2458,15 +2458,24 @@ class TestPlane:
         assert not p1.intersects(p2)
         assert p1.intersection(p2) is None
 
-    def test_intersection_with_triangle_not_implemented(self):
-        xy = geompp.Plane.xy()
+    def test_intersection_with_triangle(self):
+        # plane y=1 cuts the triangle through edge interiors (avoids the all-vertices nullopt rule)
+        y1  = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 1, 0), geompp.Vector3D(0, 1, 0))
         tri = geompp.Triangle3D.make(
-            geompp.Point3D(0, 0, -1), geompp.Point3D(2, 0, 1), geompp.Point3D(0, 2, 1)
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 4, 0)
         )
-        with pytest.raises(Exception):
-            xy.intersection(tri)
-        with pytest.raises(Exception):
-            xy.intersects(tri)
+        assert y1.intersects(tri)
+        seg = y1.intersection(tri)
+        assert isinstance(seg, geompp.LineSegment3D)
+        assert y1.contains(seg.first)
+        assert y1.contains(seg.last)
+        assert tri.contains(seg.first)
+        assert tri.contains(seg.last)
+
+        # plane parallel above the triangle's plane → no intersection
+        above = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 1), geompp.Vector3D(0, 0, 1))
+        assert not above.intersects(tri)
+        assert above.intersection(tri) is None
 
     def test_is_parallel(self):
         xy = geompp.Plane.xy()

@@ -11,6 +11,81 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.8.0] - 2026-05-15
+
+> C++ library — tagged `v0.8.0` · C# / NuGet — tagged `csharp-v0.8.0` · Python / PyPI — tagged `python-v0.8.0`
+
+> Touches `Plane`, `Triangle3D`, `Point2D`, `Point3D`. Closes 6 stub methods (19 → 13).
+
+### Added
+
+**C++ core**
+- `Plane::Intersects(Ray3D)` / `Plane::Intersection(Ray3D)` — delegates to the line case, then keeps the hit only if it is ahead of the ray's origin.
+- `Plane::Intersects(LineSegment3D)` / `Plane::Intersection(LineSegment3D)` — delegates to the line case, then keeps the hit only if it lies within the segment.
+- `Plane::Intersects(Plane)` / `Plane::Intersection(Plane)` — closed-form line of intersection from the cross product of the two normals and a point in the span of those normals; returns a `Line3D` (direction = `N1 × N2`).
+- `Plane::Intersects(Triangle3D)` / `Plane::Intersection(Triangle3D)` — delegates to the new `Triangle3D::Intersection(Plane)` (unwraps/rewraps because the two `ReturnSet` variants don't share alternatives).
+- `Plane::IsParallel(Line3D / Ray3D / LineSegment3D)` — tests `direction · normal == 0`. Returns `true` for lines/rays/segments lying *in* the plane (coplanar ⊂ parallel by this definition).
+- `Plane::IsCoplanar(Line3D / Ray3D / LineSegment3D)` — strict-subset of parallel: requires the first point to also lie on the plane.
+- `Triangle3D::Intersection(Line3D)` — intersects the line with the triangle's plane, then runs a 3D barycentric inside-test (`U·U`, `V·V`, `U·V`, `W·U`, `W·V`) using `within_axis_boundary(sc, tc)`. No 2D projection.
+- `Triangle3D::Intersection(Ray3D)` — line-intersection result, kept only if `ray.IsAhead(hit)`.
+- `Triangle3D::Intersection(LineSegment3D)` — line-intersection result, kept only if `segment.Contains(hit)`.
+- `Triangle3D::Intersection(Plane)` — plane-plane intersection line, then projects both the line and the triangle vertices into the triangle's 2D frame and delegates to `Triangle2D::Intersection(Line2D)`; lifts the resulting `Point2D`/`LineSegment2D` back to 3D via `Plane::Evaluate`.
+- `Triangle3D::Intersection(Triangle3D)` — computes each triangle's intersection with the other's plane (both yield collinear `LineSegment3D`s on the planes' common line) and returns the segment overlap.
+- `Triangle3D::Intersects(Plane)` — `bool` overload.
+- `Point2D(Vector2D const&)` — implicit construction from a vector. Mirrors the new `Point3D(Vector3D const&)` constructor.
+- `Point3D(Vector3D const&)` — implicit construction from a vector. Lets `Vector3D` arithmetic results flow directly into `Point3D`-typed APIs (e.g., `Line3D::Make(Vector3D-result, …)`).
+
+**Python / PyPI**
+- `Plane.intersects(ray|segment|plane|triangle)` / `Plane.intersection(...)` overloads added.
+- `Plane.is_parallel(line|ray|segment)` and `Plane.is_coplanar(line|ray|segment)` added.
+- `Triangle3D.intersects(plane)` and `Triangle3D.intersection(plane)` overloads added.
+- `Triangle3D.intersection(line|ray|segment|triangle)` now return real results (the bindings existed before but routed to stubs that threw).
+- `Point2D(Vector2D)` and `Point3D(Vector3D)` constructors exposed via `py::init<const Vector2D&>()` / `py::init<const Vector3D&>()`.
+
+**C# / NuGet**
+- `Plane.Intersects(Ray3D^|LineSegment3D^|Plane^|Triangle3D^)` and matching `Plane.Intersection(...)` overloads. Plane∩Plane returns a `Line3D^` (or `null`); Plane∩Triangle returns a `Point3D^` / `LineSegment3D^` (or `null`).
+- `Plane.IsParallel(Line3D^|Ray3D^|LineSegment3D^)` and `Plane.IsCoplanar(Line3D^|Ray3D^|LineSegment3D^)`.
+- `Triangle3D.Intersects(Plane^)` and `Triangle3D.Intersection(Plane^)` overloads.
+- `Triangle3D.Intersection(Line3D^|Ray3D^|LineSegment3D^|Triangle3D^)` now return real results (the bindings existed but the native side threw).
+- `Point2D(Vector2D^)` and `Point3D(Vector3D^)` constructors.
+
+### Changed
+
+**C++ core**
+- `Plane::SignedDistanceTo(Point3D)` — removed the `round()` call. The default precision was 0 decimal places, so the function used to snap the signed distance to the nearest integer. This silently broke `Plane::ProjectOnto` (which multiplies the signed distance by the normal) for points within ±0.5 of the plane.
+- `Triangle3D::Intersects(Triangle3D)` — was a throwing stub; now `return Intersection(other).has_value()` like every other `Intersects` overload.
+- `Plane::Intersection(Triangle3D)` — was a throwing stub; now delegates to `Triangle3D::Intersection(Plane)`, unwrapping its variant into `Plane::ReturnSet`'s alternatives (`Point3D` or `LineSegment3D`).
+
+### Fixed
+
+**C++ core**
+- `Plane` header had a duplicate `bool Intersects(Line3D const&) const;` declaration; removed.
+
+### Notes / known limitations
+
+- `Triangle2D::Intersection(Line2D)` returns `nullopt` when *all* intersection points coincide with triangle vertices (the deliberate "touch along an edge ≠ intersection" rule at `triangle2d.cpp:144`). This propagates through `Triangle3D::Intersection(Plane)` and `Triangle3D::Intersection(Triangle3D)`: a plane that cuts the triangle exactly along an edge will report no intersection. Tests document this behavior rather than work around it.
+- `Plane::Intersection(Plane)`, `Plane::Intersection(Line3D/Ray3D/LineSegment3D)`, and the propagated triangle variants still collapse the coplanar case to `nullopt` — the `ReturnSet` variant can't represent "infinite intersections." `IsCoplanar` is the workaround.
+- `Triangle3D::Intersection(Triangle3D)`: when the two triangles' plane-intersection segments are collinear but disjoint, the segment-overlap branch falls through and throws `"unexpected type of intersection result"` instead of returning `nullopt`. The test `Triangle3DTest.IntersectionWTriangle` asserts this with `EXPECT_ANY_THROW` so it's documented.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_plane.cpp`: `IntersectionWRay`, `IntersectionWLineSegment`, `IntersectionWPlane`, `IntersectionWTriangle`, `IsParallelWLine/Ray/LineSegment`, `IsCoplanarWLine/Ray/LineSegment` added.
+- `test_triangle3d.cpp`: `IntersectionWLine` replaced with a real test (interior hit, vertex hit, edge-midpoint, miss, parallel-above, coplanar). `IntersectionWRay`, `IntersectionWLineSegment`, `IntersectionWPlane`, `IntersectionWPlane_Symmetric`, `IntersectionWTriangle` added (including the documented disjoint-segments throw).
+- `test_point2d.cpp` / `test_point3d.cpp`: `FromVector` — explicit construction, implicit conversion, and round-trip via `ToVector`.
+
+**Python (`geompp_python/tests`)**
+- `TestPoint2D.test_construction_from_vector` and `TestPoint3D.test_construction_from_vector`.
+- `TestPlane`: `test_intersection_with_ray`, `test_intersection_with_line_segment`, `test_intersection_with_plane`, `test_is_parallel`, `test_is_coplanar`.
+- `TestTriangle3D`: `test_intersection_with_line`, `test_intersection_with_ray`, `test_intersection_with_line_segment`, `test_intersection_with_plane`, `test_intersection_with_triangle`.
+
+**C# (`geompp_csharp/tests`)**
+- `Point2D` / `Point3D` — `CreateFromVector_CopiesComponents`, `CreateFromVector_RoundtripViaToVector`.
+- `Plane` — `Intersects_*`/`Intersection_*` for `Ray3D`, `LineSegment3D`, `Plane`, `Triangle3D`; `IsParallel_*` and `IsCoplanar_*` for line/ray/segment.
+- `Triangle3D` — `Intersects_Line3D_*`/`Intersection_Line3D_*` and the same for `Ray3D`, `LineSegment3D`, `Plane`, `Triangle3D` (12+ new tests, including parallel-above, coplanar, and the documented disjoint-segments throw).
+
+---
+
 ## [0.7.0] - 2026-05-06
 
 > C++ library — tagged `v0.7.0` · C# / NuGet — tagged `csharp-v0.7.0` · Python / PyPI — tagged `python-v0.7.0`
