@@ -35,6 +35,9 @@ class BBox2D {
 
 #pragma region Geometrical Operations
 
+  /// @brief Tests whether a point lies inside this axis-aligned bounding box (inclusive of the boundary).
+  /// @param p The point to test.
+  /// @return true if @p p falls within the closed box [min, max] along each axis.
   bool Contains(Point2D const& p) const;
 
 #pragma endregion

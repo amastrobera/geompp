@@ -1,0 +1,56 @@
+# Doxygen configuration for geompp
+# Run from the docs/ directory:  doxygen Doxyfile
+# Output:
+#   - docs/api/cpp/html  → browsable C++ HTML docs
+#   - docs/api/cpp/xml   → machine-readable, consumed by gen_bindings_md.py
+
+PROJECT_NAME           = "geompp"
+PROJECT_BRIEF          = "C++20 2D/3D geometry library"
+PROJECT_NUMBER         =
+
+# Input
+INPUT                  = ../geompp/include
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp
+# Don't pull in third-party stuff
+EXCLUDE                =
+
+# Output
+OUTPUT_DIRECTORY       = api/cpp
+HTML_OUTPUT            = html
+XML_OUTPUT             = xml
+GENERATE_HTML          = YES
+GENERATE_XML           = YES
+GENERATE_LATEX         = NO
+
+# Comment style
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MULTILINE_CPP_IS_BRIEF = NO
+
+# Show all public members; skip private/internal
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_PROTECTED      = NO
+EXTRACT_STATIC         = YES
+
+# Make pretty output
+BUILTIN_STL_SUPPORT    = YES
+INLINE_INHERITED_MEMB  = YES
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+
+# Don't fail on missing docs (warn only)
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+QUIET                  = YES
+
+# Markdown support inside comments
+MARKDOWN_SUPPORT       = YES
+USE_MDFILE_AS_MAINPAGE =
+
+# Templates / namespaces
+SHOW_NAMESPACES        = YES
+SHOW_FILES             = YES

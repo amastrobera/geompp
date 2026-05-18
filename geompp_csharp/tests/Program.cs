@@ -438,6 +438,14 @@ Test("LineSegment3D_DistanceTo_Ray3D_Overlap_IsZero", () => {
   IsNull(seg.Distance(ray));
 });
 
+// 2D top-down (XY) the ray crosses the segment at (2,0); in 3D ray is at z=5 while
+// the segment is at z=0 → non-parallel skew, real distance = 5.
+Test("LineSegment3D_DistanceTo_Ray3D_SkewTopCross", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var ray = Ray3D.Make(new Point3D(2, 3, 5), new Vector3D(0, -1, 0));
+  Eq(5.0, seg.DistanceTo(ray));
+});
+
 Test("LineSegment3D_DistanceTo_LineSegment3D_Crossing_IsZero", () => {
   var s1 = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
   var s2 = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));

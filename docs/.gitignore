@@ -1,0 +1,9 @@
+# Doxygen output is regenerated from headers — don't commit it.
+api/cpp/html/
+api/cpp/xml/
+
+# The Markdown (Python, C#, C++) is generated too, but small and useful to
+# read directly on GitHub, so we DO commit it:
+#   api/python/*.md
+#   api/csharp/*.md
+#   api/cpp/md/*.md

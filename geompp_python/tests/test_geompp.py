@@ -534,6 +534,11 @@ class TestLineSegment3D:
         assert approx(seg.distance_to(ray_overlap), 0.0)
         assert seg.distance(ray_overlap) is None
 
+        # 2D top-down (XY) the ray crosses the segment at (2,0); in 3D the ray is at z=5
+        # while the segment is at z=0 → non-parallel skew, real distance = 5.
+        ray_top_cross_skew = geompp.Ray3D.make(geompp.Point3D(2, 3, 5), geompp.Vector3D(0, -1, 0))
+        assert approx(seg.distance_to(ray_top_cross_skew), 5.0)
+
     def test_distance_to_segment3d(self):
         s1 = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
         # crossing segment

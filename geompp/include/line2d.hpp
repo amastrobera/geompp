@@ -32,7 +32,14 @@ class Line2D {
 
 #pragma region line operations
 
+  /// @brief Perpendicular distance from a point to this infinite line.
+  /// @param point The point to measure distance to.
+  /// @return Length of the perpendicular from @p point onto this line.
   double DistanceTo(Point2D const& point) const;
+
+  /// @brief Orthogonal projection of a point onto this infinite line.
+  /// @param point The point to project.
+  /// @return Closest point on this line to @p point.
   Point2D ProjectOnto(Point2D const& point) const;
 
 #pragma endregion
@@ -45,18 +52,57 @@ class Line2D {
   Line2D& operator=(Line2D const& other);
 
 #pragma region Geometrical Operations
+
+  /// @brief Tests whether a point lies on this line.
+  /// @param point The point to test.
+  /// @return true if @p point is collinear with the line within decimal precision.
   bool Contains(Point2D const& point) const;
+
   using ReturnSet = std::optional<std::variant<Point2D>>;
+
+  /// @brief Tests whether this line intersects another line.
+  /// @param other The other line.
+  /// @return true if they meet at a point; false for parallel non-collinear lines.
   bool Intersects(Line2D const& other) const;
+
+  /// @brief Tests whether this line intersects a ray.
+  /// @param ray The ray.
+  /// @return true if they meet within the ray's domain.
   bool Intersects(Ray2D const& ray) const;
+
+  /// @brief Tests whether this line intersects a segment.
+  /// @param segment The segment.
+  /// @return true if the line crosses or touches the segment.
   bool Intersects(LineSegment2D const& segment) const;
+
+  /// @brief Tests whether this line passes through a triangle.
+  /// @param t The triangle.
+  /// @return true if the line crosses the triangle's interior or an edge.
   bool Intersects(Triangle2D const& t) const;
-  ReturnSet Intersection(Line2D const& other, double& sc, double& tc)
-      const;  // used to centralize intersection logic, and used by other geometric objects down the line
+
+  /// @brief Intersection point of two lines, also returning the parametric values along each line.
+  /// @param other The other line.
+  /// @param sc Output: parameter along this line at the intersection.
+  /// @param tc Output: parameter along @p other at the intersection.
+  /// @return The intersection point, or std::nullopt for parallel lines.
+  ReturnSet Intersection(Line2D const& other, double& sc, double& tc) const;
+
+  /// @brief Intersection point of two lines.
+  /// @param other The other line.
+  /// @return The intersection point, or std::nullopt for parallel lines.
   ReturnSet Intersection(Line2D const& other) const;
+
+  /// @brief Intersection point of this line with a ray.
+  /// @param ray The ray.
+  /// @return The intersection point if it lies on the ray, or std::nullopt otherwise.
   ReturnSet Intersection(Ray2D const& ray) const;
+
+  /// @brief Intersection point of this line with a segment.
+  /// @param segment The segment.
+  /// @return The intersection point if it lies on the segment, or std::nullopt otherwise.
   ReturnSet Intersection(LineSegment2D const& segment) const;
   // TODO make ReturnSet public, and write Intersection(triangle)
+
 #pragma endregion
 
  private:

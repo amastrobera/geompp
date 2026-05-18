@@ -178,6 +178,11 @@ TEST_F(LineSegment3DTest, DistanceToRay3D) {
   auto ray_overlap = g::Ray3D::Make(g::Point3D(1, 0, 0), g::Vector3D(1, 0, 0));
   EXPECT_EQ(0.0, g::round(seg.DistanceTo(ray_overlap)));
   EXPECT_FALSE(seg.Distance(ray_overlap).has_value());
+
+  // 2D top-down (XY) the ray crosses the segment at (2,0); in 3D the ray is at z=5
+  // while the segment sits at z=0 → non-parallel skew, real distance = 5.
+  auto ray_top_cross_skew = g::Ray3D::Make(g::Point3D(2, 3, 5), g::Vector3D(0, -1, 0));
+  EXPECT_EQ(5.0, g::round(seg.DistanceTo(ray_top_cross_skew)));
 }
 
 TEST_F(LineSegment3DTest, DistanceToLineSegment3D) {

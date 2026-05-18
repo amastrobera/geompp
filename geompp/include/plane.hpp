@@ -36,33 +36,117 @@ class Plane {
   Plane& operator=(Plane const& other);
 
 #pragma region Geometrial Operations
+
+  /// @brief Signed perpendicular distance from a point to the plane.
+  /// @param p The point.
+  /// @return (p - origin) · normal. Positive on the normal's side, negative on the other.
   double SignedDistanceTo(Point3D const& p) const;
+
+  /// @brief Unsigned perpendicular distance from a point to the plane.
+  /// @param p The point.
+  /// @return Absolute value of @ref SignedDistanceTo.
   double DistanceTo(Point3D const& p) const;
+
+  /// @brief Orthogonal projection of a point onto this plane (3D position).
+  /// @param p The point to project.
+  /// @return Closest point on the plane to @p p, expressed in world (3D) coordinates.
   Point3D ProjectOnto(Point3D const& p) const;
+
+  /// @brief Orthogonal projection of a point into this plane's local 2D basis (axis_u, axis_v).
+  /// @param p The point to project.
+  /// @return 2D coordinates (u, v) such that p ≈ origin + u·axis_u + v·axis_v + (distance · normal).
   Point2D ProjectInto(Point3D const& p) const;
+
+  /// @brief Inverse of @ref ProjectInto — lift a local 2D point onto the plane in world coordinates.
+  /// @param p The local (u, v) point in the plane's basis.
+  /// @return World-space 3D point: origin + p.x · axis_u + p.y · axis_v.
   Point3D Evaluate(Point2D const& p) const;
 
+  /// @brief Tests whether a point lies on the plane.
+  /// @param point The point to test.
+  /// @return true if @p point's signed distance to the plane is zero within decimal precision.
   bool Contains(Point3D const& point) const;
 
   using ReturnSet = std::optional<std::variant<Point3D, Line3D, LineSegment3D>>;
 
+  /// @brief Tests whether a line meets this plane.
+  /// @param line The line.
+  /// @return true if the line crosses the plane or lies in it.
   bool Intersects(Line3D const& line) const;
+
+  /// @brief Tests whether a ray meets this plane within its domain.
+  /// @param ray The ray.
+  /// @return true if the ray crosses the plane ahead of its origin, or lies in it.
   bool Intersects(Ray3D const& ray) const;
+
+  /// @brief Tests whether a segment crosses or touches this plane.
+  /// @param segment The segment.
+  /// @return true if some part of the segment is on the plane.
   bool Intersects(LineSegment3D const& segment) const;
+
+  /// @brief Tests whether another plane meets this one.
+  /// @param plane The other plane.
+  /// @return true unless the two planes are parallel and distinct.
   bool Intersects(Plane const& plane) const;
+
+  /// @brief Tests whether a triangle meets this plane.
+  /// @param triangle The triangle.
+  /// @return true if the plane cuts through the triangle or touches it.
   bool Intersects(Triangle3D const& triangle) const;
 
+  /// @brief Intersection of this plane with a line.
+  /// @param line The line.
+  /// @return A Point3D (one crossing), a Line3D (line lies in the plane), or std::nullopt for parallel-distinct.
   ReturnSet Intersection(Line3D const& line) const;
+
+  /// @brief Intersection of this plane with a ray.
+  /// @param ray The ray.
+  /// @return Point3D, Ray-as-Line3D when the ray lies in the plane, or std::nullopt if the ray points away.
   ReturnSet Intersection(Ray3D const& ray) const;
+
+  /// @brief Intersection of this plane with a segment.
+  /// @param segment The segment.
+  /// @return Point3D crossing, LineSegment3D (the segment lies in the plane), or std::nullopt if disjoint.
   ReturnSet Intersection(LineSegment3D const& segment) const;
+
+  /// @brief Intersection of two planes.
+  /// @param plane The other plane.
+  /// @return The shared line as Line3D, or std::nullopt for parallel-distinct planes.
   ReturnSet Intersection(Plane const& plane) const;
+
+  /// @brief Intersection of this plane with a triangle.
+  /// @param triangle The triangle.
+  /// @return A Point3D (touches a vertex), a LineSegment3D (cuts through interior), or std::nullopt if disjoint.
   ReturnSet Intersection(Triangle3D const& triangle) const;
 
+  /// @brief Tests whether a line is parallel to this plane (no convergence).
+  /// @param line The line.
+  /// @return true if line.direction · plane.normal == 0. Lines lying *in* the plane also return true.
   bool IsParallel(Line3D const& line) const;
+
+  /// @brief Tests whether a ray is parallel to this plane.
+  /// @param ray The ray.
+  /// @return true if ray.direction · plane.normal == 0.
   bool IsParallel(Ray3D const& ray) const;
+
+  /// @brief Tests whether a segment is parallel to this plane.
+  /// @param segment The segment.
+  /// @return true if the segment's direction is perpendicular to the plane's normal.
   bool IsParallel(LineSegment3D const& segment) const;
+
+  /// @brief Tests whether a line lies entirely in this plane.
+  /// @param line The line.
+  /// @return true if the line is parallel to the plane AND any point of it is on the plane.
   bool IsCoplanar(Line3D const& line) const;
+
+  /// @brief Tests whether a ray lies entirely in this plane.
+  /// @param ray The ray.
+  /// @return true if the ray is parallel to the plane AND its origin lies on the plane.
   bool IsCoplanar(Ray3D const& ray) const;
+
+  /// @brief Tests whether a segment lies entirely in this plane.
+  /// @param segment The segment.
+  /// @return true if both segment endpoints lie on the plane.
   bool IsCoplanar(LineSegment3D const& segment) const;
 
 #pragma endregion
