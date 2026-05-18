@@ -10,6 +10,7 @@
 #include "geompp_log.hpp"
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <filesystem>
 #include <limits>
 
@@ -136,6 +137,89 @@ TEST_F(LineSegment3DTest, Contains) {
   ASSERT_TRUE(s.Contains(g::Point3D::Zero()));  // start
   ASSERT_TRUE(s.Contains(g::Point3D(4, 0, 0)));  // end
   ASSERT_TRUE(s.Contains(g::Point3D(2, 0, 0)));  // midpoint
+}
+
+TEST_F(LineSegment3DTest, DistanceToLine3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));  // X-axis, 0..4
+
+  // line crossing the segment at (2,0,0) → 0
+  auto line_cross = g::Line3D::Make(g::Point3D(2, -1, 0), g::Point3D(2, 1, 0));
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(line_cross)));
+
+  // parallel line, offset by 3 in Y → 3
+  auto line_parallel = g::Line3D::Make(g::Point3D(0, 3, 0), g::Point3D(1, 3, 0));
+  EXPECT_EQ(3.0, g::round(seg.DistanceTo(line_parallel)));
+
+  // line that contains the segment (overlap) → 0
+  auto line_overlap = g::Line3D::Make(g::Point3D(-2, 0, 0), g::Point3D(10, 0, 0));
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(line_overlap)));
+  EXPECT_FALSE(seg.Distance(line_overlap).has_value());
+
+  // skew line: line through (10, 0, 5) along Y. segment's nearest s clamps to its end x=4 (sc=1).
+  // distance from (4,0,0) to line through (10,0,5) along Y is sqrt(36+25)=sqrt(61)
+  auto line_skew = g::Line3D::Make(g::Point3D(10, 0, 5), g::Point3D(10, 1, 5));
+  EXPECT_EQ(g::round(std::sqrt(61.0)), g::round(seg.DistanceTo(line_skew)));
+}
+
+TEST_F(LineSegment3DTest, DistanceToRay3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));  // X-axis, 0..4
+
+  // ray crossing the segment at (2,0,0) → 0
+  auto ray_cross = g::Ray3D::Make(g::Point3D(2, 3, 0), g::Vector3D(0, -1, 0));
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(ray_cross)));
+
+  // parallel ray, offset by 4 in Z → 4
+  auto ray_parallel = g::Ray3D::Make(g::Point3D(0, 0, 4), g::Vector3D(1, 0, 0));
+  EXPECT_EQ(4.0, g::round(seg.DistanceTo(ray_parallel)));
+
+  // collinear ray contained inside the segment's line → 0 (overlap)
+  auto ray_overlap = g::Ray3D::Make(g::Point3D(1, 0, 0), g::Vector3D(1, 0, 0));
+  EXPECT_EQ(0.0, g::round(seg.DistanceTo(ray_overlap)));
+  EXPECT_FALSE(seg.Distance(ray_overlap).has_value());
+}
+
+TEST_F(LineSegment3DTest, DistanceToLineSegment3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto s1 = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0));  // X 0..4
+
+  // crossing segment in XY plane → 0
+  auto s_cross = g::LineSegment3D::Make(g::Point3D(2, -1, 0), g::Point3D(2, 1, 0));
+  EXPECT_EQ(0.0, g::round(s1.DistanceTo(s_cross)));
+
+  // parallel segment offset 3 in Y → 3
+  auto s_parallel = g::LineSegment3D::Make(g::Point3D(0, 3, 0), g::Point3D(2, 3, 0));
+  EXPECT_EQ(3.0, g::round(s1.DistanceTo(s_parallel)));
+
+  // collinear overlapping segments → 0
+  auto s_overlap = g::LineSegment3D::Make(g::Point3D(2, 0, 0), g::Point3D(6, 0, 0));
+  EXPECT_EQ(0.0, g::round(s1.DistanceTo(s_overlap)));
+  EXPECT_FALSE(s1.Distance(s_overlap).has_value());
+
+  // s_inside is completely contained inside s1 (still overlap on same line) → 0
+  auto s_inside = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(3, 0, 0));
+  EXPECT_EQ(0.0, g::round(s1.DistanceTo(s_inside)));
+
+  // skew segment in Z above midpoint → perpendicular distance 5
+  auto s_skew = g::LineSegment3D::Make(g::Point3D(2, -1, 5), g::Point3D(2, 1, 5));
+  EXPECT_EQ(5.0, g::round(s1.DistanceTo(s_skew)));
+}
+
+TEST_F(LineSegment3DTest, Flip) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto s = g::LineSegment3D::Make(g::Point3D(1, 2, 3), g::Point3D(4, 5, 6));
+  auto f = s.Flip();
+
+  ASSERT_EQ(s.Last(), f.First());
+  ASSERT_EQ(s.First(), f.Last());
+
+  // length is preserved
+  ASSERT_EQ(s.Length(), f.Length());
+
+  // flipping twice returns to the original
+  ASSERT_EQ(s.First(), f.Flip().First());
+  ASSERT_EQ(s.Last(), f.Flip().Last());
 }
 
 TEST_F(LineSegment3DTest, IntersectionWithLine3D) {

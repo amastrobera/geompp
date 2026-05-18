@@ -14,7 +14,26 @@ void bind_line3d(py::module_& m) {
         .def_property_readonly("last",      &geompp::Line3D::Last)
         .def_property_readonly("origin",    &geompp::Line3D::Origin)
         .def_property_readonly("direction", &geompp::Line3D::Direction)
-        .def("distance_to",  &geompp::Line3D::DistanceTo,  "point"_a)
+        .def("distance_to",
+             [](const geompp::Line3D& l, const geompp::Point3D& p) { return l.DistanceTo(p); }, "point"_a)
+        .def("distance_to",
+             [](const geompp::Line3D& l, const geompp::Line3D& o) { return l.DistanceTo(o); }, "other"_a)
+        .def("distance_to",
+             [](const geompp::Line3D& l, const geompp::Ray3D& r) { return l.DistanceTo(r); }, "ray"_a)
+        .def("distance_to",
+             [](const geompp::Line3D& l, const geompp::LineSegment3D& s) { return l.DistanceTo(s); }, "segment"_a)
+        .def("distance",
+             [](const geompp::Line3D& l, const geompp::Line3D& o) -> py::object {
+                 auto r = l.Distance(o); return r.has_value() ? py::cast(*r) : py::none();
+             }, "other"_a)
+        .def("distance",
+             [](const geompp::Line3D& l, const geompp::Ray3D& r) -> py::object {
+                 auto res = l.Distance(r); return res.has_value() ? py::cast(*res) : py::none();
+             }, "ray"_a)
+        .def("distance",
+             [](const geompp::Line3D& l, const geompp::LineSegment3D& s) -> py::object {
+                 auto r = l.Distance(s); return r.has_value() ? py::cast(*r) : py::none();
+             }, "segment"_a)
         .def("project_onto", &geompp::Line3D::ProjectOnto, "point"_a)
         .def("contains",     &geompp::Line3D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Line3D)

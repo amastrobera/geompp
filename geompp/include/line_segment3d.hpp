@@ -34,6 +34,17 @@ class LineSegment3D {
   double Location(Point3D const& point) const;
   Point3D Interpolate(double pct) const;
 
+  LineSegment3D Flip() const;
+
+  std::optional<LineSegment3D> Distance(Line3D const& other) const;
+  double DistanceTo(Line3D const& other) const;
+  std::optional<LineSegment3D> Distance(Ray3D const& ray) const;
+  double DistanceTo(Ray3D const& ray) const;
+  std::optional<LineSegment3D> Distance(
+      LineSegment3D const& seg) const;                // directed line-segment expressing the min distance between lines
+                                                      //(null if intersection or overlap)
+  double DistanceTo(LineSegment3D const& seg) const;  // zero if they intersect or overalp
+
 #pragma endregion
 
   std::string ToWkt() const;
@@ -44,6 +55,7 @@ class LineSegment3D {
   LineSegment3D& operator=(LineSegment3D const& other);
 
 #pragma region Geometrical Operations
+
   bool Contains(Point3D const& point) const;
   using ReturnSet = std::optional<std::variant<Point3D>>;
   bool Intersects(Line3D const& line) const;
@@ -52,6 +64,7 @@ class LineSegment3D {
   ReturnSet Intersection(Line3D const& line) const;
   ReturnSet Intersection(Ray3D const& ray) const;
   ReturnSet Intersection(LineSegment3D const& other) const;
+
 #pragma endregion
 
  private:

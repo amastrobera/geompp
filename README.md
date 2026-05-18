@@ -208,7 +208,7 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); `Triangle2D/3D::Location()` (barycentric coords); `Polygon2D/3D::Contains()` (winding number); `Triangle3D::Contains()` (barycentric, no projection); `Triangle3D::Intersection(×Line/Ray/Seg/Plane/△)` and the symmetric `Plane::Intersection(Triangle3D)` |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); `Triangle2D/3D::Location()` (barycentric coords); `Polygon2D/3D::Contains()` (winding number); `Triangle3D::Contains()` (barycentric, no projection); `Triangle3D::Intersection(×Line/Ray/Seg/Plane/△)` and the symmetric `Plane::Intersection(Triangle3D)`; `Line3D/Ray3D/LineSegment3D::Distance(...)` and `DistanceTo(...)` between every pair of 3D linear primitives + `LineSegment3D::Flip()` |
   | **In progress** | Test coverage push (target ≥ 70% per class); remaining stubs: `Polygon2D/3D::DistanceTo`, `Polygon2D/3D::Intersection(×Line/Ray/Seg)`, `Triangle2D::Intersection(△)`, `Triangle2D/3D::DistanceTo` |
   | Next | `Polygon2D/3D::FromWkt()` roundtrip fix; Docker (Windows); geom_viewer camera/input/delete |
   | Backlog | Polygon ops, convex hull, overlap/adjacency, polygon clipping |
@@ -218,10 +218,10 @@
 
   | Metric | Count | Notes |
   |--------|-------|-------|
-  | Public methods | ~378 | Excl. ctors/dtors/operators |
-  | C++ tested | ~323 | ~85% |
-  | Python tested | ~185 | ~49% |
-  | C# tested | ~172 | ~46% |
+  | Public methods | ~399 | Excl. ctors/dtors/operators |
+  | C++ tested | ~343 | ~86% |
+  | Python tested | ~195 | ~49% |
+  | C# tested | ~200 | ~50% |
   | Stubs (not yet impl.) | 13 | Polygon intersection/distance; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
 
   More on [test coverage](./test_coverage_report.md).

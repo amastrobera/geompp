@@ -11,6 +11,46 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [Unreleased]
+
+> Adds `Distance` / `DistanceTo` overloads between every pair of 3D linear primitives (`Line3D`, `Ray3D`, `LineSegment3D`), plus `LineSegment3D::Flip()`. Extracts the closest-points-of-two-lines and lines-intersection math into reusable free functions in a new `calc_utils3d` header.
+
+### Added
+
+**C++ core**
+- `calc_utils3d.hpp` / `.cpp` — new header exposing two free functions:
+  - `distance_line_to_line(L1_P0, L1_P1, L2_P0, L2_P1, sc, tc)` — solves the 2×2 perpendicular-distance system between two parameterized lines using Cramer's rule; sc=0/tc=largest-denominator-projection in the parallel branch (gives the "magic zero" when lines are collinear).
+  - `intersection_line_to_line(L1_P0, L1_P1, L2_P0, L2_P1, sc, tc) -> std::optional<Point3D>` — same setup, but returns the unique intersection point when the closest-approach distance is zero and the lines aren't parallel.
+- `Line3D::Distance(Line3D|Ray3D|LineSegment3D)` — returns a directed `LineSegment3D` from this line's closest point to the other primitive's closest point; `nullopt` when they intersect or overlap.
+- `Line3D::DistanceTo(Line3D|Ray3D|LineSegment3D)` — scalar distance; 0 when they intersect or overlap.
+- `Ray3D::Distance(Line3D|Ray3D|LineSegment3D)` / `Ray3D::DistanceTo(...)` — same shape for rays, with the ray-parameter clamp `sc >= 0`.
+- `LineSegment3D::Distance(Line3D|Ray3D|LineSegment3D)` / `LineSegment3D::DistanceTo(...)` — same shape for segments, with the segment-parameter clamp `sc ∈ [0, 1]`.
+- `LineSegment3D::Flip()` — returns a segment with endpoints swapped.
+
+**Python / PyPI**
+- `Line3D.distance(other|ray|segment)` / `Line3D.distance_to(other|ray|segment)`.
+- `Ray3D.distance(line|other|segment)` / `Ray3D.distance_to(line|other|segment)`.
+- `LineSegment3D.distance(line|ray|other)` / `LineSegment3D.distance_to(line|ray|other)`.
+- `LineSegment3D.flip()`.
+
+**C# / NuGet**
+- `Line3D.Distance(Line3D^|Ray3D^|LineSegment3D^)` / `Line3D.DistanceTo(...)`.
+- `Ray3D.Distance(Line3D^|Ray3D^|LineSegment3D^)` / `Ray3D.DistanceTo(...)`.
+- `LineSegment3D.Distance(Line3D^|Ray3D^|LineSegment3D^)` / `LineSegment3D.DistanceTo(...)`.
+
+### Changed
+
+**C++ core**
+- `Line3D::Intersection(other, sc, tc)` — the internal three-argument overload (used as a shared kernel by `Ray3D`/`LineSegment3D` intersection) was removed from `Line3D`'s public surface. The math now lives in the free function `intersection_line_to_line` in `calc_utils3d`. The single-argument `Line3D::Intersection(Line3D)` is unchanged.
+
+### Fixed
+
+**C++ core**
+- `Ray3D::DistanceTo(Line3D)` — when a ray hit the line at a non-origin point (`Distance` returned `nullopt`), the function fell through to `other.DistanceTo(ORIGIN)` (perpendicular distance from the ray's origin to the line) instead of returning 0. Now returns 0 whenever `Distance` is `nullopt` (intersect or overlap), matching the docstring.
+- `Ray3D::Distance(Ray3D)`, `LineSegment3D::Distance(Ray3D)`, `LineSegment3D::Distance(LineSegment3D)` — collinear-overlap cases (two primitives sharing a region of the same infinite line) returned a non-zero segment because the ray/segment parameter clamping ran *before* the closest-points equality check, corrupting `distance_line_to_line`'s "magic zero" in the parallel branch. Each function now detects collinearity (`U × V == 0` and unclamped points coincide) and short-circuits to `nullopt` when the two primitives genuinely share a region (verified via `Contains` on endpoints/origins).
+
+---
+
 ## [0.8.0] - 2026-05-15
 
 > C++ library — tagged `v0.8.0` · C# / NuGet — tagged `csharp-v0.8.0` · Python / PyPI — tagged `python-v0.8.0`

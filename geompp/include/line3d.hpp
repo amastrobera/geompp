@@ -34,6 +34,15 @@ class Line3D {
   double DistanceTo(Point3D const& point) const;
   Point3D ProjectOnto(Point3D const& point) const;
 
+  std::optional<LineSegment3D> Distance(
+      Line3D const& other) const;                // directed line-segment expressing the min distance between lines
+                                                 // (null if intersection or overlap)
+  double DistanceTo(Line3D const& other) const;  // zero if they intersect or overalp
+  std::optional<LineSegment3D> Distance(Ray3D const& ray) const;
+  double DistanceTo(Ray3D const& ray) const;
+  std::optional<LineSegment3D> Distance(LineSegment3D const& seg) const;
+  double DistanceTo(LineSegment3D const& seg) const;
+
 #pragma endregion
 
   std::string ToWkt() const;
@@ -44,19 +53,20 @@ class Line3D {
   Line3D& operator=(Line3D const& other);
 
 #pragma region Geometrical Operations
+
   bool Contains(Point3D const& point) const;
+
   using ReturnSet = std::optional<std::variant<Point3D>>;
   bool Intersects(Line3D const& other) const;
   bool Intersects(Ray3D const& ray) const;
   bool Intersects(LineSegment3D const& segment) const;
   bool Intersects(Triangle3D const& t) const;
+
   ReturnSet Intersection(Line3D const& other) const;
-  ReturnSet Intersection(
-      Line3D const& other, double& sc,
-      double& tc) const;  // used to centralize intersection logic, and used by other geometric objects down the line
   ReturnSet Intersection(Ray3D const& ray) const;
   ReturnSet Intersection(LineSegment3D const& segment) const;
   // TODO make ReturnSet public, and write Intersection(triangle)
+
 #pragma endregion
 
  private:

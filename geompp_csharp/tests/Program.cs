@@ -266,6 +266,73 @@ Test("DistanceTo_PointAboveLine", () => {
   Eq(3.0, Line3D.Make(new Point3D(0, 0, 0), new Point3D(3, 0, 0)).DistanceTo(new Point3D(0, 3, 0)));
 });
 
+Test("Line3D_DistanceTo_Line3D_Crossing_IsZero", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var y = Line3D.Make(new Point3D(0, 0, 0), new Point3D(0, 1, 0));
+  Eq(0.0, x.DistanceTo(y));
+  IsNull(x.Distance(y));
+});
+
+Test("Line3D_DistanceTo_Line3D_Skew", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var skew = Line3D.Make(new Point3D(0, -1, 5), new Point3D(0, 1, 5));
+  Eq(5.0, x.DistanceTo(skew));
+  var dseg = x.Distance(skew);
+  NotNull(dseg);
+  Eq(5.0, dseg!.Length());
+});
+
+Test("Line3D_DistanceTo_Line3D_ParallelDistinct", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var p = Line3D.Make(new Point3D(0, 3, 0), new Point3D(1, 3, 0));
+  Eq(3.0, x.DistanceTo(p));
+});
+
+Test("Line3D_DistanceTo_Line3D_Overlap_IsZero", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var overlap = Line3D.Make(new Point3D(5, 0, 0), new Point3D(7, 0, 0));
+  Eq(0.0, x.DistanceTo(overlap));
+  IsNull(x.Distance(overlap));
+});
+
+Test("Line3D_DistanceTo_Ray3D_Crossing_IsZero", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var ray = Ray3D.Make(new Point3D(0, 2, 0), new Vector3D(0, -1, 0));
+  Eq(0.0, x.DistanceTo(ray));
+});
+
+Test("Line3D_DistanceTo_Ray3D_AwayFromLine", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var ray = Ray3D.Make(new Point3D(0, 2, 0), new Vector3D(0, 1, 0));
+  Eq(2.0, x.DistanceTo(ray));
+});
+
+Test("Line3D_DistanceTo_Ray3D_Overlap_IsZero", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var ray = Ray3D.Make(new Point3D(3, 0, 0), new Vector3D(1, 0, 0));
+  Eq(0.0, x.DistanceTo(ray));
+  IsNull(x.Distance(ray));
+});
+
+Test("Line3D_DistanceTo_LineSegment3D_Crossing_IsZero", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(0, -1, 0), new Point3D(0, 1, 0));
+  Eq(0.0, x.DistanceTo(seg));
+});
+
+Test("Line3D_DistanceTo_LineSegment3D_Parallel", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(0, 4, 0), new Point3D(3, 4, 0));
+  Eq(4.0, x.DistanceTo(seg));
+});
+
+Test("Line3D_DistanceTo_LineSegment3D_Overlap_IsZero", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(2, 0, 0), new Point3D(5, 0, 0));
+  Eq(0.0, x.DistanceTo(seg));
+  IsNull(x.Distance(seg));
+});
+
 // ── LineSegment2D ─────────────────────────────────────────────────────────────
 Console.WriteLine("\nLineSegment2D");
 
@@ -333,6 +400,69 @@ Test("Interpolate_Midpoint", () => {
   Eq(0.0, mid.Z);
 });
 
+Test("LineSegment3D_DistanceTo_Line3D_Crossing_IsZero", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var line = Line3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  Eq(0.0, seg.DistanceTo(line));
+});
+
+Test("LineSegment3D_DistanceTo_Line3D_Parallel", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var line = Line3D.Make(new Point3D(0, 3, 0), new Point3D(1, 3, 0));
+  Eq(3.0, seg.DistanceTo(line));
+});
+
+Test("LineSegment3D_DistanceTo_Line3D_Overlap_IsZero", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var line = Line3D.Make(new Point3D(-2, 0, 0), new Point3D(10, 0, 0));
+  Eq(0.0, seg.DistanceTo(line));
+  IsNull(seg.Distance(line));
+});
+
+Test("LineSegment3D_DistanceTo_Ray3D_Crossing_IsZero", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var ray = Ray3D.Make(new Point3D(2, 3, 0), new Vector3D(0, -1, 0));
+  Eq(0.0, seg.DistanceTo(ray));
+});
+
+Test("LineSegment3D_DistanceTo_Ray3D_Parallel", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var ray = Ray3D.Make(new Point3D(0, 0, 4), new Vector3D(1, 0, 0));
+  Eq(4.0, seg.DistanceTo(ray));
+});
+
+Test("LineSegment3D_DistanceTo_Ray3D_Overlap_IsZero", () => {
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var ray = Ray3D.Make(new Point3D(1, 0, 0), new Vector3D(1, 0, 0));
+  Eq(0.0, seg.DistanceTo(ray));
+  IsNull(seg.Distance(ray));
+});
+
+Test("LineSegment3D_DistanceTo_LineSegment3D_Crossing_IsZero", () => {
+  var s1 = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var s2 = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  Eq(0.0, s1.DistanceTo(s2));
+});
+
+Test("LineSegment3D_DistanceTo_LineSegment3D_Parallel", () => {
+  var s1 = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var s2 = LineSegment3D.Make(new Point3D(0, 3, 0), new Point3D(2, 3, 0));
+  Eq(3.0, s1.DistanceTo(s2));
+});
+
+Test("LineSegment3D_DistanceTo_LineSegment3D_Overlap_IsZero", () => {
+  var s1 = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var s2 = LineSegment3D.Make(new Point3D(2, 0, 0), new Point3D(6, 0, 0));
+  Eq(0.0, s1.DistanceTo(s2));
+  IsNull(s1.Distance(s2));
+});
+
+Test("LineSegment3D_DistanceTo_LineSegment3D_Skew", () => {
+  var s1 = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var s2 = LineSegment3D.Make(new Point3D(2, -1, 5), new Point3D(2, 1, 5));
+  Eq(5.0, s1.DistanceTo(s2));
+});
+
 // ── Ray2D ─────────────────────────────────────────────────────────────────────
 Console.WriteLine("\nRay2D");
 
@@ -374,6 +504,69 @@ Test("DistanceTo_PointAboveRay", () => {
 
 Test("DistanceTo_PointBehindOrigin", () => {
   Eq(2.0, Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).DistanceTo(new Point3D(-2, 0, 0)));
+});
+
+Test("Ray3D_DistanceTo_Line3D_Crossing_IsZero", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var line = Line3D.Make(new Point3D(0, -1, 0), new Point3D(0, 1, 0));
+  Eq(0.0, ray.DistanceTo(line));
+});
+
+Test("Ray3D_DistanceTo_Line3D_Parallel", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var line = Line3D.Make(new Point3D(0, 5, 0), new Point3D(1, 5, 0));
+  Eq(5.0, ray.DistanceTo(line));
+});
+
+Test("Ray3D_DistanceTo_Line3D_Overlap_IsZero", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var line = Line3D.Make(new Point3D(-2, 0, 0), new Point3D(7, 0, 0));
+  Eq(0.0, ray.DistanceTo(line));
+  IsNull(ray.Distance(line));
+});
+
+Test("Ray3D_DistanceTo_Ray3D_Crossing_IsZero", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(3, 1, 0), new Vector3D(0, -1, 0));
+  Eq(0.0, r1.DistanceTo(r2));
+});
+
+Test("Ray3D_DistanceTo_Ray3D_Skew", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(0, 0, 4), new Vector3D(0, 1, 0));
+  Eq(4.0, r1.DistanceTo(r2));
+});
+
+Test("Ray3D_DistanceTo_Ray3D_Overlap_IsZero", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(2, 0, 0), new Vector3D(1, 0, 0));
+  Eq(0.0, r1.DistanceTo(r2));
+  IsNull(r1.Distance(r2));
+});
+
+Test("Ray3D_DistanceTo_Ray3D_Parallel", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(0, 3, 0), new Vector3D(1, 0, 0));
+  Eq(3.0, r1.DistanceTo(r2));
+});
+
+Test("Ray3D_DistanceTo_LineSegment3D_Crossing_IsZero", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(2, -1, 0), new Point3D(2, 1, 0));
+  Eq(0.0, ray.DistanceTo(seg));
+});
+
+Test("Ray3D_DistanceTo_LineSegment3D_Parallel", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(0, 0, 5), new Point3D(4, 0, 5));
+  Eq(5.0, ray.DistanceTo(seg));
+});
+
+Test("Ray3D_DistanceTo_LineSegment3D_Overlap_IsZero", () => {
+  var ray = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var seg = LineSegment3D.Make(new Point3D(1, 0, 0), new Point3D(3, 0, 0));
+  Eq(0.0, ray.DistanceTo(seg));
+  IsNull(ray.Distance(seg));
 });
 
 // ── Polyline2D ────────────────────────────────────────────────────────────────

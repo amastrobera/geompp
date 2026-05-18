@@ -1,5 +1,6 @@
 #include "line3d.hpp"
 
+#include "calc_utils3d.hpp"
 #include "line_segment3d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
@@ -66,6 +67,52 @@ double Line3D::DistanceTo(Point3D const& point) const { return (point - ProjectO
 
 Point3D Line3D::ProjectOnto(Point3D const& point) const { return P0 + (point - P0).Dot(DIR) * DIR; }
 
+std::optional<LineSegment3D> Line3D::Distance(Line3D const& other) const {
+  double sc, tc;
+  distance_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
+
+  auto U = P1 - P0;
+  auto V = other.P1 - other.P0;
+
+  // verify if null distance (don't build a line segment)
+  auto dseg_P0 = P0 + (U * sc);
+  auto dseg_P1 = other.P0 + (V * tc);
+  if (compare(dseg_P0.DistanceTo(dseg_P1), 0) == 0) {
+    return std::nullopt;  // they intersect or overlap
+  }
+
+  return LineSegment3D::Make(dseg_P0, dseg_P1);
+}
+
+double Line3D::DistanceTo(Line3D const& other) const {
+  auto seg = Distance(other);
+  if (seg.has_value()) {
+    return seg->Length();
+  }
+
+  return 0.0;
+}
+
+std::optional<LineSegment3D> Line3D::Distance(Ray3D const& ray) const {
+  auto result = ray.Distance(*this);
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+  return result->Flip();  // return the min-segment from the point of view of the line, not the ray
+}
+
+double Line3D::DistanceTo(Ray3D const& ray) const { return ray.DistanceTo(*this); }
+
+std::optional<LineSegment3D> Line3D::Distance(LineSegment3D const& seg) const {
+  auto result = seg.Distance(*this);
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+  return result->Flip();  // return the min-segment from the point of view of the line, not the segment
+}
+
+double Line3D::DistanceTo(LineSegment3D const& seg) const { return seg.DistanceTo(*this); }
+
 #pragma endregion
 
 #pragma region Operator Overloading
@@ -89,63 +136,15 @@ bool Line3D::Intersects(Ray3D const& ray) const { return ray.Intersects(*this); 
 
 bool Line3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
-Line3D::ReturnSet Line3D::Intersection(Line3D const& other, double& sc, double& tc) const {
-  try {
-    // input parameters: this line as P0 + s*DIR, other as Q0 + t*DIR
-    //
-    //  3D Line-Line Intersection
-    //      - minimize the (perpendicular) distance between lines
-    //      - and later verify that this distance is nearly zero
-    //        (intersection) or not (skew lines)
-    //
-    //  solving system   | u*u u*v | | s |  =  | u*w0 |
-    //                   | u*v v*v | | t |     | v*w0 |
-    Point3D Q0 = other.P0;
-    Vector3D u = P1 - P0;
-    Vector3D v = other.P1 - other.P0;
-    Vector3D w0 = P0 - Q0;
-
-    // variables
-    //  solving system   | a b | | s |  =  | d |
-    //                   | b c | | t |     | e |
-    double a = u.Dot(u);
-    double b = u.Dot(v);
-    double c = v.Dot(v);
-    double d = u.Dot(w0);
-    double e = v.Dot(w0);
-    double D = a * c - b * b;  // Determinant
-
-    // Check if lines are parallel
-    if (compare(D, 0) == 0) {
-      return std::nullopt;  // Lines are parallel, no intersection
-    }
-
-    // Cramer's rule
-    sc = (b * e - c * d) / D;
-    tc = (a * e - b * d) / D;
-
-    // The point on the Line closest to the Ray
-    Point3D Pc = P0 + (u * sc);
-    // The point on the Ray closest to the Line
-    Point3D Qc = Q0 + (v * tc);
-
-    // Check if they actually intersect (distance is near zero)
-    if (compare(Pc.DistanceTo(Qc), 0.0) != 0) {
-      return std::nullopt;  // No intersection, the closest points are not the same
-    }
-
-    return Pc;  // They intersect!
-
-  } catch (...) {
-    GEOMPP_LOG(WARNING) << "unexpected error while computing line intersection";
-  }
-  sc = tc = std::numeric_limits<double>::quiet_NaN();
-  return std::nullopt;
-}
-
 Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
   double sc, tc;
-  return Intersection(other, sc, tc);
+
+  auto result = intersection_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+
+  return result;  // they intersect in a single point
 }
 
 Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray) const { return ray.Intersection(*this); }

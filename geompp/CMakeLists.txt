@@ -58,6 +58,8 @@ add_library(${PROJECT_NAME}
     src/bbox3d.cpp
     src/geometry_collection2d.cpp
     src/geometry_collection3d.cpp
+
+    src/calc_utils3d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

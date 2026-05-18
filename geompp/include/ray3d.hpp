@@ -27,10 +27,20 @@ class Ray3D {
   bool IsAhead(Point3D const& point) const;
   bool IsBehind(Point3D const& point) const;
   Line3D ToLine() const;
+
 #pragma region line operations
 
   Point3D ProjectOnto(Point3D const& point) const;
   double DistanceTo(Point3D const& point) const;
+
+  std::optional<LineSegment3D> Distance(Line3D const& other) const;
+  double DistanceTo(Line3D const& other) const;
+  std::optional<LineSegment3D> Distance(
+      Ray3D const& ray) const;                // directed line-segment expressing the min distance between lines
+                                              //(null if intersection or overlap)
+  double DistanceTo(Ray3D const& ray) const;  // zero if they intersect or overalp
+  std::optional<LineSegment3D> Distance(LineSegment3D const& seg) const;
+  double DistanceTo(LineSegment3D const& seg) const;
 
 #pragma endregion
 

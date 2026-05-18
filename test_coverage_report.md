@@ -1,16 +1,16 @@
 # Test Coverage Report
 
-_Last updated: 2026-05-15_
+_Last updated: 2026-05-18_
 
 ## Overall
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (total) | ~378 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
+| Public methods (total) | ~399 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
 | Stubs (`throw "not implemented"`) | 13 | Listed per class below |
-| C++ explicit tests | ~323 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~185 | At least one `test_*` function calls the method |
-| C# explicit tests | ~172 | At least one test in `Program.cs` exercises the method |
+| C++ explicit tests | ~343 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~195 | At least one `test_*` function calls the method |
+| C# explicit tests | ~200 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -25,9 +25,9 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `Vector2D` | ✓ most | ✓ most | ✓ partial | — | Many arithmetic operators (both) |
 | `Vector3D` | ✓ most | ✓ most | ✓ most | — | Many arithmetic operators (both); `IsParallel` (C++) |
 | `Line2D` | ✓ most | ✓ partial | ✓ most | — | `Intersects`/`Intersection` ×`Ray2D`, ×`Segment2D` (Py) |
-| `Line3D` | ✓ most | ○ thin | ✓ most | — | `Contains`, `Intersects`/`Intersection` ×`Ray3D`, ×`Segment3D` (both) |
+| `Line3D` | ✓ most | ✓ partial | ✓ most | — | `Contains`, `Intersects`/`Intersection` ×`Ray3D`, ×`Segment3D` (Py); new `Distance`/`DistanceTo` ×`Line/Ray/Seg` covered in all three |
 | `Ray2D` | ✓ most | ✓ partial | — | — | `ToLine` (Py) |
-| `Ray3D` | ✓ most | ○ thin | — | — | `Contains`, `Intersects`/`Intersection` ×`Segment3D` (Py) |
+| `Ray3D` | ✓ most | ✓ partial | ✓ partial | — | `Contains`, `Intersects`/`Intersection` ×`Segment3D` (Py); new `Distance`/`DistanceTo` ×`Line/Ray/Seg` covered in all three |
 | `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py) |
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py) |

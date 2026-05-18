@@ -30,6 +30,16 @@ public:
     double           Location(Point3D^ point);
     Point3D^         Interpolate(double pct);
 
+    // Distance: directed segment expressing min distance; nullptr if intersection/overlap
+    LineSegment3D^ Distance(Line3D^ line);
+    LineSegment3D^ Distance(Ray3D^ ray);
+    LineSegment3D^ Distance(LineSegment3D^ other);
+
+    // DistanceTo: scalar distance; 0 if intersection/overlap
+    double DistanceTo(Line3D^ line);
+    double DistanceTo(Ray3D^ ray);
+    double DistanceTo(LineSegment3D^ other);
+
     System::String^       ToWkt();
     static LineSegment3D^ FromWkt(System::String^ wkt);
     void                  ToFile(System::String^ path);
