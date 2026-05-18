@@ -4,6 +4,7 @@ void bind_point2d(py::module_& m) {
     py::class_<geompp::Point2D>(m, "Point2D", "2D point (x, y).")
         .def(py::init<double, double>(),        "x"_a, "y"_a)
         .def(py::init<const geompp::Point2D&>())
+        .def(py::init<const geompp::Vector2D&>(), "v"_a)
         .def_property_readonly("x", &geompp::Point2D::x)
         .def_property_readonly("y", &geompp::Point2D::y)
         .def("to_vector",    &geompp::Point2D::ToVector)

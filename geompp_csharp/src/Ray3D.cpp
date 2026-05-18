@@ -66,6 +66,38 @@ double Ray3D::DistanceTo(Point3D^ point) {
     return _native->DistanceTo(*point->_native);
 }
 
+// ── Distance / DistanceTo ────────────────────────────────────────────────────
+
+LineSegment3D^ Ray3D::Distance(Line3D^ line) {
+    auto result = _native->Distance(*line->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
+}
+
+LineSegment3D^ Ray3D::Distance(Ray3D^ other) {
+    auto result = _native->Distance(*other->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
+}
+
+LineSegment3D^ Ray3D::Distance(LineSegment3D^ segment) {
+    auto result = _native->Distance(*segment->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
+}
+
+double Ray3D::DistanceTo(Line3D^ line) {
+    return _native->DistanceTo(*line->_native);
+}
+
+double Ray3D::DistanceTo(Ray3D^ other) {
+    return _native->DistanceTo(*other->_native);
+}
+
+double Ray3D::DistanceTo(LineSegment3D^ segment) {
+    return _native->DistanceTo(*segment->_native);
+}
+
 System::String^ Ray3D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }

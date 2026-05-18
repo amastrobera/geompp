@@ -37,6 +37,10 @@ class Polygon3D {
   Point3D Centroid() const;
   double Area() const;
   inline double Perimeter() const { return PERIMETER; }
+
+  /// @brief Distance from a point to this polygon's closed region.
+  /// @param point The point to measure distance to.
+  /// @return 0 if @p point is inside the polygon (or on its boundary); otherwise the distance to the nearest edge.
   double DistanceTo(Point3D const& point) const;
 
   std::string ToWkt() const;
@@ -47,15 +51,49 @@ class Polygon3D {
   Polygon3D& operator=(Polygon3D const& other);
 
 #pragma region Geometrical Operations
+
+  /// @brief Tests whether a point lies inside the polygon (winding-number check).
+  /// @param point The point to test. Must lie in the polygon's plane.
+  /// @return true if @p point is in the polygon's closed region (interior or boundary).
   bool Contains(Point3D const& point) const;
+
+  /// @brief Tests whether a point lies on the polygon's boundary (any of its edges).
+  /// @param point The point to test.
+  /// @return true if @p point is on any of the polygon's edges or vertices.
   bool IsOnBoundary(Point3D const& point) const;
+
   using ReturnSet = std::optional<std::variant<Point3D>>;
+
+  /// @brief Tests whether this polygon intersects a line.
+  /// @param line The line.
+  /// @return true if the line crosses the polygon's closed region.
   bool Intersects(Line3D const& line) const;
+
+  /// @brief Tests whether this polygon intersects a ray.
+  /// @param ray The ray.
+  /// @return true if the ray hits the polygon within its domain.
   bool Intersects(Ray3D const& ray) const;
+
+  /// @brief Tests whether this polygon intersects a segment.
+  /// @param segment The segment.
+  /// @return true if any part of the segment is inside the polygon or crosses its boundary.
   bool Intersects(LineSegment3D const& segment) const;
+
+  /// @brief Intersection of this polygon with a line.
+  /// @param line The line.
+  /// @return The crossing point as Point3D, or std::nullopt if the line misses the polygon.
   ReturnSet Intersection(Line3D const& line) const;
+
+  /// @brief Intersection of this polygon with a ray.
+  /// @param ray The ray.
+  /// @return The crossing point if within the ray's domain, or std::nullopt otherwise.
   ReturnSet Intersection(Ray3D const& ray) const;
+
+  /// @brief Intersection of this polygon with a segment.
+  /// @param other The segment.
+  /// @return The crossing point if it lies on the segment, or std::nullopt otherwise.
   ReturnSet Intersection(LineSegment3D const& other) const;
+
 #pragma endregion
 
  private:

@@ -1,8 +1,11 @@
 #include "plane.hpp"
 
 #include "line3d.hpp"
+#include "line_segment3d.hpp"
+#include "ray3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
-#include "vector2d.hpp"
+#include "vector3d.hpp"
 
 #include <cmath>
 #include <format>
@@ -56,7 +59,7 @@ Plane& Plane::operator=(Plane const& other) {
 
 #pragma region Geometrical Operations
 
-double Plane::SignedDistanceTo(Point3D const& p) const { return round((p - Origin).Dot(Normal)); }
+double Plane::SignedDistanceTo(Point3D const& p) const { return (p - Origin).Dot(Normal); }
 
 double Plane::DistanceTo(Point3D const& p) const { return std::abs(SignedDistanceTo(p)); }
 
@@ -74,17 +77,98 @@ Point3D Plane::Evaluate(Point2D const& p) const { return Origin + AxisU * p.x() 
 bool Plane::Contains(Point3D const& point) const { return compare((point - Origin).Dot(Normal), 0) == 0; }
 
 bool Plane::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
+
+bool Plane::Intersects(Ray3D const& ray) const { return Intersection(ray).has_value(); }
+
+bool Plane::Intersects(LineSegment3D const& segment) const { return Intersection(segment).has_value(); }
+
+bool Plane::Intersects(Plane const& plane) const { return Intersection(plane).has_value(); }
+
+bool Plane::Intersects(Triangle3D const& triangle) const { return Intersection(triangle).has_value(); }
+
 Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
-  auto V = line.Last() - line.First();
+  auto U = line.Last() - line.First();
   auto W = line.First() - Origin;
-  auto denominator = V.Dot(Normal);
+  auto denominator = U.Dot(Normal);
   if (compare(denominator, 0) == 0) {
     // parallel or part of the plane
     return std::nullopt;
   }
-  double t = -W.Dot(Normal) / denominator;
-  return ProjectOnto(line.First() + t * V);  // snap to plane: division by small denominator can accumulate error
+  double s = -W.Dot(Normal) / denominator;
+  return ProjectOnto(line.First() + s * U);  // snap to plane: division by small denominator can accumulate error
 }
+
+Plane::ReturnSet Plane::Intersection(Ray3D const& ray) const {
+  auto line_intersection = Intersection(ray.ToLine());
+  if (!(line_intersection.has_value() && std::holds_alternative<Point3D>(*line_intersection))) {
+    return std::nullopt;
+  }
+
+  auto const& intersection_point = std::get<Point3D>(line_intersection.value());
+
+  if (!ray.IsAhead(intersection_point)) {
+    return std::nullopt;
+  }
+  return intersection_point;
+}
+
+Plane::ReturnSet Plane::Intersection(LineSegment3D const& segment) const {
+  auto line_intersection = Intersection(segment.ToLine());
+  if (!(line_intersection.has_value() && std::holds_alternative<Point3D>(*line_intersection))) {
+    return std::nullopt;
+  }
+
+  auto const& intersection_point = std::get<Point3D>(line_intersection.value());
+
+  if (!segment.Contains(intersection_point)) {
+    return std::nullopt;
+  }
+  return intersection_point;
+}
+
+Plane::ReturnSet Plane::Intersection(Plane const& plane) const {
+  auto n_cross = Normal.Cross(plane.Normal);
+  if (compare(n_cross.Length(), 0) == 0) {
+    // parallel or same plane
+    return std::nullopt;
+  }
+
+  // line of intersection is defined by the cross product of the normals, and a point that is in both planes
+  // using the "plane-intersect-point" formula, we can find a point that is in both planes
+
+  double d1 = -Normal.Dot(Origin.ToVector());
+  double d2 = -plane.Normal.Dot(plane.Origin.ToVector());
+
+  Point3D P0 = (d2 * Normal - d1 * plane.Normal).Cross(n_cross) / n_cross.Dot(n_cross);
+
+  return Line3D::Make(P0, n_cross);
+}
+
+Plane::ReturnSet Plane::Intersection(Triangle3D const& triangle) const {
+  // Delegate to Triangle3D::Intersection(Plane). Plane-triangle intersection can only produce a
+  // Point3D or a LineSegment3D — both are also valid alternatives of Plane::ReturnSet, so we
+  // unwrap and rewrap rather than returning the triangle-side variant directly (the two variants
+  // have different alternative sets).
+  auto result = triangle.Intersection(*this);
+  if (!result.has_value()) return std::nullopt;
+  if (std::holds_alternative<Point3D>(*result)) return std::get<Point3D>(*result);
+  if (std::holds_alternative<LineSegment3D>(*result)) return std::get<LineSegment3D>(*result);
+  return std::nullopt;
+}
+
+bool Plane::IsParallel(Line3D const& line) const { return compare(line.Direction().Dot(Normal), 0) == 0; }
+
+bool Plane::IsParallel(Ray3D const& ray) const { return compare(ray.Direction().Dot(Normal), 0) == 0; }
+
+bool Plane::IsParallel(LineSegment3D const& segment) const {
+  return compare((segment.Last() - segment.First()).Dot(Normal), 0) == 0;
+}
+
+bool Plane::IsCoplanar(Line3D const& line) const { return IsParallel(line) && Contains(line.First()); }
+
+bool Plane::IsCoplanar(Ray3D const& ray) const { return IsParallel(ray) && Contains(ray.Origin()); }
+
+bool Plane::IsCoplanar(LineSegment3D const& segment) const { return IsParallel(segment) && Contains(segment.First()); }
 
 #pragma endregion
 

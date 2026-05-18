@@ -1,8 +1,11 @@
 #include "plane.hpp"
 
 #include "line3d.hpp"
+#include "line_segment3d.hpp"
 #include "point2d.hpp"
 #include "point3d.hpp"
+#include "ray3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -511,6 +514,324 @@ TEST_F(PlaneTest, AreCW) {
   auto ref = g::Plane::From3Points(tilted[0], tilted[1], tilted[2]);
   EXPECT_TRUE(g::are_cw(tilted));          // auto XY ref gives wrong answer
   EXPECT_FALSE(g::are_cw(tilted, ref));    // correct ref gives right answer
+}
+
+TEST_F(PlaneTest, IntersectionWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();  // Z = 0
+
+  // ray pointing toward plane crosses at (5,3,0)
+  auto down = g::Ray3D::Make(g::Point3D(5, 3, 4), g::Vector3D(0, 0, -1));
+  ASSERT_TRUE(xy.Intersects(down));
+  {
+    auto inter = xy.Intersection(down);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(5, 3, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // ray pointing AWAY from plane — line crosses, but not on the ray side
+  auto up_above = g::Ray3D::Make(g::Point3D(5, 3, 4), g::Vector3D(0, 0, 1));
+  ASSERT_FALSE(xy.Intersects(up_above));
+  ASSERT_FALSE(xy.Intersection(up_above).has_value());
+
+  // ray parallel to plane and above it — no intersection
+  auto parallel_above = g::Ray3D::Make(g::Point3D(0, 0, 2), g::Vector3D(1, 0, 0));
+  ASSERT_FALSE(xy.Intersects(parallel_above));
+  ASSERT_FALSE(xy.Intersection(parallel_above).has_value());
+
+  // ray lying in the plane (coplanar) — API limitation: returns nullopt
+  auto coplanar = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(1, 0, 0));
+  ASSERT_FALSE(xy.Intersects(coplanar));
+  ASSERT_FALSE(xy.Intersection(coplanar).has_value());
+
+  // ray with origin exactly on plane, pointing away — origin is the intersection
+  auto on_pointing_up = g::Ray3D::Make(g::Point3D(5, 3, 0), g::Vector3D(0, 0, 1));
+  ASSERT_TRUE(xy.Intersects(on_pointing_up));
+  {
+    auto inter = xy.Intersection(on_pointing_up);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(5, 3, 0), std::get<g::Point3D>(*inter));
+  }
+
+  auto yz = g::Plane::YZ();
+  // diagonal ray from x<0 toward yz plane crossing at (0,1,2)
+  auto diag = g::Ray3D::Make(g::Point3D(-2, 1, 2), g::Vector3D(1, 0, 0));
+  ASSERT_TRUE(yz.Intersects(diag));
+  {
+    auto inter = yz.Intersection(diag);
+    ASSERT_TRUE(inter.has_value());
+    EXPECT_EQ(g::Point3D(0, 1, 2), std::get<g::Point3D>(*inter));
+  }
+}
+
+TEST_F(PlaneTest, IntersectionWLineSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();  // Z = 0
+
+  // segment crosses plane at (5,3,0)
+  auto crossing = g::LineSegment3D::Make(g::Point3D(5, 3, -2), g::Point3D(5, 3, 4));
+  ASSERT_TRUE(xy.Intersects(crossing));
+  {
+    auto inter = xy.Intersection(crossing);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D(5, 3, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // segment entirely above plane — line would intersect, segment does not
+  auto above = g::LineSegment3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 2));
+  ASSERT_FALSE(xy.Intersects(above));
+  ASSERT_FALSE(xy.Intersection(above).has_value());
+
+  // segment entirely below plane
+  auto below = g::LineSegment3D::Make(g::Point3D(0, 0, -1), g::Point3D(1, 1, -2));
+  ASSERT_FALSE(xy.Intersects(below));
+  ASSERT_FALSE(xy.Intersection(below).has_value());
+
+  // segment endpoint exactly on plane — should be reported as the intersection
+  auto touching = g::LineSegment3D::Make(g::Point3D(2, 2, 0), g::Point3D(2, 2, 3));
+  ASSERT_TRUE(xy.Intersects(touching));
+  {
+    auto inter = xy.Intersection(touching);
+    ASSERT_TRUE(inter.has_value());
+    EXPECT_EQ(g::Point3D(2, 2, 0), std::get<g::Point3D>(*inter));
+  }
+
+  // segment lying in the plane (coplanar) — API limitation: nullopt
+  auto coplanar = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0));
+  ASSERT_FALSE(xy.Intersects(coplanar));
+  ASSERT_FALSE(xy.Intersection(coplanar).has_value());
+
+  // segment parallel above plane (not coplanar)
+  auto parallel = g::LineSegment3D::Make(g::Point3D(0, 0, 2), g::Point3D(1, 1, 2));
+  ASSERT_FALSE(xy.Intersects(parallel));
+  ASSERT_FALSE(xy.Intersection(parallel).has_value());
+
+  auto yz = g::Plane::YZ();
+  auto crossing_yz = g::LineSegment3D::Make(g::Point3D(-1, 4, 2), g::Point3D(3, 4, 2));
+  ASSERT_TRUE(yz.Intersects(crossing_yz));
+  {
+    auto inter = yz.Intersection(crossing_yz);
+    ASSERT_TRUE(inter.has_value());
+    EXPECT_EQ(g::Point3D(0, 4, 2), std::get<g::Point3D>(*inter));
+  }
+}
+
+TEST_F(PlaneTest, IntersectionWPlane) {
+  geompp::DECIMAL_PRECISION = 4;
+
+  // XY ∩ YZ → Y-axis (direction ±Y, through origin)
+  {
+    auto inter = g::Plane::XY().Intersection(g::Plane::YZ());
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    auto const& line = std::get<g::Line3D>(*inter);
+    // origin must lie on both planes (z=0, x=0) and on the line
+    EXPECT_TRUE(g::Plane::XY().Contains(line.First()));
+    EXPECT_TRUE(g::Plane::YZ().Contains(line.First()));
+    // direction parallel to Y-axis (up to sign)
+    EXPECT_TRUE(line.Direction().AlmostEquals(g::Vector3D::BasisY()) ||
+                line.Direction().AlmostEquals(-g::Vector3D::BasisY()));
+  }
+
+  // XY ∩ ZX → X-axis
+  {
+    auto inter = g::Plane::XY().Intersection(g::Plane::ZX());
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    auto const& line = std::get<g::Line3D>(*inter);
+    EXPECT_TRUE(g::Plane::XY().Contains(line.First()));
+    EXPECT_TRUE(g::Plane::ZX().Contains(line.First()));
+    EXPECT_TRUE(line.Direction().AlmostEquals(g::Vector3D::BasisX()) ||
+                line.Direction().AlmostEquals(-g::Vector3D::BasisX()));
+  }
+
+  // YZ ∩ ZX → Z-axis
+  {
+    auto inter = g::Plane::YZ().Intersection(g::Plane::ZX());
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    auto const& line = std::get<g::Line3D>(*inter);
+    EXPECT_TRUE(g::Plane::YZ().Contains(line.First()));
+    EXPECT_TRUE(g::Plane::ZX().Contains(line.First()));
+    EXPECT_TRUE(line.Direction().AlmostEquals(g::Vector3D::BasisZ()) ||
+                line.Direction().AlmostEquals(-g::Vector3D::BasisZ()));
+  }
+
+  // z=5 ∩ x=3 → vertical line (x=3, z=5, y free)
+  {
+    auto p1 = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 5), g::Vector3D::BasisZ());
+    auto p2 = g::Plane::FromOriginAndNormal(g::Point3D(3, 0, 0), g::Vector3D::BasisX());
+    auto inter = p1.Intersection(p2);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    auto const& line = std::get<g::Line3D>(*inter);
+    EXPECT_TRUE(p1.Contains(line.First()));
+    EXPECT_TRUE(p2.Contains(line.First()));
+    EXPECT_TRUE(line.Direction().AlmostEquals(g::Vector3D::BasisY()) ||
+                line.Direction().AlmostEquals(-g::Vector3D::BasisY()));
+  }
+
+  // parallel distinct planes → nullopt
+  {
+    auto p1 = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 0), g::Vector3D::BasisZ());
+    auto p2 = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 5), g::Vector3D::BasisZ());
+    ASSERT_FALSE(p1.Intersects(p2));
+    ASSERT_FALSE(p1.Intersection(p2).has_value());
+  }
+
+  // same plane (different normal sign) → API limitation: nullopt
+  {
+    auto p1 = g::Plane::FromOriginAndNormal(g::Point3D::Zero(),  g::Vector3D::BasisZ());
+    auto p2 = g::Plane::FromOriginAndNormal(g::Point3D::Zero(), -g::Vector3D::BasisZ());
+    ASSERT_FALSE(p1.Intersects(p2));
+    ASSERT_FALSE(p1.Intersection(p2).has_value());
+  }
+}
+
+TEST_F(PlaneTest, IntersectionWTriangle) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
+
+  // Plane y=1 cuts the triangle's interior (endpoints (0,1,0) and (3,1,0) are on edge interiors,
+  // not vertices, so Triangle2D::Intersection accepts the cut).
+  {
+    auto y1 = g::Plane::FromOriginAndNormal(g::Point3D(0, 1, 0), g::Vector3D::BasisY());
+    ASSERT_TRUE(y1.Intersects(t));
+    auto inter = y1.Intersection(t);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*inter));
+  }
+
+  // Plane parallel above the triangle's plane — no intersection
+  {
+    auto above = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1), g::Vector3D::BasisZ());
+    ASSERT_FALSE(above.Intersects(t));
+    ASSERT_FALSE(above.Intersection(t).has_value());
+  }
+
+  // Coplanar plane (same as triangle's plane) — API limitation: nullopt
+  {
+    auto same = g::Plane::XY();
+    ASSERT_FALSE(same.Intersects(t));
+    ASSERT_FALSE(same.Intersection(t).has_value());
+  }
+}
+
+TEST_F(PlaneTest, IsParallelWLine) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();
+
+  // line along X — parallel to XY
+  auto along_x = g::Line3D::Make(g::Point3D(0, 0, 3), g::Vector3D(1, 0, 0));
+  EXPECT_TRUE(xy.IsParallel(along_x));
+
+  // line along Y — parallel
+  auto along_y = g::Line3D::Make(g::Point3D(0, 0, 3), g::Vector3D(0, 1, 0));
+  EXPECT_TRUE(xy.IsParallel(along_y));
+
+  // line lying IN the plane — coplanar lines are also "parallel" by this definition
+  auto in_plane = g::Line3D::Make(g::Point3D::Zero(), g::Vector3D(1, 1, 0));
+  EXPECT_TRUE(xy.IsParallel(in_plane));
+
+  // perpendicular (along Z) — not parallel
+  auto perp = g::Line3D::Make(g::Point3D::Zero(), g::Vector3D(0, 0, 1));
+  EXPECT_FALSE(xy.IsParallel(perp));
+
+  // diagonal — not parallel
+  auto diag = g::Line3D::Make(g::Point3D::Zero(), g::Vector3D(1, 1, 1));
+  EXPECT_FALSE(xy.IsParallel(diag));
+}
+
+TEST_F(PlaneTest, IsParallelWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();
+
+  auto along_x = g::Ray3D::Make(g::Point3D(0, 0, 3), g::Vector3D(1, 0, 0));
+  EXPECT_TRUE(xy.IsParallel(along_x));
+
+  auto in_plane = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(1, 0, 0));
+  EXPECT_TRUE(xy.IsParallel(in_plane));
+
+  auto perp = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(0, 0, 1));
+  EXPECT_FALSE(xy.IsParallel(perp));
+
+  auto diag = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(1, 1, 1));
+  EXPECT_FALSE(xy.IsParallel(diag));
+}
+
+TEST_F(PlaneTest, IsParallelWLineSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();
+
+  auto along_x = g::LineSegment3D::Make(g::Point3D(0, 0, 3), g::Point3D(5, 0, 3));
+  EXPECT_TRUE(xy.IsParallel(along_x));
+
+  auto in_plane = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(2, 2, 0));
+  EXPECT_TRUE(xy.IsParallel(in_plane));
+
+  auto perp = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(0, 0, 5));
+  EXPECT_FALSE(xy.IsParallel(perp));
+
+  auto diag = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(1, 1, 1));
+  EXPECT_FALSE(xy.IsParallel(diag));
+}
+
+TEST_F(PlaneTest, IsCoplanarWLine) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();
+
+  // line in XY plane → coplanar
+  auto in_plane = g::Line3D::Make(g::Point3D::Zero(), g::Vector3D(1, 1, 0));
+  EXPECT_TRUE(xy.IsCoplanar(in_plane));
+
+  // line parallel to XY but above → not coplanar
+  auto parallel_above = g::Line3D::Make(g::Point3D(0, 0, 2), g::Vector3D(1, 0, 0));
+  EXPECT_FALSE(xy.IsCoplanar(parallel_above));
+
+  // line crossing the plane → not coplanar
+  auto crossing = g::Line3D::Make(g::Point3D(0, 0, -1), g::Vector3D(1, 0, 1));
+  EXPECT_FALSE(xy.IsCoplanar(crossing));
+
+  // line perpendicular to plane → not coplanar
+  auto perp = g::Line3D::Make(g::Point3D::Zero(), g::Vector3D(0, 0, 1));
+  EXPECT_FALSE(xy.IsCoplanar(perp));
+}
+
+TEST_F(PlaneTest, IsCoplanarWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();
+
+  auto in_plane = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(1, 0, 0));
+  EXPECT_TRUE(xy.IsCoplanar(in_plane));
+
+  auto parallel_above = g::Ray3D::Make(g::Point3D(0, 0, 2), g::Vector3D(1, 0, 0));
+  EXPECT_FALSE(xy.IsCoplanar(parallel_above));
+
+  auto perp = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(0, 0, 1));
+  EXPECT_FALSE(xy.IsCoplanar(perp));
+
+  auto diag = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(1, 1, 1));
+  EXPECT_FALSE(xy.IsCoplanar(diag));
+}
+
+TEST_F(PlaneTest, IsCoplanarWLineSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto xy = g::Plane::XY();
+
+  auto in_plane = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(2, 2, 0));
+  EXPECT_TRUE(xy.IsCoplanar(in_plane));
+
+  auto parallel_above = g::LineSegment3D::Make(g::Point3D(0, 0, 2), g::Point3D(5, 0, 2));
+  EXPECT_FALSE(xy.IsCoplanar(parallel_above));
+
+  auto perp = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(0, 0, 5));
+  EXPECT_FALSE(xy.IsCoplanar(perp));
+
+  auto diag = g::LineSegment3D::Make(g::Point3D::Zero(), g::Point3D(1, 1, 1));
+  EXPECT_FALSE(xy.IsCoplanar(diag));
 }
 
 }  // namespace geompp_tests

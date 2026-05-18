@@ -10,6 +10,7 @@
 #include "geompp_log.hpp"
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <filesystem>
 
 namespace g = geompp;
@@ -200,6 +201,81 @@ TEST_F(Ray3DTest, DistanceTo) {
   // behind and offset: distance = distance to origin (not to projection on line)
   ASSERT_EQ(g::round(g::Point3D::Zero().DistanceTo(g::Point3D(-1, 3, 0))),
             g::round(r.DistanceTo(g::Point3D(-1, 3, 0))));
+}
+
+TEST_F(Ray3DTest, DistanceToLine3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto ray = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());  // +X from origin
+
+  // line that crosses the ray at origin → 0
+  auto line_hit_origin = g::Line3D::Make(g::Point3D(0, -1, 0), g::Point3D(0, 1, 0));
+  EXPECT_EQ(0.0, g::round(ray.DistanceTo(line_hit_origin)));
+
+  // line parallel to the ray, offset in Y → perp distance
+  auto line_parallel = g::Line3D::Make(g::Point3D(0, 5, 0), g::Point3D(1, 5, 0));
+  EXPECT_EQ(5.0, g::round(ray.DistanceTo(line_parallel)));
+
+  // line that lies on the same x-axis (overlap) → 0
+  auto line_overlap = g::Line3D::Make(g::Point3D(-2, 0, 0), g::Point3D(7, 0, 0));
+  EXPECT_EQ(0.0, g::round(ray.DistanceTo(line_overlap)));
+  EXPECT_FALSE(ray.Distance(line_overlap).has_value());
+
+  // line skew to ray and behind the origin: closest point on ray is its origin
+  // Line through (-5, 0, 3) along Y → perpendicular foot on ray would have sc<0, clamped to origin.
+  // Distance from origin (0,0,0) to line at (-5,0,3) along Y is sqrt(25+9)=sqrt(34)
+  auto line_behind_skew = g::Line3D::Make(g::Point3D(-5, 0, 3), g::Point3D(-5, 1, 3));
+  EXPECT_EQ(g::round(std::sqrt(34.0)), g::round(ray.DistanceTo(line_behind_skew)));
+}
+
+TEST_F(Ray3DTest, DistanceToRay3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto r1 = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());  // +X from origin
+
+  // crossing rays meeting at (3,0,0) → 0
+  auto r2 = g::Ray3D::Make(g::Point3D(3, 1, 0), g::Vector3D(0, -1, 0));
+  EXPECT_EQ(0.0, g::round(r1.DistanceTo(r2)));
+
+  // skew rays
+  auto r_skew = g::Ray3D::Make(g::Point3D(0, 0, 4), g::Vector3D(0, 1, 0));
+  EXPECT_EQ(4.0, g::round(r1.DistanceTo(r_skew)));
+  auto dseg = r1.Distance(r_skew);
+  ASSERT_TRUE(dseg.has_value());
+  EXPECT_EQ(4.0, g::round(dseg->Length()));
+
+  // overlapping (collinear) rays, same direction → 0
+  auto r_overlap = g::Ray3D::Make(g::Point3D(2, 0, 0), g::Vector3D::BasisX());
+  EXPECT_EQ(0.0, g::round(r1.DistanceTo(r_overlap)));
+  EXPECT_FALSE(r1.Distance(r_overlap).has_value());
+
+  // parallel distinct rays (both +X, offset in Y) → perp distance 3
+  auto r_parallel = g::Ray3D::Make(g::Point3D(0, 3, 0), g::Vector3D::BasisX());
+  EXPECT_EQ(3.0, g::round(r1.DistanceTo(r_parallel)));
+
+  // back-to-back rays from same origin (opposite directions): closest distance is 0 at origin
+  auto r_back = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(-1, 0, 0));
+  EXPECT_EQ(0.0, g::round(r1.DistanceTo(r_back)));
+}
+
+TEST_F(Ray3DTest, DistanceToLineSegment3D) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto ray = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());  // +X from origin
+
+  // segment crossing the ray at (2,0,0) → 0
+  auto seg_cross = g::LineSegment3D::Make(g::Point3D(2, -1, 0), g::Point3D(2, 1, 0));
+  EXPECT_EQ(0.0, g::round(ray.DistanceTo(seg_cross)));
+
+  // segment parallel to the ray, offset by 5 in Z → 5
+  auto seg_parallel = g::LineSegment3D::Make(g::Point3D(0, 0, 5), g::Point3D(4, 0, 5));
+  EXPECT_EQ(5.0, g::round(ray.DistanceTo(seg_parallel)));
+
+  // segment collinear with the ray (overlap) → 0
+  auto seg_overlap = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(3, 0, 0));
+  EXPECT_EQ(0.0, g::round(ray.DistanceTo(seg_overlap)));
+  EXPECT_FALSE(ray.Distance(seg_overlap).has_value());
+
+  // skew segment in Z above the ray
+  auto seg_skew = g::LineSegment3D::Make(g::Point3D(3, -1, 4), g::Point3D(3, 1, 4));
+  EXPECT_EQ(4.0, g::round(ray.DistanceTo(seg_skew)));
 }
 
 TEST_F(Ray3DTest, IntersectionWithRay3D) {

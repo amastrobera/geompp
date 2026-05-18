@@ -350,4 +350,23 @@ TEST_F(Point3DTest, LinearCombination) {
   EXPECT_ANY_THROW(g::linear_combination(std::vector<g::Point3D>{}, std::vector<double>{}));
 }
 
+TEST_F(Point3DTest, FromVector) {
+  // explicit construction from a vector copies x/y/z components
+  auto v = g::Vector3D(3.0, -4.5, 6.25);
+  auto p = g::Point3D(v);
+  ASSERT_EQ(3.0, p.x());
+  ASSERT_EQ(-4.5, p.y());
+  ASSERT_EQ(6.25, p.z());
+  ASSERT_EQ(g::Point3D(3.0, -4.5, 6.25), p);
+
+  // implicit conversion: Point3D parameter accepts a Vector3D
+  auto via_implicit = [](g::Point3D const& q) { return q; }(g::Vector3D(7.5, 8.25, -9.5));
+  ASSERT_EQ(g::Point3D(7.5, 8.25, -9.5), via_implicit);
+
+  // round-trip: Point3D → Vector3D → Point3D
+  auto p0 = g::Point3D(1.25, -2.75, 0.5);
+  auto roundtrip = g::Point3D(p0.ToVector());
+  ASSERT_EQ(p0, roundtrip);
+}
+
 }  // namespace geompp_tests

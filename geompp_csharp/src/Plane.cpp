@@ -3,6 +3,9 @@
 #include "Point3D.hpp"
 #include "Vector3D.hpp"
 #include "Line3D.hpp"
+#include "Ray3D.hpp"
+#include "LineSegment3D.hpp"
+#include "Triangle3D.hpp"
 
 namespace GeomPP {
 
@@ -94,10 +97,79 @@ bool Plane::Intersects(Line3D^ line) {
     return _native->Intersects(*line->_native);
 }
 
+bool Plane::Intersects(Ray3D^ ray) {
+    return _native->Intersects(*ray->_native);
+}
+
+bool Plane::Intersects(LineSegment3D^ segment) {
+    return _native->Intersects(*segment->_native);
+}
+
+bool Plane::Intersects(Plane^ other) {
+    return _native->Intersects(*other->_native);
+}
+
+bool Plane::Intersects(Triangle3D^ triangle) {
+    return _native->Intersects(*triangle->_native);
+}
+
 Point3D^ Plane::Intersection(Line3D^ line) {
     auto result = _native->Intersection(*line->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) return nullptr;
     return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+}
+
+Point3D^ Plane::Intersection(Ray3D^ ray) {
+    auto result = _native->Intersection(*ray->_native);
+    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) return nullptr;
+    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+}
+
+Point3D^ Plane::Intersection(LineSegment3D^ segment) {
+    auto result = _native->Intersection(*segment->_native);
+    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) return nullptr;
+    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+}
+
+Line3D^ Plane::Intersection(Plane^ other) {
+    auto result = _native->Intersection(*other->_native);
+    if (!result.has_value() || !std::holds_alternative<geompp::Line3D>(result.value())) return nullptr;
+    return gcnew Line3D(new geompp::Line3D(std::get<geompp::Line3D>(result.value())));
+}
+
+System::Object^ Plane::Intersection(Triangle3D^ triangle) {
+    auto result = _native->Intersection(*triangle->_native);
+    if (!result.has_value()) return nullptr;
+    auto& val = result.value();
+    if (std::holds_alternative<geompp::Point3D>(val))
+        return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
+    if (std::holds_alternative<geompp::LineSegment3D>(val))
+        return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
+    return nullptr;
+}
+
+bool Plane::IsParallel(Line3D^ line) {
+    return _native->IsParallel(*line->_native);
+}
+
+bool Plane::IsParallel(Ray3D^ ray) {
+    return _native->IsParallel(*ray->_native);
+}
+
+bool Plane::IsParallel(LineSegment3D^ segment) {
+    return _native->IsParallel(*segment->_native);
+}
+
+bool Plane::IsCoplanar(Line3D^ line) {
+    return _native->IsCoplanar(*line->_native);
+}
+
+bool Plane::IsCoplanar(Ray3D^ ray) {
+    return _native->IsCoplanar(*ray->_native);
+}
+
+bool Plane::IsCoplanar(LineSegment3D^ segment) {
+    return _native->IsCoplanar(*segment->_native);
 }
 
 // ── Standard planes ───────────────────────────────────────────────────────────

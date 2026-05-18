@@ -43,6 +43,31 @@ p3 = g.Point3D(1, 2, 3)
 plane = g.Plane.xy()
 proj = plane.project_onto(p3)   # Point3D(1, 2, 0)
 
+# Plane intersections (Line / Ray / Segment / Plane / Triangle)
+ray = g.Ray3D.make(g.Point3D(5, 3, 4), g.Vector3D(0, 0, -1))
+hit = plane.intersection(ray)              # Point3D(5, 3, 0)
+axis_y = plane.intersection(g.Plane.yz())  # Line3D along the Y-axis
+
+# Parallel / coplanar tests
+plane.is_parallel(ray)                     # False (ray crosses the plane)
+plane.is_coplanar(g.Line3D.make(g.Point3D(0,0,0), g.Vector3D(1, 1, 0)))  # True
+
+# Implicit Vector → Point construction
+p_from_v = g.Point3D(g.Vector3D(1, 2, 3))  # = Point3D(1, 2, 3)
+
+# Triangle3D intersection with Line / Ray / Segment / Plane / Triangle
+tri = g.Triangle3D.make(g.Point3D(0,0,0), g.Point3D(4,0,0), g.Point3D(0,4,0))
+hit_line  = tri.intersection(
+    g.Line3D.make(g.Point3D(1, 1, -1), g.Point3D(1, 1, 1)))                # Point3D(1, 1, 0)
+hit_ray   = tri.intersection(
+    g.Ray3D.make(g.Point3D(1, 1, 4), g.Vector3D(0, 0, -1)))                # Point3D(1, 1, 0)
+hit_seg   = tri.intersection(
+    g.LineSegment3D.make(g.Point3D(1, 1, -2), g.Point3D(1, 1, 3)))         # Point3D(1, 1, 0)
+y1        = g.Plane.from_origin_and_normal(g.Point3D(0,1,0), g.Vector3D(0,1,0))
+hit_plane = tri.intersection(y1)                                            # LineSegment3D (0,1,0)→(3,1,0)
+other     = g.Triangle3D.make(g.Point3D(1,1,-1), g.Point3D(1,1,1), g.Point3D(3,1,0))
+hit_tri   = tri.intersection(other)                                         # LineSegment3D (1,1,0)→(3,1,0)
+
 # Precision
 g.set_decimal_precision(g.DP_SIX)
 

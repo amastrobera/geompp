@@ -10,7 +10,26 @@ void bind_ray3d(py::module_& m) {
         .def("is_ahead",    &geompp::Ray3D::IsAhead,    "point"_a)
         .def("is_behind",   &geompp::Ray3D::IsBehind,   "point"_a)
         .def("to_line",     &geompp::Ray3D::ToLine)
-        .def("distance_to",  &geompp::Ray3D::DistanceTo,  "point"_a)
+        .def("distance_to",
+             [](const geompp::Ray3D& r, const geompp::Point3D& p) { return r.DistanceTo(p); }, "point"_a)
+        .def("distance_to",
+             [](const geompp::Ray3D& r, const geompp::Line3D& l) { return r.DistanceTo(l); }, "line"_a)
+        .def("distance_to",
+             [](const geompp::Ray3D& r, const geompp::Ray3D& o) { return r.DistanceTo(o); }, "other"_a)
+        .def("distance_to",
+             [](const geompp::Ray3D& r, const geompp::LineSegment3D& s) { return r.DistanceTo(s); }, "segment"_a)
+        .def("distance",
+             [](const geompp::Ray3D& r, const geompp::Line3D& l) -> py::object {
+                 auto res = r.Distance(l); return res.has_value() ? py::cast(*res) : py::none();
+             }, "line"_a)
+        .def("distance",
+             [](const geompp::Ray3D& r, const geompp::Ray3D& o) -> py::object {
+                 auto res = r.Distance(o); return res.has_value() ? py::cast(*res) : py::none();
+             }, "other"_a)
+        .def("distance",
+             [](const geompp::Ray3D& r, const geompp::LineSegment3D& s) -> py::object {
+                 auto res = r.Distance(s); return res.has_value() ? py::cast(*res) : py::none();
+             }, "segment"_a)
         .def("project_onto", &geompp::Ray3D::ProjectOnto, "point"_a)
         .def("contains",     &geompp::Ray3D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(Ray3D)

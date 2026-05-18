@@ -47,6 +47,7 @@ set(GEOMPP_SOURCES
     ${GEOMPP_ROOT}/src/bbox3d.cpp
     ${GEOMPP_ROOT}/src/geometry_collection2d.cpp
     ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
+    ${GEOMPP_ROOT}/src/calc_utils3d.cpp
 )
 
 # ─── Binding sources (one file per class) ─────────────────────────────────────

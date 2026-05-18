@@ -42,6 +42,14 @@ class TestPoint2D:
         assert approx(p.x, 1.0)
         assert approx(p.y, 2.0)
 
+    def test_construction_from_vector(self):
+        v = geompp.Vector2D(3.0, -4.5)
+        p = geompp.Point2D(v)
+        assert approx(p.x, 3.0)
+        assert approx(p.y, -4.5)
+        # round-trip through ToVector
+        assert geompp.Point2D(p.to_vector()) == p
+
     def test_zero(self):
         z = geompp.Point2D.zero()
         assert approx(z.x, 0.0) and approx(z.y, 0.0)
@@ -127,6 +135,15 @@ class TestPoint2D:
 # ─── Point3D ─────────────────────────────────────────────────────────────────
 
 class TestPoint3D:
+    def test_construction_from_vector(self):
+        v = geompp.Vector3D(3.0, -4.5, 6.25)
+        p = geompp.Point3D(v)
+        assert approx(p.x, 3.0)
+        assert approx(p.y, -4.5)
+        assert approx(p.z, 6.25)
+        # round-trip through ToVector
+        assert geompp.Point3D(p.to_vector()) == p
+
     def test_construction(self):
         p = geompp.Point3D(1, 2, 3)
         assert approx(p.x, 1) and approx(p.y, 2) and approx(p.z, 3)
@@ -491,6 +508,53 @@ class TestLineSegment3D:
         assert approx(s.distance_to(geompp.Point3D(2, 3, 0)), 3.0)
         assert approx(s.distance_to(geompp.Point3D(2, 0, 0)), 0.0)
 
+    def test_distance_to_line3d(self):
+        seg = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        # line crossing the segment at (2,0,0)
+        line_cross = geompp.Line3D.make(geompp.Point3D(2, -1, 0), geompp.Point3D(2, 1, 0))
+        assert approx(seg.distance_to(line_cross), 0.0)
+        # parallel line offset by 3 in Y
+        line_parallel = geompp.Line3D.make(geompp.Point3D(0, 3, 0), geompp.Point3D(1, 3, 0))
+        assert approx(seg.distance_to(line_parallel), 3.0)
+        # line containing the segment (overlap) → 0
+        line_overlap = geompp.Line3D.make(geompp.Point3D(-2, 0, 0), geompp.Point3D(10, 0, 0))
+        assert approx(seg.distance_to(line_overlap), 0.0)
+        assert seg.distance(line_overlap) is None
+
+    def test_distance_to_ray3d(self):
+        seg = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        # ray crossing the segment at (2,0,0)
+        ray_cross = geompp.Ray3D.make(geompp.Point3D(2, 3, 0), geompp.Vector3D(0, -1, 0))
+        assert approx(seg.distance_to(ray_cross), 0.0)
+        # parallel ray, offset by 4 in Z
+        ray_parallel = geompp.Ray3D.make(geompp.Point3D(0, 0, 4), geompp.Vector3D(1, 0, 0))
+        assert approx(seg.distance_to(ray_parallel), 4.0)
+        # ray contained on the segment's line (overlap) → 0
+        ray_overlap = geompp.Ray3D.make(geompp.Point3D(1, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert approx(seg.distance_to(ray_overlap), 0.0)
+        assert seg.distance(ray_overlap) is None
+
+        # 2D top-down (XY) the ray crosses the segment at (2,0); in 3D the ray is at z=5
+        # while the segment is at z=0 → non-parallel skew, real distance = 5.
+        ray_top_cross_skew = geompp.Ray3D.make(geompp.Point3D(2, 3, 5), geompp.Vector3D(0, -1, 0))
+        assert approx(seg.distance_to(ray_top_cross_skew), 5.0)
+
+    def test_distance_to_segment3d(self):
+        s1 = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0))
+        # crossing segment
+        s_cross = geompp.LineSegment3D.make(geompp.Point3D(2, -1, 0), geompp.Point3D(2, 1, 0))
+        assert approx(s1.distance_to(s_cross), 0.0)
+        # parallel segment offset in Y
+        s_parallel = geompp.LineSegment3D.make(geompp.Point3D(0, 3, 0), geompp.Point3D(2, 3, 0))
+        assert approx(s1.distance_to(s_parallel), 3.0)
+        # collinear (overlap) → 0
+        s_overlap = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(6, 0, 0))
+        assert approx(s1.distance_to(s_overlap), 0.0)
+        assert s1.distance(s_overlap) is None
+        # skew segment
+        s_skew = geompp.LineSegment3D.make(geompp.Point3D(2, -1, 5), geompp.Point3D(2, 1, 5))
+        assert approx(s1.distance_to(s_skew), 5.0)
+
     def test_interpolate(self):
         s = geompp.LineSegment3D.make(geompp.Point3D(0,0,0), geompp.Point3D(4,0,0))
         assert s.interpolate(0.0).almost_equals(geompp.Point3D(0,0,0))
@@ -509,6 +573,19 @@ class TestLineSegment3D:
         assert isinstance(l, geompp.Line3D)
         assert l.contains(s.first)
         assert l.contains(s.last)
+
+    def test_flip(self):
+        s = geompp.LineSegment3D.make(geompp.Point3D(1, 2, 3), geompp.Point3D(4, 5, 6))
+        f = s.flip()
+        assert isinstance(f, geompp.LineSegment3D)
+        assert f.first.almost_equals(s.last)
+        assert f.last.almost_equals(s.first)
+        # length preserved
+        assert approx(s.length(), f.length())
+        # double flip returns the original
+        ff = f.flip()
+        assert ff.first.almost_equals(s.first)
+        assert ff.last.almost_equals(s.last)
 
     def test_to_file_from_file(self):
         s = geompp.LineSegment3D.make(geompp.Point3D(1, 2, 3), geompp.Point3D(4, 5, 6))
@@ -673,6 +750,52 @@ class TestLine3D:
         l = geompp.Line3D.make(geompp.Point3D(0,0,0), geompp.Point3D(3,0,0))
         assert approx(l.distance_to(geompp.Point3D(0,3,0)), 3.0)
 
+    def test_distance_to_line3d(self):
+        x_axis = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        # intersecting (Y-axis crosses X-axis at origin)
+        y_axis = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0))
+        assert approx(x_axis.distance_to(y_axis), 0.0)
+        assert x_axis.distance(y_axis) is None
+        # skew (Y-dir line offset in Z)
+        skew = geompp.Line3D.make(geompp.Point3D(0, -1, 5), geompp.Point3D(0, 1, 5))
+        assert approx(x_axis.distance_to(skew), 5.0)
+        dseg = x_axis.distance(skew)
+        assert isinstance(dseg, geompp.LineSegment3D)
+        assert approx(dseg.length(), 5.0)
+        # parallel distinct
+        parallel = geompp.Line3D.make(geompp.Point3D(0, 3, 0), geompp.Point3D(1, 3, 0))
+        assert approx(x_axis.distance_to(parallel), 3.0)
+        # overlap (collinear) → 0
+        overlap = geompp.Line3D.make(geompp.Point3D(5, 0, 0), geompp.Point3D(7, 0, 0))
+        assert approx(x_axis.distance_to(overlap), 0.0)
+        assert x_axis.distance(overlap) is None
+
+    def test_distance_to_ray3d(self):
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        # ray hitting the line at origin
+        ray_hit = geompp.Ray3D.make(geompp.Point3D(0, 2, 0), geompp.Vector3D(0, -1, 0))
+        assert approx(line.distance_to(ray_hit), 0.0)
+        # ray collinear with the line (overlap)
+        ray_overlap = geompp.Ray3D.make(geompp.Point3D(3, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert approx(line.distance_to(ray_overlap), 0.0)
+        assert line.distance(ray_overlap) is None
+        # ray pointing away → distance to ray origin
+        ray_away = geompp.Ray3D.make(geompp.Point3D(0, 2, 0), geompp.Vector3D(0, 1, 0))
+        assert approx(line.distance_to(ray_away), 2.0)
+
+    def test_distance_to_segment3d(self):
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        # segment crossing line at origin
+        seg_cross = geompp.LineSegment3D.make(geompp.Point3D(0, -1, 0), geompp.Point3D(0, 1, 0))
+        assert approx(line.distance_to(seg_cross), 0.0)
+        # parallel segment
+        seg_parallel = geompp.LineSegment3D.make(geompp.Point3D(0, 4, 0), geompp.Point3D(3, 4, 0))
+        assert approx(line.distance_to(seg_parallel), 4.0)
+        # overlapping (collinear) segment → 0
+        seg_overlap = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(5, 0, 0))
+        assert approx(line.distance_to(seg_overlap), 0.0)
+        assert line.distance(seg_overlap) is None
+
     def test_project_onto(self):
         l = geompp.Line3D.make(geompp.Point3D(0,0,0), geompp.Point3D(3,0,0))
         p = l.project_onto(geompp.Point3D(2,3,0))
@@ -831,6 +954,48 @@ class TestRay3D:
         r = geompp.Ray3D.make(geompp.Point3D(0,0,0), geompp.Vector3D(1,0,0))
         assert approx(r.distance_to(geompp.Point3D(3,4,0)), 4.0)
         assert approx(r.distance_to(geompp.Point3D(-2,0,0)), 2.0)
+
+    def test_distance_to_line3d(self):
+        ray = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        # line crosses ray at origin
+        line_hit = geompp.Line3D.make(geompp.Point3D(0, -1, 0), geompp.Point3D(0, 1, 0))
+        assert approx(ray.distance_to(line_hit), 0.0)
+        # parallel line, offset by 5 in Y
+        line_parallel = geompp.Line3D.make(geompp.Point3D(0, 5, 0), geompp.Point3D(1, 5, 0))
+        assert approx(ray.distance_to(line_parallel), 5.0)
+        # overlapping (collinear) line → 0
+        line_overlap = geompp.Line3D.make(geompp.Point3D(-2, 0, 0), geompp.Point3D(7, 0, 0))
+        assert approx(ray.distance_to(line_overlap), 0.0)
+        assert ray.distance(line_overlap) is None
+
+    def test_distance_to_ray3d(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        # crossing rays
+        r2 = geompp.Ray3D.make(geompp.Point3D(3, 1, 0), geompp.Vector3D(0, -1, 0))
+        assert approx(r1.distance_to(r2), 0.0)
+        # skew (offset in Z)
+        r_skew = geompp.Ray3D.make(geompp.Point3D(0, 0, 4), geompp.Vector3D(0, 1, 0))
+        assert approx(r1.distance_to(r_skew), 4.0)
+        # overlapping (collinear) rays, same direction
+        r_overlap = geompp.Ray3D.make(geompp.Point3D(2, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert approx(r1.distance_to(r_overlap), 0.0)
+        assert r1.distance(r_overlap) is None
+        # parallel distinct rays
+        r_parallel = geompp.Ray3D.make(geompp.Point3D(0, 3, 0), geompp.Vector3D(1, 0, 0))
+        assert approx(r1.distance_to(r_parallel), 3.0)
+
+    def test_distance_to_segment3d(self):
+        ray = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        # segment crossing the ray at (2,0,0)
+        seg_cross = geompp.LineSegment3D.make(geompp.Point3D(2, -1, 0), geompp.Point3D(2, 1, 0))
+        assert approx(ray.distance_to(seg_cross), 0.0)
+        # parallel segment offset in Z
+        seg_parallel = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 5), geompp.Point3D(4, 0, 5))
+        assert approx(ray.distance_to(seg_parallel), 5.0)
+        # collinear (overlap) → 0
+        seg_overlap = geompp.LineSegment3D.make(geompp.Point3D(1, 0, 0), geompp.Point3D(3, 0, 0))
+        assert approx(ray.distance_to(seg_overlap), 0.0)
+        assert ray.distance(seg_overlap) is None
 
     def test_project_onto(self):
         r = geompp.Ray3D.make(geompp.Point3D(0,0,0), geompp.Vector3D(1,0,0))
@@ -2065,6 +2230,133 @@ class TestTriangle3D:
         assert tri.contains(geompp.Point3D(0.5, 0.5, 0))           # hypotenuse midpoint
         assert not tri.contains(geompp.Point3D(0.5, 0, 0.01))      # just off-plane
 
+    def test_intersection_with_line(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(0, 2, 0)
+        )
+
+        # line through interior at (0.5, 0.5, 0)
+        line_in = geompp.Line3D.make(geompp.Point3D(0.5, 0.5, -1), geompp.Point3D(0.5, 0.5, 1))
+        assert tri.intersects(line_in)
+        hit = tri.intersection(line_in)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+        # line missing the triangle (hits plane outside)
+        line_miss = geompp.Line3D.make(geompp.Point3D(3, 3, -1), geompp.Point3D(3, 3, 1))
+        assert not tri.intersects(line_miss)
+        assert tri.intersection(line_miss) is None
+
+        # coplanar line — API limitation: nullopt
+        line_coplanar = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        assert not tri.intersects(line_coplanar)
+        assert tri.intersection(line_coplanar) is None
+
+    def test_intersection_with_ray(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(0, 2, 0)
+        )
+
+        # ray pointing toward triangle from above
+        r_down = geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 4), geompp.Vector3D(0, 0, -1))
+        assert tri.intersects(r_down)
+        hit = tri.intersection(r_down)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+        # ray pointing away from the plane — no intersection
+        r_up = geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 4), geompp.Vector3D(0, 0, 1))
+        assert not tri.intersects(r_up)
+        assert tri.intersection(r_up) is None
+
+        # ray hitting plane outside the triangle
+        r_miss = geompp.Ray3D.make(geompp.Point3D(3, 3, 4), geompp.Vector3D(0, 0, -1))
+        assert not tri.intersects(r_miss)
+        assert tri.intersection(r_miss) is None
+
+    def test_intersection_with_line_segment(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(0, 2, 0)
+        )
+
+        seg_cross = geompp.LineSegment3D.make(
+            geompp.Point3D(0.5, 0.5, -2), geompp.Point3D(0.5, 0.5, 3)
+        )
+        assert tri.intersects(seg_cross)
+        hit = tri.intersection(seg_cross)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+        # segment entirely above the plane
+        seg_above = geompp.LineSegment3D.make(
+            geompp.Point3D(0.5, 0.5, 1), geompp.Point3D(0.5, 0.5, 3)
+        )
+        assert not tri.intersects(seg_above)
+        assert tri.intersection(seg_above) is None
+
+        # segment with an endpoint on the triangle
+        seg_touching = geompp.LineSegment3D.make(
+            geompp.Point3D(0.5, 0.5, 0), geompp.Point3D(0.5, 0.5, 3)
+        )
+        assert tri.intersects(seg_touching)
+        hit2 = tri.intersection(seg_touching)
+        assert isinstance(hit2, geompp.Point3D)
+        assert hit2.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+    def test_intersection_with_plane(self):
+        # Use a triangle large enough that the plane y=1 cuts through the *interior* of its edges
+        # (Triangle2D::Intersection(Line2D) returns None when all intersection points are vertices).
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 4, 0)
+        )
+
+        # Plane y=1 cuts the triangle through edge interiors → LineSegment3D
+        y1 = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 1, 0), geompp.Vector3D(0, 1, 0))
+        assert tri.intersects(y1)
+        seg = tri.intersection(y1)
+        assert isinstance(seg, geompp.LineSegment3D)
+        assert tri.contains(seg.first)
+        assert tri.contains(seg.last)
+        assert y1.contains(seg.first)
+        assert y1.contains(seg.last)
+
+        # Plane parallel above the triangle's plane → no intersection
+        above = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 1), geompp.Vector3D(0, 0, 1))
+        assert not tri.intersects(above)
+        assert tri.intersection(above) is None
+
+        # Coplanar plane (same as triangle's plane) → None (API limitation)
+        same = geompp.Plane.xy()
+        assert not tri.intersects(same)
+        assert tri.intersection(same) is None
+
+    def test_intersection_with_triangle(self):
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 4, 0)
+        )
+
+        # Triangle parallel above — disjoint planes, no intersection
+        above = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 1), geompp.Point3D(1, 0, 1), geompp.Point3D(0, 1, 1)
+        )
+        assert not tri.intersects_triangle(above)
+        assert tri.intersection(above) is None
+
+        # Two triangles whose planes intersect through their interiors.
+        # tri  on XY:  plane y=1 cut is (0,1,0)→(3,1,0).
+        # tri2 on y=1: plane z=0 cut is (1,1,0)→(3,1,0).
+        # Overlap → LineSegment3D from (1,1,0) to (3,1,0).
+        tri2 = geompp.Triangle3D.make(
+            geompp.Point3D(1, 1, -1), geompp.Point3D(1, 1, 1), geompp.Point3D(3, 1, 0)
+        )
+        assert tri.intersects_triangle(tri2)
+        seg = tri.intersection(tri2)
+        assert isinstance(seg, geompp.LineSegment3D)
+        assert tri.contains(seg.first)
+        assert tri.contains(seg.last)
+        assert tri2.contains(seg.first)
+        assert tri2.contains(seg.last)
+
 
 # ─── BBox2D ──────────────────────────────────────────────────────────────────
 
@@ -2269,6 +2561,105 @@ class TestPlane:
         uv = pl.project_into(pt)
         back = pl.evaluate(uv)
         assert back.almost_equals(pt)
+
+    def test_intersection_with_ray(self):
+        xy = geompp.Plane.xy()
+        # ray pointing down toward plane crosses at (5, 3, 0)
+        r = geompp.Ray3D.make(geompp.Point3D(5, 3, 4), geompp.Vector3D(0, 0, -1))
+        assert xy.intersects(r)
+        hit = xy.intersection(r)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(5, 3, 0))
+
+        # ray pointing away from plane → no intersection
+        r_away = geompp.Ray3D.make(geompp.Point3D(5, 3, 4), geompp.Vector3D(0, 0, 1))
+        assert not xy.intersects(r_away)
+        assert xy.intersection(r_away) is None
+
+    def test_intersection_with_line_segment(self):
+        xy = geompp.Plane.xy()
+        seg = geompp.LineSegment3D.make(geompp.Point3D(5, 3, -2), geompp.Point3D(5, 3, 4))
+        assert xy.intersects(seg)
+        hit = xy.intersection(seg)
+        assert isinstance(hit, geompp.Point3D)
+        assert hit.almost_equals(geompp.Point3D(5, 3, 0))
+
+        # segment entirely above the plane
+        seg_above = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 1), geompp.Point3D(1, 1, 2))
+        assert not xy.intersects(seg_above)
+        assert xy.intersection(seg_above) is None
+
+    def test_intersection_with_plane(self):
+        # XY ∩ YZ → line along Y through origin
+        inter = geompp.Plane.xy().intersection(geompp.Plane.yz())
+        assert isinstance(inter, geompp.Line3D)
+        # the resulting line must lie in both planes
+        assert geompp.Plane.xy().contains(inter.origin)
+        assert geompp.Plane.yz().contains(inter.origin)
+        # direction parallel to Y-axis (up to sign)
+        d = inter.direction
+        assert d.almost_equals(geompp.Vector3D(0, 1, 0)) or d.almost_equals(geompp.Vector3D(0, -1, 0))
+
+        # parallel distinct planes → None
+        p1 = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 0), geompp.Vector3D(0, 0, 1))
+        p2 = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 5), geompp.Vector3D(0, 0, 1))
+        assert not p1.intersects(p2)
+        assert p1.intersection(p2) is None
+
+    def test_intersection_with_triangle(self):
+        # plane y=1 cuts the triangle through edge interiors (avoids the all-vertices nullopt rule)
+        y1  = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 1, 0), geompp.Vector3D(0, 1, 0))
+        tri = geompp.Triangle3D.make(
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 4, 0)
+        )
+        assert y1.intersects(tri)
+        seg = y1.intersection(tri)
+        assert isinstance(seg, geompp.LineSegment3D)
+        assert y1.contains(seg.first)
+        assert y1.contains(seg.last)
+        assert tri.contains(seg.first)
+        assert tri.contains(seg.last)
+
+        # plane parallel above the triangle's plane → no intersection
+        above = geompp.Plane.from_origin_and_normal(geompp.Point3D(0, 0, 1), geompp.Vector3D(0, 0, 1))
+        assert not above.intersects(tri)
+        assert above.intersection(tri) is None
+
+    def test_is_parallel(self):
+        xy = geompp.Plane.xy()
+        line_along_x = geompp.Line3D.make(geompp.Point3D(0, 0, 3), geompp.Vector3D(1, 0, 0))
+        assert xy.is_parallel(line_along_x)
+
+        line_perp = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(0, 0, 1))
+        assert not xy.is_parallel(line_perp)
+
+        ray = geompp.Ray3D.make(geompp.Point3D(0, 0, 3), geompp.Vector3D(1, 0, 0))
+        assert xy.is_parallel(ray)
+        ray_diag = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 1, 1))
+        assert not xy.is_parallel(ray_diag)
+
+        seg = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 3), geompp.Point3D(5, 0, 3))
+        assert xy.is_parallel(seg)
+        seg_perp = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(0, 0, 5))
+        assert not xy.is_parallel(seg_perp)
+
+    def test_is_coplanar(self):
+        xy = geompp.Plane.xy()
+        line_in = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 1, 0))
+        assert xy.is_coplanar(line_in)
+
+        line_above = geompp.Line3D.make(geompp.Point3D(0, 0, 2), geompp.Vector3D(1, 0, 0))
+        assert not xy.is_coplanar(line_above)
+
+        ray_in = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert xy.is_coplanar(ray_in)
+        ray_above = geompp.Ray3D.make(geompp.Point3D(0, 0, 2), geompp.Vector3D(1, 0, 0))
+        assert not xy.is_coplanar(ray_above)
+
+        seg_in = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(2, 2, 0))
+        assert xy.is_coplanar(seg_in)
+        seg_above = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 2), geompp.Point3D(5, 0, 2))
+        assert not xy.is_coplanar(seg_above)
 
 
 # ─── WktParser ───────────────────────────────────────────────────────────────

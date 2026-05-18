@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "geompp"
-version = "0.7.0"
+version = "0.8.0"
 description = "Python bindings for geompp — a C++ 2D/3D geometry library"
 readme = "README.md"
 license = { text = "MIT" }

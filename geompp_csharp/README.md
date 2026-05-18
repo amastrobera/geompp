@@ -21,7 +21,7 @@ dotnet add package GeomPP
 or in your `.csproj`:
 
 ```xml
-<PackageReference Include="GeomPP" Version="0.7.0" />
+<PackageReference Include="GeomPP" Version="0.8.0" />
 ```
 
 ---
@@ -201,6 +201,31 @@ to extract the result type:
 var result = line.Intersection(segment);
 if (result is G.Point2D p)      { /* point intersection */ }
 if (result is G.LineSegment2D s) { /* overlap */ }
+```
+
+`Plane` exposes intersections, parallel / coplanar checks, and convenience constructors:
+
+```csharp
+var pl  = G.Plane.XY();
+var ray = G.Ray3D.Make(new G.Point3D(5, 3, 4), new G.Vector3D(0, 0, -1));
+var hit = pl.Intersection(ray);            // Point3D(5, 3, 0)  or null
+var axisY = pl.Intersection(G.Plane.YZ()); // Line3D along the Y-axis  or null
+
+pl.IsParallel(ray);                        // false (ray crosses the plane)
+pl.IsCoplanar(G.Line3D.Make(new G.Point3D(0,0,0), new G.Point3D(1,1,0))); // true
+
+// Implicit Vector → Point construction
+var pFromV = new G.Point3D(new G.Vector3D(1, 2, 3));  // = Point3D(1, 2, 3)
+
+// Triangle3D intersection with Line / Ray / Segment / Plane / Triangle
+var tri    = G.Triangle3D.Make(new G.Point3D(0,0,0), new G.Point3D(4,0,0), new G.Point3D(0,4,0));
+var hitL   = tri.Intersection(G.Line3D.Make(new G.Point3D(1, 1, -1), new G.Point3D(1, 1, 1)))             as G.Point3D;
+var hitR   = tri.Intersection(G.Ray3D.Make(new G.Point3D(1, 1, 4),  new G.Vector3D(0, 0, -1)))            as G.Point3D;
+var hitS   = tri.Intersection(G.LineSegment3D.Make(new G.Point3D(1, 1, -2), new G.Point3D(1, 1, 3)))      as G.Point3D;
+var y1     = G.Plane.FromOriginAndNormal(new G.Point3D(0, 1, 0), new G.Vector3D(0, 1, 0));
+var hitP   = tri.Intersection(y1)                                                                          as G.LineSegment3D;  // (0,1,0)→(3,1,0)
+var other  = G.Triangle3D.Make(new G.Point3D(1,1,-1), new G.Point3D(1,1,1), new G.Point3D(3,1,0));
+var hitT   = tri.Intersection(other)                                                                       as G.LineSegment3D;  // (1,1,0)→(3,1,0)
 ```
 
 ---

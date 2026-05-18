@@ -4,6 +4,7 @@ void bind_point3d(py::module_& m) {
     py::class_<geompp::Point3D>(m, "Point3D", "3D point (x, y, z).")
         .def(py::init<double, double, double>(), "x"_a, "y"_a, "z"_a)
         .def(py::init<const geompp::Point3D&>())
+        .def(py::init<const geompp::Vector3D&>(), "v"_a)
         .def_property_readonly("x", &geompp::Point3D::x)
         .def_property_readonly("y", &geompp::Point3D::y)
         .def_property_readonly("z", &geompp::Point3D::z)

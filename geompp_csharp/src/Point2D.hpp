@@ -12,6 +12,7 @@ ref class Vector2D;  // forward declaration — defined in Vector2D.hpp
 public ref class Point2D {
 public:
     Point2D(double x, double y);
+    Point2D(Vector2D^ v);
     ~Point2D();
     !Point2D();
 

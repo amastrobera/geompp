@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(geompp VERSION 0.7.0)
+project(geompp VERSION 0.8.0)
 
 
 # Specify the C++ standard
@@ -58,6 +58,8 @@ add_library(${PROJECT_NAME}
     src/bbox3d.cpp
     src/geometry_collection2d.cpp
     src/geometry_collection3d.cpp
+
+    src/calc_utils3d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

@@ -145,6 +145,10 @@ bool Triangle3D::Intersects(LineSegment3D^ segment) {
     return _native->Intersects(*segment->_native);
 }
 
+bool Triangle3D::Intersects(Plane^ plane) {
+    return _native->Intersects(*plane->_native);
+}
+
 bool Triangle3D::Intersects(Triangle3D^ other) {
     return _native->Intersects(*other->_native);
 }
@@ -183,6 +187,21 @@ System::Object^ Triangle3D::Intersection(Ray3D^ ray) {
 
 System::Object^ Triangle3D::Intersection(LineSegment3D^ other) {
     auto result = _native->Intersection(*other->_native);
+    if (!result.has_value()) return nullptr;
+    auto& val = result.value();
+    if (std::holds_alternative<geompp::Point3D>(val))
+        return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
+    if (std::holds_alternative<geompp::LineSegment3D>(val))
+        return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
+    if (std::holds_alternative<geompp::Triangle3D>(val))
+        return gcnew Triangle3D(new geompp::Triangle3D(std::get<geompp::Triangle3D>(val)));
+    if (std::holds_alternative<geompp::Polygon3D>(val))
+        return gcnew Polygon3D(new geompp::Polygon3D(std::get<geompp::Polygon3D>(val)));
+    return nullptr;
+}
+
+System::Object^ Triangle3D::Intersection(Plane^ plane) {
+    auto result = _native->Intersection(*plane->_native);
     if (!result.has_value()) return nullptr;
     auto& val = result.value();
     if (std::holds_alternative<geompp::Point3D>(val))

@@ -1,0 +1,540 @@
+"""
+Reads Doxygen XML output (docs/api/cpp/xml/) and emits per-class Markdown
+for the Python and C# bindings under docs/api/python/ and docs/api/csharp/.
+
+Run from docs/ after `doxygen Doxyfile`:
+    python gen_bindings_md.py
+
+Why this script exists
+----------------------
+The Python and C# bindings wrap the same C++ classes 1:1, so the *meaning*
+of each method is identical across all three languages. Rather than write
+docs three times, we document once in the C++ headers (via Doxygen ///@brief
+@param @return) and transform the Doxygen XML into language-flavoured
+Markdown with type/naming adjustments:
+
+  Python:  snake_case names, std::optional<X>     → 'X | None',
+                               LineSegment3D const& → 'LineSegment3D'
+  C#:      PascalCase names,  std::optional<X>     → 'X^ (nullable)',
+                              LineSegment3D const& → 'LineSegment3D^'
+
+Add Doxygen comments to a header → re-run doxygen → re-run this script.
+"""
+from __future__ import annotations
+
+import re
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+ROOT = Path(__file__).parent
+XML_DIR = ROOT / "api" / "cpp" / "xml"
+PY_DIR = ROOT / "api" / "python"
+CS_DIR = ROOT / "api" / "csharp"
+CPP_DIR = ROOT / "api" / "cpp" / "md"
+
+
+# ── Type transforms ────────────────────────────────────────────────────────
+
+def strip_cpp_quals(t: str) -> str:
+    """Drop 'const', '&', '*', and surrounding whitespace."""
+    t = re.sub(r"\bconst\b", "", t)
+    t = t.replace("&", "").replace("*", "")
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def cpp_to_py_type(t: str) -> str:
+    """Map a C++ type string to its Python binding equivalent."""
+    t = strip_cpp_quals(t)
+    # Resolve the per-class ReturnSet alias used for Intersection() (it's
+    # `std::optional<std::variant<Point3D, ...>>`; in geompp the variant has
+    # one alternative).
+    if t == "ReturnSet":
+        return "Point3D | None"
+    # std::optional<std::variant<T>> → T | None  (variant has just one alt in geompp)
+    m = re.fullmatch(r"std::optional<std::variant<([^<>]+)>>", t)
+    if m:
+        return f"{m.group(1).strip()} | None"
+    m = re.fullmatch(r"std::optional<(.+)>", t)
+    if m:
+        return f"{m.group(1).strip()} | None"
+    m = re.fullmatch(r"std::vector<(.+)>", t)
+    if m:
+        return f"list[{cpp_to_py_type(m.group(1))}]"
+    # Common scalars
+    return {
+        "std::string": "str",
+        "void": "None",
+        "bool": "bool",
+        "double": "float",
+        "int": "int",
+        "std::size_t": "int",
+    }.get(t, t)
+
+
+def cpp_to_cs_type(t: str) -> str:
+    """Map a C++ type string to its C++/CLI binding equivalent."""
+    t = strip_cpp_quals(t)
+    if t == "ReturnSet":
+        return "Point3D^  (nullable)"
+    m = re.fullmatch(r"std::optional<std::variant<([^<>]+)>>", t)
+    if m:
+        return f"{m.group(1).strip()}^  (nullable)"
+    m = re.fullmatch(r"std::optional<(.+)>", t)
+    if m:
+        return f"{m.group(1).strip()}^  (nullable)"
+    return {
+        "std::string": "System::String^",
+        "void": "void",
+        "bool": "bool",
+        "double": "double",
+        "int": "int",
+        "std::size_t": "size_t",
+        # ref-class types get '^'
+        # (everything that isn't a primitive falls through with ^ appended)
+    }.get(t, f"{t}^" if t and t[0].isupper() else t)
+
+
+def cpp_to_py_name(name: str) -> str:
+    """PascalCase / camelCase → snake_case (with a few hardcoded mappings)."""
+    overrides = {
+        "Make": "make",
+        "Zero": "zero",
+        "BasisX": "basis_x",
+        "BasisY": "basis_y",
+        "BasisZ": "basis_z",
+        "First": "first",
+        "Last": "last",
+        "Origin": "origin",
+        "Direction": "direction",
+        "ToLine": "to_line",
+        "ToWkt": "to_wkt",
+        "FromWkt": "from_wkt",
+        "ToFile": "to_file",
+        "FromFile": "from_file",
+        "ToString": "__repr__",
+    }
+    if name in overrides:
+        return overrides[name]
+    # PascalCase → snake_case
+    s = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", name)
+    s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s)
+    return s.lower()
+
+
+# ── XML parsing ────────────────────────────────────────────────────────────
+
+def text_of(node, skip_tags=()):
+    """Concatenate node text, child text, and tails — strip whitespace.
+    Skip subtrees whose tag matches `skip_tags`."""
+    if node is None:
+        return ""
+    parts = []
+    if node.text:
+        parts.append(node.text)
+    for child in node:
+        if child.tag in skip_tags:
+            if child.tail:
+                parts.append(child.tail)
+            continue
+        parts.append(text_of(child, skip_tags))
+        if child.tail:
+            parts.append(child.tail)
+    return " ".join(s for s in (p.strip() for p in parts) if s)
+
+
+def collect_descriptions(memberdef):
+    brief = text_of(memberdef.find("briefdescription"))
+    # The detailed description in Doxygen XML embeds <parameterlist> and
+    # <simplesect kind="return"/"throws"> nodes — we render those separately,
+    # so skip them here to avoid duplicate prose.
+    detailed = text_of(memberdef.find("detaileddescription"),
+                       skip_tags=("parameterlist", "simplesect"))
+    return brief, detailed
+
+
+def collect_params(memberdef):
+    """Return list of (cpp_type, name, doc)."""
+    out = []
+    # Param types/names from <param>
+    for p in memberdef.findall("param"):
+        cpp_type = text_of(p.find("type"))
+        decl_name = text_of(p.find("declname")) or text_of(p.find("defname")) or ""
+        out.append([cpp_type, decl_name, ""])
+    # Doc strings from <detaileddescription>//<parameterlist kind="param">
+    pl = memberdef.find(".//parameterlist[@kind='param']")
+    if pl is not None:
+        for pi in pl.findall("parameteritem"):
+            name = text_of(pi.find(".//parametername"))
+            doc = text_of(pi.find("parameterdescription"))
+            for row in out:
+                if row[1] == name:
+                    row[2] = doc
+                    break
+    return [tuple(r) for r in out]
+
+
+def collect_return_doc(memberdef):
+    rl = memberdef.find(".//simplesect[@kind='return']")
+    return text_of(rl) if rl is not None else ""
+
+
+def parse_class_xml(xml_path: Path):
+    """Parse a Doxygen compound XML for a class. Returns dict with class info."""
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    cd = root.find("compounddef")
+    if cd is None or cd.get("kind") != "class":
+        return None
+
+    full_name = text_of(cd.find("compoundname"))  # e.g. "geompp::Line3D"
+    short_name = full_name.split("::")[-1]
+    class_brief = text_of(cd.find("briefdescription"))
+    class_detailed = text_of(cd.find("detaileddescription"))
+
+    members = []
+    for section in cd.findall("sectiondef"):
+        if section.get("kind") not in ("public-func", "public-static-func", "public-attrib", "public-static-attrib"):
+            continue
+        for m in section.findall("memberdef"):
+            if m.get("kind") != "function":
+                continue
+            if m.get("prot") != "public":
+                continue
+            name = text_of(m.find("name"))
+            if name.startswith("~") or name == short_name:
+                # skip dtors and ctors (constructors handled separately if you like)
+                continue
+            if name.startswith("operator"):
+                # operators rarely need user-facing prose docs
+                continue
+            ret = text_of(m.find("type"))
+            args = text_of(m.find("argsstring"))
+            is_static = m.get("static") == "yes"
+            # Use Doxygen's explicit attribute; falling back on argsstring suffix
+            # would incorrectly flag any param that contains `const &`.
+            is_const = m.get("const") == "yes"
+            brief, detailed = collect_descriptions(m)
+            params = collect_params(m)
+            ret_doc = collect_return_doc(m)
+            members.append({
+                "name": name,
+                "ret": ret,
+                "args": args,
+                "static": is_static,
+                "const": is_const,
+                "brief": brief,
+                "detailed": detailed,
+                "params": params,
+                "ret_doc": ret_doc,
+            })
+
+    return {
+        "name": short_name,
+        "full_name": full_name,
+        "brief": class_brief,
+        "detailed": class_detailed,
+        "members": members,
+    }
+
+
+# ── Cross-class linking ────────────────────────────────────────────────────
+
+# Word-or-identifier regex used for "find references in prose".
+_IDENT_RE = re.compile(r"\b([A-Z][A-Za-z0-9_]*)\b")
+
+
+def linkify(text: str, known: set[str], current_class: str) -> str:
+    """Wrap occurrences of known class names with [Name](Name.md).
+
+    - Does NOT touch text inside backtick code spans (so signatures stay tidy).
+    - Skips the current class's own name (no self-links).
+    - Longest names first so "LineSegment3D" wins over "Line3D".
+    """
+    if not text:
+        return text
+    parts = re.split(r"(`[^`]*`)", text)
+    out = []
+    for p in parts:
+        if p.startswith("`") and p.endswith("`"):
+            out.append(p)
+            continue
+        for name in sorted(known, key=len, reverse=True):
+            if name == current_class:
+                continue
+            p = re.sub(rf"\b{re.escape(name)}\b", f"[{name}]({name}.md)", p)
+        out.append(p)
+    return "".join(out)
+
+
+def collect_referenced_classes(cls: dict, known: set[str]) -> set[str]:
+    """Return every known class name mentioned anywhere in the class's members,
+    excluding the class itself. Used to build the 'See also' footer."""
+    refs: set[str] = set()
+    for m in cls["members"]:
+        sources = [m["ret"], m["brief"], m["detailed"], m["ret_doc"]]
+        for p_type, _p_name, p_doc in m["params"]:
+            sources.extend([p_type, p_doc])
+        for src in sources:
+            for match in _IDENT_RE.findall(src):
+                if match in known and match != cls["name"]:
+                    refs.add(match)
+    return refs
+
+
+def see_also_footer(cls: dict, known: set[str]) -> list[str]:
+    refs = collect_referenced_classes(cls, known)
+    if not refs:
+        return []
+    return [
+        "",
+        "---",
+        "",
+        "**See also:** " + ", ".join(f"[{n}]({n}.md)" for n in sorted(refs)),
+    ]
+
+
+# ── Type rendering for the parameter-row code-span ────────────────────────
+
+def signature_md(text: str, known: set[str], current_class: str) -> str:
+    """Render a one-line signature with every known class name turned into a
+    monospace link `[`Name`](Name.md)`, while keeping the surrounding text
+    (parameter names, punctuation, `->`, `const`, ...) in monospace backticks.
+
+    The current class's own name is not linked (no self-loops).
+    """
+    out: list[str] = []
+    last = 0
+    for m in _IDENT_RE.finditer(text):
+        name = m.group(1)
+        if name not in known or name == current_class:
+            continue
+        if last < m.start():
+            out.append(f"`{text[last:m.start()]}`")
+        out.append(f"[`{name}`]({name}.md)")
+        last = m.end()
+    if last < len(text):
+        out.append(f"`{text[last:]}`")
+    return "".join(out) if out else f"`{text}`"
+
+
+def render_param_type_md(t: str, kind: str, known: set[str], current_class: str) -> str:
+    """Format a parameter / return type for display, with an inline link to the
+    target class's MD file when applicable.
+
+    GitHub-flavored Markdown supports backticks-inside-link, e.g.
+        [`Point3D`](Point3D.md)
+    so we keep the monospace styling on the type AND make it clickable.
+    """
+    if kind == "py":
+        rendered = cpp_to_py_type(t)
+    elif kind == "cs":
+        rendered = cpp_to_cs_type(t)
+    else:  # cpp
+        rendered = re.sub(r"\s+", " ", t).strip()
+
+    # Try to find a known class name inside the rendered type and link it.
+    # Multiple matches OK; we link each.
+    def repl(m):
+        name = m.group(1)
+        if name in known and name != current_class:
+            return f"[{name}]({name}.md)"
+        return name
+
+    linked = _IDENT_RE.sub(repl, rendered)
+
+    # If linking happened, GFM lets us still wrap in backticks: `[Point3D](Point3D.md)`
+    # — but the inner link won't render. The clean form is `[`Name`](Name.md)`.
+    # If no linking, just backtick the whole thing.
+    if "](" in linked:
+        # Wrap each `[Name](Name.md)` as `` [`Name`](Name.md) `` and backtick the
+        # rest of the type (e.g. `std::optional<` , `>`).
+        def wrap_link(m):
+            return f"[`{m.group(1)}`]({m.group(2)})"
+
+        # Replace [Name](Name.md) -> [`Name`](Name.md)
+        linked = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", wrap_link, linked)
+        # Backtick any non-link runs around the links (best-effort, no nested backticks).
+        # Easiest: leave as-is; the link itself is monospace.
+        return linked
+
+    return f"`{rendered}`"
+
+
+# ── Markdown emitters ──────────────────────────────────────────────────────
+
+def emit_python_md(cls: dict, known: set[str]) -> str:
+    me = cls["name"]
+    lines = [f"# `{me}` (Python)", ""]
+    if cls["brief"]:
+        lines += [linkify(cls["brief"], known, me), ""]
+    if cls["detailed"]:
+        lines += [linkify(cls["detailed"], known, me), ""]
+
+    # Group by overload name
+    by_name: dict[str, list] = {}
+    for m in cls["members"]:
+        by_name.setdefault(m["name"], []).append(m)
+
+    for name, overloads in by_name.items():
+        py_name = cpp_to_py_name(name)
+        lines.append(f"## `{py_name}`")
+        for m in overloads:
+            params = ", ".join(
+                f"{cpp_to_py_name(p_name) if p_name else '?'}: {cpp_to_py_type(p_type)}"
+                for p_type, p_name, _ in m["params"]
+            )
+            ret_py = cpp_to_py_type(m["ret"])
+            sig = signature_md(f"{py_name}({params}) -> {ret_py}", known, me)
+            if m["static"]:
+                sig = f"**static** {sig}"
+            lines.append("")
+            lines.append(sig)
+            lines.append("")
+            if m["brief"]:
+                lines.append(linkify(m["brief"], known, me))
+            if m["detailed"] and m["detailed"] != m["brief"]:
+                lines += ["", linkify(m["detailed"], known, me)]
+            if m["params"]:
+                lines += ["", "**Parameters**", ""]
+                for p_type, p_name, p_doc in m["params"]:
+                    if p_name:
+                        py_pn = cpp_to_py_name(p_name)
+                        type_md = render_param_type_md(p_type, "py", known, me)
+                        bullet = f"- `{py_pn}` ({type_md})"
+                        if p_doc:
+                            bullet += f" — {linkify(p_doc, known, me)}"
+                        lines.append(bullet)
+            if m["ret_doc"]:
+                lines += ["", f"**Returns** — {linkify(m['ret_doc'], known, me)}"]
+        lines.append("")
+    lines += see_also_footer(cls, known)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def emit_csharp_md(cls: dict, known: set[str]) -> str:
+    me = cls["name"]
+    lines = [f"# `{me}` (C# / .NET)", ""]
+    if cls["brief"]:
+        lines += [linkify(cls["brief"], known, me), ""]
+    if cls["detailed"]:
+        lines += [linkify(cls["detailed"], known, me), ""]
+
+    by_name: dict[str, list] = {}
+    for m in cls["members"]:
+        by_name.setdefault(m["name"], []).append(m)
+
+    for name, overloads in by_name.items():
+        lines.append(f"## `{name}`")
+        for m in overloads:
+            params = ", ".join(
+                f"{cpp_to_cs_type(p_type)} {p_name}"
+                for p_type, p_name, _ in m["params"]
+            )
+            ret_cs = cpp_to_cs_type(m["ret"])
+            sig = signature_md(f"{ret_cs} {name}({params})", known, me)
+            if m["static"]:
+                sig = f"**static** {sig}"
+            lines.append("")
+            lines.append(sig)
+            lines.append("")
+            if m["brief"]:
+                lines.append(linkify(m["brief"], known, me))
+            if m["detailed"] and m["detailed"] != m["brief"]:
+                lines += ["", linkify(m["detailed"], known, me)]
+            if m["params"]:
+                lines += ["", "**Parameters**", ""]
+                for p_type, p_name, p_doc in m["params"]:
+                    if p_name:
+                        type_md = render_param_type_md(p_type, "cs", known, me)
+                        bullet = f"- `{p_name}` ({type_md})"
+                        if p_doc:
+                            bullet += f" — {linkify(p_doc, known, me)}"
+                        lines.append(bullet)
+            if m["ret_doc"]:
+                lines += ["", f"**Returns** — {linkify(m['ret_doc'], known, me)}"]
+        lines.append("")
+    lines += see_also_footer(cls, known)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def emit_cpp_md(cls: dict, known: set[str]) -> str:
+    me = cls["name"]
+    lines = [f"# `{me}` (C++)", ""]
+    if cls["brief"]:
+        lines += [linkify(cls["brief"], known, me), ""]
+    if cls["detailed"]:
+        lines += [linkify(cls["detailed"], known, me), ""]
+
+    by_name: dict[str, list] = {}
+    for m in cls["members"]:
+        by_name.setdefault(m["name"], []).append(m)
+
+    for name, overloads in by_name.items():
+        lines.append(f"## `{name}`")
+        for m in overloads:
+            params = ", ".join(
+                f"{re.sub(r'\\s+', ' ', p_type).strip()} {p_name}"
+                for p_type, p_name, _ in m["params"]
+            )
+            ret_cpp = re.sub(r"\s+", " ", m["ret"]).strip()
+            suffix = " const" if m["const"] else ""
+            sig = signature_md(f"{ret_cpp} {name}({params}){suffix}", known, me)
+            if m["static"]:
+                sig = f"**static** {sig}"
+            lines.append("")
+            lines.append(sig)
+            lines.append("")
+            if m["brief"]:
+                lines.append(linkify(m["brief"], known, me))
+            if m["detailed"] and m["detailed"] != m["brief"]:
+                lines += ["", linkify(m["detailed"], known, me)]
+            if m["params"]:
+                lines += ["", "**Parameters**", ""]
+                for p_type, p_name, p_doc in m["params"]:
+                    if p_name:
+                        type_md = render_param_type_md(p_type, "cpp", known, me)
+                        bullet = f"- `{p_name}` ({type_md})"
+                        if p_doc:
+                            bullet += f" — {linkify(p_doc, known, me)}"
+                        lines.append(bullet)
+            if m["ret_doc"]:
+                lines += ["", f"**Returns** — {linkify(m['ret_doc'], known, me)}"]
+        lines.append("")
+    lines += see_also_footer(cls, known)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+# ── Main ───────────────────────────────────────────────────────────────────
+
+def main() -> int:
+    if not XML_DIR.exists():
+        print(f"ERROR: {XML_DIR} not found. Run `doxygen Doxyfile` first.", file=sys.stderr)
+        return 1
+    PY_DIR.mkdir(parents=True, exist_ok=True)
+    CS_DIR.mkdir(parents=True, exist_ok=True)
+    CPP_DIR.mkdir(parents=True, exist_ok=True)
+
+    # First pass: parse every class so we know the full set of class names
+    # (needed for cross-file linking).
+    parsed: list[dict] = []
+    for xml_file in sorted(XML_DIR.glob("classgeompp_1_1*.xml")):
+        cls = parse_class_xml(xml_file)
+        if cls is None or not cls["members"]:
+            continue
+        parsed.append(cls)
+    known = {c["name"] for c in parsed}
+
+    # Second pass: emit per-language Markdown, with class names cross-linked.
+    for cls in parsed:
+        (PY_DIR / f"{cls['name']}.md").write_text(emit_python_md(cls, known), encoding="utf-8")
+        (CS_DIR / f"{cls['name']}.md").write_text(emit_csharp_md(cls, known), encoding="utf-8")
+        (CPP_DIR / f"{cls['name']}.md").write_text(emit_cpp_md(cls, known), encoding="utf-8")
+        print(f"  {cls['name']}.md -> python/, csharp/, cpp/md/")
+
+    print(f"\nGenerated docs for {len(parsed)} class(es) across 3 languages.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
