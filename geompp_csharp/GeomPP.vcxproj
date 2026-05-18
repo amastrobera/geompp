@@ -159,13 +159,17 @@
 
   <!-- ── geompp native core (compiled without /clr so that GEOMPP_NO_THREAD_LOCAL ── -->
   <!-- ── makes DECIMAL_PRECISION / DOUBLE_EPSILON plain globals instead of TLS.  ── -->
-  <!-- ── All 23 source files are compiled here; geompp.lib is not linked.        ── -->
+  <!-- ── All 26 source files are compiled here; geompp.lib is not linked.        ── -->
   <ItemGroup>
     <ClCompile Include="$(ProjectDir)..\geompp\src\bbox2d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\bbox3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\calc_utils3d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
