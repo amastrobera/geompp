@@ -23,7 +23,7 @@ void bind_polyline3d(py::module_& m) {
             int n = p.Size();
             if (i < 0) i += n;
             if (i < 0 || i >= n) throw py::index_error("index out of range");
-            return p[static_cast<size_t>(i)];
+            return p[static_cast<std::size_t>(i)];
         }, "i"_a)
         .def("intersects",
              [](const geompp::Polyline3D& p, const geompp::Line3D& l)        { return p.Intersects(l); }, "line"_a)

@@ -129,22 +129,22 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   if (Size() != other.Size() || HOLES.size() != other.HOLES.size()) {
     return false;
   }
-  for (size_t i = 0; i < HOLES.size(); ++i) {
+  for (std::size_t i = 0; i < HOLES.size(); ++i) {
     if (HOLES[i].size() != other.HOLES[i].size()) {
       return false;
     }
   }
 
   // outer loop vertices comparison
-  for (size_t i = 0; i < VERTICES.size(); ++i) {
+  for (std::size_t i = 0; i < VERTICES.size(); ++i) {
     if (!VERTICES[i].AlmostEquals(other[i], epsilon)) {
       return false;
     }
   }
 
   // inner loops vertices comparison
-  for (size_t i = 0; i < HOLES.size(); ++i) {
-    for (size_t j = 0; j < HOLES[i].size(); ++j) {
+  for (std::size_t i = 0; i < HOLES.size(); ++i) {
+    for (std::size_t j = 0; j < HOLES[i].size(); ++j) {
       if (!HOLES[i][j].AlmostEquals(other.HOLES[i][j], epsilon)) {
         return false;
       }
@@ -416,7 +416,7 @@ Polygon3D Polygon3D::FromFile(std::string const& path) {
     in_file.seekg(0, std::ios::beg);  // Reset the file pointer
 
     // Resize the string to the file size (optional, for efficiency)
-    content.resize(static_cast<size_t>(fileSize));
+    content.resize(static_cast<std::size_t>(fileSize));
 
     // Read the entire file into the string
     in_file.read(&content[0], fileSize);
