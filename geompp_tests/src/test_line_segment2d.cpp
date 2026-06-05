@@ -374,4 +374,29 @@ TEST_F(LineSegment2DTest, IsLeft) {
   }
 }
 
+TEST_F(LineSegment2DTest, FreeIntersect_Crossing) {
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 2));
+  auto b = g::LineSegment2D::Make(g::Point2D(0, 2), g::Point2D(2, 0));  // crosses a at (1,1)
+  EXPECT_TRUE(g::intersect(a, b));
+  EXPECT_TRUE(g::intersect(b, a));  // symmetric
+}
+
+TEST_F(LineSegment2DTest, FreeIntersect_TouchingAtEndpoint) {
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0));
+  auto b = g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(1, 2));  // T-junction: b starts on a
+  EXPECT_TRUE(g::intersect(a, b));
+}
+
+TEST_F(LineSegment2DTest, FreeIntersect_ParallelDisjoint) {
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0));
+  auto b = g::LineSegment2D::Make(g::Point2D(0, 1), g::Point2D(2, 1));  // parallel, never meets
+  EXPECT_FALSE(g::intersect(a, b));
+}
+
+TEST_F(LineSegment2DTest, FreeIntersect_SeparatedDoesNotCross) {
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  auto b = g::LineSegment2D::Make(g::Point2D(2, -1), g::Point2D(2, 1));  // vertical at x=2, a ends at x=1
+  EXPECT_FALSE(g::intersect(a, b));
+}
+
 }  // namespace geompp_tests

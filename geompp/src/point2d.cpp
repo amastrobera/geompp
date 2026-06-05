@@ -36,6 +36,14 @@ Point2D& Point2D::operator=(Point2D const& other) {
 
 #pragma region Collection Operations
 
+bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p) {
+  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) > 0;
+}
+
+bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p) {
+  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) < 0;
+}
+
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3) {
   return compare((p2 - p1).Cross(p3 - p1), 0) == 0;  // perp-product will be zero if points lie on the same line
 }

@@ -11,6 +11,39 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.9.0] - 2026-06-02
+
+> C++ library — tagged `v0.9.0` · C# / NuGet — tagged `csharp-v0.9.0` · Python / PyPI — tagged `python-v0.9.0`
+
+> Adds polygon simplicity testing (`Polygon2D::IsSimple`) backed by a new `calc_utils2d` sweep-line module (event queue + status structure) for segment-set intersection, plus the supporting 2D orientation/intersection primitives `is_left` / `is_right` / `intersect`.
+
+### Added
+
+**C++ core**
+- `Polygon2D::IsSimple()` — reports whether the polygon's outer ring and every hole are free of self-intersections (holes are allowed).
+- `calc_utils2d.hpp` / `.cpp` — new module implementing a Bentley–Ottmann-style sweep for segment-set intersection:
+  - `Event2D` / `EventType2D` — sweep events (LEFT / RIGHT / INTERSECTION) ordered by x, then y, then event type.
+  - `EventQueue2D` — priority queue of events built from a `std::vector<LineSegment2D>`, a `SegmentRange2D`, or a `Polygon2D`; exposes `Next()`, `Empty()`, `Swap()`.
+  - `SweepLineSegment2D` — a segment active on the sweep line, with intrusive `Above` / `Below` neighbour links (`mutable`, so they can be maintained through the `std::set`'s const nodes).
+  - `SweepLine2D<SegmentList>` — templated status structure over the new `SegmentList` concept (anything offering `size()` + indexed `LineSegment2D` access, e.g. `std::vector<LineSegment2D>` or `SegmentRange2D`); members `Add`, `Find`, `Remove`, `Intersection` (returns the crossing point) and `Intersect` (boolean). Member definitions live in the `.cpp` and are emitted via explicit instantiation for the two `SegmentList` types.
+  - free `has_intersections(segments)` (Shamos–Hoey simplicity check, used by `Polygon2D::IsSimple`) and `find_intersections(segments)` → `std::vector<IntersectionEvent2D>` (Bentley–Ottmann, reports every crossing as a `{Point, SegmentId1, SegmentId2}` `IntersectionEvent2D`).
+- `is_left(v1, v2, p)` / `is_right(v1, v2, p)` (`point2d.hpp`) — orientation of point `p` relative to the directed edge `v1→v2` (sign of the 2D cross product; strict, so a point exactly on the line is neither left nor right).
+- `intersect(seg1, seg2)` (`line_segment2d.hpp`) — boolean segment-segment intersection via orientation tests (true including shared endpoints / touching).
+
+**Python / PyPI**
+- `Polygon2D.is_simple()`.
+- `has_intersections(segments)` / `find_intersections(segments)` module-level functions (take a `list[LineSegment2D]`); `find_intersections` returns a `list[IntersectionEvent2D]`. New `IntersectionEvent2D` type (`point`, `segment_id1`, `segment_id2`).
+
+**C# / NuGet**
+- `Polygon2D.IsSimple()`.
+- `GeomUtil.HasIntersections(List<LineSegment2D^>)` and `GeomUtil.FindIntersections(List<LineSegment2D^>)` → `IEnumerable<IntersectionEvent2D^>`. New managed `IntersectionEvent2D` type (`Point`, `SegmentId1`, `SegmentId2`).
+
+### Notes / known limitations
+
+- `SweepLine2D`'s status ordering (`SweepLineSegment2D::operator<`) is currently a **provisional** total order (by endpoints, then edge id), not the full sweep-status order (y at the current sweep x). `Polygon2D::IsSimple` should therefore be treated as **experimental** pending the final comparator (and the event-queue sweep direction): its C++/Python/C# tests encode the intended results and are flagged for re-verification.
+
+---
+
 ## [0.8.0] - 2026-05-15
 
 > C++ library — tagged `v0.8.0` · C# / NuGet — tagged `csharp-v0.8.0` · Python / PyPI — tagged `python-v0.8.0`

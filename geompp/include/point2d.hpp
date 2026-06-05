@@ -40,6 +40,10 @@ class Point2D {
 
 #pragma region Collection Operations
 
+bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p);
+
+bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p);
+
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3);
 
 std::vector<Point2D> remove_consecutive_duplicates(std::vector<Point2D> const& points);

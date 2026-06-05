@@ -1,6 +1,7 @@
 #include "polygon2d.hpp"
 
 #include "bbox2d.hpp"
+#include "calc_utils2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "ray2d.hpp"
@@ -18,14 +19,6 @@
 namespace geompp {
 
 namespace {
-
-bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p) {
-  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) > 0;
-}
-
-bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p) {
-  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) < 0;
-}
 
 int wn_count(std::vector<Point2D> const& vertices, Point2D const& p) {
   int wn = 0;
@@ -207,6 +200,20 @@ double Polygon2D::Area() const {
 }
 
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
+
+bool Polygon2D::IsSimple() const {
+  if (has_intersections(ToSegments())) {
+    return false;
+  }
+
+  for (auto const& hole : HOLES) {
+    if (has_intersections(SegmentRange2D(hole, true))) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 #pragma region Operator Overloading
 

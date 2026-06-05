@@ -94,6 +94,10 @@ bool Polygon2D::IsOnBoundary(Point2D^ point) {
     return _native->IsOnBoundary(*point->_native);
 }
 
+bool Polygon2D::IsSimple() {
+    return _native->IsSimple();
+}
+
 System::String^ Polygon2D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }

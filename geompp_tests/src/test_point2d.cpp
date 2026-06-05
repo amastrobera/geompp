@@ -257,4 +257,36 @@ TEST_F(Point2DTest, FromVector) {
   ASSERT_EQ(p0, roundtrip);
 }
 
+TEST_F(Point2DTest, IsLeft) {
+  // directed edge v1->v2 pointing right along +x; cross = (v2-v1) x (p-v1) = 4 * p.y
+  auto v1 = g::Point2D(0, 0);
+  auto v2 = g::Point2D(4, 0);
+
+  EXPECT_TRUE(g::is_left(v1, v2, g::Point2D(2, 1)));    // above the rightward edge -> left
+  EXPECT_FALSE(g::is_left(v1, v2, g::Point2D(2, -1)));  // below -> not left
+  EXPECT_FALSE(g::is_left(v1, v2, g::Point2D(2, 0)));   // on the edge -> not left (strict)
+
+  // reversed (leftward) edge flips the sense
+  EXPECT_TRUE(g::is_left(v2, v1, g::Point2D(2, -1)));   // below a leftward edge -> left
+  EXPECT_FALSE(g::is_left(v2, v1, g::Point2D(2, 1)));
+}
+
+TEST_F(Point2DTest, IsRight) {
+  auto v1 = g::Point2D(0, 0);
+  auto v2 = g::Point2D(4, 0);
+
+  EXPECT_TRUE(g::is_right(v1, v2, g::Point2D(2, -1)));  // below the rightward edge -> right
+  EXPECT_FALSE(g::is_right(v1, v2, g::Point2D(2, 1)));  // above -> not right
+  EXPECT_FALSE(g::is_right(v1, v2, g::Point2D(2, 0)));  // on the edge -> not right (strict)
+}
+
+TEST_F(Point2DTest, IsLeftIsRightAreMutuallyExclusiveOffTheLine) {
+  auto v1 = g::Point2D(0, 0);
+  auto v2 = g::Point2D(1, 1);
+  auto p = g::Point2D(0, 1);  // above the diagonal y = x
+
+  EXPECT_TRUE(g::is_left(v1, v2, p));
+  EXPECT_FALSE(g::is_right(v1, v2, p));
+}
+
 }  // namespace geompp_tests

@@ -1,5 +1,6 @@
 #include "line_segment2d.hpp"
 
+#include "calc_utils2d.hpp"
 #include "line2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
@@ -90,6 +91,39 @@ bool LineSegment2D::IsLeft(Point2D const& p) const {
 }
 
 double LineSegment2D::DistanceTo(Point2D const& point) const { return (point - ProjectOnto(point)).Length(); }
+
+#pragma endregion
+
+#pragma region Collections Operations
+
+bool intersect(LineSegment2D const& seg1, LineSegment2D const& seg2) {
+  auto l1 = seg1.First();
+  auto r1 = seg1.Last();
+  if (compare_event_point(l1, r1) > 0) {
+    std::swap(l1, r1);
+  }
+
+  auto l2 = seg2.First();
+  auto r2 = seg2.Last();
+  if (compare_event_point(l2, r2) > 0) {
+    std::swap(l2, r2);
+  }
+
+  double lsign, rsign;
+  lsign = is_left(l1, r1, l2);
+  rsign = is_left(l1, r1, r2);
+  if (compare(lsign * rsign, 0) > 0) {
+    return false;  // seg2 is on the same side of seg1
+  }
+
+  lsign = is_left(l2, r2, l1);
+  rsign = is_left(l2, r2, r1);
+  if (compare(lsign * rsign, 0) > 0) {
+    return false;  // seg2 is on the same side of seg1
+  }
+
+  return true;
+}
 
 #pragma endregion
 

@@ -1278,6 +1278,22 @@ class TestPolygon2D:
         assert not poly.is_on_boundary(geompp.Point2D(0.5, 0.5))  # interior
         assert not poly.is_on_boundary(geompp.Point2D(2,   2))    # inside hole
 
+    # NOTE: is_simple() correctness rides on the (currently provisional) sweep-line comparator; these encode
+    # the intended behaviour and should be re-verified once the real sweep-status ordering is in place.
+    def test_is_simple_smoke(self, square):
+        assert isinstance(square.is_simple(), bool)
+
+    def test_is_simple_convex_square_true(self, square):
+        assert square.is_simple()
+
+    def test_is_simple_self_intersecting_false(self):
+        # CCW (positive area) but edges (4,0)->(1,3) and (3,3)->(0,0) cross at (2,2)
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(1, 3), geompp.Point2D(3, 3),
+        ])
+        assert not p.is_simple()
+
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
@@ -3255,3 +3271,41 @@ class TestGeometryCollection3D:
             assert gc == gc2
         finally:
             os.unlink(path)
+
+
+# --- segment-set intersection (Shamos-Hoey / Bentley-Ottmann) ---
+# NOTE: correctness rides on the provisional sweep-status comparator; these encode the intended
+# behaviour of correct Shamos-Hoey / Bentley-Ottmann implementations and are flagged for re-verification.
+class TestSegmentIntersections:
+    @staticmethod
+    def _square_ring():
+        return [
+            geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0)),
+            geompp.LineSegment2D.make(geompp.Point2D(1, 0), geompp.Point2D(1, 1)),
+            geompp.LineSegment2D.make(geompp.Point2D(1, 1), geompp.Point2D(0, 1)),
+            geompp.LineSegment2D.make(geompp.Point2D(0, 1), geompp.Point2D(0, 0)),
+        ]
+
+    @staticmethod
+    def _self_intersecting_ring():
+        # edges (4,0)->(1,3) and (3,3)->(0,0) cross at (2,2)
+        return [
+            geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(4, 0)),
+            geompp.LineSegment2D.make(geompp.Point2D(4, 0), geompp.Point2D(1, 3)),
+            geompp.LineSegment2D.make(geompp.Point2D(1, 3), geompp.Point2D(3, 3)),
+            geompp.LineSegment2D.make(geompp.Point2D(3, 3), geompp.Point2D(0, 0)),
+        ]
+
+    def test_has_intersections_simple_false(self):
+        assert not geompp.has_intersections(self._square_ring())
+
+    def test_has_intersections_self_intersecting_true(self):
+        assert geompp.has_intersections(self._self_intersecting_ring())
+
+    def test_find_intersections_simple_empty(self):
+        assert list(geompp.find_intersections(self._square_ring())) == []
+
+    def test_find_intersections_reports_crossing(self):
+        hits = list(geompp.find_intersections(self._self_intersecting_ring()))
+        assert len(hits) >= 1
+        assert any(approx(h.point.x, 2.0) and approx(h.point.y, 2.0) for h in hits)
