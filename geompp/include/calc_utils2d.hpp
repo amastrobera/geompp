@@ -55,6 +55,7 @@ class EventQueue2D {
   std::optional<Event2D> Next();
   bool Empty() const;
   bool Contains(Event2D const& event) const;  // true if the event queue contains an event for the given segment index
+  void Add(Event2D const& event);             // simply adds the event and does not check if it is present already
 
  private:
   // expose protected `c` member of std::priority_queue so Swap can iterate underlying storage
@@ -64,19 +65,15 @@ class EventQueue2D {
   EventPriorityQueue EVENTS;  // Event2D implements operator<
 };
 
-struct SweepLineSegment2D {
-  std::size_t EdgeId;
-  // neighbour links are NOT part of operator<, so they are safe to mutate inside a (const) std::set node:
-  // `mutable` lets us update them through the set's const iterators; `const*` because set nodes are const.
-  mutable SweepLineSegment2D const* Above;
-  mutable SweepLineSegment2D const* Below;
-  Point2D Left;
-  Point2D Right;
+template <SegmentList Segments>
+struct SweepLineComparator {
+  const double& sweep_x;     // Direct reference to the SweepLine's master variable
+  Segments const* segments;  // bound from `Segments const&`, so the pointee is const
 
-  SweepLineSegment2D(std::size_t id, LineSegment2D const& segment);
-  ~SweepLineSegment2D() = default;
+  bool operator()(std::size_t id1, std::size_t id2) const;
 
-  bool operator<(SweepLineSegment2D const& other) const;  // for the RB Tree in SweepLine2D
+ private:
+  double GetYAtX(LineSegment2D const& seg, double x) const;
 };
 
 // SweepLine2D is the one place that resolves event.SegmentId back to a full LineSegment2D, so it is templated
@@ -87,32 +84,60 @@ template <SegmentList Segments>
 class SweepLine2D {
  public:
   // NOTE: stores a non-owning pointer — `segments` must outlive this SweepLine2D (the driver owns it).
-  explicit SweepLine2D(Segments const& segments) : PTR_SEGMENTS(&segments) {}
+  explicit SweepLine2D(Segments const& segments);
   ~SweepLine2D() = default;
 
-  SweepLineSegment2D const* Find(std::size_t seg_id) const;  // throw is ID not found
-  void Swap(std::size_t seg1_id,
-            std::size_t seg2_id);  // swap two segments already in the sweep line, throws if seg_id is out of range in
-                                   // PTR_SEGMENTS
-  SweepLineSegment2D const* Add(
-      std::size_t seg_id);  // returns the added node, throws if seg_id is out of range in PTR_SEGMENTS
-  void Remove(SweepLineSegment2D const*& segment);  // takes the handle by reference and nulls it, so the caller's
-                                                    // pointer can't be reused after removal
-  std::optional<Point2D> Intersection(SweepLineSegment2D const* seg1, SweepLineSegment2D const* seg2)
-      const;  // throws if seg_id is out of range in PTR_SEGMENTS
-  bool Intersect(SweepLineSegment2D const* seg1,
-                 SweepLineSegment2D const* seg2) const;  // throws if seg_id is out of range in PTR_SEGMENTS
+  struct IdSegPair {
+    std::size_t Id;
+    LineSegment2D const* Seg;
+  };
+
+  struct SweepLineElement2D {
+    std::optional<IdSegPair> Segment;
+    std::optional<IdSegPair> Above;
+    std::optional<IdSegPair> Below;
+  };
+
+  /// @brief
+  /// @param seg_id index of the SegmentList [0, N-1]
+  /// @returns (Segment, Above, Below) = pointers to the segment of index seg_id in the SegmentList,  the above and
+  /// below segment pointers. If seg_id not found (std::nullopt, std::nullopt, std::nullopt)
+  /// @throws std::out_of_range if seg_id not in [0, N-1] range, warning log if seg_id not found
+  SweepLineElement2D Get(std::size_t seg_id) const;
+
+  /// @brief Adds a segment in the tree, sorted
+  /// @param seg_id index of the SegmentList [0, N-1]
+  /// @returns (Segment = ptr to segment just inserted, Above / Below = ptr to above or below segments in the tree).
+  /// Above and Below may be either or both std::nullopt. If seg_id not found (std::nullopt, std::nullopt, std::nullopt)
+  /// @throws std::out_of_range if seg_id not in [0, N-1] range, std::logic_error if insertion in tree not possible,
+  /// warning log if seg_id not found
+  SweepLineElement2D Add(std::size_t seg_id);
+
+  /// @brief Remove the seg_id from the tree, which remains sorted
+  /// @param seg_id index of the SegmentList [0, N-1]
+  /// @returns (Segment = std::nullopt, Above = ptr to above segment before deletion, Below = ptr to below segment
+  /// before deletion). Either or both Above and Below can be std::nullopt. If seg_id not found (std::nullopt,
+  /// std::nullopt, std::nullopt)
+  /// @throws std::out_of_range if seg_id not in [0, N-1] range, std::logic_error if insertion in tree not possible,
+  /// warning log if seg_id not found
+  SweepLineElement2D Remove(std::size_t seg_id);
 
  private:
+  double SWEEP_X;
+
   Segments const* PTR_SEGMENTS;  // bound from `Segments const&`, so the pointee is const
 
-  std::set<SweepLineSegment2D> ACTIVE_SEGMENTS;  // indices of segments currently intersecting the sweep line, ordered
-                                                 // by their intersection point with the sweep line
+  std::set<std::size_t, SweepLineComparator<Segments>>
+      ACTIVE_SEGMENTS;  // indices of segments currently intersecting the sweep line, ordered
+                        // by their intersection point with the sweep line
 };
 
+/// @brief the Shamos-Hoey algorithm for checking polygon simplicity (no self-intersections)
+/// @param segments list of segments (can be generic list of segments or segments of the polygon)
+/// @returns true - if any intersection exists
+/// @throws less than 2 segments arguments, or algorithm based throw logic
 template <SegmentList Segments>
-bool has_intersections(Segments const& polygon_segments);  // the Shamos-Hoey algorithm for checking polygon simplicity
-                                                           // (no self-intersections)
+bool has_intersections(Segments const& segments);
 
 struct IntersectionEvent2D {
   Point2D Point;  // point of intersections, returned by the Bentley-Ottmann algorithm in `intersections` below;
@@ -124,9 +149,12 @@ struct IntersectionEvent2D {
   bool operator==(IntersectionEvent2D const& other) const;
 };
 
+/// @brief the Bentley-Ottmann algorithm for finding all intersection points among a set of segments
+/// @param segments list of segments (can be generic list of segments or segments of the polygon)
+/// @returns list of intersection points - in sorted order bottom-left to top-right (the intersecting 2+ segment IDs are
+/// also reported)
+/// @throws less than 2 segments arguments, or algorithm based throw logic
 template <SegmentList Segments>
-std::vector<IntersectionEvent2D> find_intersections(
-    Segments const& segments);  // the Bentley-Ottmann algorithm for finding all
-                                // intersection points among a set of segments
+std::vector<IntersectionEvent2D> find_intersections(Segments const& segments);
 
 }  // namespace geompp

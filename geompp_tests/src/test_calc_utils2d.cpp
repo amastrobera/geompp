@@ -145,36 +145,19 @@ TEST_F(CalcUtils2DTest, EventQueue_FromPolygon) {
 }
 
 // --------------------------------------------------------------------------------------------------
-// SweepLineSegment2D
-// --------------------------------------------------------------------------------------------------
-
-TEST_F(CalcUtils2DTest, SweepLineSegment_NormalizesLeftAndRight) {
-  // First endpoint is to the right of the Last -> constructor swaps so Left <= Right.
-  auto seg = g::LineSegment2D::Make(g::Point2D(5, 5), g::Point2D(1, 1));
-  g::SweepLineSegment2D node(3, seg);
-
-  EXPECT_EQ(node.EdgeId, 3u);
-  EXPECT_DOUBLE_EQ(node.Left.x(), 1.0);
-  EXPECT_DOUBLE_EQ(node.Left.y(), 1.0);
-  EXPECT_DOUBLE_EQ(node.Right.x(), 5.0);
-  EXPECT_DOUBLE_EQ(node.Right.y(), 5.0);
-  EXPECT_EQ(node.Above, nullptr);
-  EXPECT_EQ(node.Below, nullptr);
-}
-
-// --------------------------------------------------------------------------------------------------
 // SweepLine2D
 // --------------------------------------------------------------------------------------------------
 
 using SweepLineVec = g::SweepLine2D<std::vector<g::LineSegment2D>>;
 
-TEST_F(CalcUtils2DTest, SweepLine_AddReturnsNodeForSegment) {
+TEST_F(CalcUtils2DTest, SweepLine_AddReturnsElementForSegment) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
   SweepLineVec sweep(segments);
 
-  auto const* node = sweep.Add(0);
-  ASSERT_NE(node, nullptr);
-  EXPECT_EQ(node->EdgeId, 0u);
+  auto elem = sweep.Add(0);
+  ASSERT_TRUE(elem.Segment.has_value());
+  EXPECT_EQ(elem.Segment->Id, 0u);
+  EXPECT_NE(elem.Segment->Seg, nullptr);
 }
 
 TEST_F(CalcUtils2DTest, SweepLine_AddThrowsOnOutOfRangeSegmentId) {
@@ -192,24 +175,24 @@ TEST_F(CalcUtils2DTest, SweepLine_AddThrowsOnDuplicate) {
   EXPECT_THROW(sweep.Add(0), std::logic_error);
 }
 
-TEST_F(CalcUtils2DTest, SweepLine_FindLocatesAddedSegment) {
+TEST_F(CalcUtils2DTest, SweepLine_GetLocatesAddedSegment) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
   SweepLineVec sweep(segments);
 
-  EXPECT_EQ(sweep.Find(0), nullptr);  // not added yet
+  EXPECT_FALSE(sweep.Get(0).Segment.has_value());  // not added yet
 
   sweep.Add(0);
 
-  auto const* found = sweep.Find(0);
-  ASSERT_NE(found, nullptr);
-  EXPECT_EQ(found->EdgeId, 0u);
+  auto elem = sweep.Get(0);
+  ASSERT_TRUE(elem.Segment.has_value());
+  EXPECT_EQ(elem.Segment->Id, 0u);
 }
 
-TEST_F(CalcUtils2DTest, SweepLine_FindThrowsOnOutOfRangeSegmentId) {
+TEST_F(CalcUtils2DTest, SweepLine_GetThrowsOnOutOfRangeSegmentId) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
   SweepLineVec sweep(segments);
 
-  EXPECT_THROW(sweep.Find(9), std::out_of_range);
+  EXPECT_THROW(sweep.Get(9), std::out_of_range);
 }
 
 TEST_F(CalcUtils2DTest, SweepLine_AddLinksNeighbours) {
@@ -221,42 +204,41 @@ TEST_F(CalcUtils2DTest, SweepLine_AddLinksNeighbours) {
   };
   SweepLineVec sweep(segments);
 
-  auto const* n0 = sweep.Add(0);
-  auto const* n1 = sweep.Add(1);
-  ASSERT_NE(n0, nullptr);
-  ASSERT_NE(n1, nullptr);
+  sweep.Add(0);
+  sweep.Add(1);
 
-  // n0 is the lowest: nothing below it, n1 above it
-  EXPECT_EQ(n0->Below, nullptr);
-  ASSERT_NE(n0->Above, nullptr);
-  EXPECT_EQ(n0->Above->EdgeId, 1u);
+  auto elem0 = sweep.Get(0);
+  auto elem1 = sweep.Get(1);
+  ASSERT_TRUE(elem0.Segment.has_value());
+  ASSERT_TRUE(elem1.Segment.has_value());
 
-  // n1 is the highest: n0 below it, nothing above
-  EXPECT_EQ(n1->Above, nullptr);
-  ASSERT_NE(n1->Below, nullptr);
-  EXPECT_EQ(n1->Below->EdgeId, 0u);
+  // elem0 is the lowest: nothing below it, elem1 above it
+  EXPECT_FALSE(elem0.Below.has_value());
+  ASSERT_TRUE(elem0.Above.has_value());
+  EXPECT_EQ(elem0.Above->Id, 1u);
+
+  // elem1 is the highest: elem0 below it, nothing above
+  EXPECT_FALSE(elem1.Above.has_value());
+  ASSERT_TRUE(elem1.Below.has_value());
+  EXPECT_EQ(elem1.Below->Id, 0u);
 }
 
-TEST_F(CalcUtils2DTest, SweepLine_RemoveErasesAndNullsHandle) {
+TEST_F(CalcUtils2DTest, SweepLine_RemoveErasesSegment) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
   SweepLineVec sweep(segments);
 
   sweep.Add(0);
-  g::SweepLineSegment2D const* s = sweep.Find(0);
-  ASSERT_NE(s, nullptr);
+  EXPECT_TRUE(sweep.Get(0).Segment.has_value());
 
-  sweep.Remove(s);
-
-  EXPECT_EQ(s, nullptr);                // caller's handle nulled
-  EXPECT_EQ(sweep.Find(0), nullptr);    // gone from the structure
+  sweep.Remove(0);
+  EXPECT_FALSE(sweep.Get(0).Segment.has_value());
 }
 
-TEST_F(CalcUtils2DTest, SweepLine_RemoveNullHandleThrows) {
+TEST_F(CalcUtils2DTest, SweepLine_RemoveThrowsOnOutOfRangeSegmentId) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
   SweepLineVec sweep(segments);
 
-  g::SweepLineSegment2D const* s = nullptr;
-  EXPECT_THROW(sweep.Remove(s), std::invalid_argument);
+  EXPECT_THROW(sweep.Remove(99), std::out_of_range);
 }
 
 TEST_F(CalcUtils2DTest, SweepLine_RemoveStitchesNeighbours) {
@@ -269,110 +251,36 @@ TEST_F(CalcUtils2DTest, SweepLine_RemoveStitchesNeighbours) {
   SweepLineVec sweep(segments);
 
   sweep.Add(0);
-  g::SweepLineSegment2D const* mid = sweep.Add(1);
+  sweep.Add(1);
   sweep.Add(2);
-  ASSERT_NE(mid, nullptr);
 
-  sweep.Remove(mid);  // removing the middle should make 0 and 2 neighbours
+  sweep.Remove(1);  // removing the middle should make 0 and 2 neighbours
 
-  auto const* low = sweep.Find(0);
-  auto const* high = sweep.Find(2);
-  ASSERT_NE(low, nullptr);
-  ASSERT_NE(high, nullptr);
+  auto low = sweep.Get(0);
+  auto high = sweep.Get(2);
+  ASSERT_TRUE(low.Segment.has_value());
+  ASSERT_TRUE(high.Segment.has_value());
 
-  ASSERT_NE(low->Above, nullptr);
-  EXPECT_EQ(low->Above->EdgeId, 2u);
-  ASSERT_NE(high->Below, nullptr);
-  EXPECT_EQ(high->Below->EdgeId, 0u);
+  ASSERT_TRUE(low.Above.has_value());
+  EXPECT_EQ(low.Above->Id, 2u);
+  ASSERT_TRUE(high.Below.has_value());
+  EXPECT_EQ(high.Below->Id, 0u);
 }
 
-TEST_F(CalcUtils2DTest, SweepLine_IntersectionReturnsCrossingPoint) {
+TEST_F(CalcUtils2DTest, SweepLine_RemoveReturnsNeighboursBeforeDeletion) {
   std::vector<g::LineSegment2D> segments{
-      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 10)),  // id 0: diagonal
-      g::LineSegment2D::Make(g::Point2D(0, 10), g::Point2D(10, 0)),  // id 1: anti-diagonal, crosses 0 at (5,5)
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),
+      g::LineSegment2D::Make(g::Point2D(0, 5), g::Point2D(10, 5)),
   };
   SweepLineVec sweep(segments);
 
-  g::SweepLineSegment2D a(0, segments[0]);
-  g::SweepLineSegment2D b(1, segments[1]);
+  sweep.Add(0);
+  sweep.Add(1);
 
-  auto pt = sweep.Intersection(&a, &b);
-  ASSERT_TRUE(pt.has_value());
-  EXPECT_DOUBLE_EQ(pt->x(), 5.0);
-  EXPECT_DOUBLE_EQ(pt->y(), 5.0);
-}
-
-TEST_F(CalcUtils2DTest, SweepLine_IntersectionParallelReturnsNullopt) {
-  std::vector<g::LineSegment2D> segments{
-      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),  // id 0
-      g::LineSegment2D::Make(g::Point2D(0, 5), g::Point2D(10, 5)),  // id 1: parallel, never meets
-  };
-  SweepLineVec sweep(segments);
-
-  g::SweepLineSegment2D a(0, segments[0]);
-  g::SweepLineSegment2D b(1, segments[1]);
-
-  EXPECT_FALSE(sweep.Intersection(&a, &b).has_value());
-}
-
-TEST_F(CalcUtils2DTest, SweepLine_IntersectionNullArgumentThrows) {
-  std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
-  SweepLineVec sweep(segments);
-
-  g::SweepLineSegment2D a(0, segments[0]);
-  EXPECT_THROW(sweep.Intersection(nullptr, &a), std::invalid_argument);
-  EXPECT_THROW(sweep.Intersection(&a, nullptr), std::invalid_argument);
-}
-
-TEST_F(CalcUtils2DTest, SweepLine_IntersectionOutOfRangeEdgeIdThrows) {
-  std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
-  SweepLineVec sweep(segments);
-
-  g::SweepLineSegment2D good(0, segments[0]);
-  g::SweepLineSegment2D bad(99, segments[0]);  // EdgeId past the end of the segments list
-  EXPECT_THROW(sweep.Intersection(&bad, &good), std::out_of_range);
-}
-
-TEST_F(CalcUtils2DTest, SweepLine_IntersectReturnsTrueWhenCrossing) {
-  std::vector<g::LineSegment2D> segments{
-      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 10)),  // id 0
-      g::LineSegment2D::Make(g::Point2D(0, 10), g::Point2D(10, 0)),  // id 1: crosses 0
-  };
-  SweepLineVec sweep(segments);
-
-  g::SweepLineSegment2D a(0, segments[0]);
-  g::SweepLineSegment2D b(1, segments[1]);
-  EXPECT_TRUE(sweep.Intersect(&a, &b));
-}
-
-TEST_F(CalcUtils2DTest, SweepLine_IntersectReturnsFalseWhenParallel) {
-  std::vector<g::LineSegment2D> segments{
-      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),  // id 0
-      g::LineSegment2D::Make(g::Point2D(0, 5), g::Point2D(10, 5)),  // id 1: parallel
-  };
-  SweepLineVec sweep(segments);
-
-  g::SweepLineSegment2D a(0, segments[0]);
-  g::SweepLineSegment2D b(1, segments[1]);
-  EXPECT_FALSE(sweep.Intersect(&a, &b));
-}
-
-TEST_F(CalcUtils2DTest, SweepLine_IntersectNullArgumentThrows) {
-  std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
-  SweepLineVec sweep(segments);
-
-  g::SweepLineSegment2D a(0, segments[0]);
-  EXPECT_THROW(sweep.Intersect(nullptr, &a), std::invalid_argument);
-  EXPECT_THROW(sweep.Intersect(&a, nullptr), std::invalid_argument);
-}
-
-TEST_F(CalcUtils2DTest, SweepLine_IntersectOutOfRangeEdgeIdThrows) {
-  std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
-  SweepLineVec sweep(segments);
-
-  g::SweepLineSegment2D good(0, segments[0]);
-  g::SweepLineSegment2D bad(99, segments[0]);
-  EXPECT_THROW(sweep.Intersect(&bad, &good), std::out_of_range);
+  auto removed = sweep.Remove(1);  // Remove returns (Segment=nullopt, Above/Below = neighbors before deletion)
+  EXPECT_FALSE(removed.Segment.has_value());
+  ASSERT_TRUE(removed.Below.has_value());
+  EXPECT_EQ(removed.Below->Id, 0u);
 }
 
 TEST_F(CalcUtils2DTest, SweepLine_WorksWithSegmentRange) {
@@ -381,9 +289,35 @@ TEST_F(CalcUtils2DTest, SweepLine_WorksWithSegmentRange) {
   g::SegmentRange2D range(pts);
   g::SweepLine2D<g::SegmentRange2D> sweep(range);
 
-  auto const* node = sweep.Add(0);
-  ASSERT_NE(node, nullptr);
-  EXPECT_EQ(node->EdgeId, 0u);
+  auto elem = sweep.Add(0);
+  ASSERT_TRUE(elem.Segment.has_value());
+  EXPECT_EQ(elem.Segment->Id, 0u);
+}
+
+// --------------------------------------------------------------------------------------------------
+// IntersectionEvent2D
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils2DTest, IntersectionEvent2D_OrdersByPoint) {
+  g::IntersectionEvent2D a{g::Point2D(0, 0), {0, 1}};
+  g::IntersectionEvent2D b{g::Point2D(1, 0), {0, 1}};
+
+  EXPECT_TRUE(a < b);
+  EXPECT_FALSE(b < a);
+}
+
+TEST_F(CalcUtils2DTest, IntersectionEvent2D_EqualWhenSamePointAndIds) {
+  g::IntersectionEvent2D a{g::Point2D(1, 1), {0, 1}};
+  g::IntersectionEvent2D b{g::Point2D(1, 1), {0, 1}};
+
+  EXPECT_TRUE(a == b);
+}
+
+TEST_F(CalcUtils2DTest, IntersectionEvent2D_NotEqualWhenDifferentPoint) {
+  g::IntersectionEvent2D a{g::Point2D(1, 1), {0, 1}};
+  g::IntersectionEvent2D b{g::Point2D(2, 2), {0, 1}};
+
+  EXPECT_FALSE(a == b);
 }
 
 // --------------------------------------------------------------------------------------------------
