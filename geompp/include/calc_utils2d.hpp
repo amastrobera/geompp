@@ -40,7 +40,8 @@ struct Event2D {
   std::optional<std::size_t> InterSegmentId;  // if EventType::INTERSECTION this is the second segment involved in the
                                               // intersection, otherwise std::nullopt
 
-  bool operator<(Event2D const& other) const;  // for the priority quene in EventQueue2D
+  bool operator<(Event2D const& other) const;   // for the priority queue in EventQueue2D
+  bool operator==(Event2D const& other) const;  // for EventQueue2D::Contains
 };
 
 // EventQueue2D never needs the segments themselves: it builds the events once, then only ever manipulates
@@ -52,10 +53,11 @@ class EventQueue2D {
   EventQueue2D(Polygon2D const& polygon);        // ideal case to check for self-intersections of a polygon
   ~EventQueue2D() = default;
 
-  std::optional<Event2D> Next();
+  std::optional<Event2D> Top() const;
+  std::optional<Event2D> Pop();
   bool Empty() const;
   bool Contains(Event2D const& event) const;  // true if the event queue contains an event for the given segment index
-  void Add(Event2D const& event);             // simply adds the event and does not check if it is present already
+  void Push(Event2D const& event);            // simply adds the event and does not check if it is present already
 
  private:
   // expose protected `c` member of std::priority_queue so Swap can iterate underlying storage
@@ -89,7 +91,7 @@ class SweepLine2D {
 
   struct IdSegPair {
     std::size_t Id;
-    LineSegment2D const* Seg;
+    LineSegment2D Seg;  // stored by value: SegmentRange2D::operator[] returns temporaries, pointers would dangle
   };
 
   struct SweepLineElement2D {
@@ -121,6 +123,12 @@ class SweepLine2D {
   /// @throws std::out_of_range if seg_id not in [0, N-1] range, std::logic_error if insertion in tree not possible,
   /// warning log if seg_id not found
   SweepLineElement2D Remove(std::size_t seg_id);
+
+  /// @brief adjusts the current sweep x coordinate to a desired value, and lets the algorithms continue
+  /// @param val usually the X of the next_event in the EventQueue.Pop() or the current X + EPSILON
+  void SetX(double val);
+
+  double GetX() const;
 
  private:
   double SWEEP_X;
