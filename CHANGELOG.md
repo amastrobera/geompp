@@ -11,36 +11,60 @@ Each release covers all three packages at the same version:
 
 ---
 
-## [0.9.0] - 2026-06-02
+## [0.9.0] - 2026-06-15
 
 > C++ library — tagged `v0.9.0` · C# / NuGet — tagged `csharp-v0.9.0` · Python / PyPI — tagged `python-v0.9.0`
 
-> Adds polygon simplicity testing (`Polygon2D::IsSimple`) backed by a new `calc_utils2d` sweep-line module (event queue + status structure) for segment-set intersection, plus the supporting 2D orientation/intersection primitives `is_left` / `is_right` / `intersect`.
+> Adds polygon simplicity testing (`Polygon2D::IsSimple`) backed by a new `calc_utils2d` sweep-line module implementing the Shamos–Hoey and Bentley–Ottmann algorithms for segment-set intersection, plus the supporting 2D orientation/intersection primitives `is_left` / `is_right` / `intersect`.
 
 ### Added
 
 **C++ core**
-- `Polygon2D::IsSimple()` — reports whether the polygon's outer ring and every hole are free of self-intersections (holes are allowed).
-- `calc_utils2d.hpp` / `.cpp` — new module implementing a Bentley–Ottmann-style sweep for segment-set intersection:
-  - `Event2D` / `EventType2D` — sweep events (LEFT / RIGHT / INTERSECTION) ordered by x, then y, then event type.
-  - `EventQueue2D` — priority queue of events built from a `std::vector<LineSegment2D>`, a `SegmentRange2D`, or a `Polygon2D`; exposes `Next()`, `Empty()`, `Swap()`.
-  - `SweepLineSegment2D` — a segment active on the sweep line, with intrusive `Above` / `Below` neighbour links (`mutable`, so they can be maintained through the `std::set`'s const nodes).
-  - `SweepLine2D<SegmentList>` — templated status structure over the new `SegmentList` concept (anything offering `size()` + indexed `LineSegment2D` access, e.g. `std::vector<LineSegment2D>` or `SegmentRange2D`); members `Add`, `Find`, `Remove`, `Intersection` (returns the crossing point) and `Intersect` (boolean). Member definitions live in the `.cpp` and are emitted via explicit instantiation for the two `SegmentList` types.
-  - free `has_intersections(segments)` (Shamos–Hoey simplicity check, used by `Polygon2D::IsSimple`) and `find_intersections(segments)` → `std::vector<IntersectionEvent2D>` (Bentley–Ottmann, reports every crossing as a `{Point, SegmentId1, SegmentId2}` `IntersectionEvent2D`).
-- `is_left(v1, v2, p)` / `is_right(v1, v2, p)` (`point2d.hpp`) — orientation of point `p` relative to the directed edge `v1→v2` (sign of the 2D cross product; strict, so a point exactly on the line is neither left nor right).
-- `intersect(seg1, seg2)` (`line_segment2d.hpp`) — boolean segment-segment intersection via orientation tests (true including shared endpoints / touching).
+- `Polygon2D::IsSimple()` — returns `true` if the polygon's boundary (outer ring and all holes) is free of self-intersections; delegates to `has_intersections(ToSegments())`.
+- `calc_utils2d.hpp` / `.cpp` — new sweep-line module:
+  - `EventType2D` enum — `LEFT(0)` / `INTERSECTION(1)` / `RIGHT(2)`; enum value order is load-bearing (ties are broken LEFT < INTERSECTION < RIGHT).
+  - `Event2D` — sweep event carrying a `Point2D`, a `SegmentId`, an optional `InterSegmentId` (INTERSECTION events only), and `operator<` / `operator>` / `operator==`; `operator>` is required by `std::greater<Event2D>` inside `EventMinHeap`.
+  - `EventQueue2D` — min-heap priority queue (`EventMinHeap`, built on `std::priority_queue` with `std::greater<Event2D>`) constructed from a `std::vector<LineSegment2D>`, a `SegmentRange2D`, or a `Polygon2D`; exposes `Top()`, `Pop()`, `Empty()`, `Push()`, `Contains()`. `Contains()` recognises that `INTERSECTION(A,B)` and `INTERSECTION(B,A)` are the same event (commutative check).
+  - `SweepLineComparator<Segments>` — functor used as the `std::set` comparator inside `SweepLine2D`; orders segments by their y-value at the current sweep x (`GetYAtX` with a midpoint fallback for vertical segments) and breaks ties by segment id to prevent `std::set` treating geometrically equal-y segments as identical.
+  - `SweepLine2D<SegmentList>` — templated status structure over the `SegmentList` concept (any type offering `size()` + indexed `LineSegment2D` access); members `Add`, `Get`, `Remove`, `SetX`, `GetX`. `Add` and `Get` return a `SweepLineElement2D` triplet `{Segment, Above, Below}` giving the inserted/queried segment together with its immediate neighbours. Member definitions live in `.cpp` and are emitted via explicit instantiation for `std::vector<LineSegment2D>` and `SegmentRange2D`.
+  - `IntersectionEvent2D` — output struct holding a `Point2D` and `std::vector<std::size_t> SegmentIds`; the vector length is ≥ 2 and grows when three or more segments cross at the same point (star case).
+  - Free `has_intersections(segments)` — Shamos–Hoey algorithm; returns `true` as soon as any crossing is found.
+  - Free `find_intersections(segments)` → `std::vector<IntersectionEvent2D>` — Bentley–Ottmann algorithm; reports every crossing point together with all segment ids that pass through it, sorted left-to-right.
+- `is_left(v1, v2, p)` / `is_right(v1, v2, p)` (`point2d.hpp`) — orientation of point `p` relative to directed edge `v1→v2` (strict; a point on the line returns neither).
+- `intersect(seg1, seg2)` (`line_segment2d.hpp`) — boolean segment-segment crossing test via orientation signs; returns `true` for proper crossings, shared endpoints, and T-intersections.
+- `shares_endpoint(seg1, seg2)` (internal free function in `calc_utils2d.cpp`) — true if any endpoint of `seg1` equals any endpoint of `seg2`; used as a guard so that the algorithms do not report adjacent segments as intersecting.
 
 **Python / PyPI**
 - `Polygon2D.is_simple()`.
-- `has_intersections(segments)` / `find_intersections(segments)` module-level functions (take a `list[LineSegment2D]`); `find_intersections` returns a `list[IntersectionEvent2D]`. New `IntersectionEvent2D` type (`point`, `segment_id1`, `segment_id2`).
+- `has_intersections(segments)` / `find_intersections(segments)` — module-level free functions accepting a `list[LineSegment2D]`; `find_intersections` returns a `list[IntersectionEvent2D]`.
+- `IntersectionEvent2D` — new type with properties `point` (`Point2D`), `segment_id1` (int), `segment_id2` (int), and `segment_ids` (list[int], all segment indices through that point).
 
 **C# / NuGet**
 - `Polygon2D.IsSimple()`.
-- `GeomUtil.HasIntersections(List<LineSegment2D^>)` and `GeomUtil.FindIntersections(List<LineSegment2D^>)` → `IEnumerable<IntersectionEvent2D^>`. New managed `IntersectionEvent2D` type (`Point`, `SegmentId1`, `SegmentId2`).
+- `GeomUtil.HasIntersections(List<LineSegment2D^>)` and `GeomUtil.FindIntersections(List<LineSegment2D^>)` → `IEnumerable<IntersectionEvent2D^>`.
+- `IntersectionEvent2D` — managed wrapper with properties `Point` (`Point2D^`), `SegmentId1` (int), `SegmentId2` (int), and `SegmentIds` (`List<int>^`, all segment indices through that point).
 
-### Notes / known limitations
+**Tooling**
+- `BUILD_TESTING OFF` set before `FetchContent_MakeAvailable(glog)` — prevents glog's own unit tests from registering with CTest; previously they appeared as spurious failures in Docker.
 
-- `SweepLine2D`'s status ordering (`SweepLineSegment2D::operator<`) is currently a **provisional** total order (by endpoints, then edge id), not the full sweep-status order (y at the current sweep x). `Polygon2D::IsSimple` should therefore be treated as **experimental** pending the final comparator (and the event-queue sweep direction): its C++/Python/C# tests encode the intended results and are flagged for re-verification.
+### Fixed
+
+**C++ core (`calc_utils2d`)**
+- Event queue was a **max-heap** (popped RIGHT events before LEFT): switched to `EventMinHeap` (`std::greater<Event2D>`) so the sweep proceeds left-to-right.
+- `SweepLineComparator::GetYAtX` divided by zero for vertical segments: now returns the midpoint y and skips the linear-interpolation branch.
+- `SweepLineComparator::operator()` lacked a tiebreaker: when two segments share the same y at the sweep x, `id1 < id2` prevents `std::set` from treating them as equal and silently dropping one.
+- `has_intersections` and `find_intersections` called `intersect()` on adjacent (shared-endpoint) segments, producing false positives: added `shares_endpoint()` guard at every intersection check site.
+- `EventQueue2D::Contains()` did not recognise `INTERSECTION(A,B)` and `INTERSECTION(B,A)` as the same event: added commutative reversed-pair check.
+- INTERSECTION handler in `find_intersections` pushed new-neighbour events without a `Contains()` guard: fixed, preventing duplicate events.
+- Stale INTERSECTION events (queued before a third segment was inserted between the pair) were processed unconditionally, corrupting sweep-line order: adjacency check added — the event is skipped if `seg1` and `seg2` are no longer immediate neighbours.
+- Star case (three or more segments crossing at the same point): each co-incident INTERSECTION event reset `sweep_x` to the intersection x and re-advanced by `+DOUBLE_EPSILON`, accumulating drift; the outer `SetX` call is now conditional (`< 0` guard), and the inner advance is anchored to `inter_event.Point.x() + DOUBLE_EPSILON` so sweep_x stays at exactly `P.x + ε` for all events at the same point.
+- `std::get<Point2D>` called unconditionally on `Intersection()` results: guarded with `std::holds_alternative<Point2D>` at all five call sites — collinear overlapping segments are now silently skipped instead of throwing `std::bad_variant_access`.
+
+**C# / NuGet**
+- `IntersectionEvent2D` bindings referenced non-existent fields `SegmentId1` / `SegmentId2` on the native struct (which uses `SegmentIds`): fixed to `_native->SegmentIds[0]` / `[1]`.
+
+**Python / PyPI**
+- `bind_free_functions.cpp` used `.def_readonly("segment_id1", &IntersectionEvent2D::SegmentId1)` referencing non-existent fields: replaced with `.def_property_readonly` lambdas over `SegmentIds[0]` / `[1]`.
 
 ---
 

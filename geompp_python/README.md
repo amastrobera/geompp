@@ -135,6 +135,19 @@ print(poly.size())               # 4
 | `remove_duplicates(points)` | Drop duplicate points |
 | `average(points)` | Arithmetic mean |
 | `linear_combination(points, weights)` | Weighted sum |
+| `has_intersections(segments)` | Shamos–Hoey: `True` if any two segments in `list[LineSegment2D]` cross |
+| `find_intersections(segments)` | Bentley–Ottmann: returns `list[IntersectionEvent2D]` — every crossing point with the ids of all segments through it |
+
+### IntersectionEvent2D
+
+```python
+hits = geompp.find_intersections(segments)
+for ev in hits:
+    print(ev.point)        # Point2D — the crossing location
+    print(ev.segment_id1)  # int     — index of first segment
+    print(ev.segment_id2)  # int     — index of second segment
+    print(ev.segment_ids)  # list[int] — all segment indices (≥ 2; more when 3+ meet at one point)
+```
 
 
 

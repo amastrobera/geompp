@@ -1,10 +1,12 @@
 #pragma once
 
 #include "constants.hpp"
+#include "line_segment2d.hpp"
 #include "point2d.hpp"
 
 #include <compare>
 #include <concepts>
+#include <functional>
 #include <optional>
 #include <queue>
 #include <set>
@@ -13,7 +15,6 @@
 namespace geompp {
 
 class Polygon2D;
-class LineSegment2D;
 class SegmentRange2D;
 
 std::partial_ordering compare_event_point(Point2D a, Point2D b);  // for ordering events in the sweep line algorithm
@@ -40,8 +41,9 @@ struct Event2D {
   std::optional<std::size_t> InterSegmentId;  // if EventType::INTERSECTION this is the second segment involved in the
                                               // intersection, otherwise std::nullopt
 
-  bool operator<(Event2D const& other) const;   // for the priority queue in EventQueue2D
-  bool operator==(Event2D const& other) const;  // for EventQueue2D::Contains
+  bool operator<(Event2D const& other) const;         // for the priority queue in EventQueue2D
+  bool operator>(Event2D const& other) const;         // required by std::greater<Event2D> (EventMinHeap)
+  bool operator==(Event2D const& other) const;        // for EventQueue2D::Contains
 };
 
 // EventQueue2D never needs the segments themselves: it builds the events once, then only ever manipulates
@@ -60,11 +62,11 @@ class EventQueue2D {
   void Push(Event2D const& event);            // simply adds the event and does not check if it is present already
 
  private:
-  // expose protected `c` member of std::priority_queue so Swap can iterate underlying storage
-  struct EventPriorityQueue : std::priority_queue<Event2D> {
-    using std::priority_queue<Event2D>::c;
+  struct EventMinHeap : std::priority_queue<Event2D, std::vector<Event2D>, std::greater<Event2D>> {
+    using std::priority_queue<Event2D, std::vector<Event2D>, std::greater<Event2D>>::priority_queue;
+    using std::priority_queue<Event2D, std::vector<Event2D>, std::greater<Event2D>>::c;
   };
-  EventPriorityQueue EVENTS;  // Event2D implements operator<
+  EventMinHeap EVENTS;
 };
 
 template <SegmentList Segments>

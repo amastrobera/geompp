@@ -1,6 +1,6 @@
 # Test Coverage Report
 
-_Last updated: 2026-06-02_
+_Last updated: 2026-06-15_
 
 ## Overall
 
@@ -42,7 +42,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |
 | `GeometryCollection2D` | ✓ core | ✓ partial | ✓ most | — | — |
 | `GeometryCollection3D` | ✓ core | ✓ partial | ✓ most | — | — |
-| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineSegment2D`, `SweepLine2D`, `is_simple`) | ✓ all key | n/a | n/a | — | C++-only sweep module; `Add`/`Find`/`Remove`/`Intersection`/`Intersect` + `EventQueue2D` ordering/`Swap` tested. Status comparator is provisional (see note) |
+| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `has_intersections`, `find_intersections`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module; `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; `has_intersections` + `find_intersections` + `Polygon2D::IsSimple` tested in all three languages |
 
 ---
 
@@ -76,7 +76,7 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 - **Stub cluster**: remaining unimplemented intersection/distance methods live in `Polygon2D/3D` (DistanceTo + Intersection × Line/Ray/Seg), `Triangle2D::Intersects(△)` and `Triangle2D::Intersection(△)`, and `Triangle2D/3D::DistanceTo`.
 - **`Plane`, `Point2D`, `Point3D`, `Vector2D`, `Vector3D`** have excellent coverage across C++, Python, and (newly for Plane) C#.
 - **Operator overloads** (`operator<<`, `operator=`, arithmetic) are implicitly exercised by other tests even when not explicitly targeted.
-- **`calc_utils2d` / `Polygon2D::IsSimple` are experimental**: `SweepLine2D`'s status comparator (`SweepLineSegment2D::operator<`) is a provisional total order, not the true sweep-status (y-at-x) order, and `EventQueue2D` pops max-first. The `IsSimple` correctness tests (C++/Python/C#) encode the *intended* results and are flagged for re-verification once the real comparator and sweep direction are finalized.
+- **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`has_intersections` / `find_intersections`) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case).
 
 ---
 

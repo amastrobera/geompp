@@ -24,6 +24,7 @@ FetchContent_Declare(
 set(WITH_GFLAGS     OFF CACHE BOOL "" FORCE)
 set(WITH_GTEST      OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE) # Build static library
+set(BUILD_TESTING   OFF CACHE BOOL "" FORCE) # Prevent glog from registering its own tests
 FetchContent_MakeAvailable(glog)
 
 

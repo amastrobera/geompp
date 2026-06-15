@@ -16,9 +16,10 @@ public:
     ~IntersectionEvent2D();
     !IntersectionEvent2D();
 
-    property Point2D^ Point   { Point2D^ get(); }
-    property int      SegmentId1 { int get(); }
-    property int      SegmentId2 { int get(); }
+    property Point2D^                   Point      { Point2D^ get(); }
+    property int                        SegmentId1 { int get(); }
+    property int                        SegmentId2 { int get(); }
+    property System::Collections::Generic::List<int>^ SegmentIds { System::Collections::Generic::List<int>^ get(); }
 
     virtual System::String^ ToString() override;
 

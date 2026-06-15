@@ -89,7 +89,7 @@ TEST_F(CalcUtils2DTest, EventQueue_BuildsTwoEventsPerSegment) {
 }
 
 TEST_F(CalcUtils2DTest, EventQueue_PopReturnsInPriorityOrder) {
-  // std::priority_queue is a max-heap, so Pop() returns events from greatest to smallest (by Event2D::operator<).
+  // EventMinHeap is a min-heap, so Pop() returns events from smallest to greatest (by Event2D::operator<).
   std::vector<g::LineSegment2D> segments{
       g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0)),
       g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(3, 1)),
@@ -103,13 +103,13 @@ TEST_F(CalcUtils2DTest, EventQueue_PopReturnsInPriorityOrder) {
 
   ASSERT_EQ(popped.size(), 4u);
 
-  // greatest first: (3,1) then (2,0) then (1,1) then (0,0)
-  EXPECT_DOUBLE_EQ(popped.front().Point.x(), 3.0);
-  EXPECT_DOUBLE_EQ(popped.back().Point.x(), 0.0);
+  // smallest first: (0,0) then (1,1) then (2,0) then (3,1)
+  EXPECT_DOUBLE_EQ(popped.front().Point.x(), 0.0);
+  EXPECT_DOUBLE_EQ(popped.back().Point.x(), 3.0);
 
-  // monotonically non-increasing
+  // monotonically non-decreasing
   for (std::size_t i = 1; i < popped.size(); ++i) {
-    EXPECT_FALSE(popped[i - 1] < popped[i]) << "events not in non-increasing order at index " << i;
+    EXPECT_FALSE(popped[i] < popped[i - 1]) << "events not in non-decreasing order at index " << i;
   }
 }
 

@@ -112,12 +112,21 @@ void bind_free_functions(py::module_& m) {
     // ── segment-set intersection (Shamos–Hoey / Bentley–Ottmann) ──────────────────────────────
     py::class_<geompp::IntersectionEvent2D>(m, "IntersectionEvent2D",
         "An intersection found among a set of segments: the point and the two segment indices involved.")
-        .def_readonly("point",       &geompp::IntersectionEvent2D::Point)
-        .def_readonly("segment_id1", &geompp::IntersectionEvent2D::SegmentId1)
-        .def_readonly("segment_id2", &geompp::IntersectionEvent2D::SegmentId2)
+        .def_readonly("point", &geompp::IntersectionEvent2D::Point)
+        .def_property_readonly("segment_id1",
+            [](const geompp::IntersectionEvent2D& e) { return static_cast<int>(e.SegmentIds[0]); })
+        .def_property_readonly("segment_id2",
+            [](const geompp::IntersectionEvent2D& e) { return static_cast<int>(e.SegmentIds[1]); })
+        .def_property_readonly("segment_ids",
+            [](const geompp::IntersectionEvent2D& e) {
+                std::vector<int> ids;
+                ids.reserve(e.SegmentIds.size());
+                for (auto id : e.SegmentIds) { ids.push_back(static_cast<int>(id)); }
+                return ids;
+            })
         .def("__repr__", [](const geompp::IntersectionEvent2D& e) {
-            return "IntersectionEvent2D(point=" + e.Point.ToWkt() + ", seg1=" + std::to_string(e.SegmentId1) +
-                   ", seg2=" + std::to_string(e.SegmentId2) + ")";
+            return "IntersectionEvent2D(point=" + e.Point.ToWkt() + ", seg1=" + std::to_string(e.SegmentIds[0]) +
+                   ", seg2=" + std::to_string(e.SegmentIds[1]) + ")";
         });
 
     m.def("has_intersections",

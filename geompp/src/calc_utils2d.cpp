@@ -54,9 +54,12 @@ double min_sweep_x(Segments const& segments) {
   return min_x;
 }
 
+bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b) {
+  return a.First() == b.First() || a.First() == b.Last() || a.Last() == b.First() || a.Last() == b.Last();
+}
+
 }  // namespace
 
-// [fix] moved out of anonymous namespace so it matches the geompp-namespace declaration in the header
 std::partial_ordering compare_event_point(Point2D a, Point2D b) {
   auto compare_x = compare(a.x(), b.x());
   if (compare_x != std::partial_ordering::equivalent) {
@@ -68,13 +71,11 @@ std::partial_ordering compare_event_point(Point2D a, Point2D b) {
 
 // ------- event queue -------
 EventQueue2D::EventQueue2D(std::vector<LineSegment2D> const& segments) {
-  // {} default-constructs std::less<Event2D>, which uses operator<(Event2D) for ordering
-  EVENTS = EventPriorityQueue(std::priority_queue<Event2D>({}, build_events(segments)));
+  EVENTS = EventMinHeap(std::greater<Event2D>{}, build_events(segments));
 }
 
 EventQueue2D::EventQueue2D(SegmentRange2D const& segments) {
-  // {} default-constructs std::less<Event2D>, which uses operator<(Event2D) for ordering
-  EVENTS = EventPriorityQueue(std::priority_queue<Event2D>({}, build_events(segments)));
+  EVENTS = EventMinHeap(std::greater<Event2D>{}, build_events(segments));
 }
 
 EventQueue2D::EventQueue2D(Polygon2D const& polygon) : EventQueue2D(polygon.ToSegments()) {}
@@ -95,6 +96,8 @@ bool Event2D::operator<(Event2D const& other) const {
                              // prioritize LEFT < INTERSECTION < RIGHT events (guaranteed by EventType2D enum order)
                              // note on D.Sunday book: helps to process edge cases
 }
+
+bool Event2D::operator>(Event2D const& other) const { return other < *this; }
 
 bool Event2D::operator==(Event2D const& other) const {
   return Type == other.Type && Point == other.Point && SegmentId == other.SegmentId &&
@@ -119,12 +122,18 @@ std::optional<Event2D> EventQueue2D::Pop() {
 
 bool EventQueue2D::Empty() const { return EVENTS.empty(); }
 
-// [fix] was referencing nonexistent `event_queue` and `inter_event`; corrected to `EVENTS` and `event`
 void EventQueue2D::Push(Event2D const& event) { EVENTS.push(event); }
 
 bool EventQueue2D::Contains(Event2D const& event) const {
   for (const auto& queued_event : EVENTS.c) {
     if (queued_event == event) {
+      return true;
+    }
+    // INTERSECTION(A,B) and INTERSECTION(B,A) are the same geometric event: check the reversed pair too
+    if (event.Type == EventType2D::INTERSECTION && queued_event.Type == EventType2D::INTERSECTION &&
+        queued_event.Point == event.Point && event.InterSegmentId.has_value() &&
+        queued_event.InterSegmentId.has_value() && queued_event.SegmentId == event.InterSegmentId.value() &&
+        queued_event.InterSegmentId.value() == event.SegmentId) {
       return true;
     }
   }
@@ -141,7 +150,6 @@ bool IntersectionEvent2D::operator==(IntersectionEvent2D const& other) const {
   return compare_event_point(Point, other.Point) == 0;  // order by the intersection point
 }
 
-// [fix] was missing `template <SegmentList Segments>` prefix and had wrong return type `bool` instead of `double`
 template <SegmentList Segments>
 double SweepLineComparator<Segments>::GetYAtX(LineSegment2D const& seg, double x) const {
   auto is_seg_reverse = compare_event_point(seg.First(), seg.Last()) > 0;
@@ -157,35 +165,37 @@ double SweepLineComparator<Segments>::GetYAtX(LineSegment2D const& seg, double x
     return p1.y();
   }
 
+  if (compare(p1.x(), p0.x()) == 0) {  // vertical segment: avoid division by zero
+    return (p0.y() + p1.y()) / 2.0;
+  }
   // linear interpolation
   return p0.y() + ((p1.y() - p0.y()) / (p1.x() - p0.x())) * (x - p0.x());
 }
 
-// [fix] was missing `template <SegmentList Segments>` prefix; also `segments` is a pointer, must dereference
 template <SegmentList Segments>
 bool SweepLineComparator<Segments>::operator()(std::size_t id1, std::size_t id2) const {
   if (id1 >= segments->size() || id2 >= segments->size()) {
     throw std::out_of_range("SegmentId is out of range of the segments list");
   }
 
-  // Evaluates heights dynamically in real-time based on the global state
   double y1 = GetYAtX((*segments)[id1], sweep_x);
   double y2 = GetYAtX((*segments)[id2], sweep_x);
 
-  return y1 < y2;
+  if (compare(y1, y2) != std::partial_ordering::equivalent) {
+    return compare(y1, y2) < 0;
+  }
+  return id1 < id2;  // tiebreaker: prevent two distinct segments from appearing equivalent in the set
 }
 
 // SweepLine2D template members: defined here, emitted for other TUs by the explicit instantiations below.
 // Each definition needs its own `template <SegmentList Segments>` and the SweepLine2D<Segments>:: qualifier.
 
-// [fix] was missing `<Segments>` template parameter on the class name
 template <SegmentList Segments>
 SweepLine2D<Segments>::SweepLine2D(Segments const& segments)
     : SWEEP_X(min_sweep_x(segments)),
       PTR_SEGMENTS(&segments),
       ACTIVE_SEGMENTS(SweepLineComparator<Segments>{SWEEP_X, &segments}) {}
 
-// [fix] return type is a dependent name and needs `typename SweepLine2D<Segments>::`
 template <SegmentList Segments>
 typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(std::size_t seg_id) const {
   if (seg_id >= PTR_SEGMENTS->size()) {
@@ -197,7 +207,6 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(st
     return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
   }
   auto segment_iter = ACTIVE_SEGMENTS.find(seg_id);
-  // [fix] Seg stored by value: SegmentRange2D::operator[] returns temporaries, can't take their address
   auto seg_elem = IdSegPair{*segment_iter, (*PTR_SEGMENTS)[*segment_iter]};
 
   std::optional<IdSegPair> above_elem = std::nullopt;
@@ -206,7 +215,6 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(st
     if (*above_iter >= PTR_SEGMENTS->size()) {
       throw std::out_of_range("SegmentId (above) is out of range of the segments list");
     }
-    // [fix] typo `trIdPair` → `IdSegPair`; was also missing semicolon; Seg by value not pointer
     above_elem = IdSegPair{*above_iter, (*PTR_SEGMENTS)[*above_iter]};
   }
 
@@ -222,7 +230,6 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(st
   return SweepLineElement2D{seg_elem, above_elem, below_elem};
 }
 
-// [fix] return type is a dependent name and needs `typename SweepLine2D<Segments>::`
 template <SegmentList Segments>
 typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Add(std::size_t seg_id) {
   if (seg_id >= PTR_SEGMENTS->size()) {
@@ -234,11 +241,9 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Add(st
     throw std::logic_error("Attempted to insert a segment into the sweep line that is already active");
   }
 
-  // [fix] was `Get(seg_it)` — `seg_it` is undefined; correct variable is `seg_id`
   return Get(seg_id);
 }
 
-// [fix] return type is a dependent name and needs `typename SweepLine2D<Segments>::`
 template <SegmentList Segments>
 typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Remove(std::size_t seg_id) {
   if (seg_id >= PTR_SEGMENTS->size()) {
@@ -248,11 +253,9 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Remove
   auto it = ACTIVE_SEGMENTS.find(seg_id);
   if (it == ACTIVE_SEGMENTS.end()) {
     GEOMPP_LOG(ERROR) << "Attempted to remove a segment from the sweep line that is not active";
-    // [fix] was missing semicolon
     return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
   }
 
-  // [fix] was `Get(seg_it)` — `seg_it` is undefined; correct variable is `seg_id`
   auto triplet_before_remove = Get(seg_id);
 
   // remove the item
@@ -275,7 +278,6 @@ double SweepLine2D<Segments>::GetX() const {
 
 template <SegmentList Segments>
 bool has_intersections(Segments const& segments) {
-  // [fix] was `polygon_segments.size()` — undefined; correct variable is `segments`
   if (segments.size() < 2) {
     throw std::invalid_argument("provided less than 2 segments, cannot check for intersections");
   }
@@ -301,21 +303,18 @@ bool has_intersections(Segments const& segments) {
         throw std::logic_error("Could not find the segment corresponding to the LEFT event in the sweep line");
       }
 
-      // guard the neighbours: Above/Below are null at the top/bottom of the status set
-      // [fix] Seg is now by value (not pointer), so no `*` dereference needed
-      // [fix] return true on intersection found (was inverted — returning false meant "no intersection")
-      if ((triplet.Above && intersect(triplet.Segment->Seg, triplet.Above->Seg)) ||
-          (triplet.Below && intersect(triplet.Below->Seg, triplet.Segment->Seg))) {
+      if ((triplet.Above && !shares_endpoint(triplet.Segment->Seg, triplet.Above->Seg) &&
+           intersect(triplet.Segment->Seg, triplet.Above->Seg)) ||
+          (triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Segment->Seg) &&
+           intersect(triplet.Below->Seg, triplet.Segment->Seg))) {
         return true;
       }
 
     } else if (event.Type == EventType2D::RIGHT) {
       auto triplet = sweep_line.Remove(event.SegmentId);
 
-      // the two neighbours become adjacent once this segment leaves; only test if both exist
-      // [fix] Seg is now by value (not pointer), so no `*` dereference needed
-      // [fix] return true on intersection found
-      if (triplet.Above && triplet.Below && intersect(triplet.Below->Seg, triplet.Above->Seg)) {
+      if (triplet.Above && triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Above->Seg) &&
+          intersect(triplet.Below->Seg, triplet.Above->Seg)) {
         return true;
       }
     }
@@ -343,25 +342,34 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
     auto event = event_opt.value();
 
     // set the sweepline X
-    sweep_line.SetX(event.Point.x());
+    // [star-case fix] only advance to the event's x if not already past it — co-incident INTERSECTION events
+    // (multiple segments crossing the same point) must not reset sweep_x back below the +eps that the first
+    // INTERSECTION handler already applied; non-INTERSECTION events are always strictly ahead of any prior +eps
+    if (compare(sweep_line.GetX(), event.Point.x()) < 0) {
+      sweep_line.SetX(event.Point.x());
+    }
 
     if (event.Type == EventType2D::LEFT) {
       auto elem = sweep_line.Add(event.SegmentId);
       if (!elem.Segment) {
-        throw std::logic_error("Could not find the segment corresponding to the LEFT event in the sweep line");
+        throw std::logic_error("Could not add the segment corresponding to the LEFT event in the sweep line");
       }
 
-      // check if the immediate neighbours above and below intersect, and if so add the intersection event to the queue
-      // [fix] `event_queue.Add` → `event_queue.Push`; Seg by value so `.` not `->`, std::get<> to unwrap variant
-      if (elem.Above) {
+      if (elem.Above && !shares_endpoint(elem.Segment->Seg, elem.Above->Seg)) {
         if (auto inter_p = elem.Segment->Seg.Intersection(elem.Above->Seg)) {
-          event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Segment->Id, elem.Above->Id});
+          if (std::holds_alternative<Point2D>(inter_p.value())) {
+            event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Segment->Id,
+                                     elem.Above->Id});
+          }
         }
       }
 
-      if (elem.Below) {
+      if (elem.Below && !shares_endpoint(elem.Below->Seg, elem.Segment->Seg)) {
         if (auto inter_p = elem.Below->Seg.Intersection(elem.Segment->Seg)) {
-          event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Below->Id, elem.Segment->Id});
+          if (std::holds_alternative<Point2D>(inter_p.value())) {
+            event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Below->Id,
+                                     elem.Segment->Id});
+          }
         }
       }
 
@@ -377,12 +385,14 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       sweep_line.Remove(event.SegmentId);  // automatically resets the above/below neighbours of the segment being
                                            // removed to the new neighbours after removal
 
-      // [fix] `event_queue.Add` → `event_queue.Push`; Seg by value, std::get<> to unwrap variant
-      if (above_elem && below_elem) {
+      if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
         if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
-          auto inter_event = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id, above_elem->Id};
-          if (!event_queue.Contains(inter_event)) {
-            event_queue.Push(inter_event);
+          if (std::holds_alternative<Point2D>(inter_p.value())) {
+            auto inter_event = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id,
+                                       above_elem->Id};
+            if (!event_queue.Contains(inter_event)) {
+              event_queue.Push(inter_event);
+            }
           }
         }
       }
@@ -395,7 +405,6 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       // save the intersection event to the output list
       auto inter_event = IntersectionEvent2D{event.Point, {seg1_id, seg2_id}};
 
-      // [fix] `auto output_to_update = find() != end()` captured a bool, not an iterator; also std::set elements
       // are const so they must be extracted, modified, and re-inserted; also `vector::contains` doesn't exist
       auto it = output_list.find(inter_event);
       if (it != output_list.end()) {
@@ -410,52 +419,75 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
           updated.SegmentIds.push_back(seg2_id);
         }
         output_list.insert(std::move(updated));
+
       } else {
         output_list.emplace(inter_event);
       }
 
       // in the logic LEFT, and RIGHT I have guaranteed to always have seg1 < seg2 in Event{INTERSECTION, seg1, seg2}
+      // at this point: segB < seg1 < seg2 < segA
 
-      // imagine: segB < seg1 < seg2 < segA
+      // in order to move the segments (seg1 -> up, seg2 -> down) we have to
+      // (1) Remove them
+      // (2) SetX
+      // (3) Add them back in the queue
+      // (4) check the new above/below intersections
+      // ... here we go.
 
-      // at this stage, by increasing SWEEP_X variable, the sorting is guaranteed to be re-done placing seg2 below seg1
-      // after this intersection point
-      // [fix] `sweep_line.Set(X + DOUBLE_EPSILON)` → correct method name `SetX`; `X` undefined, use `GetX()`
-      sweep_line.SetX(sweep_line.GetX() + DOUBLE_EPSILON);
+      // verify seg1 and seg2 are still adjacent — a stale event (queued before another segment was inserted
+      // between them) must be skipped to avoid corrupting sweep line order
+      auto seg1_check = sweep_line.Get(seg1_id);
+      if (!seg1_check.Segment || !seg1_check.Above || seg1_check.Above->Id != seg2_id) {
+        continue;
+      }
+
+      // (1) Remove segments (save the neighbors for later)
+      sweep_line.Remove(seg1_id);
+      sweep_line.Remove(seg2_id);
+
+      // (2) set X to a bigger value (according to the decimal precision)
+      if (compare(sweep_line.GetX(), inter_event.Point.x()) <= 0) {
+        sweep_line.SetX(inter_event.Point.x() + DOUBLE_EPSILON);
+      }
+
+      // (3) add the segments back
+      auto new_seg1 = sweep_line.Add(seg1_id);
+      if (!new_seg1.Segment) {
+        throw std::logic_error("Could not add the segment corresponding NEW SEG1 in the sweep line");
+      }
+      auto new_seg2 = sweep_line.Add(seg2_id);
+      if (!new_seg2.Segment) {
+        throw std::logic_error("Could not add the segment corresponding NEW SEG2 in the sweep line");
+      }
+
+      // (4) check the new above/below intersections
       // now : segB < seg2 < seg1 < segA
-
-      // however, we need to check for intersection for the intersections of the new neighbours, that is
-      auto seg1_elem = sweep_line.Get(seg1_id);
-      auto seg2_elem = sweep_line.Get(seg2_id);
-
-      // keep in mind the new order after we updated the SWEEP_X
-      // now : segB < seg2 < seg1 < segA
-
-      // [fix] `event_queue.Add` → `event_queue.Push`
-
-      // segB vs seg2 — [fix] Seg by value, std::get<> to unwrap variant
-      if (seg2_elem.Below && seg2_elem.Segment) {
-        if (auto inter_p = seg2_elem.Below->Seg.Intersection(seg2_elem.Segment->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), seg2_elem.Below->Id, seg2_elem.Segment->Id};
-          if (!event_queue.Contains(inter_ev)) {
-            event_queue.Push(inter_ev);
+      if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
+        if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
+          if (std::holds_alternative<Point2D>(inter_p.value())) {
+            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()),
+                                    new_seg1.Segment->Id, new_seg1.Above->Id};
+            if (!event_queue.Contains(inter_ev)) {
+              event_queue.Push(inter_ev);
+            }
           }
         }
       }
 
-      // seg1 vs segA — [fix] Seg by value, std::get<> to unwrap variant
-      if (seg1_elem.Segment && seg1_elem.Above) {
-        if (auto inter_p = seg1_elem.Segment->Seg.Intersection(seg1_elem.Above->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), seg1_elem.Segment->Id, seg1_elem.Above->Id};
-          if (!event_queue.Contains(inter_ev)) {
-            event_queue.Push(inter_ev);
+      if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
+        if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
+          if (std::holds_alternative<Point2D>(inter_p.value())) {
+            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()),
+                                    new_seg2.Below->Id, new_seg2.Segment->Id};
+            if (!event_queue.Contains(inter_ev)) {
+              event_queue.Push(inter_ev);
+            }
           }
         }
       }
     }
   }
 
-  // [fix] output_list is std::set<IntersectionEvent2D> but return type is std::vector<IntersectionEvent2D>
   return std::vector<IntersectionEvent2D>(output_list.begin(), output_list.end());
 }
 
