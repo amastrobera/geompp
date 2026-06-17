@@ -35,6 +35,7 @@ set(GEOMPP_SOURCES
     ${GEOMPP_ROOT}/src/triangle2d.cpp
     ${GEOMPP_ROOT}/src/polygon2d.cpp
     ${GEOMPP_ROOT}/src/bbox2d.cpp
+    ${GEOMPP_ROOT}/src/calc_utils2d.cpp
     ${GEOMPP_ROOT}/src/point3d.cpp
     ${GEOMPP_ROOT}/src/vector3d.cpp
     ${GEOMPP_ROOT}/src/line3d.cpp

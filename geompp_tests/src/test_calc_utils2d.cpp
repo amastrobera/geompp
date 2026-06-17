@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <optional>
 #include <vector>
 
@@ -404,6 +405,36 @@ static std::vector<g::LineSegment2D> SquareRing() {
   };
 }
 
+// 5-edge star polygon (pentagram): each edge crosses exactly 2 others → 5 proper intersections
+// Vertices are the outer tips of a regular pentagon at radius 4, connected in skip-2 order.
+static std::vector<g::LineSegment2D> Pentagram() {
+  const double R  = 4.0;
+  const double PI = 3.14159265358979323846;
+  auto tip = [&](int k) {
+    double a = PI / 2.0 - k * 2.0 * PI / 5.0;
+    return g::Point2D(R * std::cos(a), R * std::sin(a));
+  };
+  auto v0 = tip(0), v1 = tip(1), v2 = tip(2), v3 = tip(3), v4 = tip(4);
+  // skip-2 winding: v0→v2→v4→v1→v3→v0
+  return {
+      g::LineSegment2D::Make(v0, v2),
+      g::LineSegment2D::Make(v2, v4),
+      g::LineSegment2D::Make(v4, v1),
+      g::LineSegment2D::Make(v1, v3),
+      g::LineSegment2D::Make(v3, v0),
+  };
+}
+
+// 4 segments all crossing at a single point (3, 3) — exercises concurrent-intersection merging
+static std::vector<g::LineSegment2D> ConcurrentStar() {
+  return {
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(6, 6)),  // diagonal ↗
+      g::LineSegment2D::Make(g::Point2D(0, 6), g::Point2D(6, 0)),  // diagonal ↘
+      g::LineSegment2D::Make(g::Point2D(0, 3), g::Point2D(6, 3)),  // horizontal
+      g::LineSegment2D::Make(g::Point2D(2, 1), g::Point2D(4, 5)),  // slope 2
+  };
+}
+
 // closed ring whose edges (4,0)->(1,3) and (3,3)->(0,0) cross
 static std::vector<g::LineSegment2D> SelfIntersectingRing() {
   return {
@@ -492,6 +523,81 @@ TEST_F(CalcUtils2DTest, FindIntersections_ParallelSegmentsIsEmpty) {
       g::LineSegment2D::Make(g::Point2D(0, 2), g::Point2D(4, 2)),
   };
   EXPECT_TRUE(g::find_intersections(segs).empty());
+}
+
+// --------------------------------------------------------------------------------------------------
+// Star polygon (pentagram) — every edge crosses exactly two others
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils2DTest, HasIntersections_StarPolygon_IsTrue) {
+  EXPECT_TRUE(g::has_intersections(Pentagram()));
+}
+
+TEST_F(CalcUtils2DTest, FindIntersections_StarPolygon_FiveDistinctIntersections) {
+  auto hits = g::find_intersections(Pentagram());
+  ASSERT_EQ(hits.size(), 5u);
+  for (auto const& h : hits) {
+    EXPECT_EQ(h.SegmentIds.size(), 2u);
+  }
+}
+
+// --------------------------------------------------------------------------------------------------
+// Concurrent star — k segments all crossing the same point
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils2DTest, HasIntersections_ConcurrentStar_IsTrue) {
+  EXPECT_TRUE(g::has_intersections(ConcurrentStar()));
+}
+
+// All 4 segments pass through (3,3).  The algorithm merges concurrent events into one
+// IntersectionEvent2D entry (see output_list deduplication in find_intersections).
+TEST_F(CalcUtils2DTest, FindIntersections_ConcurrentStar_MergesIntoOneEvent) {
+  auto hits = g::find_intersections(ConcurrentStar());
+  ASSERT_EQ(hits.size(), 1u);
+  EXPECT_DOUBLE_EQ(hits[0].Point.x(), 3.0);
+  EXPECT_DOUBLE_EQ(hits[0].Point.y(), 3.0);
+  EXPECT_GE(hits[0].SegmentIds.size(), 2u);
+}
+
+// --------------------------------------------------------------------------------------------------
+// Three mutually intersecting segments — exact coordinates and output ordering
+// --------------------------------------------------------------------------------------------------
+
+// seg0 (0,0)→(6,2) ∩ seg2 (1,0)→(5,4) = (1.5, 0.5)
+// seg1 (0,3)→(6,1) ∩ seg2 (1,0)→(5,4) = (3.0, 2.0)
+// seg0 (0,0)→(6,2) ∩ seg1 (0,3)→(6,1) = (4.5, 1.5)
+TEST_F(CalcUtils2DTest, FindIntersections_ThreeSegmentsThreeDistinctPoints) {
+  std::vector<g::LineSegment2D> segs{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(6, 2)),
+      g::LineSegment2D::Make(g::Point2D(0, 3), g::Point2D(6, 1)),
+      g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(5, 4)),
+  };
+  auto hits = g::find_intersections(segs);
+  ASSERT_EQ(hits.size(), 3u);
+  // output is sorted bottom-left → top-right (x then y)
+  EXPECT_DOUBLE_EQ(hits[0].Point.x(), 1.5);
+  EXPECT_DOUBLE_EQ(hits[0].Point.y(), 0.5);
+  EXPECT_DOUBLE_EQ(hits[1].Point.x(), 3.0);
+  EXPECT_DOUBLE_EQ(hits[1].Point.y(), 2.0);
+  EXPECT_DOUBLE_EQ(hits[2].Point.x(), 4.5);
+  EXPECT_DOUBLE_EQ(hits[2].Point.y(), 1.5);
+}
+
+// --------------------------------------------------------------------------------------------------
+// SegmentRange2D exercised at algorithm level (not just SweepLine unit level)
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils2DTest, HasIntersections_WorksWithSegmentRange_SimplePolygon) {
+  std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)};
+  g::SegmentRange2D range(pts, /*closed=*/true);
+  EXPECT_FALSE(g::has_intersections(range));
+}
+
+TEST_F(CalcUtils2DTest, FindIntersections_WorksWithSegmentRange_SelfIntersecting) {
+  // same shape as SelfIntersectingRing but constructed as a SegmentRange2D
+  std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)};
+  g::SegmentRange2D range(pts, /*closed=*/true);
+  EXPECT_FALSE(g::find_intersections(range).empty());
 }
 
 }  // namespace geompp_tests

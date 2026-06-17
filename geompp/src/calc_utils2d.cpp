@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
+#include <set>
 #include <stdexcept>
 #include <variant>
 
@@ -184,7 +185,23 @@ bool SweepLineComparator<Segments>::operator()(std::size_t id1, std::size_t id2)
   if (compare(y1, y2) != std::partial_ordering::equivalent) {
     return compare(y1, y2) < 0;
   }
-  return id1 < id2;  // tiebreaker: prevent two distinct segments from appearing equivalent in the set
+  // Equal y at sweep_x: evaluate at the midpoint of the segments' active x-overlap.
+  // This is always strictly interior — avoids the endpoint ambiguity that plagues
+  // forward/backward delta looks (forward reverses shared-RIGHT order; backward
+  // reverses shared-LEFT order).
+  auto seg_left_x = [](LineSegment2D const& s) { return std::min(s.First().x(), s.Last().x()); };
+  auto seg_right_x = [](LineSegment2D const& s) { return std::max(s.First().x(), s.Last().x()); };
+  double overlap_lo = std::max(seg_left_x((*segments)[id1]), seg_left_x((*segments)[id2]));
+  double overlap_hi = std::min(seg_right_x((*segments)[id1]), seg_right_x((*segments)[id2]));
+  if (overlap_lo < overlap_hi) {
+    double mid_x = (overlap_lo + overlap_hi) * 0.5;
+    double y1_mid = GetYAtX((*segments)[id1], mid_x);
+    double y2_mid = GetYAtX((*segments)[id2], mid_x);
+    if (compare(y1_mid, y2_mid) != std::partial_ordering::equivalent) {
+      return compare(y1_mid, y2_mid) < 0;
+    }
+  }
+  return id1 < id2;  // final fallback (parallel / coincident segments)
 }
 
 // SweepLine2D template members: defined here, emitted for other TUs by the explicit instantiations below.
@@ -192,9 +209,7 @@ bool SweepLineComparator<Segments>::operator()(std::size_t id1, std::size_t id2)
 
 template <SegmentList Segments>
 SweepLine2D<Segments>::SweepLine2D(Segments const& segments)
-    : SWEEP_X(min_sweep_x(segments)),
-      PTR_SEGMENTS(&segments),
-      ACTIVE_SEGMENTS(SweepLineComparator<Segments>{SWEEP_X, &segments}) {}
+    : SWEEP_X(min_sweep_x(segments)), PTR_SEGMENTS(&segments) {}
 
 template <SegmentList Segments>
 typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(std::size_t seg_id) const {
@@ -202,15 +217,24 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(st
     throw std::out_of_range("SegmentId is out of range of the segments list");
   }
 
-  if (ACTIVE_SEGMENTS.count(seg_id) == 0) {
-    GEOMPP_LOG(WARNING) << "requested a segment ID missing from the SweepLine active list";
-    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
+  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
+  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
+
+  if (it == ACTIVE_SEGMENTS.end() || *it != seg_id) {
+    // lower_bound failed — the vector is temporarily unsorted (e.g. concurrent
+    // intersection where multiple Remove/Add cycles leave segments misordered).
+    // Fall back to O(n) linear scan so the algorithm can continue.
+    it = std::find(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id);
+    if (it == ACTIVE_SEGMENTS.end()) {
+      GEOMPP_LOG(WARNING) << "requested a segment ID missing from the SweepLine active list";
+      return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
+    }
   }
-  auto segment_iter = ACTIVE_SEGMENTS.find(seg_id);
-  auto seg_elem = IdSegPair{*segment_iter, (*PTR_SEGMENTS)[*segment_iter]};
+
+  auto seg_elem = IdSegPair{*it, (*PTR_SEGMENTS)[*it]};
 
   std::optional<IdSegPair> above_elem = std::nullopt;
-  auto above_iter = std::next(segment_iter);
+  auto above_iter = std::next(it);
   if (above_iter != ACTIVE_SEGMENTS.end()) {
     if (*above_iter >= PTR_SEGMENTS->size()) {
       throw std::out_of_range("SegmentId (above) is out of range of the segments list");
@@ -219,8 +243,8 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(st
   }
 
   std::optional<IdSegPair> below_elem = std::nullopt;
-  if (segment_iter != ACTIVE_SEGMENTS.begin()) {
-    auto below_iter = std::prev(segment_iter);
+  if (it != ACTIVE_SEGMENTS.begin()) {
+    auto below_iter = std::prev(it);
     if (*below_iter >= PTR_SEGMENTS->size()) {
       throw std::out_of_range("SegmentId (below) is out of range of the segments list");
     }
@@ -235,12 +259,15 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Add(st
   if (seg_id >= PTR_SEGMENTS->size()) {
     throw std::out_of_range("SegmentId is out of range of the segments list");
   }
-  // insert() returns {iterator, bool}: `it` points at the stored node, `inserted` says whether it was new.
-  auto [it, inserted] = ACTIVE_SEGMENTS.insert(seg_id);
-  if (!inserted) {
+
+  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
+  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
+
+  if (it != ACTIVE_SEGMENTS.end() && *it == seg_id) {
     throw std::logic_error("Attempted to insert a segment into the sweep line that is already active");
   }
 
+  ACTIVE_SEGMENTS.insert(it, seg_id);
   return Get(seg_id);
 }
 
@@ -250,15 +277,18 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Remove
     throw std::out_of_range("SegmentId is out of range of the segments list");
   }
 
-  auto it = ACTIVE_SEGMENTS.find(seg_id);
-  if (it == ACTIVE_SEGMENTS.end()) {
-    GEOMPP_LOG(ERROR) << "Attempted to remove a segment from the sweep line that is not active";
-    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
+  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
+  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
+
+  if (it == ACTIVE_SEGMENTS.end() || *it != seg_id) {
+    it = std::find(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id);
+    if (it == ACTIVE_SEGMENTS.end()) {
+      GEOMPP_LOG(ERROR) << "Attempted to remove a segment from the sweep line that is not active";
+      return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
+    }
   }
 
   auto triplet_before_remove = Get(seg_id);
-
-  // remove the item
   ACTIVE_SEGMENTS.erase(it);
 
   return SweepLineElement2D{std::nullopt, triplet_before_remove.Above, triplet_before_remove.Below};
@@ -341,12 +371,15 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
     }
     auto event = event_opt.value();
 
-    // set the sweepline X
-    // [star-case fix] only advance to the event's x if not already past it — co-incident INTERSECTION events
-    // (multiple segments crossing the same point) must not reset sweep_x back below the +eps that the first
-    // INTERSECTION handler already applied; non-INTERSECTION events are always strictly ahead of any prior +eps
-    if (compare(sweep_line.GetX(), event.Point.x()) < 0) {
-      sweep_line.SetX(event.Point.x());
+    // Advance SWEEP_X only for non-intersection events.
+    // For INTERSECTION events the handler's own Remove→SetX(x+ε)→Add cycle advances SWEEP_X past
+    // the crossing.  Advancing here would land exactly on the crossing x, where both segments have
+    // equal y and the tiebreaker (id1 < id2) gives the wrong pre-crossing adjacency order, causing
+    // Get() to mis-navigate the set and the adjacency check to fail spuriously.
+    if (event.Type != EventType2D::INTERSECTION) {
+      if (compare(sweep_line.GetX(), event.Point.x()) < 0) {
+        sweep_line.SetX(event.Point.x());
+      }
     }
 
     if (event.Type == EventType2D::LEFT) {
@@ -433,6 +466,14 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       // (3) Add them back in the queue
       // (4) check the new above/below intersections
       // ... here we go.
+
+      // Skip the swap if this crossing is already behind the sweep line.  This happens with concurrent
+      // intersections: the first pair advances sweep_x to x+ε; all subsequent pairs at the same x are
+      // already in the past and must not be re-swapped (doing so would cycle back to already-processed
+      // pairs and loop indefinitely).
+      if (inter_event.Point.x() < sweep_line.GetX()) {
+        continue;
+      }
 
       // verify seg1 and seg2 are still adjacent — a stale event (queued before another segment was inserted
       // between them) must be skipped to avoid corrupting sweep line order

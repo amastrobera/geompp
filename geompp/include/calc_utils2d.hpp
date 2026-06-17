@@ -4,12 +4,12 @@
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
 
+#include <algorithm>
 #include <compare>
 #include <concepts>
 #include <functional>
 #include <optional>
 #include <queue>
-#include <set>
 #include <vector>
 
 namespace geompp {
@@ -137,9 +137,9 @@ class SweepLine2D {
 
   Segments const* PTR_SEGMENTS;  // bound from `Segments const&`, so the pointee is const
 
-  std::set<std::size_t, SweepLineComparator<Segments>>
-      ACTIVE_SEGMENTS;  // indices of segments currently intersecting the sweep line, ordered
-                        // by their intersection point with the sweep line
+  std::vector<std::size_t>
+      ACTIVE_SEGMENTS;  // indices of segments currently intersecting the sweep line, kept sorted
+                        // by geometric y at SWEEP_X; lower_bound gives O(log n) search
 };
 
 /// @brief the Shamos-Hoey algorithm for checking polygon simplicity (no self-intersections)
