@@ -41,7 +41,7 @@ int Polyline2D::Size() {
 }
 
 Point2D^ Polyline2D::default::get(int i) {
-    return gcnew Point2D(new geompp::Point2D((*_native)[(size_t)i]));
+    return gcnew Point2D(new geompp::Point2D((*_native)[(std::size_t)i]));
 }
 
 bool Polyline2D::AlmostEquals(Polyline2D^ other) {

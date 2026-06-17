@@ -1,5 +1,7 @@
 #include "bind_helpers.hpp"
 
+#include "calc_utils2d.hpp"  // has_intersections / find_intersections / IntersectionEvent2D
+
 void bind_free_functions(py::module_& m) {
     m.def("are_collinear",
           [](const geompp::Point2D& p1, const geompp::Point2D& p2, const geompp::Point2D& p3) {
@@ -106,4 +108,35 @@ void bind_free_functions(py::module_& m) {
           },
           "points"_a, "ref_plane"_a = py::none(),
           "True if 3D points are ordered clockwise. If ref_plane is omitted, the plane is fitted from the points.");
+
+    // ── segment-set intersection (Shamos–Hoey / Bentley–Ottmann) ──────────────────────────────
+    py::class_<geompp::IntersectionEvent2D>(m, "IntersectionEvent2D",
+        "An intersection found among a set of segments: the point and the two segment indices involved.")
+        .def_readonly("point", &geompp::IntersectionEvent2D::Point)
+        .def_property_readonly("segment_id1",
+            [](const geompp::IntersectionEvent2D& e) { return static_cast<int>(e.SegmentIds[0]); })
+        .def_property_readonly("segment_id2",
+            [](const geompp::IntersectionEvent2D& e) { return static_cast<int>(e.SegmentIds[1]); })
+        .def_property_readonly("segment_ids",
+            [](const geompp::IntersectionEvent2D& e) {
+                std::vector<int> ids;
+                ids.reserve(e.SegmentIds.size());
+                for (auto id : e.SegmentIds) { ids.push_back(static_cast<int>(id)); }
+                return ids;
+            })
+        .def("__repr__", [](const geompp::IntersectionEvent2D& e) {
+            return "IntersectionEvent2D(point=" + e.Point.ToWkt() + ", seg1=" + std::to_string(e.SegmentIds[0]) +
+                   ", seg2=" + std::to_string(e.SegmentIds[1]) + ")";
+        });
+
+    m.def("has_intersections",
+          [](const std::vector<geompp::LineSegment2D>& segments) { return geompp::has_intersections(segments); },
+          "segments"_a, "Shamos–Hoey: True if any two of the (closed-ring) segments intersect.");
+
+    m.def("find_intersections",
+          [](const std::vector<geompp::LineSegment2D>& segments) {
+              // std::vector<IntersectionEvent2D> auto-converts to a Python list (pybind11/stl.h)
+              return geompp::find_intersections(segments);
+          },
+          "segments"_a, "Bentley–Ottmann: list of all intersection points among the segments.");
 }

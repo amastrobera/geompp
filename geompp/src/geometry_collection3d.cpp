@@ -350,7 +350,7 @@ GeometryCollection3D GeometryCollection3D::FromFile(std::string const& path) {
     in_file.seekg(0, std::ios::beg);  // Reset the file pointer
 
     // Resize the string to the file size (optional, for efficiency)
-    content.resize(static_cast<size_t>(fileSize));
+    content.resize(static_cast<std::size_t>(fileSize));
 
     // Read the entire file into the string
     in_file.read(&content[0], fileSize);

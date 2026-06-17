@@ -1,8 +1,20 @@
 #include "GeomUtil.hpp"
 #include "Point3D.hpp"
 #include "Plane.hpp"
+#include "LineSegment2D.hpp"
+#include "IntersectionEvent2D.hpp"
 
 namespace GeomPP {
+
+// File-local helper: managed List<LineSegment2D^> → native std::vector<geompp::LineSegment2D>
+static std::vector<geompp::LineSegment2D> ToNativeSegments(
+    System::Collections::Generic::List<LineSegment2D^>^ segments) {
+    std::vector<geompp::LineSegment2D> native;
+    native.reserve(segments->Count);
+    for each (LineSegment2D^ s in segments)
+        native.push_back(*s->_native);
+    return native;
+}
 
 // File-local helper: managed List<Point3D^> → native std::vector<geompp::Point3D>
 static std::vector<geompp::Point3D> ToNative(System::Collections::Generic::List<Point3D^>^ points) {
@@ -35,6 +47,19 @@ bool GeomUtil::AreCW(System::Collections::Generic::List<Point3D^>^ points, Plane
         ? std::optional<geompp::Plane>(*refPlane->_native)
         : std::nullopt;
     return geompp::are_cw(native, opt);
+}
+
+bool GeomUtil::HasIntersections(System::Collections::Generic::List<LineSegment2D^>^ segments) {
+    return geompp::has_intersections(ToNativeSegments(segments));
+}
+
+System::Collections::Generic::IEnumerable<IntersectionEvent2D^>^ GeomUtil::FindIntersections(
+    System::Collections::Generic::List<LineSegment2D^>^ segments) {
+    auto native = geompp::find_intersections(ToNativeSegments(segments));
+    auto list = gcnew System::Collections::Generic::List<IntersectionEvent2D^>(static_cast<int>(native.size()));
+    for (auto const& ev : native)
+        list->Add(gcnew IntersectionEvent2D(new geompp::IntersectionEvent2D(ev)));
+    return list;
 }
 
 }  // namespace GeomPP

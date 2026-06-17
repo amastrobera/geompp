@@ -136,6 +136,7 @@
     <ClCompile Include="src\GeometryCollection2D.cpp" />
     <ClCompile Include="src\GeometryCollection3D.cpp" />
     <ClCompile Include="src\GeomUtil.cpp" />
+    <ClCompile Include="src\IntersectionEvent2D.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -163,6 +164,7 @@
     <ClInclude Include="src\GeometryCollection2D.hpp" />
     <ClInclude Include="src\GeometryCollection3D.hpp" />
     <ClInclude Include="src\GeomUtil.hpp" />
+    <ClInclude Include="src\IntersectionEvent2D.hpp" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

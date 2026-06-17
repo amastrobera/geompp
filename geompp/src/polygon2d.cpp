@@ -1,6 +1,7 @@
 #include "polygon2d.hpp"
 
 #include "bbox2d.hpp"
+#include "calc_utils2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "ray2d.hpp"
@@ -18,14 +19,6 @@
 namespace geompp {
 
 namespace {
-
-bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p) {
-  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) > 0;
-}
-
-bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p) {
-  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) < 0;
-}
 
 int wn_count(std::vector<Point2D> const& vertices, Point2D const& p) {
   int wn = 0;
@@ -143,22 +136,22 @@ bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
   if (Size() != other.Size() || HOLES.size() != other.HOLES.size()) {
     return false;
   }
-  for (size_t i = 0; i < HOLES.size(); ++i) {
+  for (std::size_t i = 0; i < HOLES.size(); ++i) {
     if (HOLES[i].size() != other.HOLES[i].size()) {
       return false;
     }
   }
 
   // outer loop vertices comparison
-  for (size_t i = 0; i < VERTICES.size(); ++i) {
+  for (std::size_t i = 0; i < VERTICES.size(); ++i) {
     if (!VERTICES[i].AlmostEquals(other[i], epsilon)) {
       return false;
     }
   }
 
   // inner loops vertices comparison
-  for (size_t i = 0; i < HOLES.size(); ++i) {
-    for (size_t j = 0; j < HOLES[i].size(); ++j) {
+  for (std::size_t i = 0; i < HOLES.size(); ++i) {
+    for (std::size_t j = 0; j < HOLES[i].size(); ++j) {
       if (!HOLES[i][j].AlmostEquals(other.HOLES[i][j], epsilon)) {
         return false;
       }
@@ -207,6 +200,20 @@ double Polygon2D::Area() const {
 }
 
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
+
+bool Polygon2D::IsSimple() const {
+  if (has_intersections(ToSegments())) {
+    return false;
+  }
+
+  for (auto const& hole : HOLES) {
+    if (has_intersections(SegmentRange2D(hole, true))) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 #pragma region Operator Overloading
 
@@ -429,7 +436,7 @@ Polygon2D Polygon2D::FromFile(std::string const& path) {
     in_file.seekg(0, std::ios::beg);  // Reset the file pointer
 
     // Resize the string to the file size (optional, for efficiency)
-    content.resize(static_cast<size_t>(fileSize));
+    content.resize(static_cast<std::size_t>(fileSize));
 
     // Read the entire file into the string
     in_file.read(&content[0], fileSize);

@@ -32,6 +32,7 @@ public:
     double   DistanceTo(Point2D^ point);
     bool     Contains(Point2D^ point);
     bool     IsOnBoundary(Point2D^ point);
+    bool     IsSimple();  // no self-intersections, but holes are allowed
 
     System::String^ ToWkt();
     static Polygon2D^ FromWkt(System::String^ wkt);

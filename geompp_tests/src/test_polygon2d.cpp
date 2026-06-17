@@ -374,4 +374,25 @@ TEST_F(Polygon2DTest, ToSegments) {
   EXPECT_EQ(4, count);
 }
 
+// NOTE: IsSimple() correctness depends on the (currently provisional) sweep-line comparator; these encode the
+// intended behaviour and are expected to be re-verified once the real sweep-status ordering is in place.
+TEST_F(Polygon2DTest, IsSimple_Smoke_ReturnsWithoutThrowing) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)});
+  EXPECT_NO_THROW({
+    bool s = p.IsSimple();
+    (void)s;
+  });
+}
+
+TEST_F(Polygon2DTest, IsSimple_ConvexSquareIsSimple) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  EXPECT_TRUE(p.IsSimple());
+}
+
+TEST_F(Polygon2DTest, IsSimple_SelfIntersectingIsNotSimple) {
+  // CCW (positive signed area) but the (4,0)->(1,3) and (3,3)->(0,0) edges cross at (2,2)
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+  EXPECT_FALSE(p.IsSimple());
+}
+
 }  // namespace geompp_tests

@@ -41,7 +41,7 @@ int Polyline3D::Size() {
 }
 
 Point3D^ Polyline3D::default::get(int i) {
-    return gcnew Point3D(new geompp::Point3D((*_native)[(size_t)i]));
+    return gcnew Point3D(new geompp::Point3D((*_native)[(std::size_t)i]));
 }
 
 bool Polyline3D::AlmostEquals(Polyline3D^ other) {

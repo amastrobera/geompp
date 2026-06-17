@@ -66,6 +66,7 @@ add_executable(${PROJECT_NAME}
     src/test_geometry_collection2d.cpp
     src/test_geometry_collection3d.cpp
     src/test_calc_utils3d.cpp
+    src/test_calc_utils2d.cpp
 
     main.cpp
 )

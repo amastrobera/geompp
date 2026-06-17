@@ -1,8 +1,12 @@
+#include "calc_utils2d.hpp"
 #include "constants.hpp"
 #include "geompp_log.hpp"
+#include "line_segment2d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
+#include "point2d.hpp"
 #include "point3d.hpp"
+#include "polygon2d.hpp"
 #include "polygon3d.hpp"
 #include "vector3d.hpp"
 #include "wkt_parser.hpp"
@@ -138,12 +142,59 @@ void example_3() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Example 4 — find all intersection points among a set of 2D segments
+// ─────────────────────────────────────────────────────────────────────────────
+void example_4() {
+  std::cout << "\n=== Example 4: find_intersections (Bentley–Ottmann) ===\n";
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Three 2D segments: two diagonals of a unit square (cross at (0.5, 0.5))
+  // plus a horizontal segment that touches neither (parallel, no crossing).
+  std::vector<g::LineSegment2D> segments = {
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),   // seg 0: bottom-left → top-right
+      g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(0, 1)),   // seg 1: bottom-right → top-left
+      g::LineSegment2D::Make(g::Point2D(0, 2), g::Point2D(1, 2)),   // seg 2: horizontal, no crossing
+  };
+
+  // Quick boolean check (Shamos–Hoey)
+  GEOMPP_LOG(INFO) << "any intersections? " << g::has_intersections(segments);  // 1
+
+  // Full report (Bentley–Ottmann)
+  auto hits = g::find_intersections(segments);
+  GEOMPP_LOG(INFO) << hits.size() << " crossing(s) found:";
+  for (auto const& ev : hits) {
+    GEOMPP_LOG(INFO) << "  point=" << ev.Point.ToWkt()
+                     << "  segments=[ ";
+    for (auto id : ev.SegmentIds) {
+      GEOMPP_LOG(INFO) << id << " ";
+    }
+    GEOMPP_LOG(INFO) << "]";
+  }
+  // expected output:
+  //   any intersections? 1
+  //   1 crossing(s) found:
+  //     point=POINT (0.5 0.5)  segments=[ 0 1 ]
+
+  // Polygon simplicity — delegates to has_intersections internally
+  auto simple_square = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto self_intersecting = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+
+  GEOMPP_LOG(INFO) << "square is simple: "          << simple_square.IsSimple();    // 1
+  GEOMPP_LOG(INFO) << "self-intersecting is simple: " << self_intersecting.IsSimple(); // 0
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 int main() {
   example_1();
 
   example_2();
 
   example_3();
+
+  example_4();
 
   return 0;
 }

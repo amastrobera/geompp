@@ -91,7 +91,7 @@ TEST_F(Polyline3DTest, Contains) {
   }
 
   // midpoints of each segment
-  for (size_t i = 0; i < pts.size() - 1; ++i) {
+  for (std::size_t i = 0; i < pts.size() - 1; ++i) {
     auto mid = g::Point3D((pts[i].x() + pts[i + 1].x()) / 2.0, (pts[i].y() + pts[i + 1].y()) / 2.0,
                           (pts[i].z() + pts[i + 1].z()) / 2.0);
     ASSERT_TRUE(poly.Contains(mid));
@@ -118,7 +118,7 @@ TEST_F(Polyline3DTest, DistanceTo) {
   for (auto const& p : pts) ASSERT_EQ(0, g::round(poly.DistanceTo(p)));
 
   // midpoints → 0
-  for (size_t i = 0; i < pts.size() - 1; ++i) {
+  for (std::size_t i = 0; i < pts.size() - 1; ++i) {
     auto mid = g::Point3D((pts[i].x() + pts[i + 1].x()) / 2.0, (pts[i].y() + pts[i + 1].y()) / 2.0,
                           (pts[i].z() + pts[i + 1].z()) / 2.0);
     ASSERT_EQ(0, g::round(poly.DistanceTo(mid)));

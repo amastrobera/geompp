@@ -110,6 +110,13 @@ class LineSegment2D {
   LineSegment2D(Point2D const& p0, Point2D const& p1);
 };
 
+#pragma region Collections Operations
+
+bool intersect(LineSegment2D const& seg1,
+               LineSegment2D const& seg2);  // true if the segments intersect (including at endpoints)
+
+#pragma endregion
+
 #pragma region Operator Overloading
 
 bool operator==(LineSegment2D const& lhs, LineSegment2D const& rhs);

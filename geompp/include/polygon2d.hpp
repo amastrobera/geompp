@@ -35,6 +35,7 @@ class Polygon2D {
   Point2D Centroid() const;
   double Area() const;
   inline double Perimeter() const { return PERIMETER; }
+  bool IsSimple() const;  // no self-intersections, but holes are allowed
 
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.

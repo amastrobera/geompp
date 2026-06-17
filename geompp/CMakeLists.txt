@@ -24,6 +24,7 @@ FetchContent_Declare(
 set(WITH_GFLAGS     OFF CACHE BOOL "" FORCE)
 set(WITH_GTEST      OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE) # Build static library
+set(BUILD_TESTING   OFF CACHE BOOL "" FORCE) # Prevent glog from registering its own tests
 FetchContent_MakeAvailable(glog)
 
 
@@ -45,6 +46,7 @@ add_library(${PROJECT_NAME}
     src/triangle2d.cpp
     src/polygon2d.cpp
     src/bbox2d.cpp
+    src/calc_utils2d.cpp
 
     src/point3d.cpp
     src/vector3d.cpp
@@ -58,7 +60,6 @@ add_library(${PROJECT_NAME}
     src/bbox3d.cpp
     src/geometry_collection2d.cpp
     src/geometry_collection3d.cpp
-
     src/calc_utils3d.cpp
 )
 

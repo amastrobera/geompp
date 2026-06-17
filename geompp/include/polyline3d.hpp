@@ -28,7 +28,7 @@ class Polyline3D {
   ~Polyline3D() = default;
 
   inline int Size() const { return KNOTS.size(); }
-  Point3D const& operator[](size_t i) const;
+  Point3D const& operator[](std::size_t i) const;
 
   bool AlmostEquals(Polyline3D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange3D ToSegments() const;

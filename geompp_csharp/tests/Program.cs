@@ -1073,6 +1073,45 @@ Test("AreCW_CWSquare_True", () => {
   IsTrue(pts.AreCW(), "CW square must return true");
 });
 
+// ── GeomUtil segment-set intersection (Shamos–Hoey / Bentley–Ottmann) ──────────
+// NOTE: correctness rides on the (currently provisional) sweep-status comparator; these encode the
+// intended behaviour and should be re-verified once the real ordering lands.
+List<LineSegment2D> SquareRing() => new List<LineSegment2D> {
+  LineSegment2D.Make(new Point2D(0,0), new Point2D(1,0)),
+  LineSegment2D.Make(new Point2D(1,0), new Point2D(1,1)),
+  LineSegment2D.Make(new Point2D(1,1), new Point2D(0,1)),
+  LineSegment2D.Make(new Point2D(0,1), new Point2D(0,0)),
+};
+List<LineSegment2D> SelfIntersectingRing() => new List<LineSegment2D> {
+  // edges (4,0)->(1,3) and (3,3)->(0,0) cross at (2,2)
+  LineSegment2D.Make(new Point2D(0,0), new Point2D(4,0)),
+  LineSegment2D.Make(new Point2D(4,0), new Point2D(1,3)),
+  LineSegment2D.Make(new Point2D(1,3), new Point2D(3,3)),
+  LineSegment2D.Make(new Point2D(3,3), new Point2D(0,0)),
+};
+
+Test("HasIntersections_SimpleRing_False", () => {
+  IsFalse(GeomUtil.HasIntersections(SquareRing()), "simple ring has no self-intersections");
+});
+
+Test("HasIntersections_SelfIntersecting_True", () => {
+  IsTrue(GeomUtil.HasIntersections(SelfIntersectingRing()), "self-intersecting ring");
+});
+
+Test("FindIntersections_SimpleRing_Empty", () => {
+  int count = 0;
+  foreach (var _ in GeomUtil.FindIntersections(SquareRing())) { count++; }
+  Eq(0, count);
+});
+
+Test("FindIntersections_ReportsCrossing", () => {
+  bool found = false;
+  foreach (var ev in GeomUtil.FindIntersections(SelfIntersectingRing())) {
+    if (System.Math.Abs(ev.Point.X - 2.0) < 1e-6 && System.Math.Abs(ev.Point.Y - 2.0) < 1e-6) { found = true; }
+  }
+  IsTrue(found, "expected the (2,2) crossing among reported intersections");
+});
+
 // ── Polygon2D ─────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPolygon2D");
 
@@ -1178,6 +1217,19 @@ Test("IsOnBoundary_Interior_False", () => {
   var poly  = Polygon2D.Make(outer, new[] { hole });
   IsFalse(poly.IsOnBoundary(new Point2D(0.5, 0.5)), "interior strip");
   IsFalse(poly.IsOnBoundary(new Point2D(2,   2)),   "inside hole");
+});
+
+// NOTE: IsSimple() correctness rides on the (currently provisional) sweep-line comparator; these encode the
+// intended behaviour and should be re-verified once the real sweep-status ordering lands.
+Test("IsSimple_Square_True", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.IsSimple(), "convex square is simple");
+});
+
+Test("IsSimple_SelfIntersecting_False", () => {
+  // CCW (positive area) but edges (4,0)->(1,3) and (3,3)->(0,0) cross at (2,2)
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(4,0), new(1,3), new(3,3) });
+  IsFalse(p.IsSimple(), "self-intersecting polygon is not simple");
 });
 
 // ── Polygon3D ─────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # Test Coverage Report
 
-_Last updated: 2026-05-18_
+_Last updated: 2026-06-15_
 
 ## Overall
 
@@ -20,7 +20,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 
 | Class | C++ tested | Py tested | CS tested | Stubs ★ | Notable gaps ○ |
 |-------|-----------|----------|----------|---------|----------------|
-| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py); new `Point2D(Vector2D)` ctor covered all three |
+| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py); new `Point2D(Vector2D)` ctor covered all three; new `is_left` / `is_right` free fns tested (C++) |
 | `Point3D` | ✓ all key | ✓ most | ✓ most | — | new `Point3D(Vector3D)` ctor covered all three |
 | `Vector2D` | ✓ most | ✓ most | ✓ partial | — | Many arithmetic operators (both) |
 | `Vector3D` | ✓ most | ✓ most | ✓ most | — | Many arithmetic operators (both); `IsParallel` (C++) |
@@ -28,11 +28,11 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `Line3D` | ✓ most | ✓ partial | ✓ most | — | `Contains`, `Intersects`/`Intersection` ×`Ray3D`, ×`Segment3D` (Py); new `Distance`/`DistanceTo` ×`Line/Ray/Seg` covered in all three |
 | `Ray2D` | ✓ most | ✓ partial | — | — | `ToLine` (Py) |
 | `Ray3D` | ✓ most | ✓ partial | ✓ partial | — | `Contains`, `Intersects`/`Intersection` ×`Segment3D` (Py); new `Distance`/`DistanceTo` ×`Line/Ray/Seg` covered in all three |
-| `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py) |
+| `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py); new free `intersect(seg, seg)` tested (C++) |
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py) |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
-| `Polygon2D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py) |
+| `Polygon2D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); new `IsSimple()` tested in all three (experimental — see note) |
 | `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py) |
 | `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, `Location`, all `Intersection` (Py) |
 | `Triangle3D` | ✓ most | ✓ most | ✓ most | `DistanceTo` ★ | new `Intersection(×Plane/△)` and the existing `Intersection(×Line/Ray/Seg)` are covered in all three languages |
@@ -42,6 +42,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |
 | `GeometryCollection2D` | ✓ core | ✓ partial | ✓ most | — | — |
 | `GeometryCollection3D` | ✓ core | ✓ partial | ✓ most | — | — |
+| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `has_intersections`, `find_intersections`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module; `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; `has_intersections` + `find_intersections` + `Polygon2D::IsSimple` tested in all three languages |
 
 ---
 
@@ -75,6 +76,7 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 - **Stub cluster**: remaining unimplemented intersection/distance methods live in `Polygon2D/3D` (DistanceTo + Intersection × Line/Ray/Seg), `Triangle2D::Intersects(△)` and `Triangle2D::Intersection(△)`, and `Triangle2D/3D::DistanceTo`.
 - **`Plane`, `Point2D`, `Point3D`, `Vector2D`, `Vector3D`** have excellent coverage across C++, Python, and (newly for Plane) C#.
 - **Operator overloads** (`operator<<`, `operator=`, arithmetic) are implicitly exercised by other tests even when not explicitly targeted.
+- **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`has_intersections` / `find_intersections`) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case).
 
 ---
 

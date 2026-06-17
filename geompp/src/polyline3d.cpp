@@ -139,7 +139,7 @@ double Polyline3D::DistanceTo(Point3D const& point) const {
 
 bool operator==(Polyline3D const& lhs, Polyline3D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Point3D const& Polyline3D::operator[](size_t i) const {
+Point3D const& Polyline3D::operator[](std::size_t i) const {
   if (i >= Size()) {
     throw std::out_of_range("Index out of range");
   }
@@ -363,7 +363,7 @@ Polyline3D Polyline3D::FromFile(std::string const& path) {
     in_file.seekg(0, std::ios::beg);  // Reset the file pointer
 
     // Resize the string to the file size (optional, for efficiency)
-    content.resize(static_cast<size_t>(fileSize));
+    content.resize(static_cast<std::size_t>(fileSize));
 
     // Read the entire file into the string
     in_file.read(&content[0], fileSize);

@@ -99,12 +99,12 @@ std::vector<std::string> tokenize_string(std::string const& str, char delimiter)
 
 int count_decimal_places(double number) {
   std::string number_str = std::to_string(number);
-  size_t decimal_pos = number_str.find('.');
+  std::size_t decimal_pos = number_str.find('.');
   if (decimal_pos == std::string::npos) {
     return 0;
   }
   // Remove trailing zeros after the decimal point
-  size_t last_non_zero = number_str.find_last_not_of('0');
+  std::size_t last_non_zero = number_str.find_last_not_of('0');
   if (last_non_zero != std::string::npos && last_non_zero > decimal_pos) {
     return static_cast<int>(last_non_zero - decimal_pos);
   }

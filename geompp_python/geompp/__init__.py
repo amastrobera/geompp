@@ -89,6 +89,9 @@ from ._geompp import (  # noqa: F401
     average,
     signed_area,
     centroid,
+    IntersectionEvent2D,
+    has_intersections,
+    find_intersections,
 )
 
 __version__ = "1.0.0"
@@ -106,4 +109,5 @@ __all__ = [
     "remove_duplicates", "remove_consecutive_duplicates",
     "remove_collinear", "linear_combination", "average",
     "signed_area", "centroid",
+    "IntersectionEvent2D", "has_intersections", "find_intersections",
 ]

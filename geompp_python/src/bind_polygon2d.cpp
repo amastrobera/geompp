@@ -24,6 +24,7 @@ void bind_polygon2d(py::module_& m) {
         .def("distance_to", &geompp::Polygon2D::DistanceTo,  "point"_a)
         .def("contains",       &geompp::Polygon2D::Contains,      "point"_a)
         .def("is_on_boundary", &geompp::Polygon2D::IsOnBoundary, "point"_a)
+        .def("is_simple",      &geompp::Polygon2D::IsSimple, "no self-intersections, but holes are allowed")
         BIND_ALMOST_EQUALS(Polygon2D)
         BIND_SERIALIZATION(Polygon2D)
         .def("intersects",

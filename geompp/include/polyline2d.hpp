@@ -28,7 +28,7 @@ class Polyline2D {
   ~Polyline2D() = default;
 
   inline int Size() const { return KNOTS.size(); }
-  Point2D const& operator[](size_t i) const;
+  Point2D const& operator[](std::size_t i) const;
 
   bool AlmostEquals(Polyline2D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange2D ToSegments() const;

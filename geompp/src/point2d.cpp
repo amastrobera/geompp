@@ -36,6 +36,14 @@ Point2D& Point2D::operator=(Point2D const& other) {
 
 #pragma region Collection Operations
 
+bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p) {
+  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) > 0;
+}
+
+bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p) {
+  return compare((v2.x() - v1.x()) * (p.y() - v1.y()) - (v2.y() - v1.y()) * (p.x() - v1.x()), 0) < 0;
+}
+
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3) {
   return compare((p2 - p1).Cross(p3 - p1), 0) == 0;  // perp-product will be zero if points lie on the same line
 }
@@ -281,7 +289,7 @@ Point2D Point2D::FromFile(std::string const& path) {
     in_file.seekg(0, std::ios::beg);  // Reset the file pointer
 
     // Resize the string to the file size (optional, for efficiency)
-    content.resize(static_cast<size_t>(fileSize));
+    content.resize(static_cast<std::size_t>(fileSize));
 
     // Read the entire file into the string
     in_file.read(&content[0], fileSize);
