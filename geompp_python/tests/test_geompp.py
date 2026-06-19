@@ -3308,4 +3308,48 @@ class TestSegmentIntersections:
     def test_find_intersections_reports_crossing(self):
         hits = list(geompp.find_intersections(self._self_intersecting_ring()))
         assert len(hits) >= 1
-        assert any(approx(h.point.x, 2.0) and approx(h.point.y, 2.0) for h in hits)
+        assert any(approx(h.x, 2.0) and approx(h.y, 2.0) for h in hits)
+
+
+# --- convex hull (Andrew's monotone chain) ---
+class TestConvexHull:
+    def test_few_points_returns_as_is(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 1)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 2
+
+    def test_convex_square_returns_four_corners(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 4
+        for p in pts:
+            assert any(approx(h.x, p.x) and approx(h.y, p.y) for h in hull), \
+                f"corner {p} should be on the hull"
+
+    def test_asymmetric_star_hull_is_pentagon(self):
+        # 5 outer tips at unequal distances + 5 inner concave vertices
+        outer = [
+            geompp.Point2D( 0,  5),
+            geompp.Point2D( 4,  2),
+            geompp.Point2D( 3, -3),
+            geompp.Point2D(-2, -4),
+            geompp.Point2D(-3,  1),
+        ]
+        inner = [
+            geompp.Point2D( 2,  1),
+            geompp.Point2D( 2, -1),
+            geompp.Point2D( 0, -1),
+            geompp.Point2D(-1, -1),
+            geompp.Point2D(-1,  2),
+        ]
+        star = [outer[0], inner[0], outer[1], inner[1], outer[2],
+                inner[2], outer[3], inner[3], outer[4], inner[4]]
+        hull = geompp.convex_hull(star)
+        assert len(hull) == 5, f"expected 5-point hull, got {len(hull)}"
+        for tip in outer:
+            assert any(approx(h.x, tip.x) and approx(h.y, tip.y) for h in hull), \
+                f"outer tip {tip} should be on the hull"
+        for ip in inner:
+            assert not any(approx(h.x, ip.x) and approx(h.y, ip.y) for h in hull), \
+                f"inner point {ip} should NOT be on the hull"

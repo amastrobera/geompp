@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 
 #include "line_segment2d.hpp"
+#include "point2d.hpp"
 #include "polygon2d.hpp"
 #include "segment_iterator2d.hpp"
 #include "vector2d.hpp"
@@ -11,6 +12,7 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
+#include <numeric>
 #include <set>
 #include <stdexcept>
 #include <variant>
@@ -307,7 +309,7 @@ double SweepLine2D<Segments>::GetX() const {
 // ------- free functions -------
 
 template <SegmentList Segments>
-bool has_intersections(Segments const& segments) {
+bool has_intersections_impl(Segments const& segments) {
   if (segments.size() < 2) {
     throw std::invalid_argument("provided less than 2 segments, cannot check for intersections");
   }
@@ -354,7 +356,7 @@ bool has_intersections(Segments const& segments) {
 }
 
 template <SegmentList Segments>
-std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
+std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segments) {
   if (segments.size() < 2) {
     throw std::invalid_argument("less than 2 segments provided, cannot check for intersections");
   }
@@ -421,8 +423,8 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
         if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
           if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_event = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id,
-                                       above_elem->Id};
+            auto inter_event =
+                Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id, above_elem->Id};
             if (!event_queue.Contains(inter_event)) {
               event_queue.Push(inter_event);
             }
@@ -506,8 +508,8 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
         if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
           if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()),
-                                    new_seg1.Segment->Id, new_seg1.Above->Id};
+            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg1.Segment->Id,
+                                    new_seg1.Above->Id};
             if (!event_queue.Contains(inter_ev)) {
               event_queue.Push(inter_ev);
             }
@@ -518,8 +520,8 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
         if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
           if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()),
-                                    new_seg2.Below->Id, new_seg2.Segment->Id};
+            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg2.Below->Id,
+                                    new_seg2.Segment->Id};
             if (!event_queue.Contains(inter_ev)) {
               event_queue.Push(inter_ev);
             }
@@ -543,11 +545,60 @@ template class SweepLine2D<std::vector<LineSegment2D>>;
 template class SweepLine2D<SegmentRange2D>;
 
 // for a free function template the instantiation deduces the parameter from the argument type:
-template bool has_intersections(std::vector<LineSegment2D> const&);
-template bool has_intersections(SegmentRange2D const&);
+template bool has_intersections_impl(std::vector<LineSegment2D> const&);
+template bool has_intersections_impl(SegmentRange2D const&);
 
 // for a free function template the instantiation deduces the parameter from the argument type:
-template std::vector<IntersectionEvent2D> find_intersections(std::vector<LineSegment2D> const&);
-template std::vector<IntersectionEvent2D> find_intersections(SegmentRange2D const&);
+template std::vector<IntersectionEvent2D> find_intersections_impl(std::vector<LineSegment2D> const&);
+template std::vector<IntersectionEvent2D> find_intersections_impl(SegmentRange2D const&);
+
+std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
+  size_t n = points.size();
+  if (n < 3) {
+    // log a warning ?
+    return {0, 1};
+  }
+
+  // 1. Create an index map: [0, 1, 2, ..., n-1]
+  std::vector<std::size_t> indices(n);
+  std::iota(indices.begin(), indices.end(), 0);  // Fills vector with sequential integers
+
+  // 2. Sort the INDICES, not the points
+  std::sort(indices.begin(), indices.end(), [&points](std::size_t idx1, std::size_t idx2) {
+    return compare_event_point(points[idx1], points[idx2]) == std::partial_ordering::less;
+  });
+
+  // 3. Build the hull using indices
+  std::vector<std::size_t> hull_indices;
+  hull_indices.reserve(2 * n);
+
+  // Build the Lower Hull
+  for (std::size_t i = 0; i < n; ++i) {
+    // While the turn is NOT a strict left turn, pop the bad vertex.
+    // We look at the second-to-last hull point (v1), the last hull point (v2), and the candidate point.
+    while (hull_indices.size() >= 2 &&
+           !is_left(points[hull_indices[hull_indices.size() - 2]], points[hull_indices.back()], points[indices[i]])) {
+      hull_indices.pop_back();
+    }
+    hull_indices.push_back(indices[i]);
+  }
+
+  // Build the Upper Hull
+  std::size_t lower_hull_size = hull_indices.size();
+  for (ptrdiff_t i = static_cast<ptrdiff_t>(n) - 2; i >= 0; --i) {
+    while (hull_indices.size() > lower_hull_size &&
+           !is_left(points[hull_indices[hull_indices.size() - 2]], points[hull_indices.back()], points[indices[i]])) {
+      hull_indices.pop_back();
+    }
+    hull_indices.push_back(indices[i]);
+  }
+
+  // Remove the redundant last closing index
+  if (!hull_indices.empty()) {
+    hull_indices.pop_back();
+  }
+
+  return hull_indices;
+}
 
 }  // namespace geompp

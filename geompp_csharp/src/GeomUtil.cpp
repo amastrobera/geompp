@@ -1,8 +1,8 @@
 #include "GeomUtil.hpp"
+#include "Point2D.hpp"
 #include "Point3D.hpp"
 #include "Plane.hpp"
 #include "LineSegment2D.hpp"
-#include "IntersectionEvent2D.hpp"
 
 namespace GeomPP {
 
@@ -13,6 +13,16 @@ static std::vector<geompp::LineSegment2D> ToNativeSegments(
     native.reserve(segments->Count);
     for each (LineSegment2D^ s in segments)
         native.push_back(*s->_native);
+    return native;
+}
+
+// File-local helper: managed List<Point2D^> → native std::vector<geompp::Point2D>
+static std::vector<geompp::Point2D> ToNativePoints2D(
+    System::Collections::Generic::List<Point2D^>^ points) {
+    std::vector<geompp::Point2D> native;
+    native.reserve(points->Count);
+    for each (Point2D^ p in points)
+        native.push_back(*p->_native);
     return native;
 }
 
@@ -53,12 +63,21 @@ bool GeomUtil::HasIntersections(System::Collections::Generic::List<LineSegment2D
     return geompp::has_intersections(ToNativeSegments(segments));
 }
 
-System::Collections::Generic::IEnumerable<IntersectionEvent2D^>^ GeomUtil::FindIntersections(
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::FindIntersections(
     System::Collections::Generic::List<LineSegment2D^>^ segments) {
     auto native = geompp::find_intersections(ToNativeSegments(segments));
-    auto list = gcnew System::Collections::Generic::List<IntersectionEvent2D^>(static_cast<int>(native.size()));
-    for (auto const& ev : native)
-        list->Add(gcnew IntersectionEvent2D(new geompp::IntersectionEvent2D(ev)));
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native)
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::ConvexHull(
+    System::Collections::Generic::List<Point2D^>^ points) {
+    auto native = geompp::convex_hull(ToNativePoints2D(points));
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native)
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
     return list;
 }
 

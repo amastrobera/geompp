@@ -1106,10 +1106,45 @@ Test("FindIntersections_SimpleRing_Empty", () => {
 
 Test("FindIntersections_ReportsCrossing", () => {
   bool found = false;
-  foreach (var ev in GeomUtil.FindIntersections(SelfIntersectingRing())) {
-    if (System.Math.Abs(ev.Point.X - 2.0) < 1e-6 && System.Math.Abs(ev.Point.Y - 2.0) < 1e-6) { found = true; }
+  foreach (var p in GeomUtil.FindIntersections(SelfIntersectingRing())) {
+    if (System.Math.Abs(p.X - 2.0) < 1e-6 && System.Math.Abs(p.Y - 2.0) < 1e-6) { found = true; }
   }
   IsTrue(found, "expected the (2,2) crossing among reported intersections");
+});
+
+// ── ConvexHull ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nConvexHull");
+
+List<Point2D> StarPoints() {
+  // 5 outer tips at unequal distances + 5 inner concave vertices
+  return new List<Point2D> {
+    new( 0,  5), new( 2,  1),   // tip0, inner0
+    new( 4,  2), new( 2, -1),   // tip1, inner1
+    new( 3, -3), new( 0, -1),   // tip2, inner2
+    new(-2, -4), new(-1, -1),   // tip3, inner3
+    new(-3,  1), new(-1,  2),   // tip4, inner4
+  };
+}
+
+Test("ConvexHull_AsymmetricStar_IsAPentagon", () => {
+  var hull = new List<Point2D>(GeomUtil.ConvexHull(StarPoints()));
+  Eq(5, hull.Count);
+});
+
+Test("ConvexHull_StarOuterTipsAllOnHull", () => {
+  var hull = new List<Point2D>(GeomUtil.ConvexHull(StarPoints()));
+  var tips = new List<Point2D> {
+    new(0,5), new(4,2), new(3,-3), new(-2,-4), new(-3,1) };
+  foreach (var tip in tips) {
+    IsTrue(hull.Exists(h => System.Math.Abs(h.X - tip.X) < 1e-6 && System.Math.Abs(h.Y - tip.Y) < 1e-6),
+           $"outer tip ({tip.X},{tip.Y}) should be on the hull");
+  }
+});
+
+Test("ConvexHull_FewPoints_ReturnsAsIs", () => {
+  var pts = new List<Point2D> { new(0, 0), new(1, 1) };
+  var hull = new List<Point2D>(GeomUtil.ConvexHull(pts));
+  Eq(2, hull.Count);
 });
 
 // ── Polygon2D ─────────────────────────────────────────────────────────────────

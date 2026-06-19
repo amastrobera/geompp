@@ -289,4 +289,71 @@ TEST_F(Point2DTest, IsLeftIsRightAreMutuallyExclusiveOffTheLine) {
   EXPECT_FALSE(g::is_right(v1, v2, p));
 }
 
+// --------------------------------------------------------------------------------------------------
+// convex_hull
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(Point2DTest, ConvexHull_TooFewPoints_ReturnsAsIs) {
+  std::vector<g::Point2D> two{g::Point2D(0, 0), g::Point2D(1, 1)};
+  auto hull = g::convex_hull(two);
+  ASSERT_EQ(hull.size(), 2u);
+}
+
+TEST_F(Point2DTest, ConvexHull_ConvexSquare_ReturnsSamePoints) {
+  std::vector<g::Point2D> pts{
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  auto hull = g::convex_hull(pts);
+  ASSERT_EQ(hull.size(), 4u);
+  for (auto const& p : pts) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(p)) { found = true; break; }
+    }
+    EXPECT_TRUE(found) << "square corner " << p.ToWkt() << " should be on the hull";
+  }
+}
+
+// Asymmetric 5-pointed star: outer tips at different radii, inner concave vertices near center.
+// The convex hull must contain exactly the 5 outer tips and exclude all inner vertices.
+TEST_F(Point2DTest, ConvexHull_AsymmetricStar_HullIsPentagon) {
+  // outer tips (unequal distances from origin)
+  g::Point2D tip0( 0,  5);
+  g::Point2D tip1( 4,  2);
+  g::Point2D tip2( 3, -3);
+  g::Point2D tip3(-2, -4);
+  g::Point2D tip4(-3,  1);
+
+  // inner concave vertices (close to origin — well inside the outer tips' pentagon)
+  g::Point2D inner0( 2,  1);
+  g::Point2D inner1( 2, -1);
+  g::Point2D inner2( 0, -1);
+  g::Point2D inner3(-1, -1);
+  g::Point2D inner4(-1,  2);
+
+  std::vector<g::Point2D> star{
+      tip0, inner0, tip1, inner1, tip2, inner2, tip3, inner3, tip4, inner4};
+
+  auto hull = g::convex_hull(star);
+
+  ASSERT_EQ(hull.size(), 5u) << "expected the 5 outer tips as the convex hull";
+
+  std::vector<g::Point2D> outer_tips{tip0, tip1, tip2, tip3, tip4};
+  for (auto const& tip : outer_tips) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(tip)) { found = true; break; }
+    }
+    EXPECT_TRUE(found) << "outer tip " << tip.ToWkt() << " should be on the hull";
+  }
+
+  std::vector<g::Point2D> inner_pts{inner0, inner1, inner2, inner3, inner4};
+  for (auto const& ip : inner_pts) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(ip)) { found = true; break; }
+    }
+    EXPECT_FALSE(found) << "inner point " << ip.ToWkt() << " should NOT be on the hull";
+  }
+}
+
 }  // namespace geompp_tests

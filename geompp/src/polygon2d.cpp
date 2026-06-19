@@ -202,12 +202,12 @@ double Polygon2D::Area() const {
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
 bool Polygon2D::IsSimple() const {
-  if (has_intersections(ToSegments())) {
+  if (has_intersections_impl(ToSegments())) {
     return false;
   }
 
   for (auto const& hole : HOLES) {
-    if (has_intersections(SegmentRange2D(hole, true))) {
+    if (has_intersections_impl(SegmentRange2D(hole, true))) {
       return false;
     }
   }

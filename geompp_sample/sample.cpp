@@ -163,18 +163,13 @@ void example_4() {
   // Full report (Bentley–Ottmann)
   auto hits = g::find_intersections(segments);
   GEOMPP_LOG(INFO) << hits.size() << " crossing(s) found:";
-  for (auto const& ev : hits) {
-    GEOMPP_LOG(INFO) << "  point=" << ev.Point.ToWkt()
-                     << "  segments=[ ";
-    for (auto id : ev.SegmentIds) {
-      GEOMPP_LOG(INFO) << id << " ";
-    }
-    GEOMPP_LOG(INFO) << "]";
+  for (auto const& p : hits) {
+    GEOMPP_LOG(INFO) << "  point=" << p.ToWkt();
   }
   // expected output:
   //   any intersections? 1
   //   1 crossing(s) found:
-  //     point=POINT (0.5 0.5)  segments=[ 0 1 ]
+  //     point=POINT (0.5 0.5)
 
   // Polygon simplicity — delegates to has_intersections internally
   auto simple_square = g::Polygon2D::Make(
