@@ -55,7 +55,8 @@
   - **Area / Perimeter / Centroid** — geometric properties for closed shapes
   - **Signed area** — encodes orientation (clockwise vs. counter-clockwise in 2D, surface normal
   direction in 3D)
-  - **Simplicity / self-intersection** — `Polygon2D::IsSimple()` and the free functions `has_intersections(segments)` (Shamos–Hoey, boolean) / `find_intersections(segments)` (Bentley–Ottmann, returns every crossing point with its segment ids)
+  - **Simplicity / self-intersection** — `Polygon2D::IsSimple()` and the free functions `has_intersections(segments)` (Shamos–Hoey, boolean) / `find_intersections(segments)` (Bentley–Ottmann, returns every crossing point)
+  - **Convex hull** — `convex_hull(points)` (`point2d.hpp`) — Andrew's monotone chain, returns hull vertices in CCW order
 
   Return types are `std::optional<std::variant<...>>` so callers can match on the exact geometry
   produced by an intersection without casting.
@@ -183,6 +184,47 @@
   ```
 
 
+  #### Compute the convex hull of a point cloud
+  ```cpp
+  #include "point2d.hpp"
+
+  namespace g = geompp;
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // An asymmetric 5-pointed star: 5 outer tips + 5 inner concave vertices.
+  // The convex hull should be exactly the 5 outer tips.
+  std::vector<g::Point2D> star = {
+      // outer tips
+      g::Point2D( 0,  5), g::Point2D( 4,  2),
+      g::Point2D( 3, -3), g::Point2D(-2, -4), g::Point2D(-3,  1),
+      // inner concave vertices (will be excluded from the hull)
+      g::Point2D( 2,  1), g::Point2D( 2, -1),
+      g::Point2D( 0, -1), g::Point2D(-1, -1), g::Point2D(-1,  2),
+  };
+
+  auto hull = g::convex_hull(star);  // Andrew's monotone chain
+
+  GEOMPP_LOG(INFO) << "hull has " << hull.size() << " vertices:";
+  for (auto const& p : hull) {
+      GEOMPP_LOG(INFO) << "  " << p.ToWkt();
+  }
+  ```
+
+  will print out
+
+  ```bash
+  hull has 5 vertices:
+    POINT (3 -3)
+    POINT (4 2)
+    POINT (0 5)
+    POINT (-3 1)
+    POINT (-2 -4)
+  ```
+
+  (CCW order, starting from the lexicographically smallest point)
+
+
   ## geom_viewer — interactive geometry visualizer (WIP)
 
   `geom_viewer` is a companion OpenGL application intended to let you see and interact with geometric
@@ -209,10 +251,10 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); `Triangle2D/3D::Location()` (barycentric coords); `Polygon2D/3D::Contains()` (winding number); `Triangle3D::Contains()` (barycentric, no projection); `Triangle3D::Intersection(×Line/Ray/Seg/Plane/△)` and the symmetric `Plane::Intersection(Triangle3D)`; `Line3D/Ray3D/LineSegment3D::Distance(...)` and `DistanceTo(...)` between every pair of 3D linear primitives + `LineSegment3D::Flip()`; `Polygon2D::IsSimple()` via `has_intersections` (Shamos–Hoey) and `find_intersections` (Bentley–Ottmann) on the new `calc_utils2d` sweep-line module (`EventQueue2D`, `SweepLineComparator`, `SweepLine2D`) plus 2D helpers `is_left` / `is_right` / `intersect(seg, seg)` |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); `Triangle2D/3D::Location()` (barycentric coords); `Polygon2D/3D::Contains()` (winding number); `Triangle3D::Contains()` (barycentric, no projection); `Triangle3D::Intersection(×Line/Ray/Seg/Plane/△)` and the symmetric `Plane::Intersection(Triangle3D)`; `Line3D/Ray3D/LineSegment3D::Distance(...)` and `DistanceTo(...)` between every pair of 3D linear primitives + `LineSegment3D::Flip()`; `Polygon2D::IsSimple()` via `has_intersections` (Shamos–Hoey) and `find_intersections` (Bentley–Ottmann) on the new `calc_utils2d` sweep-line module (`EventQueue2D`, `SweepLineComparator`, `SweepLine2D`) plus 2D helpers `is_left` / `is_right` / `intersect(seg, seg)`; `convex_hull(vector<Point2D>)` (Andrew's monotone chain) |
   | **In progress** | Test coverage push (target ≥ 70% per class); remaining stubs: `Polygon2D/3D::DistanceTo`, `Polygon2D/3D::Intersection(×Line/Ray/Seg)`, `Triangle2D::Intersection(△)`, `Triangle2D/3D::DistanceTo` |
   | Next | `Polygon2D/3D::FromWkt()` roundtrip fix; Docker (Windows); geom_viewer camera/input/delete |
-  | Backlog | Polygon ops, convex hull, overlap/adjacency, polygon clipping |
+  | Backlog | Polygon ops, overlap/adjacency, polygon clipping |
 
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).

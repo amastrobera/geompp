@@ -11,6 +11,59 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.10.0] - 2026-06-20
+
+> C++ library — tagged `v0.10.0` · C# / NuGet — tagged `csharp-v0.10.0` · Python / PyPI — tagged `python-v0.10.0`
+
+> Adds `convex_hull` (Andrew's monotone chain) for 2D point clouds. Moves `has_intersections` / `find_intersections` to the `line_segment2d` public API and simplifies `find_intersections` to return plain crossing points — segment indices are no longer part of any public API.
+
+### Added
+
+**C++ core**
+- `convex_hull(std::vector<Point2D> const& points)` (`point2d.hpp`) — Andrew's monotone chain algorithm; returns the convex hull of a 2D point cloud as a `std::vector<Point2D>` in counter-clockwise order. Sets of ≤ 3 points are returned as-is.
+
+**Python / PyPI**
+- `convex_hull(points)` — module-level free function accepting a `list[Point2D]`; returns `list[Point2D]` in CCW order.
+
+**C# / NuGet**
+- `GeomUtil.ConvexHull(List<Point2D^>^)` → `IEnumerable<Point2D^>` — convex hull in CCW order.
+
+### Changed
+
+**C++ core**
+- `has_intersections(std::vector<LineSegment2D> const&)` and `find_intersections(std::vector<LineSegment2D> const&)` are now declared in `line_segment2d.hpp` (previously only in `calc_utils2d.hpp`). The underlying sweep-line templates are renamed to `has_intersections_impl` / `find_intersections_impl` and remain internal to `calc_utils2d`.
+- `find_intersections` return type changed from `std::vector<IntersectionEvent2D>` to `std::vector<Point2D>` — only the crossing coordinates are returned; per-segment indices are no longer exposed in the public API.
+
+**Python / PyPI**
+- `find_intersections(segments)` now returns `list[Point2D]` (was `list[IntersectionEvent2D]`). Access coordinates directly via `.x` / `.y` instead of `.point.x` / `.point.y`.
+- `IntersectionEvent2D` class removed from the public API.
+
+**C# / NuGet**
+- `GeomUtil.FindIntersections(List<LineSegment2D^>^)` now returns `IEnumerable<Point2D^>` (was `IEnumerable<IntersectionEvent2D^>`).
+- `IntersectionEvent2D` class removed from the public API.
+
+### Fixed
+
+**C++ core**
+- `convex_hull`: `std::vector<Point2D> cv(n)` attempted to default-construct `n` `Point2D` objects (no default constructor exists); replaced with `cv.reserve(n)` + `emplace_back`. The previous code produced a vector of size `2n` on compilers that accepted it, or a build error on strict MSVC.
+- `point2d.hpp`: duplicate `convex_hull` declaration (appeared in both the first and second `Collections Operations` regions) removed.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_point2d.cpp`: `ConvexHull_TooFewPoints_ReturnsAsIs`, `ConvexHull_ConvexSquare_ReturnsSamePoints`, `ConvexHull_AsymmetricStar_HullIsPentagon` (five outer tips at unequal radii; five inner concave vertices excluded from the hull).
+- `test_calc_utils2d.cpp`: updated 7 tests that previously accessed `IntersectionEvent2D::Point` / `::SegmentIds`; now access `Point2D` coordinates directly. Two tests using `SegmentRange2D` updated to call `has_intersections_impl` / `find_intersections_impl` directly (those are the only callers that still need the internal templates).
+
+**Python (`geompp_python/tests`)**
+- `TestConvexHull`: `test_convex_hull_few_points`, `test_convex_hull_square`, `test_convex_hull_asymmetric_star_pentagon`.
+- Existing `test_find_intersections_reports_crossing`: updated to use `.x` / `.y` directly (was `.point.x` / `.point.y`).
+
+**C# (`geompp_csharp/tests`)**
+- `ConvexHull_AsymmetricStar_IsAPentagon`, `ConvexHull_StarOuterTipsAllOnHull`, `ConvexHull_FewPoints_ReturnsAsIs`.
+- Existing `FindIntersections_ReportsCrossing`: updated to iterate `IEnumerable<Point2D^>` and access `.X` / `.Y` directly.
+
+---
+
 ## [0.9.0] - 2026-06-15
 
 > C++ library — tagged `v0.9.0` · C# / NuGet — tagged `csharp-v0.9.0` · Python / PyPI — tagged `python-v0.9.0`

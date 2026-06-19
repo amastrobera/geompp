@@ -160,6 +160,48 @@ False
 
 ---
 
+### Example 4 — `GeomUtil.ConvexHull`
+
+```csharp
+using G = GeomPP;
+
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+// An asymmetric 5-pointed star: 5 outer tips + 5 inner concave vertices.
+// The convex hull should be exactly the 5 outer tips.
+var star = new System.Collections.Generic.List<G.Point2D> {
+    // outer tips
+    new G.Point2D( 0,  5), new G.Point2D( 4,  2),
+    new G.Point2D( 3, -3), new G.Point2D(-2, -4), new G.Point2D(-3,  1),
+    // inner concave vertices (will be excluded from the hull)
+    new G.Point2D( 2,  1), new G.Point2D( 2, -1),
+    new G.Point2D( 0, -1), new G.Point2D(-1, -1), new G.Point2D(-1,  2),
+};
+
+var hull = G.GeomUtil.ConvexHull(star);
+
+int count = 0;
+foreach (var p in hull) {
+    Console.WriteLine(p.ToWkt());
+    count++;
+}
+Console.WriteLine($"hull has {count} vertices");
+```
+
+Output:
+```
+POINT (3 -3)
+POINT (4 2)
+POINT (0 5)
+POINT (-3 1)
+POINT (-2 -4)
+hull has 5 vertices
+```
+
+(CCW order, starting from the lexicographically smallest point)
+
+---
+
 ## Precision
 
 All floating-point comparisons go through a thread-local precision setting:

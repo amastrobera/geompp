@@ -1,16 +1,16 @@
 # Test Coverage Report
 
-_Last updated: 2026-06-15_
+_Last updated: 2026-06-20_
 
 ## Overall
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (total) | ~399 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
+| Public methods (total) | ~401 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
 | Stubs (`throw "not implemented"`) | 13 | Listed per class below |
-| C++ explicit tests | ~343 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~195 | At least one `test_*` function calls the method |
-| C# explicit tests | ~200 | At least one test in `Program.cs` exercises the method |
+| C++ explicit tests | ~461 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~198 | At least one `test_*` function calls the method |
+| C# explicit tests | ~203 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -20,7 +20,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 
 | Class | C++ tested | Py tested | CS tested | Stubs ★ | Notable gaps ○ |
 |-------|-----------|----------|----------|---------|----------------|
-| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py); new `Point2D(Vector2D)` ctor covered all three; new `is_left` / `is_right` free fns tested (C++) |
+| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py); new `Point2D(Vector2D)` ctor covered all three; new `is_left` / `is_right` / `convex_hull` free fns tested in all three languages |
 | `Point3D` | ✓ all key | ✓ most | ✓ most | — | new `Point3D(Vector3D)` ctor covered all three |
 | `Vector2D` | ✓ most | ✓ most | ✓ partial | — | Many arithmetic operators (both) |
 | `Vector3D` | ✓ most | ✓ most | ✓ most | — | Many arithmetic operators (both); `IsParallel` (C++) |
@@ -28,7 +28,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `Line3D` | ✓ most | ✓ partial | ✓ most | — | `Contains`, `Intersects`/`Intersection` ×`Ray3D`, ×`Segment3D` (Py); new `Distance`/`DistanceTo` ×`Line/Ray/Seg` covered in all three |
 | `Ray2D` | ✓ most | ✓ partial | — | — | `ToLine` (Py) |
 | `Ray3D` | ✓ most | ✓ partial | ✓ partial | — | `Contains`, `Intersects`/`Intersection` ×`Segment3D` (Py); new `Distance`/`DistanceTo` ×`Line/Ray/Seg` covered in all three |
-| `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py); new free `intersect(seg, seg)` tested (C++) |
+| `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py); free `intersect(seg, seg)` tested (C++); new `has_intersections` / `find_intersections` public free fns tested in all three languages |
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py) |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
@@ -42,7 +42,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |
 | `GeometryCollection2D` | ✓ core | ✓ partial | ✓ most | — | — |
 | `GeometryCollection3D` | ✓ core | ✓ partial | ✓ most | — | — |
-| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `has_intersections`, `find_intersections`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module; `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; `has_intersections` + `find_intersections` + `Polygon2D::IsSimple` tested in all three languages |
+| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `has_intersections_impl`, `find_intersections_impl`, `convex_hull_indices`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module (internal); `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; public wrappers `has_intersections` / `find_intersections` (in `line_segment2d.hpp`) + `Polygon2D::IsSimple` tested in all three languages; `convex_hull_indices` exercised via `convex_hull` tests |
 
 ---
 
@@ -76,7 +76,8 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 - **Stub cluster**: remaining unimplemented intersection/distance methods live in `Polygon2D/3D` (DistanceTo + Intersection × Line/Ray/Seg), `Triangle2D::Intersects(△)` and `Triangle2D::Intersection(△)`, and `Triangle2D/3D::DistanceTo`.
 - **`Plane`, `Point2D`, `Point3D`, `Vector2D`, `Vector3D`** have excellent coverage across C++, Python, and (newly for Plane) C#.
 - **Operator overloads** (`operator<<`, `operator=`, arithmetic) are implicitly exercised by other tests even when not explicitly targeted.
-- **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`has_intersections` / `find_intersections`) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case).
+- **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`has_intersections_impl` / `find_intersections_impl`) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case). Public `has_intersections` / `find_intersections` wrappers (now in `line_segment2d.hpp`) tested via the existing suite.
+- **`convex_hull`**: Andrew's monotone chain implemented in `calc_utils2d` (`convex_hull_indices`), exposed via `point2d.hpp`. Tested in all three languages including an asymmetric star whose hull must be exactly the 5 outer tips.
 
 ---
 
