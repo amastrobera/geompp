@@ -27,15 +27,17 @@ class Polygon2D {
   Polygon2D(Polygon2D&&) = default;
   ~Polygon2D() = default;
 
-  inline std::size_t Size() const { return VERTICES.size(); }
+  std::size_t Size() const;
   Point2D const& operator[](int i) const;
 
   bool AlmostEquals(Polygon2D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange2D ToSegments() const;
   Point2D Centroid() const;
   double Area() const;
-  inline double Perimeter() const { return PERIMETER; }
+  double Perimeter() const;
   bool IsSimple() const;  // no self-intersections, but holes are allowed
+  Polygon2D ConvexHull();
+  std::vector<Point2D> ToPoints();
 
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.

@@ -125,4 +125,12 @@ void bind_free_functions(py::module_& m) {
     m.def("convex_hull",
           [](const std::vector<geompp::Point2D>& pts) { return geompp::convex_hull(pts); },
           "points"_a, "Andrew's monotone chain: convex hull of a 2D point cloud, returned in CCW order.");
+
+    m.def("convex_hull",
+          [](const std::vector<geompp::Point3D>& pts, std::optional<geompp::Vector3D> normal) {
+              return geompp::convex_hull(pts, normal);
+          },
+          "points"_a, "normal"_a = py::none(),
+          "Andrew's monotone chain: convex hull of coplanar 3D points, returned in CCW order. "
+          "Normal is auto-detected if omitted.");
 }

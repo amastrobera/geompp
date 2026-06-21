@@ -167,6 +167,10 @@ struct IntersectionEvent2D {
 template <SegmentList Segments>
 std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segments);
 
+std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
+                                                std::function<double(size_t)> get_y,
+                                                std::function<bool(size_t, size_t, size_t)> is_left);
+
 /// @brief the Andrew's Monotone Chain algorithm to make a convex hull
 /// @param points cloud of points
 /// @returns list of indices of the points (from the original vector) that form a convex hull

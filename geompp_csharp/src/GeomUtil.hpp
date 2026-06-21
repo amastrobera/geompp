@@ -32,6 +32,11 @@ public:
     // ConvexHull — Andrew's monotone chain: convex hull of a 2D point cloud, returned in CCW order.
     static System::Collections::Generic::IEnumerable<Point2D^>^ ConvexHull(
         System::Collections::Generic::List<Point2D^>^ points);
+
+    // ConvexHull — Andrew's monotone chain: convex hull of coplanar 3D points, returned in CCW order.
+    // Normal is auto-detected from the point cloud.
+    static System::Collections::Generic::IEnumerable<Point3D^>^ ConvexHull(
+        System::Collections::Generic::List<Point3D^>^ points);
 };
 
 }  // namespace GeomPP

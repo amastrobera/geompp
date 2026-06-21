@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <numeric>
@@ -552,53 +553,59 @@ template bool has_intersections_impl(SegmentRange2D const&);
 template std::vector<IntersectionEvent2D> find_intersections_impl(std::vector<LineSegment2D> const&);
 template std::vector<IntersectionEvent2D> find_intersections_impl(SegmentRange2D const&);
 
-std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
-  size_t n = points.size();
-  if (n < 3) {
-    // log a warning ?
-    return {0, 1};
-  }
+// 1. THE CORE GENERIC SOLVER (Writes the hull using index lookups and abstract lambdas)
+std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
+                                                std::function<double(size_t)> get_y,
+                                                std::function<bool(size_t, size_t, size_t)> is_left) {
+  if (n < 3) return {};
 
-  // 1. Create an index map: [0, 1, 2, ..., n-1]
-  std::vector<std::size_t> indices(n);
-  std::iota(indices.begin(), indices.end(), 0);  // Fills vector with sequential integers
+  std::vector<size_t> indices(n);
+  std::iota(indices.begin(), indices.end(), 0);
 
-  // 2. Sort the INDICES, not the points
-  std::sort(indices.begin(), indices.end(), [&points](std::size_t idx1, std::size_t idx2) {
-    return compare_event_point(points[idx1], points[idx2]) == std::partial_ordering::less;
+  // Sort using the abstract X and Y projections
+  std::sort(indices.begin(), indices.end(), [&](size_t idx1, size_t idx2) {
+    double x1 = get_x(idx1), x2 = get_x(idx2);
+    if (x1 != x2) return x1 < x2;
+    return get_y(idx1) < get_y(idx2);
   });
 
-  // 3. Build the hull using indices
-  std::vector<std::size_t> hull_indices;
-  hull_indices.reserve(2 * n);
+  std::vector<size_t> hull;
+  hull.reserve(2 * n);
 
-  // Build the Lower Hull
-  for (std::size_t i = 0; i < n; ++i) {
-    // While the turn is NOT a strict left turn, pop the bad vertex.
-    // We look at the second-to-last hull point (v1), the last hull point (v2), and the candidate point.
-    while (hull_indices.size() >= 2 &&
-           !is_left(points[hull_indices[hull_indices.size() - 2]], points[hull_indices.back()], points[indices[i]])) {
-      hull_indices.pop_back();
+  // Lower Hull
+  for (size_t i = 0; i < n; ++i) {
+    while (hull.size() >= 2 && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
+      hull.pop_back();
     }
-    hull_indices.push_back(indices[i]);
+    hull.push_back(indices[i]);
   }
 
-  // Build the Upper Hull
-  std::size_t lower_hull_size = hull_indices.size();
+  // Upper Hull
+  size_t lower_hull_size = hull.size();
   for (ptrdiff_t i = static_cast<ptrdiff_t>(n) - 2; i >= 0; --i) {
-    while (hull_indices.size() > lower_hull_size &&
-           !is_left(points[hull_indices[hull_indices.size() - 2]], points[hull_indices.back()], points[indices[i]])) {
-      hull_indices.pop_back();
+    while (hull.size() > lower_hull_size && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
+      hull.pop_back();
     }
-    hull_indices.push_back(indices[i]);
+    hull.push_back(indices[i]);
   }
 
-  // Remove the redundant last closing index
-  if (!hull_indices.empty()) {
-    hull_indices.pop_back();
-  }
+  if (!hull.empty()) hull.pop_back();
+  return hull;
+}
 
-  return hull_indices;
+std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
+  // clang-format off
+    return convex_hull_generic_impl_2D(
+        points.size(),
+        [&points](size_t i) { return points[i].x(); },
+        [&points](size_t i) { return points[i].y(); },
+        [&points](size_t o, size_t a, size_t b) {
+            // Your standard 2D is_left logic here (copied from is_left(Point2D...))
+            return compare((points[a].x() - points[o].x()) * (points[b].y() - points[o].y()) -
+                           (points[a].y() - points[o].y()) * (points[b].x() - points[o].x()), 0) > 0;
+        }
+    );
+  // clang-format on
 }
 
 }  // namespace geompp

@@ -369,4 +369,81 @@ TEST_F(Point3DTest, FromVector) {
   ASSERT_EQ(p0, roundtrip);
 }
 
+// --------------------------------------------------------------------------------------------------
+// convex_hull
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(Point3DTest, ConvexHull_TooFewPoints_ReturnsAsIs) {
+  std::vector<g::Point3D> two{g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)};
+  auto hull = g::convex_hull(two);
+  ASSERT_EQ(hull.size(), 2u);
+}
+
+TEST_F(Point3DTest, ConvexHull_CoplanarSquare_XYPlane_ReturnsFourCorners) {
+  std::vector<g::Point3D> pts{
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  auto hull = g::convex_hull(pts);
+  ASSERT_EQ(hull.size(), 4u);
+  for (auto const& p : pts) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(p)) { found = true; break; }
+    }
+    EXPECT_TRUE(found) << "square corner " << p.ToWkt() << " should be on the hull";
+  }
+}
+
+TEST_F(Point3DTest, ConvexHull_CoplanarSquare_YZPlane_ReturnsFourCorners) {
+  std::vector<g::Point3D> pts{
+      g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(0, 4, 4), g::Point3D(0, 0, 4)};
+  auto hull = g::convex_hull(pts);
+  ASSERT_EQ(hull.size(), 4u);
+  for (auto const& p : pts) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(p)) { found = true; break; }
+    }
+    EXPECT_TRUE(found) << "square corner " << p.ToWkt() << " should be on the hull";
+  }
+}
+
+TEST_F(Point3DTest, ConvexHull_AsymmetricStar_HullIsPentagon) {
+  g::Point3D tip0(0, 5, 0);
+  g::Point3D tip1(4, 2, 0);
+  g::Point3D tip2(3, -3, 0);
+  g::Point3D tip3(-2, -4, 0);
+  g::Point3D tip4(-3, 1, 0);
+
+  g::Point3D inner0(2, 1, 0);
+  g::Point3D inner1(2, -1, 0);
+  g::Point3D inner2(0, -1, 0);
+  g::Point3D inner3(-1, -1, 0);
+  g::Point3D inner4(-1, 2, 0);
+
+  std::vector<g::Point3D> star{
+      tip0, inner0, tip1, inner1, tip2, inner2, tip3, inner3, tip4, inner4};
+
+  auto hull = g::convex_hull(star);
+
+  ASSERT_EQ(hull.size(), 5u) << "expected the 5 outer tips as the convex hull";
+
+  std::vector<g::Point3D> outer_tips{tip0, tip1, tip2, tip3, tip4};
+  for (auto const& tip : outer_tips) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(tip)) { found = true; break; }
+    }
+    EXPECT_TRUE(found) << "outer tip " << tip.ToWkt() << " should be on the hull";
+  }
+
+  std::vector<g::Point3D> inner_pts{inner0, inner1, inner2, inner3, inner4};
+  for (auto const& ip : inner_pts) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(ip)) { found = true; break; }
+    }
+    EXPECT_FALSE(found) << "inner point " << ip.ToWkt() << " should NOT be on the hull";
+  }
+}
+
 }  // namespace geompp_tests

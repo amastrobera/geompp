@@ -1,5 +1,6 @@
 #include "point3d.hpp"
 
+#include "calc_utils3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -172,6 +173,22 @@ Point3D average(std::vector<Point3D> const& points) {
   }
 
   return linear_combination(points, weights);
+}
+
+std::vector<Point3D> convex_hull(std::vector<Point3D> const& points, std::optional<Vector3D> normal) {
+  if (points.size() <= 3) {
+    return points;
+  }
+
+  auto cv_indices = convex_hull_indices(points, normal);
+
+  std::vector<Point3D> cv;
+  cv.reserve(cv_indices.size());
+  for (std::size_t i : cv_indices) {
+    cv.emplace_back(points[i]);
+  }
+
+  return cv;
 }
 
 #pragma endregion

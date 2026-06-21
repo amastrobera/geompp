@@ -81,4 +81,13 @@ System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::ConvexHull(
     return list;
 }
 
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::ConvexHull(
+    System::Collections::Generic::List<Point3D^>^ points) {
+    auto native = geompp::convex_hull(ToNative(points));
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native)
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    return list;
+}
+
 }  // namespace GeomPP

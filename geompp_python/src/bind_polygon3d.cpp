@@ -25,6 +25,8 @@ void bind_polygon3d(py::module_& m) {
         .def("distance_to", &geompp::Polygon3D::DistanceTo,  "point"_a)
         .def("contains",       &geompp::Polygon3D::Contains,      "point"_a)
         .def("is_on_boundary", &geompp::Polygon3D::IsOnBoundary, "point"_a)
+        .def("convex_hull",    &geompp::Polygon3D::ConvexHull, "Returns the convex hull as a new Polygon3D.")
+        .def("to_points",      &geompp::Polygon3D::ToPoints,   "Returns the vertices as a list of Point3D.")
         BIND_ALMOST_EQUALS(Polygon3D)
         BIND_SERIALIZATION(Polygon3D)
         .def("intersects",

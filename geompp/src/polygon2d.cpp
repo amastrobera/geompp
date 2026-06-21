@@ -131,6 +131,8 @@ Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   return *this;
 }
 
+std::size_t Polygon2D::Size() const { return VERTICES.size(); }
+
 bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
   // size comparison of loops
   if (Size() != other.Size() || HOLES.size() != other.HOLES.size()) {
@@ -199,6 +201,8 @@ double Polygon2D::Area() const {
   return area;
 }
 
+double Polygon2D::Perimeter() const { return PERIMETER; }
+
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
 bool Polygon2D::IsSimple() const {
@@ -213,6 +217,25 @@ bool Polygon2D::IsSimple() const {
   }
 
   return true;
+}
+
+Polygon2D Polygon2D::ConvexHull() {
+  auto cv_indices = convex_hull_indices(VERTICES);
+  std::vector<Point2D> cv_points;
+  cv_points.reserve(cv_indices.size());
+  for (std::size_t i : cv_indices) {
+    cv_points.emplace_back(VERTICES[i]);
+  }
+  return Make(cv_points);
+}
+
+std::vector<Point2D> Polygon2D::ToPoints() {
+  std::vector<Point2D> points;
+  points.reserve(VERTICES.size());
+  for (auto pt : VERTICES) {
+    points.emplace_back(pt);
+  }
+  return points;
 }
 
 #pragma region Operator Overloading

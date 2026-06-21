@@ -1,6 +1,7 @@
 #include "polygon3d.hpp"
 
 #include "bbox3d.hpp"
+#include "calc_utils3d.hpp"
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
@@ -124,6 +125,8 @@ Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   return *this;
 }
 
+std::size_t Polygon3D::Size() const { return VERTICES.size(); }
+
 bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   // size comparison of loops
   if (Size() != other.Size() || HOLES.size() != other.HOLES.size()) {
@@ -187,6 +190,41 @@ double Polygon3D::Area() const {
     area += signed_area(hole, PLANE);  // guaranteed to be negative by construction, so we add it
   }
   return area;
+}
+
+double Polygon3D::Perimeter() const { return PERIMETER; }
+
+// bool Polygon3D::IsSimple() const {
+//   if (has_intersections_impl(ToSegments())) {
+//     return false;
+//   }
+
+//   for (auto const& hole : HOLES) {
+//     if (has_intersections_impl(SegmentRange3D(hole, true))) {
+//       return false;
+//     }
+//   }
+
+//   return true;
+// }
+
+Polygon3D Polygon3D::ConvexHull() {
+  auto cv_indices = convex_hull_indices(VERTICES);
+  std::vector<Point3D> cv_points;
+  cv_points.reserve(cv_indices.size());
+  for (std::size_t i : cv_indices) {
+    cv_points.emplace_back(VERTICES[i]);
+  }
+  return Make(cv_points);
+}
+
+std::vector<Point3D> Polygon3D::ToPoints() {
+  std::vector<Point3D> points;
+  points.reserve(VERTICES.size());
+  for (auto pt : VERTICES) {
+    points.emplace_back(pt);
+  }
+  return points;
 }
 
 double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }

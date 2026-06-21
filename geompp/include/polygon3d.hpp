@@ -28,7 +28,7 @@ class Polygon3D {
   Polygon3D(Polygon3D&&) = default;
   ~Polygon3D() = default;
 
-  inline std::size_t Size() const { return VERTICES.size(); }
+  std::size_t Size() const;
   Point3D const& operator[](int i) const;
   inline Plane GetPlane() const { return PLANE; }
 
@@ -36,7 +36,10 @@ class Polygon3D {
   SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
   double Area() const;
-  inline double Perimeter() const { return PERIMETER; }
+  double Perimeter() const;
+  // bool IsSimple() const;  // no self-intersections, but holes are allowed
+  Polygon3D ConvexHull();
+  std::vector<Point3D> ToPoints();
 
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.

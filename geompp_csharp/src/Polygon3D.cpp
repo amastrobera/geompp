@@ -99,6 +99,18 @@ bool Polygon3D::IsOnBoundary(Point3D^ point) {
     return _native->IsOnBoundary(*point->_native);
 }
 
+Polygon3D^ Polygon3D::ConvexHull() {
+    return gcnew Polygon3D(new geompp::Polygon3D(_native->ConvexHull()));
+}
+
+array<Point3D^>^ Polygon3D::ToPoints() {
+    auto native = _native->ToPoints();
+    auto arr = gcnew array<Point3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i)
+        arr[i] = gcnew Point3D(new geompp::Point3D(native[i]));
+    return arr;
+}
+
 System::String^ Polygon3D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }
