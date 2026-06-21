@@ -1306,9 +1306,9 @@ Test("IsSimple_SelfIntersecting_False", () => {
 
 Test("ConvexHull_StarPolygon_IsAPentagon", () => {
   var star = Polygon2D.Make(new Point2D[] {
-    new( 0,  5), new( 2,  1), new( 4,  2), new( 2, -1),
-    new( 3, -3), new( 0, -1), new(-2, -4), new(-1, -1),
-    new(-3,  1), new(-1,  2),
+    new(-1,  2), new(-3,  1), new(-1, -1), new(-2, -4),
+    new( 0, -1), new( 3, -3), new( 2, -1), new( 4,  2),
+    new( 2,  1), new( 0,  5),
   });
   var hull = star.ConvexHull();
   Eq(5, hull.Size());
@@ -1468,9 +1468,9 @@ Test("IsSimple3D_SelfIntersecting_False", () => {
 
 Test("ConvexHull3D_StarPolygon_IsAPentagon", () => {
   var star = Polygon3D.Make(new Point3D[] {
-    new( 0,  5, 0), new( 2,  1, 0), new( 4,  2, 0), new( 2, -1, 0),
-    new( 3, -3, 0), new( 0, -1, 0), new(-2, -4, 0), new(-1, -1, 0),
-    new(-3,  1, 0), new(-1,  2, 0),
+    new(-1,  2, 0), new(-3,  1, 0), new(-1, -1, 0), new(-2, -4, 0),
+    new( 0, -1, 0), new( 3, -3, 0), new( 2, -1, 0), new( 4,  2, 0),
+    new( 2,  1, 0), new( 0,  5, 0),
   });
   var hull = star.ConvexHull();
   Eq(5, hull.Size());

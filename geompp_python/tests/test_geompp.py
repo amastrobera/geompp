@@ -3469,11 +3469,11 @@ class TestConvexHull3D:
 class TestPolygon2DConvexHull:
     def _star(self):
         return geompp.Polygon2D.make([
-            geompp.Point2D( 0,  5), geompp.Point2D( 2,  1),
-            geompp.Point2D( 4,  2), geompp.Point2D( 2, -1),
-            geompp.Point2D( 3, -3), geompp.Point2D( 0, -1),
-            geompp.Point2D(-2, -4), geompp.Point2D(-1, -1),
-            geompp.Point2D(-3,  1), geompp.Point2D(-1,  2),
+            geompp.Point2D(-1,  2), geompp.Point2D(-3,  1),
+            geompp.Point2D(-1, -1), geompp.Point2D(-2, -4),
+            geompp.Point2D( 0, -1), geompp.Point2D( 3, -3),
+            geompp.Point2D( 2, -1), geompp.Point2D( 4,  2),
+            geompp.Point2D( 2,  1), geompp.Point2D( 0,  5),
         ])
 
     def test_convex_hull_star_is_pentagon(self):
@@ -3502,11 +3502,11 @@ class TestPolygon2DConvexHull:
 class TestPolygon3DConvexHull:
     def _star3d(self):
         return geompp.Polygon3D.make([
-            geompp.Point3D( 0,  5, 0), geompp.Point3D( 2,  1, 0),
-            geompp.Point3D( 4,  2, 0), geompp.Point3D( 2, -1, 0),
-            geompp.Point3D( 3, -3, 0), geompp.Point3D( 0, -1, 0),
-            geompp.Point3D(-2, -4, 0), geompp.Point3D(-1, -1, 0),
-            geompp.Point3D(-3,  1, 0), geompp.Point3D(-1,  2, 0),
+            geompp.Point3D(-1,  2, 0), geompp.Point3D(-3,  1, 0),
+            geompp.Point3D(-1, -1, 0), geompp.Point3D(-2, -4, 0),
+            geompp.Point3D( 0, -1, 0), geompp.Point3D( 3, -3, 0),
+            geompp.Point3D( 2, -1, 0), geompp.Point3D( 4,  2, 0),
+            geompp.Point3D( 2,  1, 0), geompp.Point3D( 0,  5, 0),
         ])
 
     def test_convex_hull_star_is_pentagon(self):
