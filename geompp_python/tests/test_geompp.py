@@ -1775,6 +1775,34 @@ class TestPolyline2D:
             os.unlink(path)
 
 
+class TestPolyline2DConvexHull:
+    def test_too_few_points_throws(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0)])
+        with pytest.raises(Exception):
+            pl.convex_hull()
+
+    def test_three_points_returns_triangle(self):
+        pl = geompp.Polyline2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(2, 3),
+        ])
+        hull = pl.convex_hull()
+        assert hull.size() == 3
+
+    def test_concave_path_inner_point_excluded(self):
+        # simple path: outer corners with inner dip at (2,1) — hull is the 4 outer corners
+        pl = geompp.Polyline2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4),
+        ])
+        hull = pl.convex_hull()
+        assert hull.size() == 4
+        expected = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+                    geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        for e in expected:
+            assert any(approx(e.x, hull[i].x) and approx(e.y, hull[i].y)
+                       for i in range(hull.size())), f"{e} should be on hull"
+
+
 # ─── Polyline3D ──────────────────────────────────────────────────────────────
 
 class TestPolyline3D:

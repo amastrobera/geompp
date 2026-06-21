@@ -11,6 +11,7 @@ ref class Point2D;
 ref class Line2D;
 ref class Ray2D;
 ref class LineSegment2D;
+ref class Polygon2D;
 
 public ref class Polyline2D {
 public:
@@ -28,6 +29,9 @@ public:
 
     array<LineSegment2D^>^ ToSegments();
     double   Length();
+    // Requires the polyline to be simple (no self-intersections). Call IsSimple() first to verify;
+    // behaviour is undefined on non-simple input.
+    Polygon2D^ ConvexHull();
     double   DistanceTo(Point2D^ point);
     double   Location(Point2D^ point);
     Point2D^ Interpolate(double pct);

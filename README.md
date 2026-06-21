@@ -263,6 +263,34 @@
   ```
 
 
+  #### Convex hull of a simple polyline
+
+  `Polyline2D::ConvexHull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `IsSimple()` first.
+
+  ```cpp
+  #include "polyline2d.hpp"
+
+  namespace g = geompp;
+
+  // Simple concave path: outer corners with an inner dip at (2,1)
+  auto path = g::Polyline2D::Make({
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4),
+      g::Point2D(2, 1), g::Point2D(0, 4),
+  });
+
+  if (path.IsSimple()) {
+      auto hull = path.ConvexHull();  // Polygon2D — 4-vertex rectangle
+      GEOMPP_LOG(INFO) << "hull has " << hull.Size() << " vertices";
+  }
+  ```
+
+  will print out
+
+  ```bash
+  hull has 4 vertices
+  ```
+
+
   ## geom_viewer — interactive geometry visualizer (WIP)
 
   `geom_viewer` is a companion OpenGL application intended to let you see and interact with geometric

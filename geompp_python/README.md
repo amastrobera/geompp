@@ -191,4 +191,23 @@ print(f"hull has {hull.size()} vertices")
 # hull has 5 vertices
 ```
 
+### Convex hull of a simple polyline
+
+`Polyline2D.convex_hull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `is_simple()` first.
+
+```python
+import geompp as g
+
+# Simple concave path: outer corners with an inner dip at (2,1)
+path = g.Polyline2D.make([
+    g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(4, 4),
+    g.Point2D(2, 1), g.Point2D(0, 4),
+])
+
+if path.is_simple():
+    hull = path.convex_hull()   # Polygon2D with 4 vertices
+    print(f"hull has {hull.size()} vertices")
+# hull has 4 vertices
+```
+
 

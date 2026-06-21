@@ -1,6 +1,7 @@
 #include "Polyline2D.hpp"
 #include "Point2D.hpp"
 #include "Line2D.hpp"
+#include "Polygon2D.hpp"
 #include "Ray2D.hpp"
 #include "LineSegment2D.hpp"
 
@@ -62,6 +63,10 @@ array<LineSegment2D^>^ Polyline2D::ToSegments() {
 
 double Polyline2D::Length() {
     return _native->Length();
+}
+
+Polygon2D^ Polyline2D::ConvexHull() {
+    return gcnew Polygon2D(new geompp::Polygon2D(_native->ConvexHull()));
 }
 
 double Polyline2D::DistanceTo(Point2D^ point) {

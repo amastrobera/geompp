@@ -227,6 +227,31 @@ hull has 5 vertices
 
 ---
 
+### Example 6 — `Polyline2D.ConvexHull`
+
+`Polyline2D.ConvexHull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `IsSimple()` first.
+
+```csharp
+using G = GeomPP;
+
+// Simple concave path: outer corners with an inner dip at (2,1)
+var path = G.Polyline2D.Make(new G.Point2D[] {
+    new(0, 0), new(4, 0), new(4, 4), new(2, 1), new(0, 4),
+});
+
+if (path.IsSimple()) {
+    var hull = path.ConvexHull();   // Polygon2D with 4 vertices
+    Console.WriteLine($"hull has {hull.Size()} vertices");
+}
+```
+
+Output:
+```
+hull has 4 vertices
+```
+
+---
+
 ## Precision
 
 All floating-point comparisons go through a thread-local precision setting:

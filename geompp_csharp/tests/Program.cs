@@ -2445,6 +2445,32 @@ Test("AlmostEquals_SamePolyline_True", () => {
   IsTrue(a.AlmostEquals(b));
 });
 
+Test("ConvexHull_TooFewPoints_Throws", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(1,0) });
+  bool threw = false;
+  try { pl.ConvexHull(); } catch (Exception) { threw = true; }
+  IsTrue(threw, "ConvexHull on 2-point polyline should throw");
+});
+
+Test("ConvexHull_ThreePoints_ReturnsTriangle", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(2,3) });
+  var hull = pl.ConvexHull();
+  Eq(3, hull.Size());
+});
+
+Test("ConvexHull_ConcavePath_InnerPointExcluded", () => {
+  // simple path: outer corners with inner dip at (2,1) — hull is the 4 outer corners
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4), new(2,1), new(0,4) });
+  var hull = pl.ConvexHull();
+  Eq(4, hull.Size());
+  var expected = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  foreach (var e in expected) {
+    bool found = false;
+    for (int i = 0; i < hull.Size(); i++) if (hull[i].AlmostEquals(e)) { found = true; break; }
+    IsTrue(found, $"{e} should be on hull");
+  }
+});
+
 Test("AlmostEquals_DiffPolyline_False", () => {
   var a = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0) });
   var b = Polyline2D.Make(new Point2D[] { new(0,0), new(0,4) });

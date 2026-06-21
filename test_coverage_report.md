@@ -6,11 +6,11 @@ _Last updated: 2026-06-21_
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (total) | ~405 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
+| Public methods (total) | ~408 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
 | Stubs (`throw "not implemented"`) | 13 | Listed per class below |
-| C++ explicit tests | ~467 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~203 | At least one `test_*` function calls the method |
-| C# explicit tests | ~207 | At least one test in `Program.cs` exercises the method |
+| C++ explicit tests | ~476 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~207 | At least one `test_*` function calls the method |
+| C# explicit tests | ~214 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -30,10 +30,10 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `Ray3D` | ✓ most | ✓ partial | ✓ partial | — | `Contains`, `Intersects`/`Intersection` ×`Segment3D` (Py); new `Distance`/`DistanceTo` ×`Line/Ray/Seg` covered in all three |
 | `LineSegment2D` | ✓ most | ✓ most | ✓ partial | — | `ToLine` (Py); free `intersect(seg, seg)` tested (C++); new `has_intersections` / `find_intersections` public free fns tested in all three languages |
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
-| `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py) |
+| `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py); new `ConvexHull()` (Melkman) tested in all three |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
 | `Polygon2D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); new `IsSimple()` tested in all three (experimental — see note); new `ConvexHull()` tested in all three |
-| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py); new `ConvexHull()` tested in all three |
+| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three |
 | `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, `Location`, all `Intersection` (Py) |
 | `Triangle3D` | ✓ most | ✓ most | ✓ most | `DistanceTo` ★ | new `Intersection(×Plane/△)` and the existing `Intersection(×Line/Ray/Seg)` are covered in all three languages |
 | `Plane` | ✓ all key | ✓ all key | ✓ most | — | `Intersection(Triangle3D)` now delegates to the symmetric `Triangle3D::Intersection(Plane)` (no stub remaining) |
