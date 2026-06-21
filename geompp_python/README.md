@@ -138,6 +138,7 @@ print(poly.size())               # 4
 | `has_intersections(segments)` | Shamos–Hoey: `True` if any two segments in `list[LineSegment2D]` cross |
 | `find_intersections(segments)` | Bentley–Ottmann: returns `list[Point2D]` — every crossing point, sorted left-to-right |
 | `convex_hull(points)` | Andrew's monotone chain: convex hull of a `list[Point2D]`, returned in CCW order |
+| `convex_hull(points, normal=None)` | Convex hull of a coplanar `list[Point3D]`; optional `Vector3D` normal (auto-detected if omitted) |
 
 ## Convex hull
 
@@ -167,6 +168,27 @@ for p in hull:
 #   POINT (0 5)
 #   POINT (-3 1)
 #   POINT (-2 -4)
+```
+
+### Convex hull of a polygon
+
+`Polygon2D` and `Polygon3D` expose a `convex_hull()` method:
+
+```python
+import geompp as g
+
+# 3D star polygon (10 vertices, coplanar, CCW)
+star = g.Polygon3D.make([
+    g.Point3D( 0,  5, 0), g.Point3D( 2,  1, 0),
+    g.Point3D( 4,  2, 0), g.Point3D( 2, -1, 0),
+    g.Point3D( 3, -3, 0), g.Point3D( 0, -1, 0),
+    g.Point3D(-2, -4, 0), g.Point3D(-1, -1, 0),
+    g.Point3D(-3,  1, 0), g.Point3D(-1,  2, 0),
+])
+
+hull = star.convex_hull()   # Polygon3D with 5 vertices
+print(f"hull has {hull.size()} vertices")
+# hull has 5 vertices
 ```
 
 

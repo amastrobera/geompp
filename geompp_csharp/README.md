@@ -202,6 +202,31 @@ hull has 5 vertices
 
 ---
 
+### Example 5 — `Polygon3D.ConvexHull`
+
+`Polygon2D` and `Polygon3D` expose a `ConvexHull()` instance method:
+
+```csharp
+using G = GeomPP;
+
+// 3D star polygon (10 vertices, coplanar, CCW)
+var star = G.Polygon3D.Make(new G.Point3D[] {
+    new( 0,  5, 0), new( 2,  1, 0), new( 4,  2, 0), new( 2, -1, 0),
+    new( 3, -3, 0), new( 0, -1, 0), new(-2, -4, 0), new(-1, -1, 0),
+    new(-3,  1, 0), new(-1,  2, 0),
+});
+
+var hull = star.ConvexHull();   // Polygon3D with 5 vertices
+Console.WriteLine($"hull has {hull.Size()} vertices");
+```
+
+Output:
+```
+hull has 5 vertices
+```
+
+---
+
 ## Precision
 
 All floating-point comparisons go through a thread-local precision setting:

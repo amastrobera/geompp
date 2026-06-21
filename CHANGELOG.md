@@ -15,18 +15,25 @@ Each release covers all three packages at the same version:
 
 > C++ library — tagged `v0.10.0` · C# / NuGet — tagged `csharp-v0.10.0` · Python / PyPI — tagged `python-v0.10.0`
 
-> Adds `convex_hull` (Andrew's monotone chain) for 2D point clouds. Moves `has_intersections` / `find_intersections` to the `line_segment2d` public API and simplifies `find_intersections` to return plain crossing points — segment indices are no longer part of any public API.
+> Adds `convex_hull` (Andrew's monotone chain) for 2D and 3D point clouds and as a method on `Polygon2D` / `Polygon3D`. Moves `has_intersections` / `find_intersections` to the `line_segment2d` public API and simplifies `find_intersections` to return plain crossing points — segment indices are no longer part of any public API.
 
 ### Added
 
 **C++ core**
 - `convex_hull(std::vector<Point2D> const& points)` (`point2d.hpp`) — Andrew's monotone chain algorithm; returns the convex hull of a 2D point cloud as a `std::vector<Point2D>` in counter-clockwise order. Sets of ≤ 3 points are returned as-is.
+- `convex_hull(std::vector<Point3D> const& points, std::optional<Vector3D> normal = std::nullopt)` (`point3d.hpp`) — projects coplanar points onto their dominant-axis plane, runs the monotone-chain core, and lifts back to 3D. Auto-detects the plane normal if omitted; throws on non-coplanar input.
+- `Polygon2D::ConvexHull()` — instance method returning a new `Polygon2D` whose vertices are the hull in CCW order.
+- `Polygon3D::ConvexHull()` — same for 3D polygons.
 
 **Python / PyPI**
 - `convex_hull(points)` — module-level free function accepting a `list[Point2D]`; returns `list[Point2D]` in CCW order.
+- `convex_hull(points, normal=None)` — accepts `list[Point3D]`; optional `Vector3D` normal for the projection plane.
+- `Polygon2D.convex_hull()` / `Polygon3D.convex_hull()` — instance methods mirroring the C++ API.
 
 **C# / NuGet**
 - `GeomUtil.ConvexHull(List<Point2D^>^)` → `IEnumerable<Point2D^>` — convex hull in CCW order.
+- `GeomUtil.ConvexHull(List<Point3D^>^)` → `IEnumerable<Point3D^>` — 3D point cloud convex hull.
+- `Polygon2D::ConvexHull()` / `Polygon3D::ConvexHull()` — instance methods.
 
 ### Changed
 
@@ -52,14 +59,22 @@ Each release covers all three packages at the same version:
 
 **C++ (`geompp_tests`)**
 - `test_point2d.cpp`: `ConvexHull_TooFewPoints_ReturnsAsIs`, `ConvexHull_ConvexSquare_ReturnsSamePoints`, `ConvexHull_AsymmetricStar_HullIsPentagon` (five outer tips at unequal radii; five inner concave vertices excluded from the hull).
+- `test_point3d.cpp`: `ConvexHull_TooFewPoints_ReturnsAsIs`, `ConvexHull_CoplanarSquare_XYPlane_ReturnsFourCorners`, `ConvexHull_CoplanarSquare_YZPlane_ReturnsFourCorners`, `ConvexHull_AsymmetricStar_HullIsPentagon` (3D coplanar point cloud).
+- `test_polygon2d.cpp`: `ConvexHull_StarPolygon_IsAPentagon`, `ConvexHull_ConvexPolygon_Unchanged`.
+- `test_polygon3d.cpp`: `ConvexHull_StarPolygon_IsAPentagon`, `ConvexHull_ConvexPolygon_Unchanged`.
 - `test_calc_utils2d.cpp`: updated 7 tests that previously accessed `IntersectionEvent2D::Point` / `::SegmentIds`; now access `Point2D` coordinates directly. Two tests using `SegmentRange2D` updated to call `has_intersections_impl` / `find_intersections_impl` directly (those are the only callers that still need the internal templates).
 
 **Python (`geompp_python/tests`)**
 - `TestConvexHull`: `test_convex_hull_few_points`, `test_convex_hull_square`, `test_convex_hull_asymmetric_star_pentagon`.
+- `TestConvexHull3D`: `test_few_points_returns_as_is`, `test_coplanar_square_xy_plane`, `test_coplanar_square_yz_plane`, `test_asymmetric_star_hull_is_pentagon`, `test_with_explicit_normal`.
+- `TestPolygon2DConvexHull`: `test_convex_hull_star_is_pentagon`, `test_convex_hull_convex_polygon_unchanged`.
+- `TestPolygon3DConvexHull`: `test_convex_hull_star_is_pentagon`, `test_convex_hull_convex_polygon_unchanged`.
 - Existing `test_find_intersections_reports_crossing`: updated to use `.x` / `.y` directly (was `.point.x` / `.point.y`).
 
 **C# (`geompp_csharp/tests`)**
 - `ConvexHull_AsymmetricStar_IsAPentagon`, `ConvexHull_StarOuterTipsAllOnHull`, `ConvexHull_FewPoints_ReturnsAsIs`.
+- `ConvexHull3D_XYPlaneSquare_ReturnsFourCorners`, `ConvexHull3D_AsymmetricStar_IsAPentagon`, `ConvexHull3D_StarOuterTipsAllOnHull`.
+- `ConvexHull_StarPolygon_IsAPentagon` (Polygon2D method), `ConvexHull3D_StarPolygon_IsAPentagon` (Polygon3D method).
 - Existing `FindIntersections_ReportsCrossing`: updated to iterate `IEnumerable<Point2D^>` and access `.X` / `.Y` directly.
 
 ---

@@ -225,6 +225,44 @@
   (CCW order, starting from the lexicographically smallest point)
 
 
+  #### Convex hull of a polygon
+
+  `Polygon2D` and `Polygon3D` expose a `ConvexHull()` method that wraps the free function:
+
+  ```cpp
+  #include "polygon3d.hpp"
+
+  namespace g = geompp;
+
+  // 3D star polygon (10 vertices, coplanar, CCW)
+  auto star = g::Polygon3D::Make({
+      g::Point3D( 0,  5, 0), g::Point3D( 2,  1, 0),
+      g::Point3D( 4,  2, 0), g::Point3D( 2, -1, 0),
+      g::Point3D( 3, -3, 0), g::Point3D( 0, -1, 0),
+      g::Point3D(-2, -4, 0), g::Point3D(-1, -1, 0),
+      g::Point3D(-3,  1, 0), g::Point3D(-1,  2, 0),
+  });
+
+  auto hull = star.ConvexHull();   // Polygon3D — 5-vertex pentagon
+
+  GEOMPP_LOG(INFO) << "hull has " << hull.Size() << " vertices:";
+  for (int i = 0; i < (int)hull.Size(); ++i) {
+      GEOMPP_LOG(INFO) << "  " << hull[i].ToWkt();
+  }
+  ```
+
+  will print out
+
+  ```bash
+  hull has 5 vertices:
+    POINT (3 -3 0)
+    POINT (4 2 0)
+    POINT (0 5 0)
+    POINT (-3 1 0)
+    POINT (-2 -4 0)
+  ```
+
+
   ## geom_viewer — interactive geometry visualizer (WIP)
 
   `geom_viewer` is a companion OpenGL application intended to let you see and interact with geometric
