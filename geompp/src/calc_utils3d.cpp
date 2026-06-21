@@ -132,8 +132,12 @@ std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points,
         auto p1 = no_col_pts[(i - 1) % n];
         auto p2 = no_col_pts[i % n];
 
+        // performance note: here we try to assess if all points are on the same plane - that is - all normals are equal
+        //  I would have used .Normalize() and compare pairs of normals but that would require 3 sqrt() calls each time
+        //  It is faster to use a cross product of the two calculated normals and check if they cross to a null vector
+        //  (if they don't they aren't on the same plane)
         auto temp_norm = (p1 - p0).Cross(p2 - p0);
-        if (!calc_normal.AlmostEquals(temp_norm)) {
+        if (!calc_normal.Cross(temp_norm).AlmostEquals(Vector3D{0, 0, 0})) {
           throw std::invalid_argument("points are not co-planar");
         }
       }

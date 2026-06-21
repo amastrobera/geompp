@@ -44,7 +44,11 @@ Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
   return *this;
 }
 
+int Polyline2D::Size() const { return KNOTS.size(); }
+
 SegmentRange2D Polyline2D::ToSegments() const { return SegmentRange2D(KNOTS); }
+
+double Polyline2D::Length() const { return LENGTH; }
 
 bool Polyline2D::AlmostEquals(Polyline2D const& other, double epsilon) const {
   if (compare(LENGTH, other.LENGTH, epsilon) != 0) {
@@ -158,7 +162,9 @@ std::ostream& operator<<(std::ostream& os, Polyline2D const& g) {
 
 bool Polyline2D::Contains(Point2D const& point) const {
   for (auto const& seg : ToSegments()) {
-    if (seg.Contains(point)) { return true; }
+    if (seg.Contains(point)) {
+      return true;
+    }
   }
   return false;
 }

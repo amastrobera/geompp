@@ -27,12 +27,12 @@ class Polyline2D {
   Polyline2D(Polyline2D&&) = default;
   ~Polyline2D() = default;
 
-  inline int Size() const { return KNOTS.size(); }
+  int Size() const;
   Point2D const& operator[](std::size_t i) const;
 
   bool AlmostEquals(Polyline2D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange2D ToSegments() const;
-  inline double Length() const { return LENGTH; }
+  double Length() const;
 
 #pragma region line operations
 
