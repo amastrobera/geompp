@@ -99,6 +99,10 @@ bool Polygon3D::IsOnBoundary(Point3D^ point) {
     return _native->IsOnBoundary(*point->_native);
 }
 
+bool Polygon3D::IsSimple() {
+    return _native->IsSimple();
+}
+
 Polygon3D^ Polygon3D::ConvexHull() {
     return gcnew Polygon3D(new geompp::Polygon3D(_native->ConvexHull()));
 }

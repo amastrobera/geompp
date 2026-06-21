@@ -3,6 +3,7 @@
 #include "bbox3d.hpp"
 #include "calc_utils3d.hpp"
 #include "line3d.hpp"
+#include "line_segment2d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
 #include "point2d.hpp"
@@ -194,19 +195,30 @@ double Polygon3D::Area() const {
 
 double Polygon3D::Perimeter() const { return PERIMETER; }
 
-// bool Polygon3D::IsSimple() const {
-//   if (has_intersections_impl(ToSegments())) {
-//     return false;
-//   }
+bool Polygon3D::IsSimple() const {
+  Axis dax = PLANE.normal().DominantAxis();
 
-//   for (auto const& hole : HOLES) {
-//     if (has_intersections_impl(SegmentRange3D(hole, true))) {
-//       return false;
-//     }
-//   }
+  auto make_segs = [dax](std::vector<Point3D> const& ring) {
+    auto to2d = [dax](Point3D const& p) -> Point2D {
+      if (dax == Axis::X) { return Point2D(p.y(), p.z()); }
+      if (dax == Axis::Y) { return Point2D(p.z(), p.x()); }
+      return Point2D(p.x(), p.y());
+    };
+    std::vector<LineSegment2D> segs;
+    segs.reserve(ring.size());
+    int n = (int)ring.size();
+    for (int i = 0; i < n; ++i) {
+      segs.push_back(LineSegment2D::Make(to2d(ring[i]), to2d(ring[(i + 1) % n])));
+    }
+    return segs;
+  };
 
-//   return true;
-// }
+  if (has_intersections(make_segs(VERTICES))) { return false; }
+  for (auto const& hole : HOLES) {
+    if (has_intersections(make_segs(hole))) { return false; }
+  }
+  return true;
+}
 
 Polygon3D Polygon3D::ConvexHull() {
   auto cv_indices = convex_hull_indices(VERTICES);

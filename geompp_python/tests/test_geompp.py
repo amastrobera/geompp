@@ -1297,6 +1297,32 @@ class TestPolygon2D:
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
+class TestPolygon3DIsSimple:
+    # NOTE: is_simple() correctness rides on the (currently provisional) sweep-line comparator; these encode
+    # the intended behaviour and should be re-verified once the real sweep-status ordering is in place.
+    def test_is_simple_convex_square_xy_plane_true(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ])
+        assert p.is_simple()
+
+    def test_is_simple_convex_square_yz_plane_true(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+            geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
+        ])
+        assert p.is_simple()
+
+    def test_is_simple_self_intersecting_false(self):
+        # CCW (positive area) but edges (4,0,0)->(1,3,0) and (3,3,0)->(0,0,0) cross
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0),
+        ])
+        assert not p.is_simple()
+
+
 class TestPolygon3D:
     def test_construction(self):
         pts = [

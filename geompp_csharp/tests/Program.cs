@@ -1448,6 +1448,24 @@ Test("IsOnBoundary_Interior_False", () => {
   IsFalse(poly.IsOnBoundary(new Point3D(2,   2,   0)), "inside hole");
 });
 
+// NOTE: IsSimple() correctness rides on the (currently provisional) sweep-line comparator; these encode the
+// intended behaviour and should be re-verified once the real sweep-status ordering lands.
+Test("IsSimple3D_ConvexSquare_XYPlane_True", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(sq.IsSimple(), "convex square on XY plane is simple");
+});
+
+Test("IsSimple3D_ConvexSquare_YZPlane_True", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(0,1,0), new(0,1,1), new(0,0,1) });
+  IsTrue(sq.IsSimple(), "convex square on YZ plane is simple");
+});
+
+Test("IsSimple3D_SelfIntersecting_False", () => {
+  // CCW (positive area) but edges (4,0,0)->(1,3,0) and (3,3,0)->(0,0,0) cross
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(1,3,0), new(3,3,0) });
+  IsFalse(p.IsSimple(), "self-intersecting 3D polygon is not simple");
+});
+
 Test("ConvexHull3D_StarPolygon_IsAPentagon", () => {
   var star = Polygon3D.Make(new Point3D[] {
     new( 0,  5, 0), new( 2,  1, 0), new( 4,  2, 0), new( 2, -1, 0),

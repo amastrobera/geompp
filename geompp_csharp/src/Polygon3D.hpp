@@ -31,6 +31,7 @@ public:
     Point3D^ Centroid();
     double   Area();
     double   Perimeter();
+    bool     IsSimple();
     double   DistanceTo(Point3D^ point);
     bool     Contains(Point3D^ point);
     bool     IsOnBoundary(Point3D^ point);

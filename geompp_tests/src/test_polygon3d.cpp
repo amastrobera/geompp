@@ -483,4 +483,25 @@ TEST_F(Polygon3DTest, ToSegments) {
   EXPECT_EQ(4, count);
 }
 
+// NOTE: IsSimple() correctness depends on the (currently provisional) sweep-line comparator; these encode the
+// intended behaviour and are expected to be re-verified once the real sweep-status ordering is in place.
+TEST_F(Polygon3DTest, IsSimple_ConvexSquareIsSimple) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_TRUE(p.IsSimple());
+}
+
+TEST_F(Polygon3DTest, IsSimple_ConvexSquare_YZPlane_IsSimple) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0,0,0), g::Point3D(0,1,0), g::Point3D(0,1,1), g::Point3D(0,0,1)});
+  EXPECT_TRUE(p.IsSimple());
+}
+
+TEST_F(Polygon3DTest, IsSimple_SelfIntersectingIsNotSimple) {
+  // CCW (positive area) but the (4,0,0)->(1,3,0) and (3,3,0)->(0,0,0) edges cross
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0,0,0), g::Point3D(4,0,0), g::Point3D(1,3,0), g::Point3D(3,3,0)});
+  EXPECT_FALSE(p.IsSimple());
+}
+
 }  // namespace geompp_tests

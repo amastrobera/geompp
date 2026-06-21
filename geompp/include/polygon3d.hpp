@@ -37,7 +37,7 @@ class Polygon3D {
   Point3D Centroid() const;
   double Area() const;
   double Perimeter() const;
-  // bool IsSimple() const;  // no self-intersections, but holes are allowed
+  bool IsSimple() const;
   Polygon3D ConvexHull();
   std::vector<Point3D> ToPoints();
 
