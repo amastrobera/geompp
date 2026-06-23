@@ -56,6 +56,8 @@ Point2D linear_combination(std::vector<Point2D> const& points, std::vector<doubl
 
 Point2D average(std::vector<Point2D> const& points);
 
+std::vector<Point2D> convex_hull(std::vector<Point2D> const& points);
+
 #pragma endregion
 
 #pragma region Operators Overloading

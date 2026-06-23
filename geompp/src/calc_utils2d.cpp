@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 
 #include "line_segment2d.hpp"
+#include "point2d.hpp"
 #include "polygon2d.hpp"
 #include "segment_iterator2d.hpp"
 #include "vector2d.hpp"
@@ -9,8 +10,10 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <limits>
+#include <numeric>
 #include <set>
 #include <stdexcept>
 #include <variant>
@@ -307,7 +310,7 @@ double SweepLine2D<Segments>::GetX() const {
 // ------- free functions -------
 
 template <SegmentList Segments>
-bool has_intersections(Segments const& segments) {
+bool has_intersections_impl(Segments const& segments) {
   if (segments.size() < 2) {
     throw std::invalid_argument("provided less than 2 segments, cannot check for intersections");
   }
@@ -354,7 +357,7 @@ bool has_intersections(Segments const& segments) {
 }
 
 template <SegmentList Segments>
-std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
+std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segments) {
   if (segments.size() < 2) {
     throw std::invalid_argument("less than 2 segments provided, cannot check for intersections");
   }
@@ -421,8 +424,8 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
         if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
           if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_event = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id,
-                                       above_elem->Id};
+            auto inter_event =
+                Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id, above_elem->Id};
             if (!event_queue.Contains(inter_event)) {
               event_queue.Push(inter_event);
             }
@@ -506,8 +509,8 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
         if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
           if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()),
-                                    new_seg1.Segment->Id, new_seg1.Above->Id};
+            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg1.Segment->Id,
+                                    new_seg1.Above->Id};
             if (!event_queue.Contains(inter_ev)) {
               event_queue.Push(inter_ev);
             }
@@ -518,8 +521,8 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
       if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
         if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
           if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()),
-                                    new_seg2.Below->Id, new_seg2.Segment->Id};
+            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg2.Below->Id,
+                                    new_seg2.Segment->Id};
             if (!event_queue.Contains(inter_ev)) {
               event_queue.Push(inter_ev);
             }
@@ -543,11 +546,66 @@ template class SweepLine2D<std::vector<LineSegment2D>>;
 template class SweepLine2D<SegmentRange2D>;
 
 // for a free function template the instantiation deduces the parameter from the argument type:
-template bool has_intersections(std::vector<LineSegment2D> const&);
-template bool has_intersections(SegmentRange2D const&);
+template bool has_intersections_impl(std::vector<LineSegment2D> const&);
+template bool has_intersections_impl(SegmentRange2D const&);
 
 // for a free function template the instantiation deduces the parameter from the argument type:
-template std::vector<IntersectionEvent2D> find_intersections(std::vector<LineSegment2D> const&);
-template std::vector<IntersectionEvent2D> find_intersections(SegmentRange2D const&);
+template std::vector<IntersectionEvent2D> find_intersections_impl(std::vector<LineSegment2D> const&);
+template std::vector<IntersectionEvent2D> find_intersections_impl(SegmentRange2D const&);
+
+// 1. THE CORE GENERIC SOLVER (Writes the hull using index lookups and abstract lambdas)
+std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
+                                                std::function<double(size_t)> get_y,
+                                                std::function<bool(size_t, size_t, size_t)> is_left) {
+  if (n < 3) return {};
+
+  std::vector<size_t> indices(n);
+  std::iota(indices.begin(), indices.end(), 0);
+
+  // Sort using the abstract X and Y projections
+  std::sort(indices.begin(), indices.end(), [&](size_t idx1, size_t idx2) {
+    double x1 = get_x(idx1), x2 = get_x(idx2);
+    if (x1 != x2) return x1 < x2;
+    return get_y(idx1) < get_y(idx2);
+  });
+
+  std::vector<size_t> hull;
+  hull.reserve(2 * n);
+
+  // Lower Hull
+  for (size_t i = 0; i < n; ++i) {
+    while (hull.size() >= 2 && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
+      hull.pop_back();
+    }
+    hull.push_back(indices[i]);
+  }
+
+  // Upper Hull
+  size_t lower_hull_size = hull.size();
+  for (ptrdiff_t i = static_cast<ptrdiff_t>(n) - 2; i >= 0; --i) {
+    while (hull.size() > lower_hull_size && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
+      hull.pop_back();
+    }
+    hull.push_back(indices[i]);
+  }
+
+  if (!hull.empty()) hull.pop_back();
+  return hull;
+}
+
+std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
+  // clang-format off
+    return convex_hull_generic_impl_2D(
+        points.size(),
+        [&points](size_t i) { return points[i].x(); },
+        [&points](size_t i) { return points[i].y(); },
+        [&points](size_t o, size_t a, size_t b) {
+            // Your standard 2D is_left logic here (copied from is_left(Point2D...))
+            return compare((points[a].x() - points[o].x()) * (points[b].y() - points[o].y()) -
+                           (points[a].y() - points[o].y()) * (points[b].x() - points[o].x()), 0) > 0;
+        }
+    );
+  // clang-format on
+}
 
 }  // namespace geompp

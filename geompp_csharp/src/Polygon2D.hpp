@@ -33,6 +33,8 @@ public:
     bool     Contains(Point2D^ point);
     bool     IsOnBoundary(Point2D^ point);
     bool     IsSimple();  // no self-intersections, but holes are allowed
+    Polygon2D^           ConvexHull();
+    array<Point2D^>^     ToPoints();
 
     System::String^ ToWkt();
     static Polygon2D^ FromWkt(System::String^ wkt);

@@ -3,6 +3,7 @@
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
+#include "polygon2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 #include "vector2d.hpp"
@@ -405,6 +406,39 @@ TEST_F(Polyline2DTest, ToSegments) {
   auto segs2 = p2.ToSegments();
   ASSERT_EQ(1, segs2.size());
   ASSERT_EQ(g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(3, 4)), segs2[0]);
+}
+
+TEST_F(Polyline2DTest, ConvexHull_TooFewPoints_Throws) {
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0)});
+  EXPECT_THROW(pl.ConvexHull(), std::invalid_argument);
+}
+
+TEST_F(Polyline2DTest, ConvexHull_ThreePoints_ReturnsTriangle) {
+  auto pl = g::Polyline2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3)});
+  auto hull = pl.ConvexHull();
+  EXPECT_EQ(3, hull.Size());
+}
+
+TEST_F(Polyline2DTest, ConvexHull_ConcavePath_InnerPointExcluded) {
+  // simple path: outer square corners with one inner dip at (2,1)
+  // hull should be the 4 outer corners; (2,1) excluded
+  auto pl = g::Polyline2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4),
+       g::Point2D(2, 1), g::Point2D(0, 4)});
+  auto hull = pl.ConvexHull();
+  ASSERT_EQ(4, hull.Size());
+
+  std::vector<g::Point2D> expected{
+      g::Point2D(0, 0), g::Point2D(4, 0),
+      g::Point2D(4, 4), g::Point2D(0, 4)};
+  for (auto const& e : expected) {
+    bool found = false;
+    for (int i = 0; i < (int)hull.Size(); ++i) {
+      if (hull[i].AlmostEquals(e)) { found = true; break; }
+    }
+    EXPECT_TRUE(found) << "expected " << e.ToWkt() << " on hull";
+  }
 }
 
 }  // namespace geompp_tests

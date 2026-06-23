@@ -11,6 +11,10 @@ void bind_polyline2d(py::module_& m) {
             return std::vector<geompp::LineSegment2D>(r.begin(), r.end());
         })
         .def("length",      &geompp::Polyline2D::Length)
+        .def("convex_hull", &geompp::Polyline2D::ConvexHull,
+             "Returns the convex hull of the polyline as a Polygon2D (Melkman's algorithm, O(n)).\n"
+             "The polyline must be simple (no self-intersections). Call is_simple() first to verify;\n"
+             "behaviour is undefined on non-simple input.")
         .def("distance_to",  &geompp::Polyline2D::DistanceTo,  "point"_a)
         .def("project_onto", &geompp::Polyline2D::ProjectOnto, "point"_a)
         .def("location",     &geompp::Polyline2D::Location,    "point"_a)

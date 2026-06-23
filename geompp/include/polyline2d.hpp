@@ -16,6 +16,7 @@ namespace geompp {
 class Line2D;
 class Ray2D;
 class LineSegment2D;
+class Polygon2D;
 
 class Polyline2D {
  public:
@@ -27,12 +28,17 @@ class Polyline2D {
   Polyline2D(Polyline2D&&) = default;
   ~Polyline2D() = default;
 
-  inline int Size() const { return KNOTS.size(); }
+  int Size() const;
   Point2D const& operator[](std::size_t i) const;
 
   bool AlmostEquals(Polyline2D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange2D ToSegments() const;
-  inline double Length() const { return LENGTH; }
+  double Length() const;
+  bool IsSimple() const;
+  /// @brief Convex Hull via the Melkman's algorithm. It requires IsSimple() to be true in order to make sense
+  /// @return The convex hull polygon of the polyline, even if the polyline is not simple (it will be a wrong hull in
+  /// that case). So please check IsSimple() before running this.
+  Polygon2D ConvexHull();
 
 #pragma region line operations
 

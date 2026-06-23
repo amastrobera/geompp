@@ -136,18 +136,78 @@ print(poly.size())               # 4
 | `average(points)` | Arithmetic mean |
 | `linear_combination(points, weights)` | Weighted sum |
 | `has_intersections(segments)` | Shamos–Hoey: `True` if any two segments in `list[LineSegment2D]` cross |
-| `find_intersections(segments)` | Bentley–Ottmann: returns `list[IntersectionEvent2D]` — every crossing point with the ids of all segments through it |
+| `find_intersections(segments)` | Bentley–Ottmann: returns `list[Point2D]` — every crossing point, sorted left-to-right |
+| `convex_hull(points)` | Andrew's monotone chain: convex hull of a `list[Point2D]`, returned in CCW order |
+| `convex_hull(points, normal=None)` | Convex hull of a coplanar `list[Point3D]`; optional `Vector3D` normal (auto-detected if omitted) |
 
-### IntersectionEvent2D
+## Convex hull
 
 ```python
-hits = geompp.find_intersections(segments)
-for ev in hits:
-    print(ev.point)        # Point2D — the crossing location
-    print(ev.segment_id1)  # int     — index of first segment
-    print(ev.segment_id2)  # int     — index of second segment
-    print(ev.segment_ids)  # list[int] — all segment indices (≥ 2; more when 3+ meet at one point)
+import geompp as g
+
+g.set_decimal_precision(g.DP_THREE)
+
+# An asymmetric 5-pointed star: 5 outer tips + 5 inner concave vertices.
+# The convex hull should be exactly the 5 outer tips.
+star = [
+    # outer tips
+    g.Point2D( 0,  5), g.Point2D( 4,  2),
+    g.Point2D( 3, -3), g.Point2D(-2, -4), g.Point2D(-3,  1),
+    # inner concave vertices (will be excluded from the hull)
+    g.Point2D( 2,  1), g.Point2D( 2, -1),
+    g.Point2D( 0, -1), g.Point2D(-1, -1), g.Point2D(-1,  2),
+]
+
+hull = g.convex_hull(star)
+print(f"hull has {len(hull)} vertices:")
+for p in hull:
+    print(" ", p.to_wkt())
+# hull has 5 vertices:
+#   POINT (3 -3)
+#   POINT (4 2)
+#   POINT (0 5)
+#   POINT (-3 1)
+#   POINT (-2 -4)
 ```
 
+### Convex hull of a polygon
+
+`Polygon2D` and `Polygon3D` expose a `convex_hull()` method:
+
+```python
+import geompp as g
+
+# 3D star polygon (10 vertices, coplanar, CCW)
+star = g.Polygon3D.make([
+    g.Point3D( 0,  5, 0), g.Point3D( 2,  1, 0),
+    g.Point3D( 4,  2, 0), g.Point3D( 2, -1, 0),
+    g.Point3D( 3, -3, 0), g.Point3D( 0, -1, 0),
+    g.Point3D(-2, -4, 0), g.Point3D(-1, -1, 0),
+    g.Point3D(-3,  1, 0), g.Point3D(-1,  2, 0),
+])
+
+hull = star.convex_hull()   # Polygon3D with 5 vertices
+print(f"hull has {hull.size()} vertices")
+# hull has 5 vertices
+```
+
+### Convex hull of a simple polyline
+
+`Polyline2D.convex_hull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `is_simple()` first.
+
+```python
+import geompp as g
+
+# Simple concave path: outer corners with an inner dip at (2,1)
+path = g.Polyline2D.make([
+    g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(4, 4),
+    g.Point2D(2, 1), g.Point2D(0, 4),
+])
+
+if path.is_simple():
+    hull = path.convex_hull()   # Polygon2D with 4 vertices
+    print(f"hull has {hull.size()} vertices")
+# hull has 4 vertices
+```
 
 

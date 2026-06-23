@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace geompp {
 
@@ -114,6 +115,12 @@ class LineSegment2D {
 
 bool intersect(LineSegment2D const& seg1,
                LineSegment2D const& seg2);  // true if the segments intersect (including at endpoints)
+
+/// @brief Shamos-Hoey: true if any two segments in the set intersect
+bool has_intersections(std::vector<LineSegment2D> const& segments);
+
+/// @brief Bentley-Ottmann: all intersection points among the segments, sorted bottom-left to top-right
+std::vector<Point2D> find_intersections(std::vector<LineSegment2D> const& segments);
 
 #pragma endregion
 

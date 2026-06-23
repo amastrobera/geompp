@@ -98,6 +98,18 @@ bool Polygon2D::IsSimple() {
     return _native->IsSimple();
 }
 
+Polygon2D^ Polygon2D::ConvexHull() {
+    return gcnew Polygon2D(new geompp::Polygon2D(_native->ConvexHull()));
+}
+
+array<Point2D^>^ Polygon2D::ToPoints() {
+    auto native = _native->ToPoints();
+    auto arr = gcnew array<Point2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i)
+        arr[i] = gcnew Point2D(new geompp::Point2D(native[i]));
+    return arr;
+}
+
 System::String^ Polygon2D::ToWkt() {
     return gcnew System::String(_native->ToWkt().c_str());
 }

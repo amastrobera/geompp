@@ -1106,10 +1106,82 @@ Test("FindIntersections_SimpleRing_Empty", () => {
 
 Test("FindIntersections_ReportsCrossing", () => {
   bool found = false;
-  foreach (var ev in GeomUtil.FindIntersections(SelfIntersectingRing())) {
-    if (System.Math.Abs(ev.Point.X - 2.0) < 1e-6 && System.Math.Abs(ev.Point.Y - 2.0) < 1e-6) { found = true; }
+  foreach (var p in GeomUtil.FindIntersections(SelfIntersectingRing())) {
+    if (System.Math.Abs(p.X - 2.0) < 1e-6 && System.Math.Abs(p.Y - 2.0) < 1e-6) { found = true; }
   }
   IsTrue(found, "expected the (2,2) crossing among reported intersections");
+});
+
+// ── ConvexHull ────────────────────────────────────────────────────────────────
+Console.WriteLine("\nConvexHull");
+
+List<Point2D> StarPoints() {
+  // 5 outer tips at unequal distances + 5 inner concave vertices
+  return new List<Point2D> {
+    new( 0,  5), new( 2,  1),   // tip0, inner0
+    new( 4,  2), new( 2, -1),   // tip1, inner1
+    new( 3, -3), new( 0, -1),   // tip2, inner2
+    new(-2, -4), new(-1, -1),   // tip3, inner3
+    new(-3,  1), new(-1,  2),   // tip4, inner4
+  };
+}
+
+Test("ConvexHull_AsymmetricStar_IsAPentagon", () => {
+  var hull = new List<Point2D>(GeomUtil.ConvexHull(StarPoints()));
+  Eq(5, hull.Count);
+});
+
+Test("ConvexHull_StarOuterTipsAllOnHull", () => {
+  var hull = new List<Point2D>(GeomUtil.ConvexHull(StarPoints()));
+  var tips = new List<Point2D> {
+    new(0,5), new(4,2), new(3,-3), new(-2,-4), new(-3,1) };
+  foreach (var tip in tips) {
+    IsTrue(hull.Exists(h => System.Math.Abs(h.X - tip.X) < 1e-6 && System.Math.Abs(h.Y - tip.Y) < 1e-6),
+           $"outer tip ({tip.X},{tip.Y}) should be on the hull");
+  }
+});
+
+Test("ConvexHull_FewPoints_ReturnsAsIs", () => {
+  var pts = new List<Point2D> { new(0, 0), new(1, 1) };
+  var hull = new List<Point2D>(GeomUtil.ConvexHull(pts));
+  Eq(2, hull.Count);
+});
+
+// ── ConvexHull 3D ─────────────────────────────────────────────────────────────
+Console.WriteLine("\nConvexHull 3D");
+
+List<Point3D> StarPoints3D() {
+  return new List<Point3D> {
+    new( 0,  5, 0), new( 2,  1, 0),
+    new( 4,  2, 0), new( 2, -1, 0),
+    new( 3, -3, 0), new( 0, -1, 0),
+    new(-2, -4, 0), new(-1, -1, 0),
+    new(-3,  1, 0), new(-1,  2, 0),
+  };
+}
+
+Test("ConvexHull3D_XYPlaneSquare_ReturnsFourCorners", () => {
+  var pts = new List<Point3D> {
+    new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0) };
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(pts));
+  Eq(4, hull.Count);
+});
+
+Test("ConvexHull3D_AsymmetricStar_IsAPentagon", () => {
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(StarPoints3D()));
+  Eq(5, hull.Count);
+});
+
+Test("ConvexHull3D_StarOuterTipsAllOnHull", () => {
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(StarPoints3D()));
+  var tips = new List<Point3D> {
+    new(0,5,0), new(4,2,0), new(3,-3,0), new(-2,-4,0), new(-3,1,0) };
+  foreach (var tip in tips) {
+    IsTrue(hull.Exists(h => System.Math.Abs(h.X - tip.X) < 1e-6
+                         && System.Math.Abs(h.Y - tip.Y) < 1e-6
+                         && System.Math.Abs(h.Z - tip.Z) < 1e-6),
+           $"outer tip ({tip.X},{tip.Y},{tip.Z}) should be on the hull");
+  }
 });
 
 // ── Polygon2D ─────────────────────────────────────────────────────────────────
@@ -1230,6 +1302,26 @@ Test("IsSimple_SelfIntersecting_False", () => {
   // CCW (positive area) but edges (4,0)->(1,3) and (3,3)->(0,0) cross at (2,2)
   var p = Polygon2D.Make(new Point2D[] { new(0,0), new(4,0), new(1,3), new(3,3) });
   IsFalse(p.IsSimple(), "self-intersecting polygon is not simple");
+});
+
+Test("ConvexHull_StarPolygon_IsAPentagon", () => {
+  var star = Polygon2D.Make(new Point2D[] {
+    new(-1,  2), new(-3,  1), new(-1, -1), new(-2, -4),
+    new( 0, -1), new( 3, -3), new( 2, -1), new( 4,  2),
+    new( 2,  1), new( 0,  5),
+  });
+  var hull = star.ConvexHull();
+  Eq(5, hull.Size());
+});
+
+Test("ToPoints_RoundTrip", () => {
+  var pts = new Point2D[] { new(0,0), new(3,0), new(3,3), new(0,3) };
+  var poly = Polygon2D.Make(pts);
+  var back = poly.ToPoints();
+  Eq(4, back.Length);
+  for (int i = 0; i < pts.Length; ++i) {
+    IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after ToPoints round-trip");
+  }
 });
 
 // ── Polygon3D ─────────────────────────────────────────────────────────────────
@@ -1354,6 +1446,44 @@ Test("IsOnBoundary_Interior_False", () => {
   var poly  = Polygon3D.Make(outer, new[] { hole });
   IsFalse(poly.IsOnBoundary(new Point3D(0.5, 0.5, 0)), "interior strip");
   IsFalse(poly.IsOnBoundary(new Point3D(2,   2,   0)), "inside hole");
+});
+
+// NOTE: IsSimple() correctness rides on the (currently provisional) sweep-line comparator; these encode the
+// intended behaviour and should be re-verified once the real sweep-status ordering lands.
+Test("IsSimple3D_ConvexSquare_XYPlane_True", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(sq.IsSimple(), "convex square on XY plane is simple");
+});
+
+Test("IsSimple3D_ConvexSquare_YZPlane_True", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(0,1,0), new(0,1,1), new(0,0,1) });
+  IsTrue(sq.IsSimple(), "convex square on YZ plane is simple");
+});
+
+Test("IsSimple3D_SelfIntersecting_False", () => {
+  // CCW (positive area) but edges (4,0,0)->(1,3,0) and (3,3,0)->(0,0,0) cross
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(1,3,0), new(3,3,0) });
+  IsFalse(p.IsSimple(), "self-intersecting 3D polygon is not simple");
+});
+
+Test("ConvexHull3D_StarPolygon_IsAPentagon", () => {
+  var star = Polygon3D.Make(new Point3D[] {
+    new(-1,  2, 0), new(-3,  1, 0), new(-1, -1, 0), new(-2, -4, 0),
+    new( 0, -1, 0), new( 3, -3, 0), new( 2, -1, 0), new( 4,  2, 0),
+    new( 2,  1, 0), new( 0,  5, 0),
+  });
+  var hull = star.ConvexHull();
+  Eq(5, hull.Size());
+});
+
+Test("ToPoints3D_RoundTrip", () => {
+  var pts = new Point3D[] { new(0,0,0), new(3,0,0), new(3,3,0), new(0,3,0) };
+  var poly = Polygon3D.Make(pts);
+  var back = poly.ToPoints();
+  Eq(4, back.Length);
+  for (int i = 0; i < pts.Length; ++i) {
+    IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after ToPoints round-trip");
+  }
 });
 
 // ── Vector2D ──────────────────────────────────────────────────────────────────
@@ -2313,6 +2443,32 @@ Test("AlmostEquals_SamePolyline_True", () => {
   var a = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
   var b = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
   IsTrue(a.AlmostEquals(b));
+});
+
+Test("ConvexHull_TooFewPoints_Throws", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(1,0) });
+  bool threw = false;
+  try { pl.ConvexHull(); } catch (Exception) { threw = true; }
+  IsTrue(threw, "ConvexHull on 2-point polyline should throw");
+});
+
+Test("ConvexHull_ThreePoints_ReturnsTriangle", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(2,3) });
+  var hull = pl.ConvexHull();
+  Eq(3, hull.Size());
+});
+
+Test("ConvexHull_ConcavePath_InnerPointExcluded", () => {
+  // simple path: outer corners with inner dip at (2,1) — hull is the 4 outer corners
+  var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4), new(2,1), new(0,4) });
+  var hull = pl.ConvexHull();
+  Eq(4, hull.Size());
+  var expected = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  foreach (var e in expected) {
+    bool found = false;
+    for (int i = 0; i < hull.Size(); i++) if (hull[i].AlmostEquals(e)) { found = true; break; }
+    IsTrue(found, $"{e} should be on hull");
+  }
 });
 
 Test("AlmostEquals_DiffPolyline_False", () => {

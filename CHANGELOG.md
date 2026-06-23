@@ -11,6 +11,85 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.10.0] - 2026-06-20
+
+> C++ library — tagged `v0.10.0` · C# / NuGet — tagged `csharp-v0.10.0` · Python / PyPI — tagged `python-v0.10.0`
+
+> Adds `convex_hull` (Andrew's monotone chain) for 2D and 3D point clouds and as a method on `Polygon2D` / `Polygon3D`. Moves `has_intersections` / `find_intersections` to the `line_segment2d` public API and simplifies `find_intersections` to return plain crossing points — segment indices are no longer part of any public API.
+
+### Added
+
+**C++ core**
+- `convex_hull(std::vector<Point2D> const& points)` (`point2d.hpp`) — Andrew's monotone chain algorithm; returns the convex hull of a 2D point cloud as a `std::vector<Point2D>` in counter-clockwise order. Sets of ≤ 3 points are returned as-is.
+- `convex_hull(std::vector<Point3D> const& points, std::optional<Vector3D> normal = std::nullopt)` (`point3d.hpp`) — projects coplanar points onto their dominant-axis plane, runs the monotone-chain core, and lifts back to 3D. Auto-detects the plane normal if omitted; throws on non-coplanar input.
+- `Polygon2D::ConvexHull()` — instance method returning a new `Polygon2D` whose vertices are the hull in CCW order.
+- `Polygon3D::ConvexHull()` — same for 3D polygons.
+- `Polygon3D::IsSimple()` — returns `true` if the polygon boundary has no self-intersections; uses dominant-axis projection to `LineSegment2D` then delegates to `has_intersections` (Shamos–Hoey).
+- `Polyline2D::ConvexHull()` — Melkman's O(n) convex hull for simple polylines; returns a `Polygon2D`. Precondition: the polyline must be simple (call `IsSimple()` first); behaviour is undefined on non-simple input.
+
+**Python / PyPI**
+- `convex_hull(points)` — module-level free function accepting a `list[Point2D]`; returns `list[Point2D]` in CCW order.
+- `convex_hull(points, normal=None)` — accepts `list[Point3D]`; optional `Vector3D` normal for the projection plane.
+- `Polygon2D.convex_hull()` / `Polygon3D.convex_hull()` — instance methods mirroring the C++ API.
+- `Polygon3D.is_simple()` — returns `True` if the polygon boundary has no self-intersections.
+- `Polyline2D.convex_hull()` — Melkman's O(n) hull; returns a `Polygon2D`. Call `is_simple()` first.
+
+**C# / NuGet**
+- `GeomUtil.ConvexHull(List<Point2D^>^)` → `IEnumerable<Point2D^>` — convex hull in CCW order.
+- `GeomUtil.ConvexHull(List<Point3D^>^)` → `IEnumerable<Point3D^>` — 3D point cloud convex hull.
+- `Polygon2D::ConvexHull()` / `Polygon3D::ConvexHull()` — instance methods.
+- `Polygon3D::IsSimple()` — returns `true` if the polygon boundary has no self-intersections.
+- `Polyline2D::ConvexHull()` — Melkman's O(n) hull; returns a `Polygon2D^`. Call `IsSimple()` first.
+
+### Changed
+
+**C++ core**
+- `has_intersections(std::vector<LineSegment2D> const&)` and `find_intersections(std::vector<LineSegment2D> const&)` are now declared in `line_segment2d.hpp` (previously only in `calc_utils2d.hpp`). The underlying sweep-line templates are renamed to `has_intersections_impl` / `find_intersections_impl` and remain internal to `calc_utils2d`.
+- `find_intersections` return type changed from `std::vector<IntersectionEvent2D>` to `std::vector<Point2D>` — only the crossing coordinates are returned; per-segment indices are no longer exposed in the public API.
+
+**Python / PyPI**
+- `find_intersections(segments)` now returns `list[Point2D]` (was `list[IntersectionEvent2D]`). Access coordinates directly via `.x` / `.y` instead of `.point.x` / `.point.y`.
+- `IntersectionEvent2D` class removed from the public API.
+
+**C# / NuGet**
+- `GeomUtil.FindIntersections(List<LineSegment2D^>^)` now returns `IEnumerable<Point2D^>` (was `IEnumerable<IntersectionEvent2D^>`).
+- `IntersectionEvent2D` class removed from the public API.
+
+### Fixed
+
+**C++ core**
+- `convex_hull`: `std::vector<Point2D> cv(n)` attempted to default-construct `n` `Point2D` objects (no default constructor exists); replaced with `cv.reserve(n)` + `emplace_back`. The previous code produced a vector of size `2n` on compilers that accepted it, or a build error on strict MSVC.
+- `point2d.hpp`: duplicate `convex_hull` declaration (appeared in both the first and second `Collections Operations` regions) removed.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_point2d.cpp`: `ConvexHull_TooFewPoints_ReturnsAsIs`, `ConvexHull_ConvexSquare_ReturnsSamePoints`, `ConvexHull_AsymmetricStar_HullIsPentagon` (five outer tips at unequal radii; five inner concave vertices excluded from the hull).
+- `test_point3d.cpp`: `ConvexHull_TooFewPoints_ReturnsAsIs`, `ConvexHull_CoplanarSquare_XYPlane_ReturnsFourCorners`, `ConvexHull_CoplanarSquare_YZPlane_ReturnsFourCorners`, `ConvexHull_AsymmetricStar_HullIsPentagon` (3D coplanar point cloud).
+- `test_polygon2d.cpp`: `ConvexHull_StarPolygon_IsAPentagon`, `ConvexHull_ConvexPolygon_Unchanged`.
+- `test_polygon3d.cpp`: `ConvexHull_StarPolygon_IsAPentagon`, `ConvexHull_ConvexPolygon_Unchanged`; `IsSimple_ConvexSquareIsSimple`, `IsSimple_ConvexSquare_YZPlane_IsSimple`, `IsSimple_SelfIntersectingIsNotSimple`.
+- `test_polyline2d.cpp`: `ConvexHull_TooFewPoints_Throws`, `ConvexHull_ThreePoints_ReturnsTriangle`, `ConvexHull_ConcavePath_InnerPointExcluded`.
+- `test_calc_utils2d.cpp`: updated 7 tests that previously accessed `IntersectionEvent2D::Point` / `::SegmentIds`; now access `Point2D` coordinates directly. Two tests using `SegmentRange2D` updated to call `has_intersections_impl` / `find_intersections_impl` directly (those are the only callers that still need the internal templates).
+
+**Python (`geompp_python/tests`)**
+- `TestConvexHull`: `test_convex_hull_few_points`, `test_convex_hull_square`, `test_convex_hull_asymmetric_star_pentagon`.
+- `TestConvexHull3D`: `test_few_points_returns_as_is`, `test_coplanar_square_xy_plane`, `test_coplanar_square_yz_plane`, `test_asymmetric_star_hull_is_pentagon`, `test_with_explicit_normal`.
+- `TestPolygon2DConvexHull`: `test_convex_hull_star_is_pentagon`, `test_convex_hull_convex_polygon_unchanged`.
+- `TestPolygon3DConvexHull`: `test_convex_hull_star_is_pentagon`, `test_convex_hull_convex_polygon_unchanged`.
+- `TestPolygon3DIsSimple`: `test_is_simple_convex_square_xy_plane_true`, `test_is_simple_convex_square_yz_plane_true`, `test_is_simple_self_intersecting_false`.
+- `TestPolyline2DConvexHull`: `test_too_few_points_throws`, `test_three_points_returns_triangle`, `test_concave_path_inner_point_excluded`.
+- Existing `test_find_intersections_reports_crossing`: updated to use `.x` / `.y` directly (was `.point.x` / `.point.y`).
+
+**C# (`geompp_csharp/tests`)**
+- `ConvexHull_AsymmetricStar_IsAPentagon`, `ConvexHull_StarOuterTipsAllOnHull`, `ConvexHull_FewPoints_ReturnsAsIs`.
+- `ConvexHull3D_XYPlaneSquare_ReturnsFourCorners`, `ConvexHull3D_AsymmetricStar_IsAPentagon`, `ConvexHull3D_StarOuterTipsAllOnHull`.
+- `ConvexHull_StarPolygon_IsAPentagon` (Polygon2D method), `ConvexHull3D_StarPolygon_IsAPentagon` (Polygon3D method).
+- `IsSimple3D_ConvexSquare_XYPlane_True`, `IsSimple3D_ConvexSquare_YZPlane_True`, `IsSimple3D_SelfIntersecting_False`.
+- `ConvexHull_TooFewPoints_Throws`, `ConvexHull_ThreePoints_ReturnsTriangle`, `ConvexHull_ConcavePath_InnerPointExcluded` (Polyline2D method).
+- Existing `FindIntersections_ReportsCrossing`: updated to iterate `IEnumerable<Point2D^>` and access `.X` / `.Y` directly.
+
+---
+
 ## [0.9.0] - 2026-06-15
 
 > C++ library — tagged `v0.9.0` · C# / NuGet — tagged `csharp-v0.9.0` · Python / PyPI — tagged `python-v0.9.0`

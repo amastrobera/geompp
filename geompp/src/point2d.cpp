@@ -1,5 +1,6 @@
 #include "point2d.hpp"
 
+#include "calc_utils2d.hpp"
 #include "utils.hpp"
 #include "vector2d.hpp"
 
@@ -370,6 +371,31 @@ Point2D centroid(std::vector<Point2D> const& points) {
   cy /= (6 * sa);
 
   return {cx, cy};
+}
+
+std::vector<Point2D> sort_ccw(std::vector<Point2D> const& points) {
+  if (points.size() < 3) {
+    GEOMPP_LOG(WARNING) << "cannot sort ccw a list of less than 3 points. returning inputs";
+    return points;
+  }
+
+  auto c = centroid(points);
+}
+
+std::vector<Point2D> convex_hull(std::vector<Point2D> const& points) {
+  if (points.size() <= 3) {
+    return points;
+  }
+
+  auto cv_indices = convex_hull_indices(points);
+
+  std::vector<Point2D> cv;
+  cv.reserve(cv_indices.size());
+  for (std::size_t i : cv_indices) {
+    cv.emplace_back(points[i]);
+  }
+
+  return cv;
 }
 
 #pragma endregion

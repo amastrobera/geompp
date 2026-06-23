@@ -14,6 +14,7 @@
 
 namespace geompp {
 
+class Point2D;
 class Polygon2D;
 class SegmentRange2D;
 
@@ -41,9 +42,9 @@ struct Event2D {
   std::optional<std::size_t> InterSegmentId;  // if EventType::INTERSECTION this is the second segment involved in the
                                               // intersection, otherwise std::nullopt
 
-  bool operator<(Event2D const& other) const;         // for the priority queue in EventQueue2D
-  bool operator>(Event2D const& other) const;         // required by std::greater<Event2D> (EventMinHeap)
-  bool operator==(Event2D const& other) const;        // for EventQueue2D::Contains
+  bool operator<(Event2D const& other) const;   // for the priority queue in EventQueue2D
+  bool operator>(Event2D const& other) const;   // required by std::greater<Event2D> (EventMinHeap)
+  bool operator==(Event2D const& other) const;  // for EventQueue2D::Contains
 };
 
 // EventQueue2D never needs the segments themselves: it builds the events once, then only ever manipulates
@@ -137,9 +138,8 @@ class SweepLine2D {
 
   Segments const* PTR_SEGMENTS;  // bound from `Segments const&`, so the pointee is const
 
-  std::vector<std::size_t>
-      ACTIVE_SEGMENTS;  // indices of segments currently intersecting the sweep line, kept sorted
-                        // by geometric y at SWEEP_X; lower_bound gives O(log n) search
+  std::vector<std::size_t> ACTIVE_SEGMENTS;  // indices of segments currently intersecting the sweep line, kept sorted
+                                             // by geometric y at SWEEP_X; lower_bound gives O(log n) search
 };
 
 /// @brief the Shamos-Hoey algorithm for checking polygon simplicity (no self-intersections)
@@ -147,7 +147,7 @@ class SweepLine2D {
 /// @returns true - if any intersection exists
 /// @throws less than 2 segments arguments, or algorithm based throw logic
 template <SegmentList Segments>
-bool has_intersections(Segments const& segments);
+bool has_intersections_impl(Segments const& segments);
 
 struct IntersectionEvent2D {
   Point2D Point;  // point of intersections, returned by the Bentley-Ottmann algorithm in `intersections` below;
@@ -165,6 +165,16 @@ struct IntersectionEvent2D {
 /// also reported)
 /// @throws less than 2 segments arguments, or algorithm based throw logic
 template <SegmentList Segments>
-std::vector<IntersectionEvent2D> find_intersections(Segments const& segments);
+std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segments);
+
+std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
+                                                std::function<double(size_t)> get_y,
+                                                std::function<bool(size_t, size_t, size_t)> is_left);
+
+/// @brief the Andrew's Monotone Chain algorithm to make a convex hull
+/// @param points cloud of points
+/// @returns list of indices of the points (from the original vector) that form a convex hull
+/// @throws algorithm based throw logic
+std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points);
 
 }  // namespace geompp

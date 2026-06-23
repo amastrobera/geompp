@@ -31,9 +31,12 @@ public:
     Point3D^ Centroid();
     double   Area();
     double   Perimeter();
+    bool     IsSimple();
     double   DistanceTo(Point3D^ point);
     bool     Contains(Point3D^ point);
     bool     IsOnBoundary(Point3D^ point);
+    Polygon3D^           ConvexHull();
+    array<Point3D^>^     ToPoints();
 
     System::String^ ToWkt();
     static Polygon3D^ FromWkt(System::String^ wkt);

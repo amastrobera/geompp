@@ -6,10 +6,10 @@
 
 namespace GeomPP {
 
+ref class Point2D;
 ref class Point3D;
 ref class Plane;
 ref class LineSegment2D;
-ref class IntersectionEvent2D;
 
 // Static utility class — wraps the geompp free functions that operate on point collections.
 // Consumed directly or via the Geompp.Extensions extension methods.
@@ -23,11 +23,20 @@ public:
     static bool AreCW (System::Collections::Generic::List<Point3D^>^ points, Plane^ refPlane);
 
     // Segment-set intersection.
-    // HasIntersections — Shamos–Hoey: true if any two of the (closed-ring) segments intersect.
+    // HasIntersections — Shamos–Hoey: true if any two of the segments intersect.
     static bool HasIntersections(System::Collections::Generic::List<LineSegment2D^>^ segments);
-    // FindIntersections — Bentley–Ottmann: every intersection found among the segments.
-    static System::Collections::Generic::IEnumerable<IntersectionEvent2D^>^ FindIntersections(
+    // FindIntersections — Bentley–Ottmann: every crossing point among the segments.
+    static System::Collections::Generic::IEnumerable<Point2D^>^ FindIntersections(
         System::Collections::Generic::List<LineSegment2D^>^ segments);
+
+    // ConvexHull — Andrew's monotone chain: convex hull of a 2D point cloud, returned in CCW order.
+    static System::Collections::Generic::IEnumerable<Point2D^>^ ConvexHull(
+        System::Collections::Generic::List<Point2D^>^ points);
+
+    // ConvexHull — Andrew's monotone chain: convex hull of coplanar 3D points, returned in CCW order.
+    // Normal is auto-detected from the point cloud.
+    static System::Collections::Generic::IEnumerable<Point3D^>^ ConvexHull(
+        System::Collections::Generic::List<Point3D^>^ points);
 };
 
 }  // namespace GeomPP

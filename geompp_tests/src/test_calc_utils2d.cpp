@@ -494,14 +494,13 @@ TEST_F(CalcUtils2DTest, FindIntersections_SelfIntersectingRingReportsCrossing) {
   auto hits = g::find_intersections(SelfIntersectingRing());
   ASSERT_FALSE(hits.empty());
 
-  // at least one reported intersection point should exist
   bool found = false;
-  for (auto const& h : hits) {
-    if (h.SegmentIds.size() >= 2u) {
+  for (auto const& p : hits) {
+    if (p.AlmostEquals(g::Point2D(2.0, 2.0))) {
       found = true;
     }
   }
-  EXPECT_TRUE(found) << "expected at least one intersection with 2+ segment IDs";
+  EXPECT_TRUE(found) << "expected the (2,2) crossing among reported intersections";
 }
 
 TEST_F(CalcUtils2DTest, FindIntersections_CrossingSegmentsReportsPoint) {
@@ -512,9 +511,8 @@ TEST_F(CalcUtils2DTest, FindIntersections_CrossingSegmentsReportsPoint) {
   };
   auto hits = g::find_intersections(segs);
   ASSERT_EQ(hits.size(), 1u);
-  EXPECT_DOUBLE_EQ(hits[0].Point.x(), 1.0);
-  EXPECT_DOUBLE_EQ(hits[0].Point.y(), 1.0);
-  EXPECT_EQ(hits[0].SegmentIds.size(), 2u);
+  EXPECT_DOUBLE_EQ(hits[0].x(), 1.0);
+  EXPECT_DOUBLE_EQ(hits[0].y(), 1.0);
 }
 
 TEST_F(CalcUtils2DTest, FindIntersections_ParallelSegmentsIsEmpty) {
@@ -536,9 +534,6 @@ TEST_F(CalcUtils2DTest, HasIntersections_StarPolygon_IsTrue) {
 TEST_F(CalcUtils2DTest, FindIntersections_StarPolygon_FiveDistinctIntersections) {
   auto hits = g::find_intersections(Pentagram());
   ASSERT_EQ(hits.size(), 5u);
-  for (auto const& h : hits) {
-    EXPECT_EQ(h.SegmentIds.size(), 2u);
-  }
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -549,14 +544,12 @@ TEST_F(CalcUtils2DTest, HasIntersections_ConcurrentStar_IsTrue) {
   EXPECT_TRUE(g::has_intersections(ConcurrentStar()));
 }
 
-// All 4 segments pass through (3,3).  The algorithm merges concurrent events into one
-// IntersectionEvent2D entry (see output_list deduplication in find_intersections).
+// All 4 segments pass through (3,3). The algorithm deduplicates concurrent events into one point.
 TEST_F(CalcUtils2DTest, FindIntersections_ConcurrentStar_MergesIntoOneEvent) {
   auto hits = g::find_intersections(ConcurrentStar());
   ASSERT_EQ(hits.size(), 1u);
-  EXPECT_DOUBLE_EQ(hits[0].Point.x(), 3.0);
-  EXPECT_DOUBLE_EQ(hits[0].Point.y(), 3.0);
-  EXPECT_GE(hits[0].SegmentIds.size(), 2u);
+  EXPECT_DOUBLE_EQ(hits[0].x(), 3.0);
+  EXPECT_DOUBLE_EQ(hits[0].y(), 3.0);
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -575,12 +568,12 @@ TEST_F(CalcUtils2DTest, FindIntersections_ThreeSegmentsThreeDistinctPoints) {
   auto hits = g::find_intersections(segs);
   ASSERT_EQ(hits.size(), 3u);
   // output is sorted bottom-left → top-right (x then y)
-  EXPECT_DOUBLE_EQ(hits[0].Point.x(), 1.5);
-  EXPECT_DOUBLE_EQ(hits[0].Point.y(), 0.5);
-  EXPECT_DOUBLE_EQ(hits[1].Point.x(), 3.0);
-  EXPECT_DOUBLE_EQ(hits[1].Point.y(), 2.0);
-  EXPECT_DOUBLE_EQ(hits[2].Point.x(), 4.5);
-  EXPECT_DOUBLE_EQ(hits[2].Point.y(), 1.5);
+  EXPECT_DOUBLE_EQ(hits[0].x(), 1.5);
+  EXPECT_DOUBLE_EQ(hits[0].y(), 0.5);
+  EXPECT_DOUBLE_EQ(hits[1].x(), 3.0);
+  EXPECT_DOUBLE_EQ(hits[1].y(), 2.0);
+  EXPECT_DOUBLE_EQ(hits[2].x(), 4.5);
+  EXPECT_DOUBLE_EQ(hits[2].y(), 1.5);
 }
 
 // --------------------------------------------------------------------------------------------------
@@ -590,14 +583,14 @@ TEST_F(CalcUtils2DTest, FindIntersections_ThreeSegmentsThreeDistinctPoints) {
 TEST_F(CalcUtils2DTest, HasIntersections_WorksWithSegmentRange_SimplePolygon) {
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(g::has_intersections(range));
+  EXPECT_FALSE(g::has_intersections_impl(range));
 }
 
 TEST_F(CalcUtils2DTest, FindIntersections_WorksWithSegmentRange_SelfIntersecting) {
   // same shape as SelfIntersectingRing but constructed as a SegmentRange2D
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(g::find_intersections(range).empty());
+  EXPECT_FALSE(g::find_intersections_impl(range).empty());
 }
 
 }  // namespace geompp_tests

@@ -1,13 +1,16 @@
 #include "polyline2d.hpp"
 
+#include "calc_utils2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
+#include "polygon2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
 #include "geompp_log.hpp"
 
+#include <deque>
 #include <format>
 #include <fstream>
 #include <limits>
@@ -44,7 +47,79 @@ Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
   return *this;
 }
 
+int Polyline2D::Size() const { return KNOTS.size(); }
+
 SegmentRange2D Polyline2D::ToSegments() const { return SegmentRange2D(KNOTS); }
+
+double Polyline2D::Length() const { return LENGTH; }
+
+bool Polyline2D::IsSimple() const {
+  if (has_intersections_impl(ToSegments())) {
+    return false;
+  }
+
+  return true;
+}
+
+Polygon2D Polyline2D::ConvexHull() {
+  int n = Size();
+
+  if (n < 3) {
+    throw std::invalid_argument("convex hull with lessa than 3 point polyline");
+  }
+
+  // start with the first 2 points of the polyline
+  std::deque<Point2D> deque_hull(2 * n + 1, KNOTS[0]);
+  std::size_t bottom = n - 2;
+  std::size_t top = bottom + 3;
+  deque_hull[bottom] = deque_hull[top] = KNOTS[2];
+  if (is_left(KNOTS[0], KNOTS[1], KNOTS[2])) {
+    deque_hull[bottom + 1] = KNOTS[0];
+    deque_hull[bottom + 2] = KNOTS[1];
+  } else {
+    deque_hull[bottom + 1] = KNOTS[1];
+    deque_hull[bottom + 2] = KNOTS[0];
+  }
+
+  // loop through the other points and check of the is_left() condition (CCW)
+  for (std::size_t i = 3; i < n; ++i) {
+    // test if the new point is inside the deque hull
+
+    // clang-format off
+    if (is_left(deque_hull[bottom], deque_hull[bottom + 1], KNOTS[i]) && 
+        is_left(deque_hull[top - 1], deque_hull[top], KNOTS[i])) {
+      continue;
+    }
+    // clang-format on
+
+    // incrementally add an exterior vertex to the deque hull
+    // get the rightmost tangent at the deque bottom
+    while (!is_left(deque_hull[bottom], deque_hull[bottom + 1], KNOTS[i])) {
+      ++bottom;
+    }
+    deque_hull[--bottom] = KNOTS[i];
+
+    // get the leftmost tangent at the deque top
+    while (!is_left(deque_hull[top - 1], deque_hull[top], KNOTS[i])) {
+      --top;
+    }
+    deque_hull[++top] = KNOTS[i];
+  }
+
+  // make a vector out of all relevant hull points
+  if (top < bottom) {
+    throw std::logic_error("top < bottom, CV Hull Polyline failed");
+  }
+
+  std::size_t n_cv = top - bottom;
+  std::vector<Point2D> cv_pts;
+  cv_pts.reserve(n_cv);
+  for (std::size_t h = 0; h < n_cv; ++h) {
+    cv_pts.emplace_back(deque_hull[bottom + h]);
+  }
+
+  return Polygon2D::Make(cv_pts);
+}
 
 bool Polyline2D::AlmostEquals(Polyline2D const& other, double epsilon) const {
   if (compare(LENGTH, other.LENGTH, epsilon) != 0) {
@@ -158,7 +233,9 @@ std::ostream& operator<<(std::ostream& os, Polyline2D const& g) {
 
 bool Polyline2D::Contains(Point2D const& point) const {
   for (auto const& seg : ToSegments()) {
-    if (seg.Contains(point)) { return true; }
+    if (seg.Contains(point)) {
+      return true;
+    }
   }
   return false;
 }

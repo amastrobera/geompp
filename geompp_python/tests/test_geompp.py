@@ -1297,6 +1297,32 @@ class TestPolygon2D:
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
+class TestPolygon3DIsSimple:
+    # NOTE: is_simple() correctness rides on the (currently provisional) sweep-line comparator; these encode
+    # the intended behaviour and should be re-verified once the real sweep-status ordering is in place.
+    def test_is_simple_convex_square_xy_plane_true(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ])
+        assert p.is_simple()
+
+    def test_is_simple_convex_square_yz_plane_true(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+            geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
+        ])
+        assert p.is_simple()
+
+    def test_is_simple_self_intersecting_false(self):
+        # CCW (positive area) but edges (4,0,0)->(1,3,0) and (3,3,0)->(0,0,0) cross
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0),
+        ])
+        assert not p.is_simple()
+
+
 class TestPolygon3D:
     def test_construction(self):
         pts = [
@@ -1747,6 +1773,34 @@ class TestPolyline2D:
             assert pline.almost_equals(pl2)
         finally:
             os.unlink(path)
+
+
+class TestPolyline2DConvexHull:
+    def test_too_few_points_throws(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0)])
+        with pytest.raises(Exception):
+            pl.convex_hull()
+
+    def test_three_points_returns_triangle(self):
+        pl = geompp.Polyline2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(2, 3),
+        ])
+        hull = pl.convex_hull()
+        assert hull.size() == 3
+
+    def test_concave_path_inner_point_excluded(self):
+        # simple path: outer corners with inner dip at (2,1) — hull is the 4 outer corners
+        pl = geompp.Polyline2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4),
+        ])
+        hull = pl.convex_hull()
+        assert hull.size() == 4
+        expected = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+                    geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        for e in expected:
+            assert any(approx(e.x, hull[i].x) and approx(e.y, hull[i].y)
+                       for i in range(hull.size())), f"{e} should be on hull"
 
 
 # ─── Polyline3D ──────────────────────────────────────────────────────────────
@@ -3308,4 +3362,171 @@ class TestSegmentIntersections:
     def test_find_intersections_reports_crossing(self):
         hits = list(geompp.find_intersections(self._self_intersecting_ring()))
         assert len(hits) >= 1
-        assert any(approx(h.point.x, 2.0) and approx(h.point.y, 2.0) for h in hits)
+        assert any(approx(h.x, 2.0) and approx(h.y, 2.0) for h in hits)
+
+
+# --- convex hull (Andrew's monotone chain) ---
+class TestConvexHull:
+    def test_few_points_returns_as_is(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 1)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 2
+
+    def test_convex_square_returns_four_corners(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 4
+        for p in pts:
+            assert any(approx(h.x, p.x) and approx(h.y, p.y) for h in hull), \
+                f"corner {p} should be on the hull"
+
+    def test_asymmetric_star_hull_is_pentagon(self):
+        # 5 outer tips at unequal distances + 5 inner concave vertices
+        outer = [
+            geompp.Point2D( 0,  5),
+            geompp.Point2D( 4,  2),
+            geompp.Point2D( 3, -3),
+            geompp.Point2D(-2, -4),
+            geompp.Point2D(-3,  1),
+        ]
+        inner = [
+            geompp.Point2D( 2,  1),
+            geompp.Point2D( 2, -1),
+            geompp.Point2D( 0, -1),
+            geompp.Point2D(-1, -1),
+            geompp.Point2D(-1,  2),
+        ]
+        star = [outer[0], inner[0], outer[1], inner[1], outer[2],
+                inner[2], outer[3], inner[3], outer[4], inner[4]]
+        hull = geompp.convex_hull(star)
+        assert len(hull) == 5, f"expected 5-point hull, got {len(hull)}"
+        for tip in outer:
+            assert any(approx(h.x, tip.x) and approx(h.y, tip.y) for h in hull), \
+                f"outer tip {tip} should be on the hull"
+        for ip in inner:
+            assert not any(approx(h.x, ip.x) and approx(h.y, ip.y) for h in hull), \
+                f"inner point {ip} should NOT be on the hull"
+
+
+# --- convex hull 3D (Andrew's monotone chain on coplanar points) ---
+class TestConvexHull3D:
+    def test_few_points_returns_as_is(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 2
+
+    def test_coplanar_square_xy_plane(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+               geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 4
+        for p in pts:
+            assert any(approx(h.x, p.x) and approx(h.y, p.y) and approx(h.z, p.z)
+                       for h in hull), f"corner {p} should be on the hull"
+
+    def test_coplanar_square_yz_plane(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+               geompp.Point3D(0, 4, 4), geompp.Point3D(0, 0, 4)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 4
+
+    def test_asymmetric_star_hull_is_pentagon(self):
+        outer = [
+            geompp.Point3D( 0,  5, 0),
+            geompp.Point3D( 4,  2, 0),
+            geompp.Point3D( 3, -3, 0),
+            geompp.Point3D(-2, -4, 0),
+            geompp.Point3D(-3,  1, 0),
+        ]
+        inner = [
+            geompp.Point3D( 2,  1, 0),
+            geompp.Point3D( 2, -1, 0),
+            geompp.Point3D( 0, -1, 0),
+            geompp.Point3D(-1, -1, 0),
+            geompp.Point3D(-1,  2, 0),
+        ]
+        star = [outer[0], inner[0], outer[1], inner[1], outer[2],
+                inner[2], outer[3], inner[3], outer[4], inner[4]]
+        hull = geompp.convex_hull(star)
+        assert len(hull) == 5, f"expected 5-point hull, got {len(hull)}"
+        for tip in outer:
+            assert any(approx(h.x, tip.x) and approx(h.y, tip.y) for h in hull), \
+                f"outer tip {tip} should be on the hull"
+        for ip in inner:
+            assert not any(approx(h.x, ip.x) and approx(h.y, ip.y) for h in hull), \
+                f"inner point {ip} should NOT be on the hull"
+
+    def test_with_explicit_normal(self):
+        pts = [geompp.Point3D(0, 0, 5), geompp.Point3D(4, 0, 5),
+               geompp.Point3D(4, 4, 5), geompp.Point3D(0, 4, 5)]
+        normal = geompp.Vector3D(0, 0, 1)
+        hull = geompp.convex_hull(pts, normal)
+        assert len(hull) == 4
+
+
+# --- Polygon2D.convex_hull / to_points ---
+class TestPolygon2DConvexHull:
+    def _star(self):
+        return geompp.Polygon2D.make([
+            geompp.Point2D(-1,  2), geompp.Point2D(-3,  1),
+            geompp.Point2D(-1, -1), geompp.Point2D(-2, -4),
+            geompp.Point2D( 0, -1), geompp.Point2D( 3, -3),
+            geompp.Point2D( 2, -1), geompp.Point2D( 4,  2),
+            geompp.Point2D( 2,  1), geompp.Point2D( 0,  5),
+        ])
+
+    def test_convex_hull_star_is_pentagon(self):
+        hull = self._star().convex_hull()
+        assert hull.size() == 5
+
+    def test_convex_hull_convex_polygon_unchanged(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ])
+        hull = square.convex_hull()
+        assert hull.size() == 4
+
+    def test_to_points_round_trip(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(3, 0),
+               geompp.Point2D(3, 3), geompp.Point2D(0, 3)]
+        poly = geompp.Polygon2D.make(pts)
+        back = poly.to_points()
+        assert len(back) == 4
+        for orig, restored in zip(pts, back):
+            assert approx(orig.x, restored.x) and approx(orig.y, restored.y)
+
+
+# --- Polygon3D.convex_hull / to_points ---
+class TestPolygon3DConvexHull:
+    def _star3d(self):
+        return geompp.Polygon3D.make([
+            geompp.Point3D(-1,  2, 0), geompp.Point3D(-3,  1, 0),
+            geompp.Point3D(-1, -1, 0), geompp.Point3D(-2, -4, 0),
+            geompp.Point3D( 0, -1, 0), geompp.Point3D( 3, -3, 0),
+            geompp.Point3D( 2, -1, 0), geompp.Point3D( 4,  2, 0),
+            geompp.Point3D( 2,  1, 0), geompp.Point3D( 0,  5, 0),
+        ])
+
+    def test_convex_hull_star_is_pentagon(self):
+        hull = self._star3d().convex_hull()
+        assert hull.size() == 5
+
+    def test_convex_hull_convex_polygon_unchanged(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ])
+        hull = square.convex_hull()
+        assert hull.size() == 4
+
+    def test_to_points_round_trip(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0),
+               geompp.Point3D(3, 3, 0), geompp.Point3D(0, 3, 0)]
+        poly = geompp.Polygon3D.make(pts)
+        back = poly.to_points()
+        assert len(back) == 4
+        for orig, restored in zip(pts, back):
+            assert (approx(orig.x, restored.x) and approx(orig.y, restored.y)
+                    and approx(orig.z, restored.z))

@@ -160,6 +160,98 @@ False
 
 ---
 
+### Example 4 — `GeomUtil.ConvexHull`
+
+```csharp
+using G = GeomPP;
+
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+// An asymmetric 5-pointed star: 5 outer tips + 5 inner concave vertices.
+// The convex hull should be exactly the 5 outer tips.
+var star = new System.Collections.Generic.List<G.Point2D> {
+    // outer tips
+    new G.Point2D( 0,  5), new G.Point2D( 4,  2),
+    new G.Point2D( 3, -3), new G.Point2D(-2, -4), new G.Point2D(-3,  1),
+    // inner concave vertices (will be excluded from the hull)
+    new G.Point2D( 2,  1), new G.Point2D( 2, -1),
+    new G.Point2D( 0, -1), new G.Point2D(-1, -1), new G.Point2D(-1,  2),
+};
+
+var hull = G.GeomUtil.ConvexHull(star);
+
+int count = 0;
+foreach (var p in hull) {
+    Console.WriteLine(p.ToWkt());
+    count++;
+}
+Console.WriteLine($"hull has {count} vertices");
+```
+
+Output:
+```
+POINT (3 -3)
+POINT (4 2)
+POINT (0 5)
+POINT (-3 1)
+POINT (-2 -4)
+hull has 5 vertices
+```
+
+(CCW order, starting from the lexicographically smallest point)
+
+---
+
+### Example 5 — `Polygon3D.ConvexHull`
+
+`Polygon2D` and `Polygon3D` expose a `ConvexHull()` instance method:
+
+```csharp
+using G = GeomPP;
+
+// 3D star polygon (10 vertices, coplanar, CCW)
+var star = G.Polygon3D.Make(new G.Point3D[] {
+    new( 0,  5, 0), new( 2,  1, 0), new( 4,  2, 0), new( 2, -1, 0),
+    new( 3, -3, 0), new( 0, -1, 0), new(-2, -4, 0), new(-1, -1, 0),
+    new(-3,  1, 0), new(-1,  2, 0),
+});
+
+var hull = star.ConvexHull();   // Polygon3D with 5 vertices
+Console.WriteLine($"hull has {hull.Size()} vertices");
+```
+
+Output:
+```
+hull has 5 vertices
+```
+
+---
+
+### Example 6 — `Polyline2D.ConvexHull`
+
+`Polyline2D.ConvexHull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `IsSimple()` first.
+
+```csharp
+using G = GeomPP;
+
+// Simple concave path: outer corners with an inner dip at (2,1)
+var path = G.Polyline2D.Make(new G.Point2D[] {
+    new(0, 0), new(4, 0), new(4, 4), new(2, 1), new(0, 4),
+});
+
+if (path.IsSimple()) {
+    var hull = path.ConvexHull();   // Polygon2D with 4 vertices
+    Console.WriteLine($"hull has {hull.Size()} vertices");
+}
+```
+
+Output:
+```
+hull has 4 vertices
+```
+
+---
+
 ## Precision
 
 All floating-point comparisons go through a thread-local precision setting:

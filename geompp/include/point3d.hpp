@@ -1,14 +1,14 @@
 #pragma once
 
 #include "constants.hpp"
+#include "vector3d.hpp"
 
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
 
 namespace geompp {
-
-class Vector3D;
 
 class Point3D {
  public:
@@ -52,6 +52,8 @@ std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points);
 Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights);
 
 Point3D average(std::vector<Point3D> const& points);
+
+std::vector<Point3D> convex_hull(std::vector<Point3D> const& points, std::optional<Vector3D> normal = std::nullopt);
 
 #pragma endregion
 
