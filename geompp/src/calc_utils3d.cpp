@@ -6,6 +6,7 @@
 
 #include "geompp_log.hpp"
 
+#include <cmath>
 #include <stdexcept>
 
 namespace geompp {
@@ -194,6 +195,135 @@ std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points,
     default:
       throw std::logic_error("unexpected dominant axis");
   }
+}
+
+namespace {
+
+// Jacobi eigendecomposition for symmetric 3x3 matrix.
+// A is modified in place (diagonal becomes eigenvalues), V accumulates eigenvectors (initialized to identity).
+static void jacobi3(double A[3][3], double V[3][3]) {
+  // Initialize V to identity
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      V[i][j] = (i == j) ? 1.0 : 0.0;
+    }
+  }
+
+  for (int iter = 0; iter < 50; ++iter) {
+    // Find off-diagonal element with maximum absolute value
+    int p = 0, q = 1;
+    double maxval = std::abs(A[0][1]);
+    if (std::abs(A[0][2]) > maxval) {
+      p = 0;
+      q = 2;
+      maxval = std::abs(A[0][2]);
+    }
+    if (std::abs(A[1][2]) > maxval) {
+      p = 1;
+      q = 2;
+      maxval = std::abs(A[1][2]);
+    }
+    if (maxval < 1e-12) {
+      break;
+    }
+
+    double theta = 0.5 * (A[q][q] - A[p][p]) / A[p][q];
+    double t = (theta >= 0 ? 1.0 : -1.0) / (std::abs(theta) + std::sqrt(1.0 + theta * theta));
+    double c = 1.0 / std::sqrt(1.0 + t * t);
+    double s = t * c;
+
+    // Apply Givens rotation to annihilate A[p][q]
+    double App = A[p][p], Aqq = A[q][q], Apq = A[p][q];
+    A[p][p] = c * c * App - 2 * s * c * Apq + s * s * Aqq;
+    A[q][q] = s * s * App + 2 * s * c * Apq + c * c * Aqq;
+    A[p][q] = A[q][p] = 0.0;
+    for (int r = 0; r < 3; ++r) {
+      if (r == p || r == q) {
+        continue;
+      }
+      double Arp = A[r][p], Arq = A[r][q];
+      A[r][p] = A[p][r] = c * Arp - s * Arq;
+      A[r][q] = A[q][r] = s * Arp + c * Arq;
+    }
+    for (int r = 0; r < 3; ++r) {
+      double Vrp = V[r][p], Vrq = V[r][q];
+      V[r][p] = c * Vrp - s * Vrq;
+      V[r][q] = s * Vrp + c * Vrq;
+    }
+  }
+}
+
+}  // anonymous namespace
+
+CoordinateFrame principal_axes(std::vector<Point3D> const& points) {
+  if (points.size() < 3) {
+    throw std::runtime_error("principal_axes: need at least 3 points");
+  }
+
+  // compute centroid
+  double cx = 0, cy = 0, cz = 0;
+  for (auto const& p : points) {
+    cx += p.x();
+    cy += p.y();
+    cz += p.z();
+  }
+  double inv_n = 1.0 / static_cast<double>(points.size());
+  cx *= inv_n;
+  cy *= inv_n;
+  cz *= inv_n;
+
+  // compute 3x3 covariance matrix (upper triangle, symmetric)
+  double C[3][3] = {};
+  for (auto const& p : points) {
+    double dx = p.x() - cx;
+    double dy = p.y() - cy;
+    double dz = p.z() - cz;
+    C[0][0] += dx * dx;
+    C[0][1] += dx * dy;
+    C[0][2] += dx * dz;
+    C[1][1] += dy * dy;
+    C[1][2] += dy * dz;
+    C[2][2] += dz * dz;
+  }
+  C[1][0] = C[0][1];
+  C[2][0] = C[0][2];
+  C[2][1] = C[1][2];
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      C[i][j] *= inv_n;
+    }
+  }
+
+  // Jacobi eigendecomposition — eigenvalues on C diagonal, eigenvectors in columns of V
+  double V[3][3] = {};
+  jacobi3(C, V);
+
+  // eigenvalues are C[0][0], C[1][1], C[2][2]; eigenvector i is column i of V
+  // sort by eigenvalue descending (largest → X, smallest → Z)
+  int idx[3] = {0, 1, 2};
+  // simple 3-element sort (insertion sort)
+  for (int i = 1; i < 3; ++i) {
+    for (int j = i; j > 0 && C[idx[j]][idx[j]] > C[idx[j - 1]][idx[j - 1]]; --j) {
+      int tmp = idx[j];
+      idx[j] = idx[j - 1];
+      idx[j - 1] = tmp;
+    }
+  }
+
+  auto get_axis = [&](int col) -> Vector3D {
+    Vector3D v(V[0][col], V[1][col], V[2][col]);
+    return v.Normalize();
+  };
+
+  return CoordinateFrame{get_axis(idx[0]), get_axis(idx[1]), get_axis(idx[2])};
+}
+
+Vector3D principal_normal(std::vector<Point3D> const& points) {
+  return principal_axes(points).Z;
+}
+
+Vector3D principal_direction(std::vector<Point3D> const& points) {
+  return principal_axes(points).X;
 }
 
 }  // namespace geompp

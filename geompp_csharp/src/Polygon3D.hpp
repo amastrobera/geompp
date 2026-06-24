@@ -32,6 +32,7 @@ public:
     double   Area();
     double   Perimeter();
     bool     IsSimple();
+    bool     IsConvex();
     double   DistanceTo(Point3D^ point);
     bool     Contains(Point3D^ point);
     bool     IsOnBoundary(Point3D^ point);

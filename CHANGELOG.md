@@ -11,6 +11,66 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.11.0] - 2026-06-24
+
+> C++ library — tagged `v0.11.0` · C# / NuGet — tagged `csharp-v0.11.0` · Python / PyPI — tagged `python-v0.11.0`
+
+> Convexity predicates for Polygon and Polyline, planar Polyline3D operations (IsPlanar, IsSimple, ConvexHull, ToPolygon), and PCA-based principal axes for 3D point clouds
+
+### Added
+
+**C++ core**
+- `Polygon2D::IsConvex()` (`polygon2d.hpp`) — returns false if the polygon has holes or any concave turn; true otherwise
+- `Polygon3D::IsConvex()` (`polygon3d.hpp`) — same, using the stored plane normal for the 3D left-turn test
+- `Polyline3D::IsPlanar()` (`polyline3d.hpp`) — true if all knots are coplanar (degenerate cases: <3 points or all collinear also return true)
+- `Polyline3D::IsSimple()` (`polyline3d.hpp`) — no self-intersections; uses Shamos–Hoey for planar polylines, Bentley–Ottmann + 3D verification for non-planar
+- `Polyline3D::IsConvex()` (`polyline3d.hpp`) — throws `std::logic_error` if not planar; checks all consecutive triples make a left turn relative to the plane normal
+- `Polyline3D::ConvexHull()` (`polyline3d.hpp`) — throws if not planar; Melkman's deque algorithm; returns `Polyline3D` (open hull path, not a closed polygon)
+- `Polyline3D::ToPolygon()` (`polyline3d.hpp`) — throws if not planar; closes the open path into a `Polygon3D`
+- `CoordinateFrame` struct (`calc_utils3d.hpp`) — `Vector3D X` (primary/largest variance), `Y` (secondary), `Z` (normal/least variance)
+- `principal_axes(vector<Point3D>)` (`calc_utils3d.hpp`) — PCA via Jacobi eigendecomposition on the 3×3 covariance matrix; returns `CoordinateFrame`; stable for any point distribution including non-planar clouds and helices
+- `principal_normal(vector<Point3D>)` (`calc_utils3d.hpp`) — best-fit plane normal; delegates to `principal_axes().Z`
+- `principal_direction(vector<Point3D>)` (`calc_utils3d.hpp`) — dominant spread direction; delegates to `principal_axes().X`
+
+**Python / PyPI**
+- `Polygon2D.is_convex()`, `Polygon3D.is_convex()`
+- `Polyline3D.is_planar()`, `is_simple()`, `is_convex()`, `convex_hull()` → `Polyline3D`, `to_polygon()` → `Polygon3D`
+- `CoordinateFrame` class with `x`, `y`, `z` attributes (all `Vector3D`)
+- `principal_axes(points)` → `CoordinateFrame`, `principal_normal(points)` → `Vector3D`, `principal_direction(points)` → `Vector3D`
+
+**C# / NuGet**
+- `Polygon2D.IsConvex()`, `Polygon3D.IsConvex()`
+- `Polyline3D.IsPlanar()`, `IsSimple()`, `IsConvex()`, `ConvexHull()` → `Polyline3D^`, `ToPolygon()` → `Polygon3D^`
+- `CoordinateFrame` ref class with `X`, `Y`, `Z` properties (`Vector3D^`)
+- `GeomUtil.PrincipalAxes()` → `CoordinateFrame^`, `PrincipalNormal()` → `Vector3D^`, `PrincipalDirection()` → `Vector3D^`
+
+### Fixed
+
+**C++ core**
+- `Plane(origin, normal)` private constructor now normalizes the normal (`normal.Normalize()`). Previously the raw (non-unit) vector was stored, causing `SignedDistanceTo` and other distance operations to return scaled results when the input normal was not already a unit vector. `From3Points` and `FromOriginAndAxes` were not affected (they normalized via cross product already).
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_polygon2d.cpp`: `IsConvex_Square_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_Triangle_True`
+- `test_polygon3d.cpp`: `IsConvex_Square_XYPlane_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_YZPlane_True`
+- `test_polyline3d.cpp`: `IsPlanar_XYPlane_True`, `IsPlanar_NonPlanar_False`, `IsPlanar_Collinear_True`, `IsSimple_PlanarNoSelfIntersect_True`, `IsSimple_PlanarSelfIntersecting_False`, `IsConvex_PlanarConvex_True`, `IsConvex_PlanarConcave_False`, `IsConvex_NotPlanar_Throws`, `ConvexHull_PlanarPolyline_ReturnsPolyline`, `ConvexHull_NotPlanar_Throws`, `ConvexHull_ThenToPolygon_ValidPolygon`, `ToPolygon_PlanarPolyline_Valid`, `ToPolygon_NotPlanar_Throws`
+- `test_calc_utils3d.cpp`: `PrincipalAxes_PlanarXYCloud_ZIsNormal`, `PrincipalAxes_ElongatedAlongX_XIsLongest`, `PrincipalAxes_AxesAreOrthogonal`, `PrincipalAxes_AxesAreUnitVectors`, `PrincipalNormal_PlanarCloud_MatchesBasisZ`, `PrincipalDirection_ElongatedAlongX_MatchesBasisX`, `PrincipalAxes_TooFewPoints_Throws`
+
+**Python (`geompp_python/tests`)**
+- `TestPolygon2DIsConvex`: `test_square_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`
+- `TestPolygon3DIsConvex`: `test_square_xy_plane_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`
+- `TestPolyline3DPlanarConvex`: `test_is_planar_xy`, `test_is_planar_nonplanar`, `test_is_simple_planar`, `test_is_convex_planar`, `test_is_convex_not_planar_throws`, `test_convex_hull_returns_polyline`, `test_convex_hull_to_polygon`, `test_to_polygon_not_planar_throws`
+- `TestPrincipalAxes`: `test_coordinate_frame_attributes`, `test_z_is_normal_for_flat_xy_cloud`, `test_axes_are_orthogonal`, `test_axes_are_unit_vectors`, `test_principal_normal_matches_z`, `test_principal_direction_matches_x`, `test_too_few_points_throws`
+
+**C# (`geompp_csharp/tests`)**
+- `IsConvex_Square_True`, `IsConvex_Concave_False`, `IsConvex_WithHole_False` (Polygon2D)
+- `IsConvex_Square_True`, `IsConvex_Concave_False` (Polygon3D)
+- `IsPlanar_XY_True`, `IsPlanar_NonPlanar_False`, `IsSimple_True`, `IsConvex_Planar_True`, `IsConvex_NotPlanar_Throws`, `ConvexHull_ReturnsPolyline`, `ConvexHull_ThenToPolygon`, `ToPolygon_Valid`, `ToPolygon_NotPlanar_Throws` (Polyline3D)
+- `PrincipalAxes_NotNull`, `PrincipalAxes_Z_IsNormal`, `PrincipalNormal_NotNull`, `PrincipalDirection_NotNull`, `PrincipalDirection_AlongX` (GeomUtil)
+
+---
+
 ## [0.10.0] - 2026-06-20
 
 > C++ library — tagged `v0.10.0` · C# / NuGet — tagged `csharp-v0.10.0` · Python / PyPI — tagged `python-v0.10.0`

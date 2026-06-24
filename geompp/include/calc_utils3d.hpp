@@ -23,4 +23,23 @@ std::optional<Point3D> intersection_line_to_line(Point3D const& L1_P0, Point3D c
 std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points,
                                              std::optional<Vector3D> normal = std::nullopt);
 
+struct CoordinateFrame {
+  Vector3D X;  // primary axis   — direction of largest variance (longest spread)
+  Vector3D Y;  // secondary axis — direction of second largest variance
+  Vector3D Z;  // normal         — direction of least variance (perpendicular to best-fit plane)
+};
+
+/// @brief Computes the three principal axes of a point cloud using PCA (Jacobi eigendecomposition).
+/// @param points The point cloud. Must contain at least 3 non-collinear points.
+/// @return A CoordinateFrame whose X is the direction of most spread, Y the second, and Z the best-fit plane normal.
+CoordinateFrame principal_axes(std::vector<Point3D> const& points);
+
+/// @brief Computes the best-fit plane normal for a cloud of points using PCA.
+/// @param points The point cloud. Must contain at least 3 non-collinear points.
+Vector3D principal_normal(std::vector<Point3D> const& points);
+
+/// @brief Computes the dominant direction of a point cloud using PCA.
+/// @param points The point cloud. Must contain at least 3 non-collinear points.
+Vector3D principal_direction(std::vector<Point3D> const& points);
+
 }  // namespace geompp

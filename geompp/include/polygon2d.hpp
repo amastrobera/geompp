@@ -35,7 +35,8 @@ class Polygon2D {
   Point2D Centroid() const;
   double Area() const;
   double Perimeter() const;
-  bool IsSimple() const;  // no self-intersections, but holes are allowed
+  bool IsSimple() const;   // no self-intersections, but holes are allowed
+  bool IsConvex() const;   // no holes and all turns in the same direction
   Polygon2D ConvexHull();
   std::vector<Point2D> ToPoints();
 

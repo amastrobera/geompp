@@ -395,4 +395,34 @@ TEST_F(Polygon2DTest, IsSimple_SelfIntersectingIsNotSimple) {
   EXPECT_FALSE(p.IsSimple());
 }
 
+// ---- IsConvex ---------------------------------------------------------------
+
+TEST_F(Polygon2DTest, IsConvex_Square_True) {
+  // A unit square is convex
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon2DTest, IsConvex_Triangle_True) {
+  // A triangle is always convex
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon2DTest, IsConvex_ConcavePolygon_False) {
+  // L-shaped / arrow polygon — has a dent at (2,2), making it concave
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 2), g::Point2D(0, 4)});
+  EXPECT_FALSE(p.IsConvex());
+}
+
+TEST_F(Polygon2DTest, IsConvex_WithHole_False) {
+  // Any polygon with holes is non-convex by definition
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 3), g::Point2D(0, 3)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 2), g::Point2D(2, 2), g::Point2D(2, 1)};  // CW
+  auto p = g::Polygon2D::Make(outer, {hole});
+  EXPECT_FALSE(p.IsConvex());
+}
+
 }  // namespace geompp_tests

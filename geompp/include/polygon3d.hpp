@@ -38,6 +38,7 @@ class Polygon3D {
   double Area() const;
   double Perimeter() const;
   bool IsSimple() const;
+  bool IsConvex() const;   // no holes and all turns in the same direction
   Polygon3D ConvexHull();
   std::vector<Point3D> ToPoints();
 

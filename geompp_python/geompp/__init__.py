@@ -92,6 +92,10 @@ from ._geompp import (  # noqa: F401
     has_intersections,
     find_intersections,
     convex_hull,
+    CoordinateFrame,
+    principal_axes,
+    principal_normal,
+    principal_direction,
 )
 
 __version__ = "1.0.0"
@@ -110,4 +114,5 @@ __all__ = [
     "remove_collinear", "linear_combination", "average",
     "signed_area", "centroid",
     "has_intersections", "find_intersections", "convex_hull",
+    "CoordinateFrame", "principal_axes", "principal_normal", "principal_direction",
 ]

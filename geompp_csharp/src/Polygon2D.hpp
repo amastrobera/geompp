@@ -33,6 +33,7 @@ public:
     bool     Contains(Point2D^ point);
     bool     IsOnBoundary(Point2D^ point);
     bool     IsSimple();  // no self-intersections, but holes are allowed
+    bool     IsConvex();
     Polygon2D^           ConvexHull();
     array<Point2D^>^     ToPoints();
 

@@ -504,4 +504,36 @@ TEST_F(Polygon3DTest, IsSimple_SelfIntersectingIsNotSimple) {
   EXPECT_FALSE(p.IsSimple());
 }
 
+// ---- IsConvex ---------------------------------------------------------------
+
+TEST_F(Polygon3DTest, IsConvex_Square_XYPlane_True) {
+  // A unit square in the XY plane is convex (CCW when viewed from +Z)
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon3DTest, IsConvex_YZPlane_True) {
+  // A unit square in the YZ plane is convex (CCW when viewed from +X)
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(0, 1, 0), g::Point3D(0, 1, 1), g::Point3D(0, 0, 1)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon3DTest, IsConvex_ConcavePolygon_False) {
+  // Arrow/dent shape in XY plane — concave at (2,2,0)
+  auto p = g::Polygon3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+      g::Point3D(2, 2, 0), g::Point3D(0, 4, 0)});
+  EXPECT_FALSE(p.IsConvex());
+}
+
+TEST_F(Polygon3DTest, IsConvex_WithHole_False) {
+  // Any polygon with a hole is non-convex by definition
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
+  auto p = g::Polygon3D::Make(outer, {hole});
+  EXPECT_FALSE(p.IsConvex());
+}
+
 }  // namespace geompp_tests

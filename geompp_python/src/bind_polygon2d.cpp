@@ -25,6 +25,7 @@ void bind_polygon2d(py::module_& m) {
         .def("contains",       &geompp::Polygon2D::Contains,      "point"_a)
         .def("is_on_boundary", &geompp::Polygon2D::IsOnBoundary, "point"_a)
         .def("is_simple",      &geompp::Polygon2D::IsSimple, "no self-intersections, but holes are allowed")
+        .def("is_convex",      &geompp::Polygon2D::IsConvex)
         .def("convex_hull",    &geompp::Polygon2D::ConvexHull, "Returns the convex hull as a new Polygon2D.")
         .def("to_points",      &geompp::Polygon2D::ToPoints,   "Returns the vertices as a list of Point2D.")
         BIND_ALMOST_EQUALS(Polygon2D)

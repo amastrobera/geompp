@@ -16,6 +16,7 @@ namespace geompp {
 class Line3D;
 class Ray3D;
 class LineSegment3D;
+class Polygon3D;
 
 class Polyline3D {
  public:
@@ -114,6 +115,30 @@ class Polyline3D {
   /// @param other The other polyline.
   /// @return A single Point3D or a list of crossings, or std::nullopt if disjoint.
   ReturnSet Intersection(Polyline3D const& other) const;
+
+  /// @brief Tests whether all knots of the polyline are coplanar.
+  /// @return true if all knots lie in a common plane.
+  bool IsPlanar() const;
+
+  /// @brief Tests whether the polyline has no self-intersections (when projected onto its best-fit plane).
+  /// @return true if the polyline does not self-intersect.
+  /// @throws std::runtime_error if the polyline is not planar.
+  bool IsSimple() const;
+
+  /// @brief Tests whether the polyline is a convex polygon boundary.
+  /// @return true if the polyline is planar, simple, and all turns go in the same direction.
+  /// @throws std::runtime_error if the polyline is not planar.
+  bool IsConvex() const;
+
+  /// @brief Computes the convex hull of the polyline's knots.
+  /// @return A new Polyline3D containing the convex hull vertices in CCW order.
+  /// @throws std::runtime_error if fewer than 3 non-collinear points.
+  Polyline3D ConvexHull() const;
+
+  /// @brief Converts this polyline to a Polygon3D.
+  /// @return A Polygon3D with the same vertices.
+  /// @throws std::runtime_error if the polyline is not planar or has fewer than 3 vertices.
+  Polygon3D ToPolygon() const;
 
 #pragma endregion
 

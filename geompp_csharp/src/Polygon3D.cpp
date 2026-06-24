@@ -103,6 +103,10 @@ bool Polygon3D::IsSimple() {
     return _native->IsSimple();
 }
 
+bool Polygon3D::IsConvex() {
+    return _native->IsConvex();
+}
+
 Polygon3D^ Polygon3D::ConvexHull() {
     return gcnew Polygon3D(new geompp::Polygon3D(_native->ConvexHull()));
 }

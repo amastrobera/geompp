@@ -219,6 +219,43 @@ bool Polygon2D::IsSimple() const {
   return true;
 }
 
+bool Polygon2D::IsConvex() const {
+  // a convex polygon must have no holes
+  if (!HOLES.empty()) {
+    return false;
+  }
+
+  int n = static_cast<int>(VERTICES.size());
+  if (n < 3) {
+    return false;
+  }
+
+  // check that all consecutive cross products have the same sign
+  bool seen_positive = false;
+  bool seen_negative = false;
+  for (int i = 0; i < n; ++i) {
+    auto const& v0 = VERTICES[i];
+    auto const& v1 = VERTICES[(i + 1) % n];
+    auto const& v2 = VERTICES[(i + 2) % n];
+    Vector2D e1 = v1 - v0;
+    Vector2D e2 = v2 - v1;
+    double cross = e1.Cross(e2);
+    auto ord = compare(cross, 0.0);
+    if (ord == std::partial_ordering::equivalent) {
+      continue;  // collinear edge — neutral
+    }
+    if (ord > 0) {
+      seen_positive = true;
+    } else {
+      seen_negative = true;
+    }
+    if (seen_positive && seen_negative) {
+      return false;
+    }
+  }
+  return true;
+}
+
 Polygon2D Polygon2D::ConvexHull() {
   auto cv_indices = convex_hull_indices(VERTICES);
   std::vector<Point2D> cv_points;

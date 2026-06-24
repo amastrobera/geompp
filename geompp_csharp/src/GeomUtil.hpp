@@ -2,6 +2,7 @@
 
 #pragma managed(push, off)
 #include <plane.hpp>
+#include <calc_utils3d.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {
@@ -10,6 +11,8 @@ ref class Point2D;
 ref class Point3D;
 ref class Plane;
 ref class LineSegment2D;
+ref class CoordinateFrame;
+ref class Vector3D;
 
 // Static utility class — wraps the geompp free functions that operate on point collections.
 // Consumed directly or via the Geompp.Extensions extension methods.
@@ -37,6 +40,11 @@ public:
     // Normal is auto-detected from the point cloud.
     static System::Collections::Generic::IEnumerable<Point3D^>^ ConvexHull(
         System::Collections::Generic::List<Point3D^>^ points);
+
+    // PCA — principal axes of a 3D point cloud via Jacobi eigendecomposition.
+    static CoordinateFrame^ PrincipalAxes(System::Collections::Generic::List<Point3D^>^ points);
+    static Vector3D^        PrincipalNormal(System::Collections::Generic::List<Point3D^>^ points);
+    static Vector3D^        PrincipalDirection(System::Collections::Generic::List<Point3D^>^ points);
 };
 
 }  // namespace GeomPP

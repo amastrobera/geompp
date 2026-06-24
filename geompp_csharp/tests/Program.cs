@@ -3330,6 +3330,89 @@ Test("Add_Triangle3D_SizeIncreases", () => {
   Eq(1, gc.Size(), 0);
 });
 
+Console.WriteLine("\nPolygon2D::IsConvex");
+{
+    var square = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(1,0), new Point2D(1,1), new Point2D(0,1)
+    });
+    var concave = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(4,0), new Point2D(4,4),
+        new Point2D(2,2), new Point2D(0,4)
+    });
+    var outer = new[] { new Point2D(0,0), new Point2D(4,0), new Point2D(4,4), new Point2D(0,4) };
+    var hole  = new[] { new Point2D(2,1), new Point2D(2,2), new Point2D(1,2), new Point2D(1,1) };
+    var holed = Polygon2D.Make(outer, new[] { hole });
+
+    Test("IsConvex_Square_True",    () => IsTrue(square.IsConvex()));
+    Test("IsConvex_Concave_False",  () => IsTrue(!concave.IsConvex()));
+    Test("IsConvex_WithHole_False", () => IsTrue(!holed.IsConvex()));
+}
+
+Console.WriteLine("\nPolygon3D::IsConvex");
+{
+    var square3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(1,1,0), new Point3D(0,1,0)
+    });
+    var concave3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(4,4,0),
+        new Point3D(2,2,0), new Point3D(0,4,0)
+    });
+    Test("IsConvex_Square_True",   () => IsTrue(square3d.IsConvex()));
+    Test("IsConvex_Concave_False", () => IsTrue(!concave3d.IsConvex()));
+}
+
+Console.WriteLine("\nPolyline3D::IsPlanar/IsSimple/IsConvex/ConvexHull/ToPolygon");
+{
+    var planar = Polyline3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(2,2,0), new Point3D(0,2,0)
+    });
+    var nonPlanar = Polyline3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(1,1,1), new Point3D(0,1,2)
+    });
+    var star = Polyline3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(1,1,0),
+        new Point3D(2,2,0), new Point3D(0,2,0)
+    });
+
+    Test("IsPlanar_XY_True",         () => IsTrue(planar.IsPlanar()));
+    Test("IsPlanar_NonPlanar_False",  () => IsTrue(!nonPlanar.IsPlanar()));
+    Test("IsSimple_True",             () => IsTrue(planar.IsSimple()));
+    Test("IsConvex_Planar_True",      () => IsTrue(planar.IsConvex()));
+    Test("IsConvex_NotPlanar_Throws", () => {
+        try { nonPlanar.IsConvex(); IsTrue(false, "expected throw"); }
+        catch (Exception) { }
+    });
+    Test("ConvexHull_ReturnsPolyline", () => NotNull(star.ConvexHull()));
+    Test("ConvexHull_ThenToPolygon",   () => NotNull(star.ConvexHull().ToPolygon()));
+    Test("ToPolygon_Valid",            () => NotNull(planar.ToPolygon()));
+    Test("ToPolygon_NotPlanar_Throws", () => {
+        try { nonPlanar.ToPolygon(); IsTrue(false, "expected throw"); }
+        catch (Exception) { }
+    });
+}
+
+Console.WriteLine("\nGeomUtil::PrincipalAxes/Normal/Direction");
+{
+    var cloud = new System.Collections.Generic.List<Point3D> {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(2,0,0), new Point3D(3,0,0),
+        new Point3D(0,0.1,0), new Point3D(1,0.1,0), new Point3D(2,0.1,0), new Point3D(3,0.1,0)
+    };
+
+    Test("PrincipalAxes_NotNull",         () => NotNull(GeomUtil.PrincipalAxes(cloud)));
+    Test("PrincipalAxes_X_NotNull",       () => NotNull(GeomUtil.PrincipalAxes(cloud).X));
+    Test("PrincipalAxes_Z_IsNormal",      () => {
+        var frame = GeomUtil.PrincipalAxes(cloud);
+        // Z should be ~(0,0,1) or (0,0,-1)
+        Eq(1.0, Math.Abs(frame.Z.Z), 2);
+    });
+    Test("PrincipalNormal_NotNull",       () => NotNull(GeomUtil.PrincipalNormal(cloud)));
+    Test("PrincipalDirection_NotNull",    () => NotNull(GeomUtil.PrincipalDirection(cloud)));
+    Test("PrincipalDirection_AlongX",     () => {
+        var dir = GeomUtil.PrincipalDirection(cloud);
+        Eq(1.0, Math.Abs(dir.X), 2);
+    });
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 Console.WriteLine($"\n{passed} passed, {failed} failed out of {passed + failed} tests.");
 return failed > 0 ? 1 : 0;

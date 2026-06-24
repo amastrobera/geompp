@@ -3,6 +3,7 @@
 #include "Line3D.hpp"
 #include "Ray3D.hpp"
 #include "LineSegment3D.hpp"
+#include "Polygon3D.hpp"
 
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
@@ -62,6 +63,18 @@ array<LineSegment3D^>^ Polyline3D::ToSegments() {
 
 double Polyline3D::Length() {
     return _native->Length();
+}
+
+bool Polyline3D::IsPlanar()  { return _native->IsPlanar(); }
+bool Polyline3D::IsSimple()  { return _native->IsSimple(); }
+bool Polyline3D::IsConvex()  { return _native->IsConvex(); }
+
+Polyline3D^ Polyline3D::ConvexHull() {
+    return gcnew Polyline3D(new geompp::Polyline3D(_native->ConvexHull()));
+}
+
+Polygon3D^ Polyline3D::ToPolygon() {
+    return gcnew Polygon3D(new geompp::Polygon3D(_native->ToPolygon()));
 }
 
 double Polyline3D::DistanceTo(Point3D^ point) {

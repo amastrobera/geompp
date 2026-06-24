@@ -3530,3 +3530,155 @@ class TestPolygon3DConvexHull:
         for orig, restored in zip(pts, back):
             assert (approx(orig.x, restored.x) and approx(orig.y, restored.y)
                     and approx(orig.z, restored.z))
+
+
+class TestPolygon2DIsConvex:
+    def test_square_is_convex(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0,0), geompp.Point2D(1,0),
+            geompp.Point2D(1,1), geompp.Point2D(0,1)])
+        assert p.is_convex()
+
+    def test_concave_not_convex(self):
+        # Concave polygon (dent)
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0,0), geompp.Point2D(4,0),
+            geompp.Point2D(4,4), geompp.Point2D(2,2), geompp.Point2D(0,4)])
+        assert not p.is_convex()
+
+    def test_with_hole_not_convex(self):
+        outer = [geompp.Point2D(0,0), geompp.Point2D(4,0),
+                 geompp.Point2D(4,4), geompp.Point2D(0,4)]
+        # holes must be CW (reversed winding)
+        hole  = [geompp.Point2D(1,1), geompp.Point2D(1,2),
+                 geompp.Point2D(2,2), geompp.Point2D(2,1)]
+        p = geompp.Polygon2D.make(outer, [hole])
+        assert not p.is_convex()
+
+
+class TestPolygon3DIsConvex:
+    def test_square_xy_plane_is_convex(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(1,0,0),
+            geompp.Point3D(1,1,0), geompp.Point3D(0,1,0)])
+        assert p.is_convex()
+
+    def test_concave_not_convex(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(4,0,0),
+            geompp.Point3D(4,4,0), geompp.Point3D(2,2,0), geompp.Point3D(0,4,0)])
+        assert not p.is_convex()
+
+    def test_with_hole_not_convex(self):
+        outer = [geompp.Point3D(0,0,0), geompp.Point3D(4,0,0),
+                 geompp.Point3D(4,4,0), geompp.Point3D(0,4,0)]
+        # holes must be CW (reversed winding)
+        hole  = [geompp.Point3D(1,1,0), geompp.Point3D(1,2,0),
+                 geompp.Point3D(2,2,0), geompp.Point3D(2,1,0)]
+        p = geompp.Polygon3D.make(outer, [hole])
+        assert not p.is_convex()
+
+
+class TestPolyline3DPlanarConvex:
+    def test_is_planar_xy(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(1,0,0),
+            geompp.Point3D(1,1,0), geompp.Point3D(0,1,0)])
+        assert pl.is_planar()
+
+    def test_is_planar_nonplanar(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(1,0,0),
+            geompp.Point3D(1,1,1), geompp.Point3D(0,1,2)])
+        assert not pl.is_planar()
+
+    def test_is_simple_planar(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(2,0,0),
+            geompp.Point3D(2,2,0), geompp.Point3D(0,2,0)])
+        assert pl.is_simple()
+
+    def test_is_convex_planar(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(2,0,0),
+            geompp.Point3D(2,2,0), geompp.Point3D(0,2,0)])
+        assert pl.is_convex()
+
+    def test_is_convex_not_planar_throws(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(1,0,0),
+            geompp.Point3D(1,1,1), geompp.Point3D(0,1,2)])
+        with pytest.raises(Exception):
+            pl.is_convex()
+
+    def test_convex_hull_returns_polyline(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(2,0,0),
+            geompp.Point3D(1,1,0), geompp.Point3D(2,2,0), geompp.Point3D(0,2,0)])
+        hull = pl.convex_hull()
+        assert isinstance(hull, geompp.Polyline3D)
+
+    def test_convex_hull_to_polygon(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(2,0,0),
+            geompp.Point3D(1,1,0), geompp.Point3D(2,2,0), geompp.Point3D(0,2,0)])
+        polygon = pl.convex_hull().to_polygon()
+        assert isinstance(polygon, geompp.Polygon3D)
+
+    def test_to_polygon_not_planar_throws(self):
+        pl = geompp.Polyline3D.make([
+            geompp.Point3D(0,0,0), geompp.Point3D(1,0,0),
+            geompp.Point3D(1,1,1), geompp.Point3D(0,1,2)])
+        with pytest.raises(Exception):
+            pl.to_polygon()
+
+
+class TestPrincipalAxes:
+    @pytest.fixture
+    def flat_xy_cloud(self):
+        # Flat cloud in XY plane, elongated along X
+        return [
+            geompp.Point3D(0,0,0), geompp.Point3D(1,0,0),
+            geompp.Point3D(2,0,0), geompp.Point3D(3,0,0),
+            geompp.Point3D(0,0.1,0), geompp.Point3D(1,0.1,0),
+            geompp.Point3D(2,0.1,0), geompp.Point3D(3,0.1,0),
+        ]
+
+    def test_coordinate_frame_attributes(self, flat_xy_cloud):
+        frame = geompp.principal_axes(flat_xy_cloud)
+        assert hasattr(frame, 'x')
+        assert hasattr(frame, 'y')
+        assert hasattr(frame, 'z')
+        assert isinstance(frame.x, geompp.Vector3D)
+        assert isinstance(frame.y, geompp.Vector3D)
+        assert isinstance(frame.z, geompp.Vector3D)
+
+    def test_z_is_normal_for_flat_xy_cloud(self, flat_xy_cloud):
+        frame = geompp.principal_axes(flat_xy_cloud)
+        # Z should be nearly (0,0,1) or (0,0,-1)
+        assert abs(abs(frame.z.z) - 1.0) < 0.01
+
+    def test_axes_are_orthogonal(self, flat_xy_cloud):
+        frame = geompp.principal_axes(flat_xy_cloud)
+        assert abs(frame.x.dot(frame.y)) < 1e-6
+        assert abs(frame.x.dot(frame.z)) < 1e-6
+        assert abs(frame.y.dot(frame.z)) < 1e-6
+
+    def test_axes_are_unit_vectors(self, flat_xy_cloud):
+        frame = geompp.principal_axes(flat_xy_cloud)
+        assert abs(frame.x.length() - 1.0) < 1e-9
+        assert abs(frame.y.length() - 1.0) < 1e-9
+        assert abs(frame.z.length() - 1.0) < 1e-9
+
+    def test_principal_normal_matches_z(self, flat_xy_cloud):
+        normal = geompp.principal_normal(flat_xy_cloud)
+        assert abs(abs(normal.z) - 1.0) < 0.01
+
+    def test_principal_direction_matches_x(self, flat_xy_cloud):
+        direction = geompp.principal_direction(flat_xy_cloud)
+        # Primary direction should be along X (elongated axis)
+        assert abs(abs(direction.x) - 1.0) < 0.01
+
+    def test_too_few_points_throws(self):
+        with pytest.raises(Exception):
+            geompp.principal_axes([geompp.Point3D(0,0,0), geompp.Point3D(1,0,0)])

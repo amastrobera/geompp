@@ -98,6 +98,10 @@ bool Polygon2D::IsSimple() {
     return _native->IsSimple();
 }
 
+bool Polygon2D::IsConvex() {
+    return _native->IsConvex();
+}
+
 Polygon2D^ Polygon2D::ConvexHull() {
     return gcnew Polygon2D(new geompp::Polygon2D(_native->ConvexHull()));
 }

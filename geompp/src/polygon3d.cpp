@@ -8,6 +8,7 @@
 #include "plane.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
+#include "vector2d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
 
@@ -216,6 +217,45 @@ bool Polygon3D::IsSimple() const {
   if (has_intersections(make_segs(VERTICES))) { return false; }
   for (auto const& hole : HOLES) {
     if (has_intersections(make_segs(hole))) { return false; }
+  }
+  return true;
+}
+
+bool Polygon3D::IsConvex() const {
+  // a convex polygon must have no holes
+  if (!HOLES.empty()) {
+    return false;
+  }
+
+  int n = static_cast<int>(VERTICES.size());
+  if (n < 3) {
+    return false;
+  }
+
+  // project onto 2D using the polygon's plane, then check all cross products have the same sign
+  auto to2d = [this](Point3D const& p) -> Point2D { return PLANE.ProjectInto(p); };
+
+  bool seen_positive = false;
+  bool seen_negative = false;
+  for (int i = 0; i < n; ++i) {
+    Point2D v0 = to2d(VERTICES[i]);
+    Point2D v1 = to2d(VERTICES[(i + 1) % n]);
+    Point2D v2 = to2d(VERTICES[(i + 2) % n]);
+    Vector2D e1 = v1 - v0;
+    Vector2D e2 = v2 - v1;
+    double cross = e1.Cross(e2);
+    auto ord = compare(cross, 0.0);
+    if (ord == std::partial_ordering::equivalent) {
+      continue;  // collinear edge — neutral
+    }
+    if (ord > 0) {
+      seen_positive = true;
+    } else {
+      seen_negative = true;
+    }
+    if (seen_positive && seen_negative) {
+      return false;
+    }
   }
   return true;
 }

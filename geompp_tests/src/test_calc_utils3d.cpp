@@ -131,4 +131,76 @@ TEST_F(CalcUtils3DTest, IntersectionLineToLine_IntersectAtEndpointParams) {
   EXPECT_EQ(0.75, g::round(tc));
 }
 
+// ---- principal_axes / principal_normal / principal_direction ----------------
+
+TEST_F(CalcUtils3DTest, PrincipalAxes_PlanarXYCloud_ZIsNormal) {
+  // Flat cloud in the XY plane — the normal (Z) must be nearly (0, 0, ±1)
+  std::vector<g::Point3D> cloud = {
+      {0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0},
+      {0, 0.1, 0}, {1, 0.1, 0}, {2, 0.1, 0}, {3, 0.1, 0}};
+  auto frame = g::principal_axes(cloud);
+  EXPECT_NEAR(0.0, frame.Z.x(), 1e-3);
+  EXPECT_NEAR(0.0, frame.Z.y(), 1e-3);
+  EXPECT_NEAR(1.0, std::abs(frame.Z.z()), 1e-3);
+}
+
+TEST_F(CalcUtils3DTest, PrincipalAxes_ElongatedAlongX_XIsLongest) {
+  // Cloud spread mainly along X — primary direction (X) must be nearly (±1, 0, 0)
+  std::vector<g::Point3D> cloud = {
+      {0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0},
+      {0, 0.1, 0}, {1, 0.1, 0}, {2, 0.1, 0}, {3, 0.1, 0}};
+  auto frame = g::principal_axes(cloud);
+  EXPECT_NEAR(1.0, std::abs(frame.X.x()), 1e-3);
+  EXPECT_NEAR(0.0, frame.X.y(), 1e-3);
+  EXPECT_NEAR(0.0, frame.X.z(), 1e-3);
+}
+
+TEST_F(CalcUtils3DTest, PrincipalAxes_AxesAreOrthogonal) {
+  std::vector<g::Point3D> cloud = {
+      {0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0},
+      {0, 0.1, 0}, {1, 0.1, 0}, {2, 0.1, 0}, {3, 0.1, 0}};
+  auto frame = g::principal_axes(cloud);
+  EXPECT_NEAR(0.0, frame.X.Dot(frame.Y), 1e-9);
+  EXPECT_NEAR(0.0, frame.X.Dot(frame.Z), 1e-9);
+  EXPECT_NEAR(0.0, frame.Y.Dot(frame.Z), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, PrincipalAxes_AxesAreUnitVectors) {
+  std::vector<g::Point3D> cloud = {
+      {0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0},
+      {0, 0.1, 0}, {1, 0.1, 0}, {2, 0.1, 0}, {3, 0.1, 0}};
+  auto frame = g::principal_axes(cloud);
+  EXPECT_NEAR(1.0, frame.X.Length(), 1e-9);
+  EXPECT_NEAR(1.0, frame.Y.Length(), 1e-9);
+  EXPECT_NEAR(1.0, frame.Z.Length(), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, PrincipalNormal_PlanarCloud_MatchesBasisZ) {
+  // Flat XY cloud: principal_normal delegates to principal_axes().Z
+  std::vector<g::Point3D> cloud = {
+      {0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0},
+      {0, 0.1, 0}, {1, 0.1, 0}, {2, 0.1, 0}, {3, 0.1, 0}};
+  auto n = g::principal_normal(cloud);
+  EXPECT_NEAR(0.0, n.x(), 1e-3);
+  EXPECT_NEAR(0.0, n.y(), 1e-3);
+  EXPECT_NEAR(1.0, std::abs(n.z()), 1e-3);
+}
+
+TEST_F(CalcUtils3DTest, PrincipalDirection_ElongatedAlongX_MatchesBasisX) {
+  // Elongated cloud: principal_direction delegates to principal_axes().X
+  std::vector<g::Point3D> cloud = {
+      {0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0},
+      {0, 0.1, 0}, {1, 0.1, 0}, {2, 0.1, 0}, {3, 0.1, 0}};
+  auto d = g::principal_direction(cloud);
+  EXPECT_NEAR(1.0, std::abs(d.x()), 1e-3);
+  EXPECT_NEAR(0.0, d.y(), 1e-3);
+  EXPECT_NEAR(0.0, d.z(), 1e-3);
+}
+
+TEST_F(CalcUtils3DTest, PrincipalAxes_TooFewPoints_Throws) {
+  // principal_axes requires at least 3 points
+  std::vector<g::Point3D> two_pts = {{0, 0, 0}, {1, 0, 0}};
+  EXPECT_THROW(g::principal_axes(two_pts), std::runtime_error);
+}
+
 }  // namespace geompp_tests
