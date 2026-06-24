@@ -291,6 +291,96 @@
   ```
 
 
+  #### Planar vs non-planar Polyline3D
+
+  `Polyline3D::IsPlanar()` checks whether all knots lie in a common plane. Only planar polylines support
+  `IsSimple()`, `IsConvex()`, `ConvexHull()`, and `ToPolygon()` — call `IsPlanar()` first.
+
+  `ConvexHull()` returns a `Polyline3D` (an open path). Call `ToPolygon()` on it to close the boundary into a `Polygon3D` with area.
+
+  ```cpp
+  #include "polyline3d.hpp"
+  #include "calc_utils3d.hpp"
+
+  namespace g = geompp;
+
+  // Planar star-like path in the XY plane
+  auto planar = g::Polyline3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(2, 2, 0),
+      g::Point3D(4, 4, 0), g::Point3D(0, 4, 0),
+  });
+
+  GEOMPP_LOG(INFO) << "planar: " << planar.IsPlanar();    // true
+
+  auto hull    = planar.ConvexHull();   // Polyline3D — open hull
+  auto polygon = hull.ToPolygon();      // Polygon3D  — closed region with area
+
+  GEOMPP_LOG(INFO) << "hull knots:    " << hull.Size();
+  GEOMPP_LOG(INFO) << "polygon area:  " << polygon.Area();
+
+  // Non-planar path: each point rises out of the XY plane
+  auto rising = g::Polyline3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(1, 0, 0),
+      g::Point3D(1, 1, 1), g::Point3D(0, 1, 2),
+  });
+
+  GEOMPP_LOG(INFO) << "planar: " << rising.IsPlanar();    // false
+
+  // Dominant direction of the non-planar path via PCA
+  std::vector<g::Point3D> pts;
+  for (int i = 0; i < rising.Size(); ++i) { pts.push_back(rising[i]); }
+  auto dir = g::principal_direction(pts);
+  GEOMPP_LOG(INFO) << "dominant direction: " << dir;
+  ```
+
+  will print out
+
+  ```bash
+  planar: 1
+  hull knots:    4
+  polygon area:  16
+  planar: 0
+  dominant direction: VECTOR (...)
+  ```
+
+
+  #### PCA on a 3D point cloud
+
+  `principal_axes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and returns
+  a `CoordinateFrame` — three orthonormal axes sorted by variance: `X` is the direction of most spread,
+  `Y` the secondary, and `Z` the best-fit plane normal (least variance).
+
+  ```cpp
+  #include "calc_utils3d.hpp"
+
+  namespace g = geompp;
+
+  // 8 points flat in the XY plane, elongated along X
+  std::vector<g::Point3D> cloud = {
+      {0, 0,   0}, {1, 0,   0}, {2, 0,   0}, {3, 0,   0},
+      {0, 0.1, 0}, {1, 0.1, 0}, {2, 0.1, 0}, {3, 0.1, 0},
+  };
+
+  auto frame = g::principal_axes(cloud);
+
+  GEOMPP_LOG(INFO) << "X (primary):    " << frame.X;   // ≈ (1, 0, 0)
+  GEOMPP_LOG(INFO) << "Y (secondary):  " << frame.Y;   // ≈ (0, 1, 0)
+  GEOMPP_LOG(INFO) << "Z (normal):     " << frame.Z;   // ≈ (0, 0, 1)
+
+  // Convenience wrappers
+  auto normal    = g::principal_normal(cloud);     // == frame.Z
+  auto direction = g::principal_direction(cloud);  // == frame.X
+  ```
+
+  will print out
+
+  ```bash
+  X (primary):    VECTOR (1 0 0)
+  Y (secondary):  VECTOR (0 1 0)
+  Z (normal):     VECTOR (0 0 1)
+  ```
+
+
   ## geom_viewer — interactive geometry visualizer (WIP)
 
   `geom_viewer` is a companion OpenGL application intended to let you see and interact with geometric

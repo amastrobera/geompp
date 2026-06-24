@@ -139,6 +139,9 @@ print(poly.size())               # 4
 | `find_intersections(segments)` | Bentley–Ottmann: returns `list[Point2D]` — every crossing point, sorted left-to-right |
 | `convex_hull(points)` | Andrew's monotone chain: convex hull of a `list[Point2D]`, returned in CCW order |
 | `convex_hull(points, normal=None)` | Convex hull of a coplanar `list[Point3D]`; optional `Vector3D` normal (auto-detected if omitted) |
+| `principal_axes(points)` | PCA on a `list[Point3D]`: returns `CoordinateFrame` (`.x` primary, `.y` secondary, `.z` best-fit normal) |
+| `principal_normal(points)` | Best-fit plane normal of a `list[Point3D]` (PCA eigenvector with smallest eigenvalue) |
+| `principal_direction(points)` | Dominant direction of a `list[Point3D]` (PCA eigenvector with largest eigenvalue) |
 
 ## Convex hull
 
@@ -208,6 +211,87 @@ if path.is_simple():
     hull = path.convex_hull()   # Polygon2D with 4 vertices
     print(f"hull has {hull.size()} vertices")
 # hull has 4 vertices
+```
+
+### Planar vs non-planar Polyline3D
+
+`Polyline3D.is_planar()` checks whether all knots lie in a common plane. Only planar polylines support
+`is_simple()`, `is_convex()`, `convex_hull()`, and `to_polygon()`.
+
+`convex_hull()` returns a `Polyline3D` (open path). Call `to_polygon()` on it to close the boundary into a `Polygon3D` with area.
+
+```python
+import geompp as g
+
+# Planar star-like path in the XY plane
+planar = g.Polyline3D.make([
+    g.Point3D(0, 0, 0), g.Point3D(4, 0, 0), g.Point3D(2, 2, 0),
+    g.Point3D(4, 4, 0), g.Point3D(0, 4, 0),
+])
+
+print(f"planar: {planar.is_planar()}")     # True
+
+hull    = planar.convex_hull()             # Polyline3D — open hull
+polygon = hull.to_polygon()               # Polygon3D  — closed region with area
+
+print(f"hull knots:   {hull.size()}")
+print(f"polygon area: {polygon.area():.3f}")
+
+# Non-planar path: each point rises out of the XY plane
+rising = g.Polyline3D.make([
+    g.Point3D(0, 0, 0), g.Point3D(1, 0, 0),
+    g.Point3D(1, 1, 1), g.Point3D(0, 1, 2),
+])
+
+print(f"planar: {rising.is_planar()}")     # False
+
+pts = [rising[i] for i in range(rising.size())]
+direction = g.principal_direction(pts)
+print(f"dominant direction: {direction}")
+```
+
+Output:
+```
+planar: True
+hull knots:   4
+polygon area: 16.000
+planar: False
+dominant direction: VECTOR (...)
+```
+
+### PCA on a 3D point cloud
+
+`principal_axes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and returns
+a `CoordinateFrame` — three orthonormal axes sorted by variance: `x` is the direction of most spread,
+`y` the secondary, and `z` the best-fit plane normal (least variance).
+
+```python
+import geompp as g
+
+# 8 points flat in the XY plane, elongated along X
+cloud = [
+    g.Point3D(0, 0,   0), g.Point3D(1, 0,   0),
+    g.Point3D(2, 0,   0), g.Point3D(3, 0,   0),
+    g.Point3D(0, 0.1, 0), g.Point3D(1, 0.1, 0),
+    g.Point3D(2, 0.1, 0), g.Point3D(3, 0.1, 0),
+]
+
+frame = g.principal_axes(cloud)
+
+print(f"x (primary):   {frame.x}")   # ≈ (1, 0, 0)
+print(f"y (secondary): {frame.y}")   # ≈ (0, 1, 0)
+print(f"z (normal):    {frame.z}")   # ≈ (0, 0, 1)
+
+# Convenience wrappers
+normal    = g.principal_normal(cloud)     # == frame.z
+direction = g.principal_direction(cloud)  # == frame.x
+```
+
+Output:
+```
+x (primary):   VECTOR (1 0 0)
+y (secondary): VECTOR (0 1 0)
+z (normal):    VECTOR (0 0 1)
 ```
 
 

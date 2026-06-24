@@ -252,6 +252,90 @@ hull has 4 vertices
 
 ---
 
+### Example 7 — Planar vs non-planar `Polyline3D`
+
+`Polyline3D.IsPlanar()` checks whether all knots lie in a common plane. Only planar polylines support
+`IsSimple()`, `IsConvex()`, `ConvexHull()`, and `ToPolygon()`.
+
+`ConvexHull()` returns a `Polyline3D` (open path). Call `ToPolygon()` on it to close the boundary into a `Polygon3D` with area.
+
+```csharp
+using G = GeomPP;
+
+// Planar star-like path in the XY plane
+var planar = G.Polyline3D.Make(new G.Point3D[] {
+    new(0, 0, 0), new(4, 0, 0), new(2, 2, 0),
+    new(4, 4, 0), new(0, 4, 0),
+});
+
+Console.WriteLine($"planar: {planar.IsPlanar()}");    // True
+
+var hull    = planar.ConvexHull();   // Polyline3D — open hull
+var polygon = hull.ToPolygon();      // Polygon3D  — closed region with area
+
+Console.WriteLine($"hull knots:   {hull.Size()}");
+Console.WriteLine($"polygon area: {polygon.Area():F3}");
+
+// Non-planar path: each point rises out of the XY plane
+var rising = G.Polyline3D.Make(new G.Point3D[] {
+    new(0, 0, 0), new(1, 0, 0),
+    new(1, 1, 1), new(0, 1, 2),
+});
+
+Console.WriteLine($"planar: {rising.IsPlanar()}");    // False
+
+var pts = new System.Collections.Generic.List<G.Point3D>();
+for (int i = 0; i < rising.Size(); i++) pts.Add(rising[i]);
+var direction = G.GeomUtil.PrincipalDirection(pts);
+Console.WriteLine($"dominant direction: {direction}");
+```
+
+Output:
+```
+planar: True
+hull knots:   4
+polygon area: 16.000
+planar: False
+dominant direction: VECTOR (...)
+```
+
+---
+
+### Example 8 — `GeomUtil.PrincipalAxes` (PCA on a 3D point cloud)
+
+`GeomUtil.PrincipalAxes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and
+returns a `CoordinateFrame` — three orthonormal axes sorted by variance: `X` is the direction of most
+spread, `Y` the secondary, and `Z` the best-fit plane normal (least variance).
+
+```csharp
+using G = GeomPP;
+
+// 8 points flat in the XY plane, elongated along X
+var cloud = new System.Collections.Generic.List<G.Point3D> {
+    new(0, 0,   0), new(1, 0,   0), new(2, 0,   0), new(3, 0,   0),
+    new(0, 0.1, 0), new(1, 0.1, 0), new(2, 0.1, 0), new(3, 0.1, 0),
+};
+
+var frame = G.GeomUtil.PrincipalAxes(cloud);
+
+Console.WriteLine($"X (primary):   {frame.X}");  // ≈ (1, 0, 0)
+Console.WriteLine($"Y (secondary): {frame.Y}");  // ≈ (0, 1, 0)
+Console.WriteLine($"Z (normal):    {frame.Z}");  // ≈ (0, 0, 1)
+
+// Convenience wrappers
+var normal    = G.GeomUtil.PrincipalNormal(cloud);     // == frame.Z
+var direction = G.GeomUtil.PrincipalDirection(cloud);  // == frame.X
+```
+
+Output:
+```
+X (primary):   VECTOR (1 0 0)
+Y (secondary): VECTOR (0 1 0)
+Z (normal):    VECTOR (0 0 1)
+```
+
+---
+
 ## Precision
 
 All floating-point comparisons go through a thread-local precision setting:
