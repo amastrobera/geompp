@@ -35,6 +35,7 @@ set(GEOMPP_SOURCES
     ${GEOMPP_ROOT}/src/triangle2d.cpp
     ${GEOMPP_ROOT}/src/polygon2d.cpp
     ${GEOMPP_ROOT}/src/bbox2d.cpp
+    ${GEOMPP_ROOT}/src/bball2d.cpp
     ${GEOMPP_ROOT}/src/calc_utils2d.cpp
     ${GEOMPP_ROOT}/src/point3d.cpp
     ${GEOMPP_ROOT}/src/vector3d.cpp
@@ -46,6 +47,7 @@ set(GEOMPP_SOURCES
     ${GEOMPP_ROOT}/src/triangle3d.cpp
     ${GEOMPP_ROOT}/src/polygon3d.cpp
     ${GEOMPP_ROOT}/src/bbox3d.cpp
+    ${GEOMPP_ROOT}/src/bball3d.cpp
     ${GEOMPP_ROOT}/src/geometry_collection2d.cpp
     ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
     ${GEOMPP_ROOT}/src/calc_utils3d.cpp
@@ -73,6 +75,8 @@ set(BINDING_SOURCES
     src/bind_triangle3d.cpp
     src/bind_bbox2d.cpp
     src/bind_bbox3d.cpp
+    src/bind_bball2d.cpp
+    src/bind_bball3d.cpp
     src/bind_plane.cpp
     src/bind_wktparser.cpp
     src/bind_free_functions.cpp

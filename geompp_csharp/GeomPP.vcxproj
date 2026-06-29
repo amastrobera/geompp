@@ -123,6 +123,8 @@
     <ClCompile Include="src\Triangle3D.cpp" />
     <ClCompile Include="src\BBox2D.cpp" />
     <ClCompile Include="src\BBox3D.cpp" />
+    <ClCompile Include="src\BBall2D.cpp" />
+    <ClCompile Include="src\BBall3D.cpp" />
     <ClCompile Include="src\Plane.cpp" />
     <ClCompile Include="src\WktParser.cpp" />
     <ClCompile Include="src\GeometryCollection2D.cpp" />
@@ -152,6 +154,8 @@
     <ClInclude Include="src\Triangle3D.hpp" />
     <ClInclude Include="src\BBox2D.hpp" />
     <ClInclude Include="src\BBox3D.hpp" />
+    <ClInclude Include="src\BBall2D.hpp" />
+    <ClInclude Include="src\BBall3D.hpp" />
     <ClInclude Include="src\Plane.hpp" />
     <ClInclude Include="src\WktParser.hpp" />
     <ClInclude Include="src\GeometryCollection2D.hpp" />
@@ -170,6 +174,14 @@
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\bbox3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\bball2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\bball3d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>

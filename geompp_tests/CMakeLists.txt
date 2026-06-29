@@ -57,6 +57,8 @@ add_executable(${PROJECT_NAME}
     src/test_plane.cpp
     src/test_bbox2d.cpp
     src/test_bbox3d.cpp
+    src/test_bball2d.cpp
+    src/test_bball3d.cpp
     src/test_polygon2d.cpp
     src/test_polygon3d.cpp
 

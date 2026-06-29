@@ -6,6 +6,8 @@
 
 #include "bbox2d.hpp"
 #include "bbox3d.hpp"
+#include "bball2d.hpp"
+#include "bball3d.hpp"
 #include "constants.hpp"
 #include "geometry_collection2d.hpp"
 #include "geometry_collection3d.hpp"

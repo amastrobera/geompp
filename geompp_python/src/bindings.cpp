@@ -21,6 +21,8 @@ void bind_triangle2d(py::module_& m);
 void bind_triangle3d(py::module_& m);
 void bind_bbox2d(py::module_& m);
 void bind_bbox3d(py::module_& m);
+void bind_bball2d(py::module_& m);
+void bind_bball3d(py::module_& m);
 void bind_plane(py::module_& m);
 void bind_wktparser(py::module_& m);
 void bind_free_functions(py::module_& m);
@@ -49,6 +51,8 @@ PYBIND11_MODULE(_geompp, m) {
     bind_triangle3d(m);
     bind_bbox2d(m);
     bind_bbox3d(m);
+    bind_bball2d(m);
+    bind_bball3d(m);
     bind_plane(m);
     bind_wktparser(m);
     bind_free_functions(m);

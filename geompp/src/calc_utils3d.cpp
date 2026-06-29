@@ -260,7 +260,7 @@ CoordinateFrame principal_axes(std::vector<Point3D> const& points) {
     throw std::runtime_error("principal_axes: need at least 3 points");
   }
 
-  // compute centroid
+  // compute mean point
   double cx = 0, cy = 0, cz = 0;
   for (auto const& p : points) {
     cx += p.x();
@@ -318,12 +318,8 @@ CoordinateFrame principal_axes(std::vector<Point3D> const& points) {
   return CoordinateFrame{get_axis(idx[0]), get_axis(idx[1]), get_axis(idx[2])};
 }
 
-Vector3D principal_normal(std::vector<Point3D> const& points) {
-  return principal_axes(points).Z;
-}
+Vector3D principal_normal(std::vector<Point3D> const& points) { return principal_axes(points).Z; }
 
-Vector3D principal_direction(std::vector<Point3D> const& points) {
-  return principal_axes(points).X;
-}
+Vector3D principal_direction(std::vector<Point3D> const& points) { return principal_axes(points).X; }
 
 }  // namespace geompp

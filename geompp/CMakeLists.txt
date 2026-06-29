@@ -46,6 +46,7 @@ add_library(${PROJECT_NAME}
     src/triangle2d.cpp
     src/polygon2d.cpp
     src/bbox2d.cpp
+    src/bball2d.cpp
     src/calc_utils2d.cpp
 
     src/point3d.cpp
@@ -58,6 +59,7 @@ add_library(${PROJECT_NAME}
     src/triangle3d.cpp
     src/polygon3d.cpp
     src/bbox3d.cpp
+    src/bball3d.cpp
     src/geometry_collection2d.cpp
     src/geometry_collection3d.cpp
     src/calc_utils3d.cpp

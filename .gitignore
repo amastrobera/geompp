@@ -28,3 +28,6 @@ geompp_python/_build/
 
 # MSVC build artifacts
 NUL.i
+
+# AI
+CLAUDE.md

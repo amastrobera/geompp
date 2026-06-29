@@ -3340,7 +3340,7 @@ Console.WriteLine("\nPolygon2D::IsConvex");
         new Point2D(2,2), new Point2D(0,4)
     });
     var outer = new[] { new Point2D(0,0), new Point2D(4,0), new Point2D(4,4), new Point2D(0,4) };
-    var hole  = new[] { new Point2D(2,1), new Point2D(2,2), new Point2D(1,2), new Point2D(1,1) };
+    var hole  = new[] { new Point2D(1,1), new Point2D(1,2), new Point2D(2,2), new Point2D(2,1) };
     var holed = Polygon2D.Make(outer, new[] { hole });
 
     Test("IsConvex_Square_True",    () => IsTrue(square.IsConvex()));
@@ -3412,6 +3412,127 @@ Console.WriteLine("\nGeomUtil::PrincipalAxes/Normal/Direction");
         Eq(1.0, Math.Abs(dir.X), 2);
     });
 }
+
+// ── BBall2D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBBall2D");
+
+Test("Constructor_CenterRadius", () => {
+  var b = new BBall2D(new Point2D(1.0, 2.0), 5.0);
+  IsTrue(b.Center().AlmostEquals(new Point2D(1.0, 2.0)));
+  Eq(5.0, b.Radius());
+});
+
+Test("Constructor_FromSinglePoint_RadiusZero", () => {
+  var b = new BBall2D(new Point2D[] { new Point2D(3.0, 4.0) });
+  IsTrue(b.Center().AlmostEquals(new Point2D(3.0, 4.0)));
+  Eq(0.0, b.Radius());
+});
+
+Test("Constructor_FromTwoPoints_MidpointCenter", () => {
+  var b = new BBall2D(new Point2D[] { new Point2D(0, 0), new Point2D(4, 0) });
+  IsTrue(b.Center().AlmostEquals(new Point2D(2.0, 0.0)));
+  Eq(2.0, b.Radius());
+});
+
+Test("Constructor_FromPoints_AllContained", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(2, 3), new Point2D(-1, 1.5)
+  };
+  var b = new BBall2D(pts);
+  foreach (var p in pts)
+    IsTrue(b.Contains(p), $"ball should contain {p}");
+});
+
+Test("Contains_Center_True", () => {
+  var b = new BBall2D(new Point2D(0, 0), 5.0);
+  IsTrue(b.Contains(new Point2D(0, 0)));
+});
+
+Test("Contains_Boundary_True", () => {
+  var b = new BBall2D(new Point2D(0, 0), 5.0);
+  IsTrue(b.Contains(new Point2D(3, 4)));   // 3-4-5
+  IsTrue(b.Contains(new Point2D(5, 0)));
+});
+
+Test("Contains_Outside_False", () => {
+  var b = new BBall2D(new Point2D(0, 0), 5.0);
+  IsFalse(b.Contains(new Point2D(4, 4)));  // dist ≈ 5.657
+  IsFalse(b.Contains(new Point2D(6, 0)));
+});
+
+Test("AlmostEquals_SameBall", () => {
+  var b1 = new BBall2D(new Point2D(1, 2), 3.0);
+  var b2 = new BBall2D(new Point2D(1, 2), 3.0);
+  IsTrue(b1.AlmostEquals(b2));
+  IsTrue(b1 == b2);
+});
+
+Test("AlmostEquals_DifferentBall", () => {
+  var b1 = new BBall2D(new Point2D(1, 2), 3.0);
+  var b2 = new BBall2D(new Point2D(0, 0), 1.0);
+  IsFalse(b1.AlmostEquals(b2));
+});
+
+// ── BBall3D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBBall3D");
+
+Test("Constructor_CenterRadius", () => {
+  var b = new BBall3D(new Point3D(1, 2, 3), 5.0);
+  IsTrue(b.Center().AlmostEquals(new Point3D(1, 2, 3)));
+  Eq(5.0, b.Radius());
+});
+
+Test("Constructor_FromSinglePoint_RadiusZero", () => {
+  var b = new BBall3D(new Point3D[] { new Point3D(1, 2, 3) });
+  IsTrue(b.Center().AlmostEquals(new Point3D(1, 2, 3)));
+  Eq(0.0, b.Radius());
+});
+
+Test("Constructor_FromTwoPoints_MidpointCenter", () => {
+  var b = new BBall3D(new Point3D[] { new Point3D(0, 0, 0), new Point3D(4, 0, 0) });
+  IsTrue(b.Center().AlmostEquals(new Point3D(2, 0, 0)));
+  Eq(2.0, b.Radius());
+});
+
+Test("Constructor_FromPoints_AllContained", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(0, 3, 0), new Point3D(0, 0, 2)
+  };
+  var b = new BBall3D(pts);
+  foreach (var p in pts)
+    IsTrue(b.Contains(p), $"ball should contain {p}");
+});
+
+Test("Contains_Center_True", () => {
+  var b = new BBall3D(new Point3D(0, 0, 0), 5.0);
+  IsTrue(b.Contains(new Point3D(0, 0, 0)));
+});
+
+Test("Contains_Boundary_True", () => {
+  var b = new BBall3D(new Point3D(0, 0, 0), 5.0);
+  IsTrue(b.Contains(new Point3D(3, 4, 0)));   // 3-4-5 in XY
+  IsTrue(b.Contains(new Point3D(0, 0, 5)));
+});
+
+Test("Contains_Outside_False", () => {
+  var b = new BBall3D(new Point3D(0, 0, 0), 5.0);
+  IsFalse(b.Contains(new Point3D(4, 4, 0)));  // dist ≈ 5.657
+  IsFalse(b.Contains(new Point3D(0, 0, 6)));
+});
+
+Test("AlmostEquals_SameBall", () => {
+  var b1 = new BBall3D(new Point3D(1, 2, 3), 4.0);
+  var b2 = new BBall3D(new Point3D(1, 2, 3), 4.0);
+  IsTrue(b1.AlmostEquals(b2));
+  IsTrue(b1 == b2);
+});
+
+Test("AlmostEquals_DifferentBall", () => {
+  var b1 = new BBall3D(new Point3D(1, 2, 3), 4.0);
+  var b2 = new BBall3D(new Point3D(0, 0, 0), 1.0);
+  IsFalse(b1.AlmostEquals(b2));
+});
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 Console.WriteLine($"\n{passed} passed, {failed} failed out of {passed + failed} tests.");
