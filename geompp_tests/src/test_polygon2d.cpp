@@ -425,4 +425,63 @@ TEST_F(Polygon2DTest, IsConvex_WithHole_False) {
   EXPECT_FALSE(p.IsConvex());
 }
 
+// ---- Simplify ---------------------------------------------------------------
+
+TEST_F(Polygon2DTest, Simplify_AlreadySimple_ReturnsSelf) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto result = p.Simplify();
+  ASSERT_EQ(1u, result.size());
+  EXPECT_TRUE(p.AlmostEquals(result[0]));
+}
+
+TEST_F(Polygon2DTest, Simplify_BowtieYieldsTwoSimpleTriangles) {
+  // A(0,0), B(4,0), C(1,3), D(3,3): edges B→C and D→A cross at X(2,2).
+  // Simplify() should split this into the lower triangle (area=4) and upper triangle (area=1).
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  // Both results must be simple
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  // Areas: 4.0 and 1.0 (order may vary)
+  double a0 = result[0].Area(), a1 = result[1].Area();
+  bool areas_match = (std::abs(a0 - 4.0) < 0.01 && std::abs(a1 - 1.0) < 0.01) ||
+                     (std::abs(a0 - 1.0) < 0.01 && std::abs(a1 - 4.0) < 0.01);
+  EXPECT_TRUE(areas_match) << "areas: " << a0 << ", " << a1;
+}
+
+TEST_F(Polygon2DTest, Simplify_BowtieTrianglesAreSimple) {
+  // Both triangles returned by Simplify() on the bowtie should individually satisfy IsSimple()
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+  for (auto const& poly : p.Simplify()) {
+    EXPECT_TRUE(poly.IsSimple()) << "A result polygon is not simple: " << poly.ToWkt();
+  }
+}
+
+TEST_F(Polygon2DTest, Simplify_BowtieAreasMatch) {
+  // The two triangles from the bowtie should have areas 4.0 and 1.0 (sum = original's simple area parts)
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+  double total = result[0].Area() + result[1].Area();
+  EXPECT_NEAR(5.0, total, 0.01);
+}
+
+TEST_F(Polygon2DTest, Simplify_WideBowtie_AllResultsAreSimple) {
+  // A wider bowtie: (0,0)→(10,0)→(2,6)→(8,6) — crossing at (5,3).
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(2, 6), g::Point2D(8, 6)});
+  ASSERT_FALSE(p.IsSimple());
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+  for (auto const& poly : result) {
+    EXPECT_TRUE(poly.IsSimple()) << "not simple: " << poly.ToWkt();
+  }
+  double total = result[0].Area() + result[1].Area();
+  EXPECT_NEAR(25.5, total, 0.1);
+}
+
 }  // namespace geompp_tests

@@ -25,8 +25,12 @@ void bind_polyline2d(py::module_& m) {
         .def("__len__",     &geompp::Polyline2D::Size)
         .def("__getitem__", [](const geompp::Polyline2D& p, int i) -> geompp::Point2D {
             int n = p.Size();
-            if (i < 0) i += n;
-            if (i < 0 || i >= n) throw py::index_error("index out of range");
+            if (i < 0) {
+                i += n;
+            }
+            if (i < 0 || i >= n) {
+                throw py::index_error("index out of range");
+            }
             return p[static_cast<std::size_t>(i)];
         }, "i"_a)
         .def("intersects",

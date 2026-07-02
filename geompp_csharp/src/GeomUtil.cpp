@@ -73,8 +73,9 @@ System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::FindIntersections
     System::Collections::Generic::List<LineSegment2D^>^ segments) {
     auto native = geompp::find_intersections(ToNativeSegments(segments));
     auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
-    for (auto const& p : native)
+    for (auto const& p : native) {
         list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
     return list;
 }
 
@@ -82,8 +83,9 @@ System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::ConvexHull(
     System::Collections::Generic::List<Point2D^>^ points) {
     auto native = geompp::convex_hull(ToNativePoints2D(points));
     auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
-    for (auto const& p : native)
+    for (auto const& p : native) {
         list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
     return list;
 }
 
@@ -91,8 +93,9 @@ System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::ConvexHull(
     System::Collections::Generic::List<Point3D^>^ points) {
     auto native = geompp::convex_hull(ToNative(points));
     auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
-    for (auto const& p : native)
+    for (auto const& p : native) {
         list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
     return list;
 }
 

@@ -190,6 +190,13 @@ struct MinBoundingRectResult {
   double origin_x, origin_y;   // origin point (first point of best edge) in View2D x,y space
 };
 
+/// @brief Decomposes a planar set of line segments into simple closed rings via half-edge face tracing.
+/// Finds all crossings (Bentley-Ottmann), splits segments at those points, builds the planar graph,
+/// and returns one ring per bounded face.  Caller classifies outers vs holes via signed_area.
+/// @param segs Input segments (polygon edges, possibly self-intersecting).  Must be >= 2.
+/// @returns Closed rings (vertex sequence; closing vertex not repeated).
+std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<LineSegment2D> const& segs);
+
 /// @brief Rotating calipers (Freeman & Shapira 1975 / Toussaint 1983) on a convex hull.
 /// Projects points through `view` into 2D, computes the minimum-area bounding rectangle.
 /// Requires at least 3 non-degenerate points with a valid convex hull.

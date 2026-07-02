@@ -35,8 +35,9 @@ TEST_F(BBall2DTest, ConstructorFromTwoPoints) {
 TEST_F(BBall2DTest, ConstructorFromPointsAllContained) {
   std::vector<g::Point2D> pts = {{0.0, 0.0}, {4.0, 0.0}, {2.0, 3.0}, {-1.0, 1.5}};
   auto b = g::BBall2D(pts);
-  for (auto const& p : pts)
+  for (auto const& p : pts) {
     ASSERT_TRUE(b.Contains(p));
+  }
 }
 
 TEST_F(BBall2DTest, ConstructorEmptyThrows) {

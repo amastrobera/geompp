@@ -3791,6 +3791,107 @@ class TestPolygon3DIsConvex:
         assert not p.is_convex()
 
 
+# --- Polygon2D.simplify ---
+class TestPolygon2DSimplify:
+    def _bowtie(self):
+        # Self-intersecting: A(0,0), B(4,0), C(1,3), D(3,3) — edges B→C and D→A cross at (2,2).
+        return geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(1, 3), geompp.Point2D(3, 3)])
+
+    def test_already_simple_returns_self(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(2, 0),
+            geompp.Point2D(2, 2), geompp.Point2D(0, 2)])
+        result = p.simplify()
+        assert len(result) == 1
+        assert result[0].almost_equals(p)
+
+    def test_bowtie_yields_two_polygons(self):
+        result = self._bowtie().simplify()
+        assert len(result) == 2
+
+    def test_bowtie_results_are_simple(self):
+        for poly in self._bowtie().simplify():
+            assert poly.is_simple()
+
+    def test_bowtie_areas_sum(self):
+        result = self._bowtie().simplify()
+        total = sum(p.area() for p in result)
+        assert abs(total - 5.0) < 0.01
+
+    def test_wide_bowtie_all_simple(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(10, 0),
+            geompp.Point2D(2, 6), geompp.Point2D(8, 6)])
+        assert not p.is_simple()
+        result = p.simplify()
+        assert len(result) == 2
+        for poly in result:
+            assert poly.is_simple()
+
+
+# --- Polygon3D.simplify ---
+class TestPolygon3DSimplify:
+    def _bowtie_xy(self):
+        # Bowtie in XY plane (z=0): dominant axis = Z.
+        return geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0)])
+
+    def test_already_simple_returns_self(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0),
+            geompp.Point3D(2, 2, 0), geompp.Point3D(0, 2, 0)])
+        result = p.simplify()
+        assert len(result) == 1
+        assert result[0].almost_equals(p)
+
+    def test_bowtie_xy_yields_two_polygons(self):
+        result = self._bowtie_xy().simplify()
+        assert len(result) == 2
+
+    def test_bowtie_xy_results_are_simple(self):
+        for poly in self._bowtie_xy().simplify():
+            assert poly.is_simple()
+
+    def test_bowtie_yz_plane_yields_two_polygons(self):
+        # Bowtie in YZ plane (x=0): dominant axis = X.
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+            geompp.Point3D(0, 1, 3), geompp.Point3D(0, 3, 3)])
+        result = p.simplify()
+        assert len(result) == 2
+        for poly in result:
+            assert poly.is_simple()
+
+    def test_bowtie_xz_plane_yields_two_polygons(self):
+        # Bowtie in XZ plane (y=0): dominant axis = Y, projection flips chirality.
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(3, 0, 3), geompp.Point3D(1, 0, 3),
+            geompp.Point3D(4, 0, 0), geompp.Point3D(0, 0, 0)])
+        result = p.simplify()
+        assert len(result) == 2
+        for poly in result:
+            assert poly.is_simple()
+
+    def test_bowtie_areas_sum(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0)])
+        result = p.simplify()
+        total = sum(poly.area() for poly in result)
+        assert abs(total - 5.0) < 0.01
+
+    def test_results_are_coplanar(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0)])
+        for poly in p.simplify():
+            for i in range(poly.size()):
+                assert abs(poly[i].z) < 1e-9
+
+
 class TestPolyline3DPlanarConvex:
     def test_is_planar_xy(self):
         pl = geompp.Polyline3D.make([

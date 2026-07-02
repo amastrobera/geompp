@@ -52,8 +52,9 @@ double BRect2D::Area()     { return _native->area(); }
 array<Point2D^>^ BRect2D::Corners() {
     auto c = _native->Corners();
     auto arr = gcnew array<Point2D^>(4);
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 4; ++i) {
         arr[i] = gcnew Point2D(new geompp::Point2D(c[i]));
+    }
     return arr;
 }
 

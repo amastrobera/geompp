@@ -182,6 +182,41 @@ void example_4() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Example 5 — split a complex (self-intersecting) polygon into simple polygons
+// ─────────────────────────────────────────────────────────────────────────────
+void example_5() {
+  std::cout << "\n=== Example 5: Polygon2D/3D::Simplify — split a complex polygon ===\n";
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // A complex polygon is one whose edges cross each other.
+  // "Bowtie" shape: A(0,0), B(4,0), C(1,3), D(3,3) — edges B→C and D→A cross at X(2,2).
+  auto bowtie = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+
+  GEOMPP_LOG(INFO) << "bowtie is simple: " << bowtie.IsSimple();  // 0
+
+  // Simplify() decomposes it into simple (non-self-intersecting) polygons.
+  auto parts = bowtie.Simplify();
+  GEOMPP_LOG(INFO) << parts.size() << " simple polygon(s):";
+  for (auto const& p : parts) {
+    GEOMPP_LOG(INFO) << "  " << p.ToWkt() << "  area=" << p.Area()
+                     << "  simple=" << p.IsSimple();
+  }
+  // expected output:
+  //   bowtie is simple: 0
+  //   2 simple polygon(s):
+  //     POLYGON ((0 0, 4 0, 2 2, 0 0))  area=4  simple=1
+  //     POLYGON ((2 2, 1 3, 3 3, 2 2))  area=1  simple=1
+
+  // Same works in 3D — the polygon is projected onto its dominant plane internally.
+  auto bowtie3d = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  auto parts3d = bowtie3d.Simplify();
+  GEOMPP_LOG(INFO) << parts3d.size() << " simple 3D polygon(s)";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 int main() {
   example_1();
 
@@ -190,6 +225,8 @@ int main() {
   example_3();
 
   example_4();
+
+  example_5();
 
   return 0;
 }

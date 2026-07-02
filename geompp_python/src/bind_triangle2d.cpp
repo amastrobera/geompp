@@ -24,12 +24,16 @@ void bind_triangle2d(py::module_& m) {
         // interpolate() → std::optional<Point2D> — single type, pybind11 handles fine
         .def("interpolate", [](const geompp::Triangle2D& t, double s, double tt) -> py::object {
             auto r = t.Interpolate(s, tt);
-            if (!r.has_value()) return py::none();
+            if (!r.has_value()) {
+                return py::none();
+            }
             return py::cast(r.value());
         }, "s"_a, "t"_a)
         .def("location", [](const geompp::Triangle2D& t, const geompp::Point2D& p) -> py::object {
             auto r = t.Location(p);
-            if (!r.has_value()) return py::none();
+            if (!r.has_value()) {
+                return py::none();
+            }
             auto [s, tt] = r.value();
             return py::make_tuple(s, tt);
         }, "point"_a)

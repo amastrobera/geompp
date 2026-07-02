@@ -69,8 +69,9 @@ TEST_F(BRect2DTest, ConstructorAllPointsContained) {
     {1.0, 0.5}, {2.0, 1.5},  // interior points
   };
   auto r = g::BRect2D(pts);
-  for (auto const& p : pts)
+  for (auto const& p : pts) {
     ASSERT_TRUE(r.Contains(p)) << "OBB must contain all input points";
+  }
 }
 
 // ── Accessors ────────────────────────────────────────────────────────────────
@@ -105,8 +106,9 @@ TEST_F(BRect2DTest, Corners_FourDistinctPoints) {
   auto corners = r.Corners();
   ASSERT_EQ(corners.size(), 4u);
   // all four corners must be contained in the rectangle
-  for (auto const& c : corners)
+  for (auto const& c : corners) {
     ASSERT_TRUE(r.Contains(c));
+  }
 }
 
 // ── Contains ─────────────────────────────────────────────────────────────────

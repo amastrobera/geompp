@@ -56,8 +56,9 @@ bool Polyline2D::AlmostEquals(Polyline2D^ other, double epsilon) {
 array<LineSegment2D^>^ Polyline2D::ToSegments() {
     auto segs = _native->ToSegments();
     auto result = gcnew array<LineSegment2D^>((int)segs.size());
-    for (int i = 0; i < (int)segs.size(); ++i)
+    for (int i = 0; i < (int)segs.size(); ++i) {
         result[i] = gcnew LineSegment2D(new geompp::LineSegment2D(segs[i]));
+    }
     return result;
 }
 
@@ -126,17 +127,21 @@ bool Polyline2D::Intersects(Polyline2D^ other) {
 // Helper to convert optional<variant<Point2D, vector<Point2D>>> to System::Object^
 static System::Object^ ConvertPolyline2DIntersection(
     const geompp::Polyline2D::ReturnSet& result) {
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
 
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point2D>(val))
+    if (std::holds_alternative<geompp::Point2D>(val)) {
         return gcnew GeomPP::Point2D(new geompp::Point2D(std::get<geompp::Point2D>(val)));
+    }
 
     // vector<Point2D>
     auto& pts = std::get<geompp::Polyline2D::MultiPoint>(val);
     auto arr = gcnew array<GeomPP::Point2D^>((int)pts.size());
-    for (int i = 0; i < (int)pts.size(); ++i)
+    for (int i = 0; i < (int)pts.size(); ++i) {
         arr[i] = gcnew GeomPP::Point2D(new geompp::Point2D(pts[i]));
+    }
     return arr;
 }
 

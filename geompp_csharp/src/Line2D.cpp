@@ -108,19 +108,25 @@ bool Line2D::Intersects(LineSegment2D^ segment) {
 
 Point2D^ Line2D::Intersection(Line2D^ other) {
     auto result = _native->Intersection(*other->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
 }
 
 Point2D^ Line2D::Intersection(Ray2D^ ray) {
     auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
 }
 
 Point2D^ Line2D::Intersection(LineSegment2D^ segment) {
     auto result = _native->Intersection(*segment->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
 }
 

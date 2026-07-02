@@ -116,7 +116,9 @@ TEST_F(Polyline3DTest, DistanceTo) {
   auto poly = g::Polyline3D::Make(pts);
 
   // on knots → 0
-  for (auto const& p : pts) ASSERT_EQ(0, g::round(poly.DistanceTo(p)));
+  for (auto const& p : pts) {
+    ASSERT_EQ(0, g::round(poly.DistanceTo(p)));
+  }
 
   // midpoints → 0
   for (std::size_t i = 0; i < pts.size() - 1; ++i) {

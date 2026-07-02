@@ -58,8 +58,9 @@ double BPrism3D::Volume()   { return _native->volume(); }
 array<Point3D^>^ BPrism3D::Corners() {
     auto c = _native->Corners();
     auto arr = gcnew array<Point3D^>(8);
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < 8; ++i) {
         arr[i] = gcnew Point3D(new geompp::Point3D(c[i]));
+    }
     return arr;
 }
 

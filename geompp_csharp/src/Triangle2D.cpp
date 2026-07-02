@@ -87,13 +87,17 @@ System::Tuple<Vector2D^, Vector2D^>^ Triangle2D::ToAxis() {
 
 Point2D^ Triangle2D::Interpolate(double s, double t) {
     auto result = _native->Interpolate(s, t);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point2D(new geompp::Point2D(result.value()));
 }
 
 System::Tuple<double, double>^ Triangle2D::Location(Point2D^ point) {
     auto result = _native->Location(*point->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto [s, t] = result.value();
     return gcnew System::Tuple<double, double>(s, t);
 }
@@ -130,17 +134,23 @@ bool Triangle2D::Intersects(Line2D^ line) {
 
 System::Object^ Triangle2D::Intersection(Line2D^ line) {
     auto result = _native->Intersection(*line->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
 
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point2D>(val))
+    if (std::holds_alternative<geompp::Point2D>(val)) {
         return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(val)));
-    if (std::holds_alternative<geompp::LineSegment2D>(val))
+    }
+    if (std::holds_alternative<geompp::LineSegment2D>(val)) {
         return gcnew LineSegment2D(new geompp::LineSegment2D(std::get<geompp::LineSegment2D>(val)));
-    if (std::holds_alternative<geompp::Triangle2D>(val))
+    }
+    if (std::holds_alternative<geompp::Triangle2D>(val)) {
         return gcnew Triangle2D(new geompp::Triangle2D(std::get<geompp::Triangle2D>(val)));
-    if (std::holds_alternative<geompp::Polygon2D>(val))
+    }
+    if (std::holds_alternative<geompp::Polygon2D>(val)) {
         return gcnew Polygon2D(new geompp::Polygon2D(std::get<geompp::Polygon2D>(val)));
+    }
     return nullptr;
 }
 

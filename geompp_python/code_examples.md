@@ -148,6 +148,47 @@ POINT (2 2)
 POINT (3 2)
 ```
 
+#### 3.1 Split a complex polygon
+
+A **complex polygon** (also called a self-intersecting polygon) is a polygon whose edges cross
+each other. `simplify()` decomposes it into a list of simple (non-self-intersecting) polygons
+via planar-graph half-edge face tracing. Each returned polygon is guaranteed to satisfy
+`is_simple() == True`. If the input is already simple, `simplify()` returns a single-element
+list containing the original polygon.
+
+```python
+import geompp as g
+
+g.set_decimal_precision(g.DP_THREE)
+
+# 2D: a "bowtie" — edges B→C and D→A cross at (2,2)
+bowtie = g.Polygon2D.make([
+    g.Point2D(0, 0), g.Point2D(4, 0),
+    g.Point2D(1, 3), g.Point2D(3, 3)])
+print("is simple:", bowtie.is_simple())   # False
+
+parts = bowtie.simplify()
+print(f"{len(parts)} simple polygon(s)")
+for p in parts:
+    print(f"  {p.to_wkt()}  area={p.area()}")
+
+# 3D: same bowtie lifted into the XY plane (z = 0)
+bowtie3d = g.Polygon3D.make([
+    g.Point3D(0,0,0), g.Point3D(4,0,0),
+    g.Point3D(1,3,0), g.Point3D(3,3,0)])
+parts3d = bowtie3d.simplify()
+print(f"{len(parts3d)} simple 3D polygon(s)")
+```
+
+Output:
+```
+is simple: False
+2 simple polygon(s)
+  POLYGON ((0 0, 4 0, 2 2, 0 0))  area=4.0
+  POLYGON ((2 2, 1 3, 3 3, 2 2))  area=1.0
+2 simple 3D polygon(s)
+```
+
 
 ### 4. Planar operations
 

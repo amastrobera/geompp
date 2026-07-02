@@ -56,8 +56,9 @@ bool Polyline3D::AlmostEquals(Polyline3D^ other, double epsilon) {
 array<LineSegment3D^>^ Polyline3D::ToSegments() {
     auto segs = _native->ToSegments();
     auto result = gcnew array<LineSegment3D^>((int)segs.size());
-    for (int i = 0; i < (int)segs.size(); ++i)
+    for (int i = 0; i < (int)segs.size(); ++i) {
         result[i] = gcnew LineSegment3D(new geompp::LineSegment3D(segs[i]));
+    }
     return result;
 }
 
@@ -134,17 +135,21 @@ bool Polyline3D::Intersects(Polyline3D^ other) {
 // Helper to convert optional<variant<Point3D, vector<Point3D>>> to System::Object^
 static System::Object^ ConvertPolyline3DIntersection(
     const geompp::Polyline3D::ReturnSet& result) {
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
 
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val))
+    if (std::holds_alternative<geompp::Point3D>(val)) {
         return gcnew GeomPP::Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
+    }
 
     // vector<Point3D>
     auto& pts = std::get<geompp::Polyline3D::MultiPoint>(val);
     auto arr = gcnew array<GeomPP::Point3D^>((int)pts.size());
-    for (int i = 0; i < (int)pts.size(); ++i)
+    for (int i = 0; i < (int)pts.size(); ++i) {
         arr[i] = gcnew GeomPP::Point3D(new geompp::Point3D(pts[i]));
+    }
     return arr;
 }
 

@@ -9,7 +9,11 @@ description = "Python bindings for geompp — a C++ 2D/3D geometry library"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.8"
-keywords = ["geometry", "2d", "3d", "math", "computational-geometry", "cad"]
+keywords = [
+    "geometry", "2d", "3d", "spatial", "math", "computational-geometry",
+    "polygon", "polyline", "point-cloud", "convex-hull", "bounding-box",
+    "cpp", "c++", "cad", "gis",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: C++",
@@ -17,6 +21,8 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
 ]

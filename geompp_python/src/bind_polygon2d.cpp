@@ -27,6 +27,9 @@ void bind_polygon2d(py::module_& m) {
         .def("is_simple",      &geompp::Polygon2D::IsSimple, "no self-intersections, but holes are allowed")
         .def("is_convex",      &geompp::Polygon2D::IsConvex)
         .def("convex_hull",    &geompp::Polygon2D::ConvexHull, "Returns the convex hull as a new Polygon2D.")
+        .def("simplify",       &geompp::Polygon2D::Simplify,
+             "Decomposes a self-intersecting polygon into one or more simple polygons. "
+             "Returns [self] if already simple.")
         .def("to_points",      &geompp::Polygon2D::ToPoints,   "Returns the vertices as a list of Point2D.")
         BIND_ALMOST_EQUALS(Polygon2D)
         BIND_SERIALIZATION(Polygon2D)
@@ -44,15 +47,19 @@ void bind_polygon2d(py::module_& m) {
              [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
         .def("__len__",     &geompp::Polygon2D::Size)
         .def("__getitem__", [](const geompp::Polygon2D& p, int i) -> geompp::Point2D {
-            if (i < 0) i += static_cast<int>(p.Size());
-            if (i < 0 || i >= static_cast<int>(p.Size()))
+            if (i < 0) {
+                i += static_cast<int>(p.Size());
+            }
+            if (i < 0 || i >= static_cast<int>(p.Size())) {
                 throw py::index_error("index out of range");
+            }
             return p[i];
         }, "i"_a)
         .def("__iter__", [](const geompp::Polygon2D& p) {
             py::list pts;
-            for (std::size_t i = 0; i < p.Size(); ++i)
+            for (std::size_t i = 0; i < p.Size(); ++i) {
                 pts.append(p[static_cast<int>(i)]);
+            }
             return pts.attr("__iter__")();
         })
         .def("__eq__", [](const geompp::Polygon2D& a, const geompp::Polygon2D& b) { return a == b; });

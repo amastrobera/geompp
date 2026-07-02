@@ -346,8 +346,9 @@ TEST_F(Polygon3DTest, GetPlane_AllVerticesOnPlane) {
       g::Point3D(0, 0, 0), g::Point3D(4, 0, 0),
       g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
   auto pl = p.GetPlane();
-  for (int i = 0; i < p.Size(); ++i)
+  for (int i = 0; i < p.Size(); ++i) {
     EXPECT_TRUE(pl.Contains(p[i]));
+  }
 }
 
 TEST_F(Polygon3DTest, GetPlane_WithHoles) {
@@ -534,6 +535,91 @@ TEST_F(Polygon3DTest, IsConvex_WithHole_False) {
       g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
   auto p = g::Polygon3D::Make(outer, {hole});
   EXPECT_FALSE(p.IsConvex());
+}
+
+// ---- Simplify ---------------------------------------------------------------
+
+TEST_F(Polygon3DTest, Simplify_AlreadySimple_ReturnsSelf) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto result = p.Simplify();
+  ASSERT_EQ(1u, result.size());
+  EXPECT_TRUE(p.AlmostEquals(result[0]));
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieInXYPlane_YieldsTwoSimpleTriangles) {
+  // Same bowtie as Polygon2D test, lifted into XY plane (z=0): dominant axis = Z.
+  // A(0,0,0), B(4,0,0), C(1,3,0), D(3,3,0) — B→C and D→A cross at X(2,2,0).
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  double a0 = result[0].Area(), a1 = result[1].Area();
+  bool areas_match = (std::abs(a0 - 4.0) < 0.01 && std::abs(a1 - 1.0) < 0.01) ||
+                     (std::abs(a0 - 1.0) < 0.01 && std::abs(a1 - 4.0) < 0.01);
+  EXPECT_TRUE(areas_match) << "areas: " << a0 << ", " << a1;
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieInYZPlane_YieldsTwoSimpleTriangles) {
+  // Bowtie in the YZ plane (x=0): dominant axis = X.
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(0, 1, 3), g::Point3D(0, 3, 3)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  for (auto const& poly : result) {
+    for (int i = 0; i < static_cast<int>(poly.Size()); ++i) {
+      EXPECT_NEAR(0.0, poly[i].x(), 1e-9) << "vertex x should be 0 (YZ plane)";
+    }
+  }
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieInXZPlane_YieldsTwoSimpleTriangles) {
+  // Bowtie in the XZ plane (y=0): dominant axis = Y, projection flips chirality.
+  // CCW when viewed from +Y: reversed vertex order.
+  auto p = g::Polygon3D::Make({g::Point3D(3, 0, 3), g::Point3D(1, 0, 3), g::Point3D(4, 0, 0), g::Point3D(0, 0, 0)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  for (auto const& poly : result) {
+    for (int i = 0; i < static_cast<int>(poly.Size()); ++i) {
+      EXPECT_NEAR(0.0, poly[i].y(), 1e-9) << "vertex y should be 0 (XZ plane)";
+    }
+  }
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieAreasSum) {
+  // Total area of the two sub-triangles should equal the sum of the parts (4 + 1 = 5).
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+  double total = result[0].Area() + result[1].Area();
+  EXPECT_NEAR(5.0, total, 0.01);
+}
+
+TEST_F(Polygon3DTest, Simplify_ResultsAreCoplanar) {
+  // All result polygons from a 3D Simplify must lie on the same plane as the original.
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  auto plane = p.GetPlane();
+  for (auto const& poly : p.Simplify()) {
+    for (int i = 0; i < static_cast<int>(poly.Size()); ++i) {
+      EXPECT_NEAR(0.0, plane.DistanceTo(poly[i]), 1e-9) << "vertex not on original plane";
+    }
+  }
 }
 
 }  // namespace geompp_tests

@@ -149,9 +149,15 @@ Plane::ReturnSet Plane::Intersection(Triangle3D const& triangle) const {
   // unwrap and rewrap rather than returning the triangle-side variant directly (the two variants
   // have different alternative sets).
   auto result = triangle.Intersection(*this);
-  if (!result.has_value()) return std::nullopt;
-  if (std::holds_alternative<Point3D>(*result)) return std::get<Point3D>(*result);
-  if (std::holds_alternative<LineSegment3D>(*result)) return std::get<LineSegment3D>(*result);
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+  if (std::holds_alternative<Point3D>(*result)) {
+    return std::get<Point3D>(*result);
+  }
+  if (std::holds_alternative<LineSegment3D>(*result)) {
+    return std::get<LineSegment3D>(*result);
+  }
   return std::nullopt;
 }
 

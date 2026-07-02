@@ -169,6 +169,49 @@ POINT (2 2)
 POINT (3 2)
 ```
 
+#### 3.1 Split a complex polygon
+
+A **complex polygon** (also called a self-intersecting polygon) is a polygon whose edges cross
+each other. `Simplify()` decomposes it into an array of simple (non-self-intersecting) polygons
+via planar-graph half-edge face tracing. Each returned polygon is guaranteed to satisfy
+`IsSimple() == true`. If the input is already simple, `Simplify()` returns a single-element
+array containing the original polygon.
+
+```csharp
+using G = GeomPP;
+
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+// 2D: a "bowtie" — edges B→C and D→A cross at (2,2)
+var bowtie = G.Polygon2D.Make(new[] {
+    new G.Point2D(0, 0), new G.Point2D(4, 0),
+    new G.Point2D(1, 3), new G.Point2D(3, 3)
+});
+Console.WriteLine($"is simple: {bowtie.IsSimple()}");  // False
+
+var parts = bowtie.Simplify();
+Console.WriteLine($"{parts.Length} simple polygon(s)");
+foreach (var p in parts)
+    Console.WriteLine($"  {p.ToWkt()}  area={p.Area()}");
+
+// 3D: same bowtie lifted into the XY plane (z = 0)
+var bowtie3d = G.Polygon3D.Make(new[] {
+    new G.Point3D(0,0,0), new G.Point3D(4,0,0),
+    new G.Point3D(1,3,0), new G.Point3D(3,3,0)
+});
+var parts3d = bowtie3d.Simplify();
+Console.WriteLine($"{parts3d.Length} simple 3D polygon(s)");
+```
+
+Output:
+```
+is simple: False
+2 simple polygon(s)
+  POLYGON ((0 0, 4 0, 2 2, 0 0))  area=4
+  POLYGON ((2 2, 1 3, 3 3, 2 2))  area=1
+2 simple 3D polygon(s)
+```
+
 ---
 
 ### 4. Planar operations

@@ -9,10 +9,12 @@
 
 #include "geompp_log.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <fstream>
 #include <limits>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 
@@ -265,6 +267,122 @@ std::vector<Point2D> Polygon2D::ToPoints() {
     points.emplace_back(pt);
   }
   return points;
+}
+
+std::vector<Polygon2D> Polygon2D::Simplify() const {
+  if (IsSimple()) {
+    return {*this};
+  }
+
+  // Build all segments: outer ring + holes
+  std::vector<LineSegment2D> all_segs;
+  {
+    int n = static_cast<int>(VERTICES.size());
+    for (int i = 0; i < n; ++i) {
+      all_segs.push_back(LineSegment2D::Make(VERTICES[i], VERTICES[(i + 1) % n]));
+    }
+  }
+  for (auto const& hole : HOLES) {
+    int nh = static_cast<int>(hole.size());
+    for (int i = 0; i < nh; ++i) {
+      all_segs.push_back(LineSegment2D::Make(hole[i], hole[(i + 1) % nh]));
+    }
+  }
+
+  auto rings = simplify_rings_impl(all_segs);
+
+  // The half-edge walk traces interior faces with CW orientation (SA < 0) and the outer
+  // (unbounded) graph face with CCW orientation (SA > 0).  Flip each CW interior ring to
+  // CCW to get valid outer-ring candidates; discard CCW rings (outer graph face).
+  std::vector<std::vector<Point2D>> candidates;
+  std::vector<double> candidate_areas;
+  for (auto const& ring : rings) {
+    if (ring.size() < 3) {
+      continue;
+    }
+    try {
+      double sa = signed_area(ring);
+      if (compare(sa, 0.0) < 0) {
+        // CW interior face → flip to CCW
+        auto ccw = ring;
+        std::reverse(ccw.begin(), ccw.end());
+        candidate_areas.push_back(-sa);
+        candidates.push_back(std::move(ccw));
+      }
+      // CCW rings (SA > 0): outer graph face → discard
+    } catch (std::runtime_error const& e) {
+      GEOMPP_LOG(WARNING) << "Simplify: skipping degenerate ring (" << ring.size() << " pts): " << e.what();
+    }
+  }
+
+  // Sort candidates by area descending so larger rings come first
+  std::vector<int> order(candidates.size());
+  std::iota(order.begin(), order.end(), 0);
+  std::sort(order.begin(), order.end(),
+            [&](int a, int b) { return candidate_areas[a] > candidate_areas[b]; });
+  {
+    std::vector<std::vector<Point2D>> sorted_c(candidates.size());
+    std::vector<double> sorted_a(candidate_areas.size());
+    for (int k = 0; k < static_cast<int>(order.size()); ++k) {
+      sorted_c[k] = std::move(candidates[order[k]]);
+      sorted_a[k] = candidate_areas[order[k]];
+    }
+    candidates = std::move(sorted_c);
+    candidate_areas = std::move(sorted_a);
+  }
+
+  // Pre-build polygons once so hole assignment doesn't reconstruct them per pair.
+  int nc = static_cast<int>(candidates.size());
+  std::vector<std::optional<Polygon2D>> candidate_polys(nc);
+  for (int i = 0; i < nc; ++i) {
+    try {
+      candidate_polys[i] = Polygon2D::Make(candidates[i]);
+    } catch (std::runtime_error const& e) {
+      GEOMPP_LOG(WARNING) << "Simplify: could not build polygon from ring " << i << ": " << e.what();
+    }
+  }
+
+  // Hole assignment: if a smaller candidate is entirely inside a larger one it becomes a
+  // hole of the larger one (and is reversed back to CW for Polygon2D::Make).
+  std::vector<bool> is_hole(nc, false);
+  std::vector<std::vector<std::vector<Point2D>>> outer_holes(nc);
+
+  for (int i = nc - 1; i >= 0; --i) {
+    if (!candidate_polys[i].has_value()) {
+      continue;
+    }
+    Point2D test_pt = centroid(candidates[i]);
+    for (int j = 0; j < i; ++j) {
+      if (!candidate_polys[j].has_value()) {
+        continue;
+      }
+      if (candidate_polys[j]->Contains(test_pt)) {
+        auto cw_hole = candidates[i];
+        std::reverse(cw_hole.begin(), cw_hole.end());
+        outer_holes[j].push_back(std::move(cw_hole));
+        is_hole[i] = true;
+        break;
+      }
+    }
+  }
+
+  // Assemble result polygons — reuse pre-built polygons when there are no holes.
+  std::vector<Polygon2D> results;
+  for (int i = 0; i < nc; ++i) {
+    if (is_hole[i] || !candidate_polys[i].has_value()) {
+      continue;
+    }
+    if (outer_holes[i].empty()) {
+      results.push_back(std::move(*candidate_polys[i]));
+    } else {
+      try {
+        results.push_back(Polygon2D::Make(candidates[i], outer_holes[i]));
+      } catch (std::runtime_error const& e) {
+        GEOMPP_LOG(WARNING) << "Simplify: could not assemble polygon from ring " << i << ": " << e.what();
+      }
+    }
+  }
+  return results;
 }
 
 #pragma region Operator Overloading

@@ -40,6 +40,10 @@ class Polygon3D {
   Polygon3D ConvexHull();
   std::vector<Point3D> ToPoints();
 
+  /// @brief Decomposes a self-intersecting polygon into one or more simple polygons.
+  /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
+  std::vector<Polygon3D> Simplify() const;
+
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.
   /// @return 0 if @p point is inside the polygon (or on its boundary); otherwise the distance to the nearest edge.

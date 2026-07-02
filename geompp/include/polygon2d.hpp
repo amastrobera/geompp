@@ -33,9 +33,12 @@ class Polygon2D {
   Point2D Centroid() const;
   double Area() const;
   double Perimeter() const;
-  bool IsSimple() const;   // no self-intersections, but holes are allowed
-  bool IsConvex() const;   // no holes and all turns in the same direction
+  bool IsSimple() const;  // no self-intersections, but holes are allowed
+  bool IsConvex() const;  // no holes and all turns in the same direction
   Polygon2D ConvexHull();
+  /// @brief Decomposes a self-intersecting polygon into one or more simple polygons.
+  /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
+  std::vector<Polygon2D> Simplify() const;
   std::vector<Point2D> ToPoints();
 
   /// @brief Distance from a point to this polygon's closed region.

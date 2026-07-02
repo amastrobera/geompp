@@ -44,7 +44,9 @@ using namespace pybind11::literals;
 // ─────────────────────────────────────────────────────────────────────────────
 template <typename Variant>
 inline py::object opt_variant_to_py(const std::optional<Variant>& opt) {
-    if (!opt.has_value()) return py::none();
+    if (!opt.has_value()) {
+        return py::none();
+    }
     return std::visit([](const auto& v) -> py::object {
         return py::cast(v);
     }, opt.value());

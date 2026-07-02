@@ -42,8 +42,9 @@ TEST_F(BBall3DTest, ConstructorFromPointsAllContained) {
   std::vector<g::Point3D> pts = {
       {0.0, 0.0, 0.0}, {4.0, 0.0, 0.0}, {0.0, 3.0, 0.0}, {0.0, 0.0, 2.0}, {1.0, 1.0, 1.0}};
   auto b = g::BBall3D(pts);
-  for (auto const& p : pts)
+  for (auto const& p : pts) {
     ASSERT_TRUE(b.Contains(p));
+  }
 }
 
 TEST_F(BBall3DTest, ConstructorEmptyThrows) {

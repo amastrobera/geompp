@@ -55,7 +55,9 @@ template <typename T>
 std::string ToWkt(const std::vector<T>& items) {
   std::string out = "GEOMETRYCOLLECTION(";
   for (std::size_t i = 0; i < items.size(); ++i) {
-    if (i > 0) out += ", ";
+    if (i > 0) {
+      out += ", ";
+    }
     out += items[i].ToWkt();
   }
   return out + ")";

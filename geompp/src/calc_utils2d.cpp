@@ -15,6 +15,8 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
+#include <map>
+#include <numbers>
 #include <numeric>
 #include <set>
 #include <stdexcept>
@@ -694,6 +696,156 @@ template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&
 
 std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
   return convex_hull_monotone_chain(points, View2D::XY());
+}
+
+std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<LineSegment2D> const& segs) {
+  if (segs.size() < 3) {
+    throw std::invalid_argument("simplify_rings_impl: need at least 3 segments");
+  }
+
+  // --- Stage 2: split every segment at its crossing points ---
+  auto crossings = find_intersections_impl(segs);
+
+  // map: segment index → crossing points on that segment
+  std::map<std::size_t, std::vector<Point2D>> seg_cp;
+  for (auto const& ev : crossings) {
+    for (auto id : ev.SegmentIds) {
+      seg_cp[id].push_back(ev.Point);
+    }
+  }
+
+  std::vector<LineSegment2D> split;
+  split.reserve(segs.size() + crossings.size() * 2);
+  for (std::size_t i = 0; i < segs.size(); ++i) {
+    auto it = seg_cp.find(i);
+    if (it == seg_cp.end()) {
+      split.push_back(segs[i]);
+      continue;
+    }
+    // sort crossing points by parameter t along this segment
+    std::vector<Point2D> cps = it->second;
+    std::sort(cps.begin(), cps.end(),
+              [&](Point2D const& a, Point2D const& b) { return segs[i].Location(a) < segs[i].Location(b); });
+    cps.erase(std::unique(cps.begin(), cps.end(), [](Point2D const& a, Point2D const& b) { return a.AlmostEquals(b); }),
+              cps.end());
+
+    Point2D prev = segs[i].First();
+    for (auto const& cp : cps) {
+      if (!prev.AlmostEquals(cp)) {
+        split.push_back(LineSegment2D::Make(prev, cp));
+      }
+      prev = cp;
+    }
+    if (!prev.AlmostEquals(segs[i].Last())) {
+      split.push_back(LineSegment2D::Make(prev, segs[i].Last()));
+    }
+  }
+
+  // --- Stage 3: build planar graph, trace half-edge faces ---
+
+  // Assign stable integer IDs to unique vertices (using rounded keys)
+  double scale = std::pow(10.0, static_cast<double>(DECIMAL_PRECISION));
+  auto vkey = [scale](Point2D const& p) -> std::pair<long long, long long> {
+    return {llround(p.x() * scale), llround(p.y() * scale)};
+  };
+
+  std::map<std::pair<long long, long long>, int> vid_map;
+  std::vector<Point2D> verts;
+  auto get_vid = [&](Point2D const& p) -> int {
+    auto k = vkey(p);
+    auto it = vid_map.find(k);
+    if (it != vid_map.end()) {
+      return it->second;
+    }
+    int id = static_cast<int>(verts.size());
+    vid_map[k] = id;
+    verts.push_back(p);
+    return id;
+  };
+
+  // Undirected adjacency list — push all edges, deduplicate after sorting.
+  std::vector<std::vector<int>> adj;
+  for (auto const& seg : split) {
+    int a = get_vid(seg.First());
+    int b = get_vid(seg.Last());
+    if (static_cast<int>(adj.size()) <= std::max(a, b)) {
+      adj.resize(static_cast<std::size_t>(std::max(a, b)) + 1);
+    }
+    adj[a].push_back(b);
+    adj[b].push_back(a);
+  }
+  adj.resize(verts.size());
+
+  // Sort each neighbor list by polar angle CCW around the vertex, then deduplicate.
+  // Precompute angles alongside neighbor IDs for O(log degree) lookup in the half-edge walk.
+  int nv = static_cast<int>(verts.size());
+  std::vector<std::vector<double>> adj_angles(nv);
+  for (int v = 0; v < nv; ++v) {
+    std::sort(adj[v].begin(), adj[v].end(), [&](int a, int b) {
+      double ax = verts[a].x() - verts[v].x(), ay = verts[a].y() - verts[v].y();
+      double bx = verts[b].x() - verts[v].x(), by = verts[b].y() - verts[v].y();
+      return std::atan2(ay, ax) < std::atan2(by, bx);
+    });
+    adj[v].erase(std::unique(adj[v].begin(), adj[v].end()), adj[v].end());
+    adj_angles[v].resize(adj[v].size());
+    for (int k = 0; k < static_cast<int>(adj[v].size()); ++k) {
+      adj_angles[v][k] = std::atan2(verts[adj[v][k]].y() - verts[v].y(), verts[adj[v][k]].x() - verts[v].x());
+    }
+  }
+
+  // Walk half-edges: for directed (cur_from→cur_to), the next half-edge in the
+  // same face is (cur_to→w) where w is the first CCW neighbor from cur_to after
+  // the reversed-incoming direction (i.e., the direction back toward cur_from).
+  std::set<std::pair<int, int>> used;
+  std::vector<std::vector<Point2D>> rings;
+
+  for (int u = 0; u < nv; ++u) {
+    for (int v0 : adj[u]) {
+      if (used.count({u, v0})) {
+        continue;
+      }
+
+      std::vector<Point2D> ring;
+      int cur_from = u, cur_to = v0;
+
+      while (true) {
+        auto edge = std::make_pair(cur_from, cur_to);
+        if (used.count(edge)) {
+          break;
+        }
+        used.insert(edge);
+        ring.push_back(verts[cur_from]);
+
+        double rev_angle = std::atan2(verts[cur_from].y() - verts[cur_to].y(), verts[cur_from].x() - verts[cur_to].x());
+
+        auto const& angles = adj_angles[cur_to];
+        auto const& nbrs = adj[cur_to];
+        int deg = static_cast<int>(nbrs.size());
+        int next_to = -1;
+
+        if (deg > 0) {
+          auto it = std::upper_bound(angles.begin(), angles.end(), rev_angle);
+          if (it == angles.end()) {
+            next_to = nbrs[0];
+          } else {
+            next_to = nbrs[static_cast<int>(it - angles.begin())];
+          }
+        }
+
+        if (next_to == -1) {
+          break;
+        }
+        cur_from = cur_to;
+        cur_to = next_to;
+      }
+
+      if (ring.size() >= 3) {
+        rings.push_back(std::move(ring));
+      }
+    }
+  }
+
+  return rings;
 }
 
 }  // namespace geompp

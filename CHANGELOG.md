@@ -11,6 +11,35 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [Unreleased]
+
+### Added
+
+**C++ core**
+- `Polygon2D::Simplify()` / `Polygon3D::Simplify()` — decomposes a complex (self-intersecting) polygon into a `vector` of simple polygons via Bentley–Ottmann intersection detection followed by planar-graph half-edge face tracing. Returns `{*this}` when the polygon is already simple. Handles all three dominant-axis projections (X, Y, Z) including the Y-axis chirality flip case.
+
+**Python / PyPI**
+- `Polygon2D.simplify()` / `Polygon3D.simplify()` — returns `list[Polygon2D]` or `list[Polygon3D]`.
+
+**C# / NuGet**
+- `Polygon2D.Simplify()` / `Polygon3D.Simplify()` — returns `Polygon2D[]` or `Polygon3D[]`.
+
+### Performance
+
+**C++ core**
+- `simplify_rings_impl`: adjacency-list duplicate check changed from O(degree) `std::find` per edge to a single `std::sort` + `std::unique` pass after insertion.
+- `simplify_rings_impl`: half-edge walk neighbor lookup changed from O(degree) linear scan to O(log degree) `std::upper_bound` on precomputed angle array.
+- `Polygon2D/3D::Simplify()`: hole-assignment polygon construction reduced from O(nc²) repeated `Polygon2D::Make` calls to O(nc) pre-built polygons with reuse.
+
+### Fixed
+
+**C++ core**
+- `Polygon2D/3D::Simplify()`: hole-assignment test point changed from midpoint of first edge (can land on a boundary) to centroid of the ring (always interior for convex decomposition faces).
+- `Polygon2D/3D::Simplify()`: silent `catch(...)` blocks replaced with `catch(std::runtime_error const&)` and `GEOMPP_LOG(WARNING)` so degenerate-ring failures are visible.
+- `simplify_rings_impl`: half-edge walk `delta <= 0.0` comparison replaced with `compare(delta, 0.0, 1e-9) <= 0` to prevent floating-point noise from selecting the reverse edge.
+
+---
+
 ## [0.12.0] - 2026-07-02
 
 > C++ library — tagged `v0.12.0` · C# / NuGet — tagged `csharp-v0.12.0` · Python / PyPI — tagged `python-v0.12.0`

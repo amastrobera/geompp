@@ -85,23 +85,31 @@ void GeometryCollection3D::Add(GeometryCollection3D^ collection) {
 
 System::Object^ GeometryCollection3D::Get(int index) {
     auto const& shape = _native->Get((std::size_t)index);
-    if (std::holds_alternative<geompp::Point3D>(shape))
+    if (std::holds_alternative<geompp::Point3D>(shape)) {
         return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(shape)));
-    if (std::holds_alternative<geompp::Line3D>(shape))
+    }
+    if (std::holds_alternative<geompp::Line3D>(shape)) {
         return gcnew Line3D(new geompp::Line3D(std::get<geompp::Line3D>(shape)));
-    if (std::holds_alternative<geompp::Ray3D>(shape))
+    }
+    if (std::holds_alternative<geompp::Ray3D>(shape)) {
         return gcnew Ray3D(new geompp::Ray3D(std::get<geompp::Ray3D>(shape)));
-    if (std::holds_alternative<geompp::LineSegment3D>(shape))
+    }
+    if (std::holds_alternative<geompp::LineSegment3D>(shape)) {
         return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(shape)));
-    if (std::holds_alternative<geompp::Polyline3D>(shape))
+    }
+    if (std::holds_alternative<geompp::Polyline3D>(shape)) {
         return gcnew Polyline3D(new geompp::Polyline3D(std::get<geompp::Polyline3D>(shape)));
-    if (std::holds_alternative<geompp::Triangle3D>(shape))
+    }
+    if (std::holds_alternative<geompp::Triangle3D>(shape)) {
         return gcnew Triangle3D(new geompp::Triangle3D(std::get<geompp::Triangle3D>(shape)));
-    if (std::holds_alternative<geompp::Polygon3D>(shape))
+    }
+    if (std::holds_alternative<geompp::Polygon3D>(shape)) {
         return gcnew Polygon3D(new geompp::Polygon3D(std::get<geompp::Polygon3D>(shape)));
-    if (std::holds_alternative<geompp::GeometryCollection3D>(shape))
+    }
+    if (std::holds_alternative<geompp::GeometryCollection3D>(shape)) {
         return gcnew GeometryCollection3D(
             new geompp::GeometryCollection3D(std::get<geompp::GeometryCollection3D>(shape)));
+    }
     throw gcnew System::InvalidOperationException("Unknown geometry type");
 }
 

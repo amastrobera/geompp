@@ -3390,6 +3390,96 @@ Console.WriteLine("\nPolygon3D::IsConvex");
     Test("IsConvex_Concave_False", () => IsTrue(!concave3d.IsConvex()));
 }
 
+Console.WriteLine("\nPolygon2D::Simplify");
+{
+    var simple = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(2,0), new Point2D(2,2), new Point2D(0,2)
+    });
+    var bowtie = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(4,0), new Point2D(1,3), new Point2D(3,3)
+    });
+
+    Test("Simplify_AlreadySimple_ReturnsOne", () => {
+        var r = simple.Simplify();
+        IsTrue(r.Length == 1, $"expected 1, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ReturnsTwoPolygons", () => {
+        var r = bowtie.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ResultsAreSimple", () => {
+        foreach (var p in bowtie.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+    Test("Simplify_Bowtie_AreasSum", () => {
+        var r = bowtie.Simplify();
+        double total = 0;
+        foreach (var p in r) { total += p.Area(); }
+        IsTrue(Math.Abs(total - 5.0) < 0.01, $"expected ~5.0, got {total}");
+    });
+
+    var wideBowtie = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(10,0), new Point2D(2,6), new Point2D(8,6)
+    });
+    Test("Simplify_WideBowtie_ReturnsTwoPolygons", () => {
+        var r = wideBowtie.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_WideBowtie_ResultsAreSimple", () => {
+        foreach (var p in wideBowtie.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+}
+
+Console.WriteLine("\nPolygon3D::Simplify");
+{
+    var simple3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(2,2,0), new Point3D(0,2,0)
+    });
+    var bowtie3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(1,3,0), new Point3D(3,3,0)
+    });
+
+    Test("Simplify_AlreadySimple_ReturnsOne", () => {
+        var r = simple3d.Simplify();
+        IsTrue(r.Length == 1, $"expected 1, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ReturnsTwoPolygons", () => {
+        var r = bowtie3d.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ResultsAreSimple", () => {
+        foreach (var p in bowtie3d.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+
+    // XZ plane bowtie: dominant axis = Y, projection flips chirality
+    var bowtieXZ = Polygon3D.Make(new[] {
+        new Point3D(3,0,3), new Point3D(1,0,3), new Point3D(4,0,0), new Point3D(0,0,0)
+    });
+    Test("Simplify_BowtieXZ_ReturnsTwoPolygons", () => {
+        var r = bowtieXZ.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_BowtieXZ_ResultsAreSimple", () => {
+        foreach (var p in bowtieXZ.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+    Test("Simplify_Bowtie_AreasSum", () => {
+        var r = bowtie3d.Simplify();
+        double total = 0;
+        foreach (var p in r) { total += p.Area(); }
+        IsTrue(Math.Abs(total - 5.0) < 0.01, $"expected ~5.0, got {total}");
+    });
+    Test("Simplify_ResultsAreCoplanar", () => {
+        foreach (var p in bowtie3d.Simplify()) {
+            for (int i = 0; i < p.Size(); i++) {
+                IsTrue(Math.Abs(p[i].Z) < 1e-9, $"vertex z should be 0, got {p[i].Z}");
+            }
+        }
+    });
+}
+
 Console.WriteLine("\nPolyline3D::IsPlanar/IsSimple/IsConvex/ConvexHull/ToPolygon");
 {
     var planar = Polyline3D.Make(new[] {

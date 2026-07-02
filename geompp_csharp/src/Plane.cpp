@@ -115,36 +115,48 @@ bool Plane::Intersects(Triangle3D^ triangle) {
 
 Point3D^ Plane::Intersection(Line3D^ line) {
     auto result = _native->Intersection(*line->_native);
-    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) return nullptr;
+    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) {
+        return nullptr;
+    }
     return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
 }
 
 Point3D^ Plane::Intersection(Ray3D^ ray) {
     auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) return nullptr;
+    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) {
+        return nullptr;
+    }
     return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
 }
 
 Point3D^ Plane::Intersection(LineSegment3D^ segment) {
     auto result = _native->Intersection(*segment->_native);
-    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) return nullptr;
+    if (!result.has_value() || !std::holds_alternative<geompp::Point3D>(result.value())) {
+        return nullptr;
+    }
     return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
 }
 
 Line3D^ Plane::Intersection(Plane^ other) {
     auto result = _native->Intersection(*other->_native);
-    if (!result.has_value() || !std::holds_alternative<geompp::Line3D>(result.value())) return nullptr;
+    if (!result.has_value() || !std::holds_alternative<geompp::Line3D>(result.value())) {
+        return nullptr;
+    }
     return gcnew Line3D(new geompp::Line3D(std::get<geompp::Line3D>(result.value())));
 }
 
 System::Object^ Plane::Intersection(Triangle3D^ triangle) {
     auto result = _native->Intersection(*triangle->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val))
+    if (std::holds_alternative<geompp::Point3D>(val)) {
         return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
-    if (std::holds_alternative<geompp::LineSegment3D>(val))
+    }
+    if (std::holds_alternative<geompp::LineSegment3D>(val)) {
         return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
+    }
     return nullptr;
 }
 

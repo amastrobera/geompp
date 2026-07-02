@@ -1,6 +1,7 @@
 #include "polygon3d.hpp"
 
 #include "bbox3d.hpp"
+#include "calc_utils2d.hpp"
 #include "calc_utils3d.hpp"
 #include "line3d.hpp"
 #include "line_segment2d.hpp"
@@ -8,16 +9,18 @@
 #include "plane.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
-#include "vector2d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
+#include "vector2d.hpp"
 
 #include "geompp_log.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <fstream>
 #include <limits>
+#include <numeric>
 #include <ranges>
 #include <sstream>
 #include <stdexcept>
@@ -192,8 +195,12 @@ bool Polygon3D::IsSimple() const {
 
   auto make_segs = [dax](std::vector<Point3D> const& ring) {
     auto to2d = [dax](Point3D const& p) -> Point2D {
-      if (dax == Axis::X) { return Point2D(p.y(), p.z()); }
-      if (dax == Axis::Y) { return Point2D(p.z(), p.x()); }
+      if (dax == Axis::X) {
+        return Point2D(p.y(), p.z());
+      }
+      if (dax == Axis::Y) {
+        return Point2D(p.z(), p.x());
+      }
       return Point2D(p.x(), p.y());
     };
     std::vector<LineSegment2D> segs;
@@ -205,9 +212,13 @@ bool Polygon3D::IsSimple() const {
     return segs;
   };
 
-  if (has_intersections(make_segs(VERTICES))) { return false; }
+  if (has_intersections(make_segs(VERTICES))) {
+    return false;
+  }
   for (auto const& hole : HOLES) {
-    if (has_intersections(make_segs(hole))) { return false; }
+    if (has_intersections(make_segs(hole))) {
+      return false;
+    }
   }
   return true;
 }
@@ -249,6 +260,190 @@ bool Polygon3D::IsConvex() const {
     }
   }
   return true;
+}
+
+std::vector<Polygon3D> Polygon3D::Simplify() const {
+  if (IsSimple()) {
+    return {*this};
+  }
+
+  // Project to 2D using the dominant axis (same pattern as IsSimple / IsConvex)
+  Vector3D n = PLANE.normal();
+  Axis dax = n.DominantAxis();
+
+  auto to2d = [dax](Point3D const& p) -> Point2D {
+    if (dax == Axis::X) {
+      return Point2D(p.y(), p.z());
+    }
+    if (dax == Axis::Y) {
+      return Point2D(p.z(), p.x());
+    }
+    return Point2D(p.x(), p.y());
+  };
+
+  // Plane equation n·p = d (used for back-projection of intersection points)
+  Point3D orig = PLANE.origin();
+  double d = n.x() * orig.x() + n.y() * orig.y() + n.z() * orig.z();
+
+  auto from2d = [&n, d, dax](Point2D const& p) -> Point3D {
+    if (dax == Axis::X) {
+      return Point3D((d - n.y() * p.x() - n.z() * p.y()) / n.x(), p.x(), p.y());
+    }
+    if (dax == Axis::Y) {
+      return Point3D(p.y(), (d - n.z() * p.x() - n.x() * p.y()) / n.y(), p.x());
+    }
+    return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
+  };
+
+  // Build projected segments: outer ring + holes
+  std::vector<LineSegment2D> all_segs;
+  {
+    int nv = static_cast<int>(VERTICES.size());
+    for (int i = 0; i < nv; ++i) {
+      all_segs.push_back(LineSegment2D::Make(to2d(VERTICES[i]), to2d(VERTICES[(i + 1) % nv])));
+    }
+  }
+  for (auto const& hole : HOLES) {
+    int nh = static_cast<int>(hole.size());
+    for (int i = 0; i < nh; ++i) {
+      all_segs.push_back(LineSegment2D::Make(to2d(hole[i]), to2d(hole[(i + 1) % nh])));
+    }
+  }
+
+  auto rings2d = simplify_rings_impl(all_segs);
+
+  // Detect whether the dominant-axis projection reverses chirality.
+  // For Y-dominant the mapping (z,x) mirrors the coordinate system, so a CCW 3D polygon
+  // projects to CW in 2D.  Check the outer ring's projected signed area to find out.
+  std::vector<Point2D> outer2d;
+  outer2d.reserve(VERTICES.size());
+  for (auto const& v : VERTICES) {
+    outer2d.push_back(to2d(v));
+  }
+  bool projection_flips = compare(signed_area(outer2d), 0.0) < 0;
+
+  // Interior faces come out CW (SA < 0) and the outer graph face CCW (SA > 0) — unless
+  // the projection flips chirality, in which case the signs are reversed.
+  // Either way, candidates must end up CCW in 2D for Polygon2D::Make / hole assignment.
+  std::vector<std::vector<Point2D>> candidates2d;
+  std::vector<double> candidate_areas;
+  for (auto const& ring : rings2d) {
+    if (ring.size() < 3) {
+      continue;
+    }
+    try {
+      double sa = signed_area(ring);
+      bool is_interior = projection_flips ? compare(sa, 0.0) > 0 : compare(sa, 0.0) < 0;
+      if (is_interior) {
+        if (projection_flips) {
+          // Ring is already CCW in 2D (SA > 0 means CCW)
+          candidate_areas.push_back(sa);
+          candidates2d.push_back(ring);
+        } else {
+          // Ring is CW in 2D (SA < 0), flip to CCW
+          auto ccw = ring;
+          std::reverse(ccw.begin(), ccw.end());
+          candidate_areas.push_back(-sa);
+          candidates2d.push_back(std::move(ccw));
+        }
+      }
+    } catch (std::runtime_error const& e) {
+      GEOMPP_LOG(WARNING) << "Simplify: skipping degenerate ring (" << ring.size() << " pts): " << e.what();
+    }
+  }
+
+  // Sort candidates by area descending (largest first)
+  std::vector<int> order(candidates2d.size());
+  std::iota(order.begin(), order.end(), 0);
+  std::sort(order.begin(), order.end(),
+            [&](int a, int b) { return candidate_areas[a] > candidate_areas[b]; });
+  {
+    std::vector<std::vector<Point2D>> sorted_c(candidates2d.size());
+    std::vector<double> sorted_a(candidate_areas.size());
+    for (int k = 0; k < static_cast<int>(order.size()); ++k) {
+      sorted_c[k] = std::move(candidates2d[order[k]]);
+      sorted_a[k] = candidate_areas[order[k]];
+    }
+    candidates2d = std::move(sorted_c);
+    candidate_areas = std::move(sorted_a);
+  }
+
+  int nc = static_cast<int>(candidates2d.size());
+  std::vector<std::optional<Polygon2D>> candidate_polys(nc);
+  for (int i = 0; i < nc; ++i) {
+    try {
+      candidate_polys[i] = Polygon2D::Make(candidates2d[i]);
+    } catch (std::runtime_error const& e) {
+      GEOMPP_LOG(WARNING) << "Simplify: could not build polygon from ring " << i << ": " << e.what();
+    }
+  }
+
+  std::vector<bool> is_hole(nc, false);
+  std::vector<std::vector<std::vector<Point2D>>> outer_holes2d(nc);
+
+  for (int i = nc - 1; i >= 0; --i) {
+    if (!candidate_polys[i].has_value()) {
+      continue;
+    }
+    Point2D test_pt = centroid(candidates2d[i]);
+    for (int j = 0; j < i; ++j) {
+      if (!candidate_polys[j].has_value()) {
+        continue;
+      }
+      if (candidate_polys[j]->Contains(test_pt)) {
+        auto cw_hole = candidates2d[i];
+        std::reverse(cw_hole.begin(), cw_hole.end());
+        outer_holes2d[j].push_back(std::move(cw_hole));
+        is_hole[i] = true;
+        break;
+      }
+    }
+  }
+
+  // Unproject to 3D and assemble.
+  // Candidates are CCW in the 2D projection.  Polygon3D::Make computes its own plane
+  // and CCW check, so if the back-projected ring is CW in 3D we reverse and retry.
+  std::vector<Polygon3D> results;
+  for (int i = 0; i < nc; ++i) {
+    if (is_hole[i]) {
+      continue;
+    }
+
+    std::vector<Point3D> outer3d;
+    for (auto const& p : candidates2d[i]) {
+      outer3d.push_back(from2d(p));
+    }
+
+    std::vector<std::vector<Point3D>> holes3d;
+    for (auto const& h2d : outer_holes2d[i]) {
+      std::vector<Point3D> h3d;
+      for (auto const& p : h2d) {
+        h3d.push_back(from2d(p));
+      }
+      holes3d.push_back(std::move(h3d));
+    }
+
+    for (int attempt = 0; attempt < 2; ++attempt) {
+      try {
+        if (holes3d.empty()) {
+          results.push_back(Polygon3D::Make(outer3d));
+        } else {
+          results.push_back(Polygon3D::Make(outer3d, holes3d));
+        }
+        break;
+      } catch (std::runtime_error const& e) {
+        if (attempt == 0) {
+          std::reverse(outer3d.begin(), outer3d.end());
+          for (auto& h : holes3d) {
+            std::reverse(h.begin(), h.end());
+          }
+        } else {
+          GEOMPP_LOG(WARNING) << "Simplify: could not assemble 3D polygon from ring " << i << ": " << e.what();
+        }
+      }
+    }
+  }
+  return results;
 }
 
 Polygon3D Polygon3D::ConvexHull() {

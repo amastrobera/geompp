@@ -24,6 +24,9 @@ void bind_polygon3d(py::module_& m) {
         .def("perimeter",   &geompp::Polygon3D::Perimeter)
         .def("is_simple",   &geompp::Polygon3D::IsSimple,    "Returns True if the polygon boundary has no self-intersections.")
         .def("is_convex",   &geompp::Polygon3D::IsConvex)
+        .def("simplify",    &geompp::Polygon3D::Simplify,
+             "Decomposes a self-intersecting polygon into one or more simple polygons. "
+             "Returns [self] if already simple.")
         .def("distance_to", &geompp::Polygon3D::DistanceTo,  "point"_a)
         .def("contains",       &geompp::Polygon3D::Contains,      "point"_a)
         .def("is_on_boundary", &geompp::Polygon3D::IsOnBoundary, "point"_a)
@@ -45,15 +48,19 @@ void bind_polygon3d(py::module_& m) {
              [](const geompp::Polygon3D& p, const geompp::LineSegment3D& s) -> py::object { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
         .def("__len__",     &geompp::Polygon3D::Size)
         .def("__getitem__", [](const geompp::Polygon3D& p, int i) -> geompp::Point3D {
-            if (i < 0) i += static_cast<int>(p.Size());
-            if (i < 0 || i >= static_cast<int>(p.Size()))
+            if (i < 0) {
+                i += static_cast<int>(p.Size());
+            }
+            if (i < 0 || i >= static_cast<int>(p.Size())) {
                 throw py::index_error("index out of range");
+            }
             return p[i];
         }, "i"_a)
         .def("__iter__", [](const geompp::Polygon3D& p) {
             py::list pts;
-            for (std::size_t i = 0; i < p.Size(); ++i)
+            for (std::size_t i = 0; i < p.Size(); ++i) {
                 pts.append(p[static_cast<int>(i)]);
+            }
             return pts.attr("__iter__")();
         })
         .def("__eq__", [](const geompp::Polygon3D& a, const geompp::Polygon3D& b) { return a == b; });

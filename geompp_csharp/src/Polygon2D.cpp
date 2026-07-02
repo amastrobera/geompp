@@ -106,11 +106,21 @@ Polygon2D^ Polygon2D::ConvexHull() {
     return gcnew Polygon2D(new geompp::Polygon2D(_native->ConvexHull()));
 }
 
+array<Polygon2D^>^ Polygon2D::Simplify() {
+    auto native = _native->Simplify();
+    auto arr = gcnew array<Polygon2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Polygon2D(new geompp::Polygon2D(native[i]));
+    }
+    return arr;
+}
+
 array<Point2D^>^ Polygon2D::ToPoints() {
     auto native = _native->ToPoints();
     auto arr = gcnew array<Point2D^>(static_cast<int>(native.size()));
-    for (int i = 0; i < static_cast<int>(native.size()); ++i)
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Point2D(new geompp::Point2D(native[i]));
+    }
     return arr;
 }
 
@@ -150,19 +160,25 @@ bool Polygon2D::Intersects(LineSegment2D^ segment) {
 
 Point2D^ Polygon2D::Intersection(Line2D^ line) {
     auto result = _native->Intersection(*line->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
 }
 
 Point2D^ Polygon2D::Intersection(Ray2D^ ray) {
     auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
 }
 
 Point2D^ Polygon2D::Intersection(LineSegment2D^ segment) {
     auto result = _native->Intersection(*segment->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
 }
 
