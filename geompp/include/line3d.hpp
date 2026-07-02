@@ -41,19 +41,19 @@ class Line3D {
 
   /// @brief First point used to construct the line.
   /// @return Same point passed as @p p0 to Make.
-  inline Point3D const& First() const { return P0; }
+  Point3D const& First() const;
 
   /// @brief Second point used to construct the line.
   /// @return Same point passed as @p p1 to Make, or @p orig + @p dir for the (origin, direction) form.
-  inline Point3D const& Last() const { return P1; }
+  Point3D const& Last() const;
 
   /// @brief Origin point of the line. Equivalent to @ref First.
   /// @return Origin of the line as a Point3D.
-  inline Point3D const& Origin() const { return P0; }
+  Point3D const& Origin() const;
 
   /// @brief Unit direction vector of the line.
   /// @return Normalized vector from @ref First to @ref Last.
-  inline Vector3D const& Direction() const { return DIR; }
+  Vector3D const& Direction() const;
 
   /// @brief Tests whether two lines are the same infinite line (collinear, same/opposite direction).
   /// @param other Line to compare to.
@@ -187,6 +187,17 @@ class Line3D {
 bool operator==(Line3D const& lhs, Line3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Line3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D const& Line3D::First() const { return P0; }
+inline Point3D const& Line3D::Last() const { return P1; }
+inline Point3D const& Line3D::Origin() const { return P0; }
+inline Vector3D const& Line3D::Direction() const { return DIR; }
+inline Line3D::Line3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
+inline Line3D::Line3D(Point3D const& orig, Vector3D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
 
 #pragma endregion
 

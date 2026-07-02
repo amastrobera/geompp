@@ -8,6 +8,8 @@
 #include "bbox3d.hpp"
 #include "bball2d.hpp"
 #include "bball3d.hpp"
+#include "brect2d.hpp"
+#include "bprism3d.hpp"
 #include "constants.hpp"
 #include "geometry_collection2d.hpp"
 #include "geometry_collection3d.hpp"

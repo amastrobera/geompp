@@ -4,12 +4,10 @@
 #include "plane.hpp"
 #include "point3d.hpp"
 #include "segment_iterator3d.hpp"
-#include "vector3d.hpp"
 
 #include <optional>
 #include <ostream>
 #include <string>
-#include <tuple>
 #include <variant>
 
 namespace geompp {
@@ -30,7 +28,7 @@ class Polygon3D {
 
   std::size_t Size() const;
   Point3D const& operator[](int i) const;
-  inline Plane GetPlane() const { return PLANE; }
+  Plane GetPlane() const;
 
   bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange3D ToSegments() const;
@@ -116,6 +114,18 @@ class Polygon3D {
 bool operator==(Polygon3D const& lhs, Polygon3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Polygon3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline std::size_t Polygon3D::Size() const { return VERTICES.size(); }
+inline Plane Polygon3D::GetPlane() const { return PLANE; }
+inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter)
+    : VERTICES(points), HOLES{}, PLANE(plane), PERIMETER(perimeter) {}
+inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
+                            std::vector<std::vector<Point3D>> const& holes)
+    : VERTICES(points), HOLES(holes), PLANE(plane), PERIMETER(perimeter) {}
 
 #pragma endregion
 

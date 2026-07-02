@@ -22,13 +22,10 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
-#include <type_traits>
 
 namespace geompp {
 
 #pragma region Constructors
-
-Polyline3D::Polyline3D(std::vector<Point3D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 Polyline3D Polyline3D::Make(std::vector<Point3D> const& points) {
   auto unique_points = remove_collinear(points);
@@ -52,8 +49,6 @@ Polyline3D& Polyline3D::operator=(Polyline3D const& other) {
   }
   return *this;
 }
-
-SegmentRange3D Polyline3D::ToSegments() const { return SegmentRange3D(KNOTS); }
 
 bool Polyline3D::AlmostEquals(Polyline3D const& other, double epsilon) const {
   if (compare(LENGTH, other.LENGTH, epsilon) != 0) {
@@ -351,6 +346,10 @@ bool Polyline3D::IsConvex() const {
 Polyline3D Polyline3D::ConvexHull() const {
   if (static_cast<int>(KNOTS.size()) < 3) {
     throw std::runtime_error("Polyline3D::ConvexHull — fewer than 3 points");
+  }
+
+  if (!IsPlanar()) {
+    throw std::logic_error("Polyline3D::ConvexHull — polyline is not planar");
   }
 
   auto hull_pts = convex_hull(KNOTS);

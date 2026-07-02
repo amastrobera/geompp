@@ -2,7 +2,7 @@
 
 ## Examples
 
-### Creation and I/O operations
+### 1. Creation and I/O operations
 
 ```python
 import geompp as g
@@ -60,7 +60,7 @@ while parser.has_next():
 ```
 
 
-### Containment
+### 2. Containment
 
 `triangle.contains(p)` and `polygon.contains(p)` test whether a point lies inside a shape using
 barycentric coordinates and the winding number, respectively.
@@ -108,7 +108,7 @@ mid = POINT (2 0)
 ```
 
 
-### Intersections
+### 3. Intersections
 
 Intersection methods return the resulting geometry or `None`. `find_intersections(segments)`
 (Bentley–Ottmann) reports all crossing points across an arbitrary set of 2D segments, sorted left-to-right.
@@ -149,9 +149,9 @@ POINT (3 2)
 ```
 
 
-### Planar operations
+### 4. Planar operations
 
-#### Coplanarity, orientation, and closest world plane
+#### 4.1 Coplanarity, orientation, and closest world plane
 
 ```python
 import geompp as g
@@ -179,7 +179,7 @@ print(poly.size())               # 4
 ```
 
 
-#### Projecting points onto a plane
+#### 4.2 Projecting points onto a plane
 
 `plane.project_onto(p)` returns the perpendicular projection in 3D world coordinates.
 `plane.project_into(p)` maps the same projected point into the plane's local 2D frame.
@@ -209,7 +209,7 @@ back:     POINT (3 4 0)
 ```
 
 
-#### Planar vs non-planar Polyline3D
+#### 4.3 Planar vs non-planar Polyline3D
 
 `Polyline3D.is_planar()` checks whether all knots lie in a common plane. Only planar polylines support
 `is_simple()`, `is_convex()`, `convex_hull()`, and `to_polygon()`.
@@ -256,9 +256,82 @@ dominant direction: VECTOR (...)
 ```
 
 
-### Bounding containers
+#### 4.4 View2D — streaming 3D points to 2D
 
-#### Simple containers for quick rejection 
+`View2D` maps 3D points to 2D scalars via `x()` / `y()` getters without allocating an intermediate
+`Point2D` list. Axis-aligned views (`xy`, `yz`, `zx`) are the fastest path — just a direct coordinate
+read. `on_plane` computes dot products against the plane's local axes.
+
+```python
+from geompp import View2D, ProjectionType, Plane, Point3D, Vector3D
+
+# Axis-aligned views (fast path — single coordinate read)
+v_xy = View2D.xy()   # x→x, y→y (drops z)
+v_yz = View2D.yz()   # y→x, z→y (drops x)
+v_zx = View2D.zx()   # z→x, x→y (drops y)
+
+# Custom view onto any plane
+plane    = Plane.from_origin_and_normal(Point3D(0, 0, 5), Vector3D(0, 0, 1))
+v_custom = View2D.on_plane(plane)
+
+pts3d = [Point3D(1, 2, 5), Point3D(3, 4, 5), Point3D(5, 6, 5)]
+
+# Stream 3D points to 2D without allocating a Point2D list
+xs = [v_xy.x(p) for p in pts3d]   # [1.0, 3.0, 5.0]
+ys = [v_xy.y(p) for p in pts3d]   # [2.0, 4.0, 6.0]
+
+print(v_xy.type)   # ProjectionType.XY
+print(xs)          # [1.0, 3.0, 5.0]
+print(ys)          # [2.0, 4.0, 6.0]
+```
+
+Output:
+```
+ProjectionType.XY
+[1.0, 3.0, 5.0]
+[2.0, 4.0, 6.0]
+```
+
+
+### 5. PCA on a 3D point cloud
+
+`principal_axes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and returns
+a `CoordinateFrame` — three orthonormal axes sorted by variance: `x` is the direction of most spread,
+`y` the secondary, and `z` the best-fit plane normal (least variance).
+
+```python
+import geompp as g
+
+# 8 points flat in the XY plane, elongated along X
+cloud = [
+    g.Point3D(0, 0,   0), g.Point3D(1, 0,   0),
+    g.Point3D(2, 0,   0), g.Point3D(3, 0,   0),
+    g.Point3D(0, 0.1, 0), g.Point3D(1, 0.1, 0),
+    g.Point3D(2, 0.1, 0), g.Point3D(3, 0.1, 0),
+]
+
+frame = g.principal_axes(cloud)
+
+print(f"x (primary):   {frame.x}")   # ≈ (1, 0, 0)
+print(f"y (secondary): {frame.y}")   # ≈ (0, 1, 0)
+print(f"z (normal):    {frame.z}")   # ≈ (0, 0, 1)
+
+# Convenience wrappers
+normal    = g.principal_normal(cloud)     # == frame.z
+direction = g.principal_direction(cloud)  # == frame.x
+```
+
+Output:
+```
+x (primary):   VECTOR (1 0 0)
+y (secondary): VECTOR (0 1 0)
+z (normal):    VECTOR (0 0 1)
+```
+
+
+### 6. Bounding containers
+
+#### 6.1 Simple containers for quick rejection 
 
 `BBox3D` gives the tight axis-aligned box; `BBall3D` (Ritter 1990) gives an approximate
 minimum enclosing sphere — both accept any cloud of points.
@@ -304,9 +377,9 @@ radius: ...
 True
 ```
 
-#### Convex hulls
+#### 6.2 Convex hulls
 
-##### Convex hull of a point cloud
+##### 6.2.1 Convex hull of a point cloud
 
 `convex_hull(points)` (Andrew's monotone chain) wraps any point cloud into its tightest convex polygon:
 
@@ -339,7 +412,26 @@ hull has 5 vertices:
 
 (CCW order, starting from the lexicographically smallest point)
 
-##### Convex hull of a polygon
+For 3D point clouds, `convex_hull(points)` also works — points do **not** need to be perfectly
+coplanar. When no explicit normal is provided, the best-fit plane is estimated via PCA
+(Jacobi eigendecomposition), and the hull is computed on the projection onto that plane.
+You can also pass an explicit normal if known: `convex_hull(points, normal)`.
+
+```python
+import geompp as g
+
+# Nearly-coplanar cloud with small Z jitter
+cloud = [
+    g.Point3D(0, 0, 0.1), g.Point3D(4, 0, -0.1),
+    g.Point3D(4, 4, 0.05), g.Point3D(0, 4, -0.05),
+    g.Point3D(2, 2, 0.02),  # interior
+]
+
+hull = g.convex_hull(cloud)  # PCA detects near-XY plane, projects, computes hull
+print(f"3D hull has {len(hull)} vertices")  # 4 — interior point excluded
+```
+
+##### 6.2.2 Convex hull of a polygon
 
 `Polygon2D` and `Polygon3D` expose a `convex_hull()` method:
 
@@ -360,7 +452,7 @@ print(f"hull is convex: {hull.is_convex()}")  # True
 print(f"hull has {hull.size()} vertices")      # hull has 5 vertices
 ```
 
-##### Convex hull of a simple polyline
+##### 6.2.3 Convex hull of a simple polyline
 
 `Polyline2D.convex_hull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `is_simple()` first.
 
@@ -378,37 +470,43 @@ if path.is_simple():
 ```
 
 
-### PCA on a 3D point cloud
+#### 6.3 Oriented Minimum Bounding Rectangle
 
-`principal_axes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and returns
-a `CoordinateFrame` — three orthonormal axes sorted by variance: `x` is the direction of most spread,
-`y` the secondary, and `z` the best-fit plane normal (least variance).
+`BRect2D` computes the **tightest** rectangle that encloses a point cloud, with axes aligned to the
+geometry rather than the coordinate frame. It is defined by `center`, `axis_u`, `axis_v`,
+`half_len_u`, and `half_len_v`.
+
+**Algorithm**: Freeman & Shapira (1975) / Toussaint (1983) rotating calipers.
+1. Compute the convex hull (Andrew's monotone chain, O(n log n)).
+2. For each hull edge, project all hull vertices onto the edge direction and its CCW perpendicular.
+3. Track the orientation that minimises the rectangle area; the center is the midpoint of the extents.
 
 ```python
 import geompp as g
 
-# 8 points flat in the XY plane, elongated along X
-cloud = [
-    g.Point3D(0, 0,   0), g.Point3D(1, 0,   0),
-    g.Point3D(2, 0,   0), g.Point3D(3, 0,   0),
-    g.Point3D(0, 0.1, 0), g.Point3D(1, 0.1, 0),
-    g.Point3D(2, 0.1, 0), g.Point3D(3, 0.1, 0),
+# An asymmetric pentagon
+pts = [
+    g.Point2D(0, 0), g.Point2D(4, 0),
+    g.Point2D(5, 2), g.Point2D(2, 4),
+    g.Point2D(-1, 2),
 ]
 
-frame = g.principal_axes(cloud)
+r = g.BRect2D(pts)
 
-print(f"x (primary):   {frame.x}")   # ≈ (1, 0, 0)
-print(f"y (secondary): {frame.y}")   # ≈ (0, 1, 0)
-print(f"z (normal):    {frame.z}")   # ≈ (0, 0, 1)
+print(r.center.to_wkt())      # center of the OBB
+print(r.axis_u.to_wkt())      # primary axis (unit vector, along a hull edge)
+print(r.axis_v.to_wkt())      # secondary axis (perpendicular, CCW rotation of axis_u)
+print(f"half_u: {r.half_len_u:.3f}")
+print(f"half_v: {r.half_len_v:.3f}")
+print(f"area:   {r.area:.3f}")
+print(r.contains(g.Point2D(2, 2)))   # True  — interior point
+print(r.contains(g.Point2D(9, 0)))   # False — outside
 
-# Convenience wrappers
-normal    = g.principal_normal(cloud)     # == frame.z
-direction = g.principal_direction(cloud)  # == frame.x
+corners = r.corners()         # list of 4 Point2D in CCW order
+for c in corners:
+    print(c.to_wkt())
 ```
 
-Output:
-```
-x (primary):   VECTOR (1 0 0)
-y (secondary): VECTOR (0 1 0)
-z (normal):    VECTOR (0 0 1)
-```
+`corners()` returns the four corners in CCW order. Every corner satisfies `contains()`.
+The `contains()` test is O(1) — it projects the query point onto the local axes and checks
+both projections against the half-lengths.

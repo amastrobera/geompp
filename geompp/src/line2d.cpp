@@ -30,10 +30,6 @@ Line2D Line2D::Make(Point2D const& p0, Vector2D const& dir) {
   return {p0, dir};
 }
 
-Line2D::Line2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
-
-Line2D::Line2D(Point2D const& orig, Vector2D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
-
 Line2D& Line2D::operator=(Line2D const& other) {
   if (this != &other) {
     P0 = other.P0;

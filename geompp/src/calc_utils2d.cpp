@@ -8,9 +8,11 @@
 
 #include "geompp_log.hpp"
 
+#include "point3d.hpp"
+
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
-#include <functional>
 #include <iterator>
 #include <limits>
 #include <numeric>
@@ -553,59 +555,145 @@ template bool has_intersections_impl(SegmentRange2D const&);
 template std::vector<IntersectionEvent2D> find_intersections_impl(std::vector<LineSegment2D> const&);
 template std::vector<IntersectionEvent2D> find_intersections_impl(SegmentRange2D const&);
 
-// 1. THE CORE GENERIC SOLVER (Writes the hull using index lookups and abstract lambdas)
-std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
-                                                std::function<double(size_t)> get_y,
-                                                std::function<bool(size_t, size_t, size_t)> is_left) {
-  if (n < 3) return {};
+template <PointContainer Points>
+std::vector<std::size_t> convex_hull_monotone_chain(Points const& points, View2D const& view) {
+  std::size_t n = std::ranges::size(points);
+  if (n < 3) {
+    return {};
+  }
 
-  std::vector<size_t> indices(n);
-  std::iota(indices.begin(), indices.end(), 0);
+  std::vector<std::size_t> indices(n);
+  std::iota(indices.begin(), indices.end(), std::size_t{0});
 
-  // Sort using the abstract X and Y projections
-  std::sort(indices.begin(), indices.end(), [&](size_t idx1, size_t idx2) {
-    double x1 = get_x(idx1), x2 = get_x(idx2);
-    if (x1 != x2) return x1 < x2;
-    return get_y(idx1) < get_y(idx2);
+  std::sort(indices.begin(), indices.end(), [&](std::size_t i, std::size_t j) {
+    double xi = view.x(points[i]), xj = view.x(points[j]);
+    if (xi != xj) {
+      return xi < xj;
+    }
+    return view.y(points[i]) < view.y(points[j]);
   });
 
-  std::vector<size_t> hull;
+  auto is_left = [&](std::size_t o, std::size_t a, std::size_t b) {
+    auto [ox, oy] = view.xy(points[o]);
+    auto [ax, ay] = view.xy(points[a]);
+    auto [bx, by] = view.xy(points[b]);
+    return compare((ax - ox) * (by - oy) - (ay - oy) * (bx - ox), 0) > 0;
+  };
+
+  std::vector<std::size_t> hull;
   hull.reserve(2 * n);
 
-  // Lower Hull
-  for (size_t i = 0; i < n; ++i) {
+  // Lower hull
+  for (std::size_t i = 0; i < n; ++i) {
     while (hull.size() >= 2 && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
       hull.pop_back();
     }
     hull.push_back(indices[i]);
   }
 
-  // Upper Hull
-  size_t lower_hull_size = hull.size();
-  for (ptrdiff_t i = static_cast<ptrdiff_t>(n) - 2; i >= 0; --i) {
+  // Upper hull
+  std::size_t lower_hull_size = hull.size();
+  for (std::ptrdiff_t i = static_cast<std::ptrdiff_t>(n) - 2; i >= 0; --i) {
     while (hull.size() > lower_hull_size && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
       hull.pop_back();
     }
     hull.push_back(indices[i]);
   }
 
-  if (!hull.empty()) hull.pop_back();
+  if (!hull.empty()) {
+    hull.pop_back();
+  }
   return hull;
 }
 
+// template specialization
+template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point2D> const&, View2D const&);
+
+template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point3D> const&, View2D const&);
+
+template <PointContainer Points>
+MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices, Points const& points,
+                                        View2D const& view) {
+  std::size_t m = hull_indices.size();
+
+  double best_area = std::numeric_limits<double>::max();
+  double best_ux = 1.0, best_uy = 0.0, best_vx = 0.0, best_vy = 1.0;
+  double best_umin = 0.0, best_umax = 0.0, best_vmin = 0.0, best_vmax = 0.0;
+  double best_ox = 0.0, best_oy = 0.0;
+
+  for (std::size_t i = 0; i < m; ++i) {
+    auto [p0x, p0y] = view.xy(points[hull_indices[i]]);
+    auto [p1x, p1y] = view.xy(points[hull_indices[(i + 1) % m]]);
+
+    double ex = p1x - p0x;
+    double ey = p1y - p0y;
+    double elen = std::sqrt(ex * ex + ey * ey);
+    if (compare(elen, 0.0) == 0) {
+      continue;
+    }
+
+    double ux = ex / elen;
+    double uy = ey / elen;
+    double vx = -uy;
+    double vy = ux;
+
+    double u_min = std::numeric_limits<double>::max();
+    double u_max = -std::numeric_limits<double>::max();
+    double v_min = std::numeric_limits<double>::max();
+    double v_max = -std::numeric_limits<double>::max();
+
+    for (std::size_t j = 0; j < m; ++j) {
+      auto [qx, qy] = view.xy(points[hull_indices[j]]);
+      double dx = qx - p0x;
+      double dy = qy - p0y;
+      double pu = dx * ux + dy * uy;
+      double pv = dx * vx + dy * vy;
+      if (pu < u_min) {
+        u_min = pu;
+      }
+      if (pu > u_max) {
+        u_max = pu;
+      }
+      if (pv < v_min) {
+        v_min = pv;
+      }
+      if (pv > v_max) {
+        v_max = pv;
+      }
+    }
+
+    double rect_area = (u_max - u_min) * (v_max - v_min);
+    if (compare(rect_area, best_area) < 0) {
+      best_area = rect_area;
+      best_ux = ux;
+      best_uy = uy;
+      best_vx = vx;
+      best_vy = vy;
+      best_umin = u_min;
+      best_umax = u_max;
+      best_vmin = v_min;
+      best_vmax = v_max;
+      best_ox = p0x;
+      best_oy = p0y;
+    }
+  }
+
+  double cu = (best_umin + best_umax) / 2.0;
+  double cv = (best_vmin + best_vmax) / 2.0;
+
+  return MinBoundingRectResult{
+      best_ux, best_uy, best_vx, best_vy, (best_umax - best_umin) / 2.0, (best_vmax - best_vmin) / 2.0,
+      cu,      cv,      best_ox, best_oy,
+  };
+}
+
+template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point2D> const&,
+                                                 View2D const&);
+template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point3D> const&,
+                                                 View2D const&);
+
 std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
-  // clang-format off
-    return convex_hull_generic_impl_2D(
-        points.size(),
-        [&points](size_t i) { return points[i].x(); },
-        [&points](size_t i) { return points[i].y(); },
-        [&points](size_t o, size_t a, size_t b) {
-            // Your standard 2D is_left logic here (copied from is_left(Point2D...))
-            return compare((points[a].x() - points[o].x()) * (points[b].y() - points[o].y()) -
-                           (points[a].y() - points[o].y()) * (points[b].x() - points[o].x()), 0) > 0;
-        }
-    );
-  // clang-format on
+  return convex_hull_monotone_chain(points, View2D::XY());
 }
 
 }  // namespace geompp

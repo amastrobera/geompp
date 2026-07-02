@@ -16,13 +16,10 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
-#include <type_traits>
 
 namespace geompp {
 
 #pragma region Constructors
-
-Polyline2D::Polyline2D(std::vector<Point2D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 Polyline2D Polyline2D::Make(std::vector<Point2D> const& points) {
   auto unique_points = remove_collinear(points);
@@ -46,12 +43,6 @@ Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
   }
   return *this;
 }
-
-int Polyline2D::Size() const { return KNOTS.size(); }
-
-SegmentRange2D Polyline2D::ToSegments() const { return SegmentRange2D(KNOTS); }
-
-double Polyline2D::Length() const { return LENGTH; }
 
 bool Polyline2D::IsSimple() const {
   if (has_intersections_impl(ToSegments())) {

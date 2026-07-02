@@ -2,9 +2,9 @@
 
 ## Examples
 
-### Creation and I/O operations
+### 1. Creation and I/O operations
 
-#### LineSegment3D intersection
+#### 1.1 LineSegment3D intersection
 
 ```csharp
 using G = GeomPP;
@@ -35,7 +35,7 @@ intersection written to intersection.wkt
 
 ---
 
-#### Load geometries from an .lsv file
+#### 1.2 Load geometries from an .lsv file
 
 An `.lsv` file is a plain-text list of WKT geometries, one per line:
 
@@ -82,7 +82,7 @@ RAY (0 0 0, 0 1 0)
 
 ---
 
-### Containment
+### 2. Containment
 
 `Triangle3D.Contains(p)` and `Polygon2D/3D.Contains(p)` test whether a point lies inside a shape
 using barycentric coordinates and the winding number, respectively.
@@ -129,7 +129,7 @@ mid = POINT (2 0)
 
 ---
 
-### Intersections
+### 3. Intersections
 
 Intersection methods return `object` (null when there is no intersection); use C# pattern matching to
 extract the result type. `GeomUtil.FindIntersections(segments)` (Bentley–Ottmann) reports all crossing
@@ -171,9 +171,9 @@ POINT (3 2)
 
 ---
 
-### Planar operations
+### 4. Planar operations
 
-#### Verify coplanarity, winding order, and polygon with holes
+#### 4.1 Verify coplanarity, winding order, and polygon with holes
 
 ```csharp
 using GeomPP;
@@ -225,7 +225,7 @@ False
 
 ---
 
-#### Planar vs non-planar `Polyline3D`
+#### 4.2 Planar vs non-planar `Polyline3D`
 
 `Polyline3D.IsPlanar()` checks whether all knots lie in a common plane. Only planar polylines support
 `IsSimple()`, `IsConvex()`, `ConvexHull()`, and `ToPolygon()`.
@@ -272,7 +272,7 @@ planar: False
 dominant direction: VECTOR (...)
 ```
 
-#### Projecting points onto a plane
+#### 4.3 Projecting points onto a plane
 
 `Plane.ProjectOnto(p)` returns the perpendicular projection in 3D world coordinates.
 `Plane.ProjectInto(p)` maps the same projected point into the plane's local 2D frame.
@@ -303,7 +303,46 @@ back:     POINT (3 4 0)
 
 ---
 
-### PCA on a 3D point cloud
+#### 4.4 View2D — streaming 3D points to 2D
+
+`View2D` maps 3D points to 2D scalars via `X()` / `Y()` getters without allocating an intermediate
+`Point2D` array. Axis-aligned views (`XY`, `YZ`, `ZX`) are the fastest path — just a direct coordinate
+read. `OnPlane` computes dot products against the plane's local axes.
+
+```csharp
+using G = GeomPP;
+using System.Linq;
+
+// Axis-aligned views (fast path — single coordinate read)
+var vXY = G.View2D.XY();   // x→x, y→y (drops z)
+var vYZ = G.View2D.YZ();   // y→x, z→y (drops x)
+var vZX = G.View2D.ZX();   // z→x, x→y (drops y)
+
+// Custom view onto any plane
+var plane   = G.Plane.FromOriginAndNormal(new G.Point3D(0, 0, 5), new G.Vector3D(0, 0, 1));
+var vCustom = G.View2D.OnPlane(plane);
+
+var pts3d = new G.Point3D[] { new(1, 2, 5), new(3, 4, 5), new(5, 6, 5) };
+
+// Stream 3D points to 2D without allocating a Point2D array
+var xs = pts3d.Select(p => vXY.X(p)).ToArray();   // [1, 3, 5]
+var ys = pts3d.Select(p => vXY.Y(p)).ToArray();   // [2, 4, 6]
+
+Console.WriteLine(vXY.Type());                    // XY
+Console.WriteLine(string.Join(", ", xs));         // 1, 3, 5
+Console.WriteLine(string.Join(", ", ys));         // 2, 4, 6
+```
+
+Output:
+```
+XY
+1, 3, 5
+2, 4, 6
+```
+
+---
+
+### 5. PCA on a 3D point cloud
 
 `GeomUtil.PrincipalAxes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and
 returns a `CoordinateFrame` — three orthonormal axes sorted by variance: `X` is the direction of most
@@ -338,9 +377,9 @@ Z (normal):    VECTOR (0 0 1)
 
 ---
 
-### Bounding containers
+### 6. Bounding containers
 
-#### Simple containers for quick rejection
+#### 6.1 Simple containers for quick rejection
 
 `BBox3D` gives the tight axis-aligned box; `BBall3D` (Ritter 1990) gives an approximate
 minimum enclosing sphere — both accept any cloud of points.
@@ -387,9 +426,9 @@ radius: ...
 True
 ```
 
-#### Convex hulls
+#### 6.2 Convex hulls
 
-##### `GeomUtil.ConvexHull` — point cloud
+##### 6.2.1 `GeomUtil.ConvexHull` — point cloud
 
 `GeomUtil.ConvexHull(points)` (Andrew's monotone chain) wraps any point cloud into its tightest convex polygon:
 
@@ -422,7 +461,27 @@ hull has 5 vertices
 
 (CCW order, starting from the lexicographically smallest point)
 
-##### `Polygon3D.ConvexHull`
+For 3D point clouds, `GeomUtil.ConvexHull(points)` also works — points do **not** need to be
+perfectly coplanar. When no explicit normal is available, the best-fit plane is estimated via PCA
+(Jacobi eigendecomposition), and the hull is computed on the projection onto that plane.
+
+```csharp
+using G = GeomPP;
+
+// Nearly-coplanar cloud with small Z jitter
+var cloud = new System.Collections.Generic.List<G.Point3D> {
+    new G.Point3D(0, 0, 0.1), new G.Point3D(4, 0, -0.1),
+    new G.Point3D(4, 4, 0.05), new G.Point3D(0, 4, -0.05),
+    new G.Point3D(2, 2, 0.02),  // interior
+};
+
+var hull3d = G.GeomUtil.ConvexHull(cloud);  // PCA detects near-XY plane, projects, computes hull
+int n = 0;
+foreach (var p in hull3d) n++;
+Console.WriteLine($"3D hull has {n} vertices");  // 4 — interior point excluded
+```
+
+##### 6.2.2 `Polygon3D.ConvexHull`
 
 `Polygon2D` and `Polygon3D` expose a `ConvexHull()` instance method:
 
@@ -441,7 +500,7 @@ Console.WriteLine($"hull is convex: {hull.IsConvex()}");   // True
 Console.WriteLine($"hull has {hull.Size()} vertices");     // hull has 5 vertices
 ```
 
-##### `Polyline2D.ConvexHull`
+##### 6.2.3 `Polyline2D.ConvexHull`
 
 `Polyline2D.ConvexHull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `IsSimple()` first.
 
@@ -457,3 +516,44 @@ if (path.IsSimple()) {
     Console.WriteLine($"hull has {hull.Size()} vertices");  // hull has 4 vertices
 }
 ```
+
+
+#### 6.3 Oriented Minimum Bounding Rectangle
+
+`BRect2D` computes the **tightest** rectangle that encloses a point cloud, with axes aligned to the
+geometry rather than the coordinate frame. Members: `Center()`, `AxisU()`, `AxisV()`,
+`HalfLenU()`, `HalfLenV()`, `Width()`, `Height()`, `Area()`.
+
+**Algorithm**: Freeman & Shapira (1975) / Toussaint (1983) rotating calipers.
+1. Compute the convex hull (Andrew's monotone chain, O(n log n)).
+2. For each hull edge, project all hull vertices onto the edge direction and its CCW perpendicular.
+3. Track the orientation that minimises the rectangle area; the center is the midpoint of the extents.
+
+```csharp
+using G = GeomPP;
+
+var pts = new G.Point2D[] {
+    new G.Point2D(0, 0), new G.Point2D(4, 0),
+    new G.Point2D(5, 2), new G.Point2D(2, 4),
+    new G.Point2D(-1, 2),
+};
+
+var r = new G.BRect2D(pts);
+
+Console.WriteLine(r.Center().ToWkt());         // center of the OBB
+Console.WriteLine(r.AxisU().ToWkt());          // primary axis (unit vector, along a hull edge)
+Console.WriteLine(r.AxisV().ToWkt());          // secondary axis (CCW perpendicular of AxisU)
+Console.WriteLine($"half_u: {r.HalfLenU():F3}");
+Console.WriteLine($"half_v: {r.HalfLenV():F3}");
+Console.WriteLine($"area:   {r.Area():F3}");
+Console.WriteLine(r.Contains(new G.Point2D(2, 2)));  // True  — interior
+Console.WriteLine(r.Contains(new G.Point2D(9, 0)));  // False — outside
+
+var corners = r.Corners();                     // array<Point2D^> of 4 points, CCW order
+foreach (var c in corners)
+    Console.WriteLine(c.ToWkt());
+```
+
+`Corners()` returns the four corners in CCW order; each satisfies `Contains()`.
+`Contains()` is O(1) — it projects the query point onto `AxisU`/`AxisV` and checks
+both projections against the half-lengths.

@@ -24,8 +24,6 @@ LineSegment2D LineSegment2D::Make(Point2D const& p0, Point2D const& p1) {
   return {p0, p1};
 }
 
-LineSegment2D::LineSegment2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1) {}
-
 LineSegment2D& LineSegment2D::operator=(LineSegment2D const& other) {
   if (this != &other) {
     P0 = other.P0;

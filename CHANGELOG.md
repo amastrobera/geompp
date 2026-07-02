@@ -11,6 +11,64 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.12.0] - 2026-07-02
+
+> C++ library — tagged `v0.12.0` · C# / NuGet — tagged `csharp-v0.12.0` · Python / PyPI — tagged `python-v0.12.0`
+
+> Adds four bounding-shape classes (`BRect2D`, `BPrism3D`, `BBall2D`, `BBall3D`) across all three language targets. Enables Link-Time Optimization in Release builds, moves all bounding-shape template constructors to `.cpp` files (extern template pattern), and ships the NuGet package as four separate DLLs covering .NET 8/9/10 and .NET Framework 4.8. Python wheels now cover 3.8–3.14.
+
+### Added
+
+**C++ core**
+- `BRect2D` (`brect2d.hpp`) — minimum oriented bounding rectangle. Uses Andrew's monotone-chain convex hull followed by the rotating-calipers algorithm (Freeman & Shapira 1975 / Toussaint 1983) to find the minimum-area enclosing rectangle. Stores `center`, `axis_u`, `axis_v` (both unit vectors), `half_len_u`, `half_len_v`. Methods: `Corners()` (4 `Point2D`), `Contains(Point2D)`, `area()`, `width()`, `height()`, `AlmostEquals()`. Throws `std::invalid_argument` for fewer than 3 points or for a collinear / coincident point cloud (degenerate convex hull).
+- `BPrism3D` (`bprism3d.hpp`) — oriented bounding prism. Runs `principal_axes(points)` (PCA) to determine the dominant-variance plane, then applies rotating calipers in that plane to find the minimum-area rectangle; the third axis is the PCA normal, extruded symmetrically to cover all points. Stores `center`, `axis_u`, `axis_v`, `axis_w` (all unit vectors), `half_len_u`, `half_len_v`, `half_len_w`. Methods: `Corners()` (8 `Point3D`), `Contains(Point3D)`, `volume()`, `width()`, `height()`, `depth()`, `AlmostEquals()`. Coplanar inputs produce a valid prism with `half_len_w == DOUBLE_EPSILON`. Throws `std::invalid_argument` for fewer than 3 points or for a collinear / coincident cloud.
+- `BBall2D` (`bball2d.hpp`) — minimum bounding ball in 2D; Ritter's two-pass O(N) algorithm. Finds the widest-spread axis-aligned diameter pair in the first pass, then expands the sphere to cover any outliers in the second pass. Stores `center` (`Point2D`) and `radius`. Methods: `Contains(Point2D)`, `AlmostEquals()`. Degenerate inputs: 1 point → zero-radius ball; 2 points → ball with their midpoint as center and half-distance as radius. Throws `std::runtime_error` for empty input.
+- `BBall3D` (`bball3d.hpp`) — minimum bounding ball in 3D; same Ritter algorithm extended to three axes (`x_min/max`, `y_min/max`, `z_min/max`). Throws `std::runtime_error` for empty input.
+
+**Python / PyPI**
+- `BBall2D(center: Point2D, radius: float)` / `BBall2D(points: list[Point2D])` — mirrors C++ API; `center`, `radius`, `contains(p)`, `almost_equals(other)`.
+- `BBall3D(center: Point3D, radius: float)` / `BBall3D(points: list[Point3D])` — same in 3D.
+- `BRect2D(points: list[Point2D])` — `center`, `axis_u`, `axis_v`, `half_len_u`, `half_len_v`, `width()`, `height()`, `area()`, `corners()`, `contains(p)`, `almost_equals(other)`.
+- `BPrism3D(points: list[Point3D])` — `center`, `axis_u`, `axis_v`, `axis_w`, `half_len_u`, `half_len_v`, `half_len_w`, `width()`, `height()`, `depth()`, `volume()`, `corners()`, `contains(p)`, `almost_equals(other)`.
+
+**C# / NuGet**
+- `BBall2D(Point2D^ center, double radius)` / `BBall2D(array<Point2D^>^ points)` — `Center`, `Radius`, `Contains(Point2D^)`, `AlmostEquals(BBall2D^)`.
+- `BBall3D(Point3D^ center, double radius)` / `BBall3D(array<Point3D^>^ points)` — same in 3D.
+- `BRect2D(array<Point2D^>^ points)` — `Center`, `AxisU`, `AxisV`, `HalfLenU`, `HalfLenV`, `Width()`, `Height()`, `Area()`, `Corners()`, `Contains(Point2D^)`, `AlmostEquals(BRect2D^)`.
+- `BPrism3D(array<Point3D^>^ points)` — `Center`, `AxisU`, `AxisV`, `AxisW`, `HalfLenU`, `HalfLenV`, `HalfLenW`, `Width()`, `Height()`, `Depth()`, `Volume()`, `Corners()`, `Contains(Point3D^)`, `AlmostEquals(BPrism3D^)`.
+- Added `.NET 8` build target (`GeomPP_Net8.vcxproj`, output `x64\Release_Net8\GeomPP.dll`) and `.NET 9` build target (`GeomPP_Net9.vcxproj`, output `x64\Release_Net9\GeomPP.dll`). The NuGet package now ships four separate C++/CLI DLLs compiled for `net8.0-windows7.0`, `net9.0-windows7.0`, `net10.0-windows7.0`, and `net48`.
+
+### Performance
+
+**C++ core**
+- **Link-Time Optimization (LTO)** enabled for Release builds on the `geompp` static library and `_geompp` Python extension. Uses CMake `CheckIPOSupported` with a graceful `STATUS` fallback on platforms where LTO is unavailable (no build failure). On MSVC this activates `/GL` (whole-program compilation) + `/LTCG` (link-time code generation); on GCC/Clang it activates `-flto`.
+- **Extern template for all bounding-shape constructors**: the `vector<PointN>` template constructors of `BBox2D`, `BBox3D`, `BBall2D`, `BBall3D`, `BRect2D`, and `BPrism3D` have been moved from header to `.cpp` using the `extern template` / explicit-instantiation pattern (same as `convex_hull_monotone_chain` and `min_bounding_rect`). Every translation unit that includes these headers now suppresses implicit instantiation and links against one shared copy, reducing compilation time and binary size.
+- **`View2D` 3D-to-2D projection**: `View2D::x(Point3D)` and `View2D::y(Point3D)` project 3D points into 2D scalars without allocating an intermediate `Point2D` container. Axis-aligned views (`XY`, `YZ`, `ZX`) read a single coordinate component at zero arithmetic cost. The `Custom` projection computes `(p − ORIGIN).Dot(AXIS_U/V)` in-place. These getters are used by the internal `convex_hull_monotone_chain` and `min_bounding_rect` algorithms when operating on 3D point clouds projected onto an arbitrary plane, avoiding any heap allocation per point.
+
+**Python / PyPI**
+- Python wheel targets extended to **3.8–3.14** (was 3.8–3.12). Wheels for CPython 3.13 and 3.14 are now published on PyPI for both Linux x86_64 and Windows AMD64.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_bball2d.cpp`: `ConstructorCenterRadius`, `ConstructorFromSinglePoint`, `ConstructorFromTwoPoints`, `ConstructorFromPointsAllContained`, `ConstructorEmptyThrows`, `CopyConstructor`, `Assignment`, `AlmostEquals`, `Contains`.
+- `test_bball3d.cpp`: same suite plus `ConstructorFromTwoPointsAlongZ`.
+- `test_brect2d.cpp`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_ZeroExtent`, `ConstructorTwoPoints_DegenerateLine`, `ConstructorAxisAlignedSquare`, `ConstructorAxisAlignedRectangle`, `ConstructorNonConvex_SmallArea`, `ConstructorAllPointsContained`, `Accessors_AxisesAreUnitVectors`, `Accessors_AxesOrthogonal`, `Accessors_WidthHeightArea`, `Corners_FourDistinctPoints`, `Contains_Center_True`, `Contains_Interior_True`, `Contains_Boundary_True`, `Contains_Outside_False`, `AlmostEquals_SameRect`, `AlmostEquals_DifferentRect`, `CopyConstructor`, `Assignment`.
+- `test_bprism3d.cpp`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_Throws`, `ConstructorTwoPoints_Throws`, `ConstructorAxisAlignedBox`, `ConstructorFlatCloud_WIsEpsilon`, `ConstructorNonConvex_AllPointsContained`, `Accessors_AxesAreUnitVectors`, `Accessors_AxesOrthogonal`, `Accessors_WidthHeightDepthVolume`, `Corners_EightDistinctPoints`, `Contains_Center_True`, `Contains_Interior_True`, `Contains_Outside_False`, `Contains_Boundary_True`, `AlmostEquals_Same`, `AlmostEquals_Different`, `CopyConstructor`, `Assignment`.
+
+**Python (`geompp_python/tests`)**
+- `TestBBall2D`: `test_constructor_center_radius`, `test_constructor_from_single_point`, `test_constructor_from_two_points`, `test_constructor_from_points_all_contained`, `test_contains_center`, `test_contains_boundary`, `test_contains_outside`, `test_almost_equals`.
+- `TestBBall3D`: same suite.
+- `TestBRect2D`: `test_empty_throws`, `test_single_point_zero_extent`, `test_two_points_degenerate_line`, `test_axis_aligned_rectangle_center`, `test_all_points_contained`, `test_axes_are_unit_vectors`, `test_axes_orthogonal`, `test_corners_returns_four_points`, `test_contains_center`, `test_contains_boundary`, `test_contains_outside`, `test_almost_equals`, `test_not_almost_equals_different`.
+- `TestBPrism3D`: `test_empty_throws`, `test_single_point_zero_extent`, `test_two_points_degenerate_line`, `test_axis_aligned_box`, `test_flat_cloud_w_is_epsilon`, `test_nonconvex_all_points_contained`, `test_axes_are_unit_vectors`, `test_axes_orthogonal`, `test_width_height_depth_volume`, `test_corners_eight_distinct_all_contained`, `test_contains_center`, `test_contains_outside_false`, `test_almost_equals`, `test_not_almost_equals_different`.
+
+**C# (`geompp_csharp/tests`)**
+- `BBall2D` / `BBall3D`: `ConstructorCenterRadius`, `ConstructorFromSinglePoint`, `ConstructorFromTwoPoints`, `ConstructorFromPointsAllContained`, `Contains_Inside_True`, `Contains_Outside_False`, `AlmostEquals_Same`, `AlmostEquals_Different`.
+- `BRect2D`: `ConstructorEmpty_Throws`, `ConstructorFromPoints_AllContained`, `Accessors_AxesUnitAndOrthogonal`, `Contains_Center_True`, `Contains_Outside_False`, `AlmostEquals_Same`.
+- `BPrism3D`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_Throws`, `ConstructorTwoPoints_Throws`, `ConstructorAxisAlignedBox`, `Accessors_AxesUnitAndOrthogonal`, `Contains_Center_True`, `Contains_Outside_False`, `AlmostEquals_Same`.
+
+---
+
 ## [0.11.0] - 2026-06-24
 
 > C++ library — tagged `v0.11.0` · C# / NuGet — tagged `csharp-v0.11.0` · Python / PyPI — tagged `python-v0.11.0`

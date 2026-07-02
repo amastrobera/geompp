@@ -13,14 +13,14 @@ namespace geompp {
 class Point3D {
  public:
   Point3D(double x, double y, double z);
-  Point3D(Point3D const&);
+  Point3D(Point3D const&) = default;
   Point3D(Vector3D const&);
   Point3D(Point3D&&) = default;
   ~Point3D() = default;
 
-  inline double x() const { return X; }
-  inline double y() const { return Y; }
-  inline double z() const { return Z; }
+  double x() const;
+  double y() const;
+  double z() const;
 
   Vector3D ToVector() const;
   bool AlmostEquals(Point3D const& other, double epsilon = DOUBLE_EPSILON) const;
@@ -33,7 +33,7 @@ class Point3D {
 
   Point3D& operator=(Point3D const& other);
 
-  static inline Point3D Zero() { return Point3D(0, 0, 0); }
+  static Point3D Zero();
 
  private:
   double X, Y, Z;
@@ -91,6 +91,17 @@ std::ostream& operator<<(std::ostream& os, Point3D const& g);
 //      return std::format_to(ctx.out(), "{}", p.ToWkt());
 //    }
 //  };
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
+inline Point3D::Point3D(Vector3D const& v) : X(v.x()), Y(v.y()), Z(v.z()) {}
+inline double Point3D::x() const { return X; }
+inline double Point3D::y() const { return Y; }
+inline double Point3D::z() const { return Z; }
+inline Point3D Point3D::Zero() { return Point3D(0, 0, 0); }
 
 #pragma endregion
 

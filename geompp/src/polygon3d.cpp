@@ -110,13 +110,6 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
   return {unique_points, outer_plane, perimeter, unique_holes_points};
 }
 
-Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter)
-    : VERTICES(points), PLANE(plane), PERIMETER(perimeter) {}
-
-Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
-                     std::vector<std::vector<Point3D>> const& holes)
-    : VERTICES(points), PLANE(plane), PERIMETER(perimeter), HOLES(holes) {}
-
 Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   if (this != &other) {
     VERTICES = other.VERTICES;
@@ -126,8 +119,6 @@ Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   }
   return *this;
 }
-
-std::size_t Polygon3D::Size() const { return VERTICES.size(); }
 
 bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
   // size comparison of loops

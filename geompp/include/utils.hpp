@@ -28,6 +28,14 @@ std::vector<double> tokenize_to_doubles(std::string const& str, char delimiter =
 
 std::vector<std::string> tokenize_string(std::string const& str, char delimiter = ',');
 
+int count_decimal_places(double number);
+
+}  // namespace geompp
+
+#pragma region Template Implementation
+
+namespace geompp {
+
 template <typename T>
 std::string string_join(std::vector<T> const& items, std::string const& delim = " ") {
   std::ostringstream buf;
@@ -39,8 +47,6 @@ std::string string_join(std::vector<T> const& items, std::string const& delim = 
   }
   return buf.str();
 }
-
-int count_decimal_places(double number);
 
 template <typename T>
   requires requires(T t) {
@@ -56,3 +62,5 @@ std::string ToWkt(const std::vector<T>& items) {
 }
 
 }  // namespace geompp
+
+#pragma endregion

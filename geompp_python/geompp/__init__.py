@@ -5,11 +5,14 @@ Classes
 -------
 2D primitives:
     Point2D, Vector2D, Line2D, Ray2D, LineSegment2D,
-    Polyline2D, Triangle2D, Polygon2D, BBox2D, GeometryCollection2D
+    Polyline2D, Triangle2D, Polygon2D, BBox2D, BBall2D, BRect2D, GeometryCollection2D
 
 3D primitives:
     Point3D, Vector3D, Line3D, Ray3D, LineSegment3D,
-    Polyline3D, Triangle3D, Polygon3D, BBox3D, Plane, GeometryCollection3D
+    Polyline3D, Triangle3D, Polygon3D, BBox3D, BBall3D, BPrism3D, Plane, GeometryCollection3D
+
+Planar operations:
+    ProjectionType, View2D
 
 Parser:
     WktParser
@@ -60,6 +63,8 @@ from ._geompp import (  # noqa: F401
     Triangle2D,
     Polygon2D,
     BBox2D,
+    BBall2D,
+    BRect2D,
     GeometryCollection2D,
     # 3D
     Axis,
@@ -72,8 +77,13 @@ from ._geompp import (  # noqa: F401
     Triangle3D,
     Polygon3D,
     BBox3D,
+    BBall3D,
+    BPrism3D,
     Plane,
     GeometryCollection3D,
+    # planar operations
+    ProjectionType,
+    View2D,
     # parser
     WktParser,
     # free functions
@@ -104,9 +114,9 @@ __all__ = [
     "DP_THREE", "DP_SIX", "DP_NINE",
     "set_decimal_precision", "get_decimal_precision",
     "Point2D", "Vector2D", "Line2D", "Ray2D", "LineSegment2D",
-    "Polyline2D", "Triangle2D", "Polygon2D", "BBox2D", "GeometryCollection2D",
+    "Polyline2D", "Triangle2D", "Polygon2D", "BBox2D", "BBall2D", "BRect2D", "GeometryCollection2D",
     "Point3D", "Vector3D", "Line3D", "Ray3D", "LineSegment3D",
-    "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "Plane", "GeometryCollection3D",
+    "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "BBall3D", "BPrism3D", "Plane", "GeometryCollection3D",
     "WktParser",
     "Axis",
     "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
@@ -115,4 +125,5 @@ __all__ = [
     "signed_area", "centroid",
     "has_intersections", "find_intersections", "convex_hull",
     "CoordinateFrame", "principal_axes", "principal_normal", "principal_direction",
+    "ProjectionType", "View2D",
 ]

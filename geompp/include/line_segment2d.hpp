@@ -21,8 +21,8 @@ class LineSegment2D {
   LineSegment2D(LineSegment2D&&) = default;
   ~LineSegment2D() = default;
 
-  inline Point2D const& First() const { return P0; }
-  inline Point2D const& Last() const { return P1; }
+  Point2D const& First() const;
+  Point2D const& Last() const;
 
   bool AlmostEquals(LineSegment2D const& other, double epsilon = DOUBLE_EPSILON) const;
   Line2D ToLine() const;
@@ -129,6 +129,14 @@ std::vector<Point2D> find_intersections(std::vector<LineSegment2D> const& segmen
 bool operator==(LineSegment2D const& lhs, LineSegment2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, LineSegment2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point2D const& LineSegment2D::First() const { return P0; }
+inline Point2D const& LineSegment2D::Last() const { return P1; }
+inline LineSegment2D::LineSegment2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1) {}
 
 #pragma endregion
 

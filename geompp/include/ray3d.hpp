@@ -21,8 +21,8 @@ class Ray3D {
   Ray3D(Ray3D&&) = default;
   ~Ray3D() = default;
 
-  inline Point3D const& Origin() const { return ORIGIN; }
-  inline Vector3D const& Direction() const { return DIR; }
+  Point3D const& Origin() const;
+  Vector3D const& Direction() const;
   bool AlmostEquals(Ray3D const& other, double epsilon = DOUBLE_EPSILON) const;
 
   /// @brief Tests whether a point lies on the half-space ahead of (or at) the ray's origin along its direction.
@@ -143,6 +143,14 @@ class Ray3D {
 bool operator==(Ray3D const& lhs, Ray3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Ray3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D const& Ray3D::Origin() const { return ORIGIN; }
+inline Vector3D const& Ray3D::Direction() const { return DIR; }
+inline Ray3D::Ray3D(Point3D const& orig, Vector3D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
 #pragma endregion
 

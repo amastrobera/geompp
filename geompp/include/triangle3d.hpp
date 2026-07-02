@@ -3,7 +3,6 @@
 #include "constants.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
-#include "point2d.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
 #include "vector3d.hpp"
@@ -27,7 +26,7 @@ class Triangle3D {
   Triangle3D(Triangle3D&&) = default;
   ~Triangle3D() = default;
 
-  inline std::tuple<Point3D, Point3D, Point3D> const Vertices() const { return {P0, P1, P2}; }
+  std::tuple<Point3D, Point3D, Point3D> const Vertices() const;
 
   bool AlmostEquals(Triangle3D const& other, double epsilon = DOUBLE_EPSILON) const;
   Point3D Centroid() const;
@@ -144,6 +143,13 @@ class Triangle3D {
 bool operator==(Triangle3D const& lhs, Triangle3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Triangle3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline std::tuple<Point3D, Point3D, Point3D> const Triangle3D::Vertices() const { return {P0, P1, P2}; }
+inline Triangle3D::Triangle3D(Point3D const& p0, Point3D const& p1, Point3D const& p2) : P0(p0), P1(p1), P2(p2) {}
 
 #pragma endregion
 

@@ -2626,6 +2626,98 @@ class TestBBall3D:
         assert b1 == b2
 
 
+# ─── BRect2D ─────────────────────────────────────────────────────────────────
+
+class TestBRect2D:
+    def test_empty_throws(self):
+        with pytest.raises(Exception):
+            geompp.BRect2D([])
+
+    def test_single_point_throws(self):
+        with pytest.raises(Exception):
+            geompp.BRect2D([geompp.Point2D(3, 4)])
+
+    def test_two_points_throws(self):
+        with pytest.raises(Exception):
+            geompp.BRect2D([geompp.Point2D(0, 0), geompp.Point2D(4, 0)])
+
+    def test_axis_aligned_rectangle_center(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        r = geompp.BRect2D(pts)
+        assert r.center.almost_equals(geompp.Point2D(2, 1))
+        assert approx(r.area, 8.0)
+        assert approx(r.width, 4.0)
+        assert approx(r.height, 2.0)
+
+    def test_all_points_contained(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(3, 0),
+               geompp.Point2D(3, 2), geompp.Point2D(0, 2),
+               geompp.Point2D(1, 0.5), geompp.Point2D(2, 1.5)]
+        r = geompp.BRect2D(pts)
+        for p in pts:
+            assert r.contains(p), f"OBB must contain input point {p}"
+
+    def test_axes_are_unit_vectors(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(2, 0),
+               geompp.Point2D(2, 1), geompp.Point2D(0, 1)]
+        r = geompp.BRect2D(pts)
+        assert approx(r.axis_u.length(), 1.0)
+        assert approx(r.axis_v.length(), 1.0)
+
+    def test_axes_orthogonal(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(3, 0),
+               geompp.Point2D(3, 2), geompp.Point2D(0, 2)]
+        r = geompp.BRect2D(pts)
+        assert approx(r.axis_u.dot(r.axis_v), 0.0)
+
+    def test_corners_returns_four_points(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        r = geompp.BRect2D(pts)
+        corners = r.corners()
+        assert len(corners) == 4
+        for c in corners:
+            assert r.contains(c)
+
+    def test_contains_center(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        r = geompp.BRect2D(pts)
+        assert r.contains(geompp.Point2D(2, 1))
+
+    def test_contains_boundary(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        r = geompp.BRect2D(pts)
+        assert r.contains(geompp.Point2D(0, 0))    # corner
+        assert r.contains(geompp.Point2D(4, 1))    # edge midpoint
+
+    def test_contains_outside(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        r = geompp.BRect2D(pts)
+        assert not r.contains(geompp.Point2D(5, 1))
+        assert not r.contains(geompp.Point2D(2, 3))
+
+    def test_almost_equals(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+               geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        r1 = geompp.BRect2D(pts)
+        r2 = geompp.BRect2D(pts)
+        assert r1.almost_equals(r2)
+        assert r1 == r2
+
+    def test_not_almost_equals_different(self):
+        pts1 = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+                geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        pts2 = [geompp.Point2D(0, 0), geompp.Point2D(6, 0),
+                geompp.Point2D(6, 2), geompp.Point2D(0, 2)]
+        r1 = geompp.BRect2D(pts1)
+        r2 = geompp.BRect2D(pts2)
+        assert not r1.almost_equals(r2)
+
+
 # ─── Plane ───────────────────────────────────────────────────────────────────
 
 class TestPlane:
@@ -3560,6 +3652,30 @@ class TestConvexHull3D:
         hull = geompp.convex_hull(pts, normal)
         assert len(hull) == 4
 
+    def test_non_coplanar_small_z_jitter(self):
+        pts = [geompp.Point3D(0, 0, 0.1), geompp.Point3D(4, 0, -0.1),
+               geompp.Point3D(4, 4, 0.05), geompp.Point3D(0, 4, -0.05),
+               geompp.Point3D(2, 2, 0.02)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 4, "interior point should be excluded"
+
+    def test_non_coplanar_tilted_plane(self):
+        pts = [geompp.Point3D(3, 0, 0), geompp.Point3D(0, 3, 0),
+               geompp.Point3D(0, 0, 3), geompp.Point3D(1, 1, 1)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 3, "three corners of the triangle, interior excluded"
+
+    def test_non_coplanar_all_hull_points_present(self):
+        tips = [geompp.Point3D(0, 5, 1), geompp.Point3D(4, 2, 0.5),
+                geompp.Point3D(3, -3, 0), geompp.Point3D(-2, -4, 0.5),
+                geompp.Point3D(-3, 1, 1)]
+        pts = tips + [geompp.Point3D(0, 0, 0.6)]
+        hull = geompp.convex_hull(pts)
+        assert len(hull) == 5
+        for tip in tips:
+            assert any(approx(h.x, tip.x) and approx(h.y, tip.y) and approx(h.z, tip.z)
+                       for h in hull), f"tip {tip} should be on hull"
+
 
 # --- Polygon2D.convex_hull / to_points ---
 class TestPolygon2DConvexHull:
@@ -3778,3 +3894,239 @@ class TestPrincipalAxes:
     def test_too_few_points_throws(self):
         with pytest.raises(Exception):
             geompp.principal_axes([geompp.Point3D(0,0,0), geompp.Point3D(1,0,0)])
+
+
+# ─── View2D ──────────────────────────────────────────────────────────────────
+
+class TestView2D:
+
+    # type
+    def test_type_xy(self):
+        assert geompp.View2D.xy().type == geompp.ProjectionType.XY
+
+    def test_type_yz(self):
+        assert geompp.View2D.yz().type == geompp.ProjectionType.YZ
+
+    def test_type_zx(self):
+        assert geompp.View2D.zx().type == geompp.ProjectionType.ZX
+
+    def test_type_custom(self):
+        v = geompp.View2D.on_plane(geompp.Plane.xy())
+        assert v.type == geompp.ProjectionType.Custom
+
+    # Point2D pass-through
+    def test_point2d_passthrough(self):
+        p = geompp.Point2D(3.0, 7.0)
+        v = geompp.View2D.xy()
+        assert approx(v.x(p), 3.0)
+        assert approx(v.y(p), 7.0)
+
+    # XY projection (drops Z)
+    def test_xy_x(self):
+        p = geompp.Point3D(1.0, 2.0, 99.0)
+        assert approx(geompp.View2D.xy().x(p), 1.0)
+
+    def test_xy_y(self):
+        p = geompp.Point3D(1.0, 2.0, 99.0)
+        assert approx(geompp.View2D.xy().y(p), 2.0)
+
+    # YZ projection (y→x, z→y, drops X)
+    def test_yz_x(self):
+        p = geompp.Point3D(99.0, 3.0, 4.0)
+        assert approx(geompp.View2D.yz().x(p), 3.0)
+
+    def test_yz_y(self):
+        p = geompp.Point3D(99.0, 3.0, 4.0)
+        assert approx(geompp.View2D.yz().y(p), 4.0)
+
+    # ZX projection (z→x, x→y, drops Y)
+    def test_zx_x(self):
+        p = geompp.Point3D(5.0, 99.0, 6.0)
+        assert approx(geompp.View2D.zx().x(p), 6.0)
+
+    def test_zx_y(self):
+        p = geompp.Point3D(5.0, 99.0, 6.0)
+        assert approx(geompp.View2D.zx().y(p), 5.0)
+
+    # Custom (on_plane)
+    def test_custom_on_xy_plane(self):
+        v = geompp.View2D.on_plane(geompp.Plane.xy())
+        p = geompp.Point3D(2.0, 5.0, 0.0)
+        assert approx(v.x(p), 2.0)
+        assert approx(v.y(p), 5.0)
+
+    def test_custom_with_offset(self):
+        plane = geompp.Plane.from_origin_and_normal(
+            geompp.Point3D(1.0, 1.0, 1.0), geompp.Vector3D(0.0, 0.0, 1.0))
+        v = geompp.View2D.on_plane(plane)
+        p = geompp.Point3D(3.0, 4.0, 1.0)  # offset from plane origin: (2, 3)
+        assert approx(v.x(p), 2.0)
+        assert approx(v.y(p), 3.0)
+
+    def test_custom_yz_matches_builtin(self):
+        custom = geompp.View2D.on_plane(geompp.Plane.yz())
+        builtin = geompp.View2D.yz()
+        p = geompp.Point3D(99.0, 7.0, 8.0)
+        assert approx(custom.x(p), builtin.x(p))
+        assert approx(custom.y(p), builtin.y(p))
+
+    # copy
+    def test_copy(self):
+        v1 = geompp.View2D.yz()
+        v2 = geompp.View2D(v1)
+        p = geompp.Point3D(1.0, 2.0, 3.0)
+        assert approx(v2.x(p), v1.x(p))
+        assert approx(v2.y(p), v1.y(p))
+
+    # bulk streaming (the main use-case)
+    def test_bulk_projection(self):
+        pts = [geompp.Point3D(1.0, 2.0, 10.0),
+               geompp.Point3D(3.0, 4.0, 20.0),
+               geompp.Point3D(5.0, 6.0, 30.0)]
+        v = geompp.View2D.xy()
+        xs = [v.x(p) for p in pts]
+        ys = [v.y(p) for p in pts]
+        assert xs == pytest.approx([1.0, 3.0, 5.0])
+        assert ys == pytest.approx([2.0, 4.0, 6.0])
+
+
+# ─── BPrism3D ──────────────────────────────────────────────────────────────────
+
+class TestBPrism3D:
+    def test_empty_throws(self):
+        with pytest.raises(Exception):
+            geompp.BPrism3D([])
+
+    def test_single_point_throws(self):
+        with pytest.raises(Exception):
+            geompp.BPrism3D([geompp.Point3D(3, 4, 5)])
+
+    def test_two_points_throws(self):
+        with pytest.raises(Exception):
+            geompp.BPrism3D([geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0)])
+
+    def test_axis_aligned_box(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p = geompp.BPrism3D(pts)
+        assert approx(p.volume, 24.0, eps=0.5)
+        for pt in pts:
+            assert p.contains(pt), f"prism must contain input point {pt}"
+
+    def test_flat_cloud_w_is_epsilon(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+        ]
+        p = geompp.BPrism3D(pts)
+        assert p.half_len_w > 0, "flat cloud must have non-zero w half-length"
+        assert approx(p.half_len_w, 0.001, eps=0.01)
+
+    def test_nonconvex_all_points_contained(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0),
+            geompp.Point3D(3, 2, 0), geompp.Point3D(0, 2, 0),
+            geompp.Point3D(1, 0.5, 1), geompp.Point3D(2, 1.5, 0.5),
+        ]
+        p = geompp.BPrism3D(pts)
+        for pt in pts:
+            assert p.contains(pt), f"prism must contain input point {pt}"
+
+    def test_axes_are_unit_vectors(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p = geompp.BPrism3D(pts)
+        assert approx(p.axis_u.length(), 1.0)
+        assert approx(p.axis_v.length(), 1.0)
+        assert approx(p.axis_w.length(), 1.0)
+
+    def test_axes_orthogonal(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p = geompp.BPrism3D(pts)
+        assert approx(p.axis_u.dot(p.axis_v), 0.0)
+        assert approx(p.axis_u.dot(p.axis_w), 0.0)
+        assert approx(p.axis_v.dot(p.axis_w), 0.0)
+
+    def test_width_height_depth_volume(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p = geompp.BPrism3D(pts)
+        assert approx(p.width, 2.0 * p.half_len_u)
+        assert approx(p.height, 2.0 * p.half_len_v)
+        assert approx(p.depth, 2.0 * p.half_len_w)
+        assert approx(p.volume, p.width * p.height * p.depth, eps=0.5)
+
+    def test_corners_eight_distinct_all_contained(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p = geompp.BPrism3D(pts)
+        corners = p.corners()
+        assert len(corners) == 8
+        for c in corners:
+            assert p.contains(c), "each corner must be inside the prism"
+
+    def test_contains_center(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p = geompp.BPrism3D(pts)
+        assert p.contains(p.center)
+
+    def test_contains_outside_false(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p = geompp.BPrism3D(pts)
+        assert not p.contains(geompp.Point3D(10, 10, 10))
+
+    def test_almost_equals(self):
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+            geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+            geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+        ]
+        p1 = geompp.BPrism3D(pts)
+        p2 = geompp.BPrism3D(pts)
+        assert p1.almost_equals(p2)
+        assert p1 == p2
+
+    def test_not_almost_equals_different(self):
+        pts1 = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+        ]
+        pts2 = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(6, 0, 0),
+            geompp.Point3D(6, 3, 0), geompp.Point3D(0, 3, 0),
+        ]
+        p1 = geompp.BPrism3D(pts1)
+        p2 = geompp.BPrism3D(pts2)
+        assert not p1.almost_equals(p2)

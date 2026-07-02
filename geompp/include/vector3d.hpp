@@ -18,9 +18,9 @@ class Vector3D {
   Vector3D(Vector3D&&) = default;
   ~Vector3D() = default;
 
-  double inline const x() const { return X; }
-  double inline const y() const { return Y; }
-  double inline const z() const { return Z; }
+  double x() const;
+  double y() const;
+  double z() const;
 
   Point3D ToPoint() const;
   double Length() const;
@@ -42,9 +42,9 @@ class Vector3D {
 
   Vector3D operator-() const;
 
-  static inline Vector3D BasisX() { return Vector3D(1, 0, 0); }
-  static inline Vector3D BasisY() { return Vector3D(0, 1, 0); }
-  static inline Vector3D BasisZ() { return Vector3D(0, 0, 1); }
+  static Vector3D BasisX();
+  static Vector3D BasisY();
+  static Vector3D BasisZ();
 
  private:
   double X, Y, Z;
@@ -68,6 +68,18 @@ Vector3D operator/(Vector3D const& lhs, Vector3D const& vec) = delete;
 Vector3D operator/(Vector3D const& lhs, double a);
 
 std::ostream& operator<<(std::ostream& os, Vector3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Vector3D::Vector3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
+inline double Vector3D::x() const { return X; }
+inline double Vector3D::y() const { return Y; }
+inline double Vector3D::z() const { return Z; }
+inline Vector3D Vector3D::BasisX() { return Vector3D(1, 0, 0); }
+inline Vector3D Vector3D::BasisY() { return Vector3D(0, 1, 0); }
+inline Vector3D Vector3D::BasisZ() { return Vector3D(0, 0, 1); }
 
 #pragma endregion
 

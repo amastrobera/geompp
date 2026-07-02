@@ -4,10 +4,11 @@
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
 
-#include <algorithm>
+#include "concepts.hpp"
+
+#include "view2d.hpp"
+
 #include <compare>
-#include <concepts>
-#include <functional>
 #include <optional>
 #include <queue>
 #include <vector>
@@ -19,14 +20,6 @@ class Polygon2D;
 class SegmentRange2D;
 
 std::partial_ordering compare_event_point(Point2D a, Point2D b);  // for ordering events in the sweep line algorithm
-
-// any container that exposes a count and indexed access to LineSegment2D-like elements
-template <typename Segments>
-concept SegmentList = requires(Segments const& s, std::size_t i) {
-  { s.size() } -> std::convertible_to<std::size_t>;
-  { s[i].First() } -> std::convertible_to<Point2D>;  // First()/Last() return Point2D const&
-  { s[i].Last() } -> std::convertible_to<Point2D>;
-};
 
 enum class EventType2D {
   UNKN = -1,
@@ -167,14 +160,53 @@ struct IntersectionEvent2D {
 template <SegmentList Segments>
 std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segments);
 
-std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
-                                                std::function<double(size_t)> get_y,
-                                                std::function<bool(size_t, size_t, size_t)> is_left);
+/// @brief the Andrew's Monotone Chain algorithm to make a convex hull (generic, index-based)
+/// @param points random-access range of Point2D or Point3D
+/// @param view   projects each point to 2D x/y coordinates
+/// @returns list of indices into `points` that form the convex hull in CCW order
+template <PointContainer Points>
+std::vector<std::size_t> convex_hull_monotone_chain(Points const& points, View2D const& view);
+
+extern template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point2D> const&, View2D const&);
+
+extern template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point3D> const&, View2D const&);
 
 /// @brief the Andrew's Monotone Chain algorithm to make a convex hull
 /// @param points cloud of points
 /// @returns list of indices of the points (from the original vector) that form a convex hull
 /// @throws algorithm based throw logic
 std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points);
+
+struct MinBoundingRectResult {
+  double u_axis_x, u_axis_y;   // unit edge direction (in View2D space)
+  double v_axis_x, v_axis_y;   // CCW perpendicular (in View2D space)
+  double half_len_u, half_len_v;
+  double center_u, center_v;   // center as offset from an arbitrary origin (in u,v local coords)
+  // The center in the 2D projection is: origin + center_u * u_axis + center_v * v_axis
+  // where origin is the first hull point (p0 of the best edge).
+  // For the caller to recover the 2D center:
+  //   center_2d_x = origin_x + center_u * u_axis_x + center_v * v_axis_x
+  //   center_2d_y = origin_y + center_u * u_axis_y + center_v * v_axis_y
+  double origin_x, origin_y;   // origin point (first point of best edge) in View2D x,y space
+};
+
+/// @brief Rotating calipers (Freeman & Shapira 1975 / Toussaint 1983) on a convex hull.
+/// Projects points through `view` into 2D, computes the minimum-area bounding rectangle.
+/// Requires at least 3 non-degenerate points with a valid convex hull.
+/// @param hull_indices indices of convex hull points in CCW order (from convex_hull_monotone_chain)
+/// @param points the original point container
+/// @param view 2D projection used for x/y extraction
+/// @returns MinBoundingRectResult with axes, half-lengths, and center in View2D 2D space
+template <PointContainer Points>
+MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices,
+                                        Points const& points,
+                                        View2D const& view);
+
+extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&,
+                                                        std::vector<Point2D> const&,
+                                                        View2D const&);
+extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&,
+                                                        std::vector<Point3D> const&,
+                                                        View2D const&);
 
 }  // namespace geompp

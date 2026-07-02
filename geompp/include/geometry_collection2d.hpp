@@ -32,7 +32,7 @@ class GeometryCollection2D {
 
 #pragma region Getters And Setters
 
-  inline std::size_t Size() const { return GEOMETRIES.size(); }
+  std::size_t Size() const;
 
   void Add(Point2D const& point);
   void Add(Line2D const& line);
@@ -70,6 +70,12 @@ class GeometryCollection2D {
 bool operator==(GeometryCollection2D const& lhs, GeometryCollection2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, GeometryCollection2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline std::size_t GeometryCollection2D::Size() const { return GEOMETRIES.size(); }
 
 #pragma endregion
 

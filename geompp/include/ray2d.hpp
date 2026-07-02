@@ -21,8 +21,8 @@ class Ray2D {
   Ray2D(Ray2D&&) = default;
   ~Ray2D() = default;
 
-  inline Point2D const& Origin() const { return ORIGIN; }
-  inline Vector2D const& Direction() const { return DIR; }
+  Point2D const& Origin() const;
+  Vector2D const& Direction() const;
   bool AlmostEquals(Ray2D const& other, double epsilon = DOUBLE_EPSILON) const;
 
   /// @brief Tests whether a point lies on the half-space ahead of (or at) the ray's origin along its direction.
@@ -113,6 +113,14 @@ class Ray2D {
 bool operator==(Ray2D const& lhs, Ray2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Ray2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point2D const& Ray2D::Origin() const { return ORIGIN; }
+inline Vector2D const& Ray2D::Direction() const { return DIR; }
+inline Ray2D::Ray2D(Point2D const& orig, Vector2D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
 #pragma endregion
 

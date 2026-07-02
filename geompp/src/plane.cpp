@@ -10,7 +10,6 @@
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <unordered_set>
 
 namespace geompp {
 
@@ -66,9 +65,9 @@ double Plane::DistanceTo(Point3D const& p) const { return std::abs(SignedDistanc
 Point3D Plane::ProjectOnto(Point3D const& p) const { return p - SignedDistanceTo(p) * Normal; }
 
 Point2D Plane::ProjectInto(Point3D const& p) const {
-  auto pproj = ProjectOnto(p);
-  double u = (pproj - Origin).Dot(AxisU);
-  double v = (pproj - Origin).Dot(AxisV);
+  auto p_to_orig = p - Origin;
+  double u = p_to_orig.Dot(AxisU);
+  double v = p_to_orig.Dot(AxisV);
   return {u, v};
 }
 

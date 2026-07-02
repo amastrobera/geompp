@@ -16,8 +16,8 @@ Pre-built wheels are available for:
 
 | Platform | Python versions |
 |---|---|
-| Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 |
-| Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 |
+| Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
+| Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
 
 If your platform or Python version is not in the table above, pip will compile
 from source — you will need CMake ≥ 3.15 and a C++20-capable compiler.
@@ -42,8 +42,11 @@ You can look at the [test suite](./tests/) to see detailed usage. There also is 
 | Polygon2D | Polygon3D |
 | BBox2D | BBox3D |
 | BBall2D | BBall3D |
+| BRect2D | |
+| | BPrism3D |
 | GeometryCollection2D | GeometryCollection3D |
 | | Plane |
+| View2D | |
 
 ## Free functions
 
@@ -65,3 +68,69 @@ You can look at the [test suite](./tests/) to see detailed usage. There also is 
 | `principal_axes(points)` | PCA on a `list[Point3D]`: returns `CoordinateFrame` (`.x` primary, `.y` secondary, `.z` best-fit normal) |
 | `principal_normal(points)` | Best-fit plane normal of a `list[Point3D]` (PCA eigenvector with smallest eigenvalue) |
 | `principal_direction(points)` | Dominant direction of a `list[Point3D]` (PCA eigenvector with largest eigenvalue) |
+
+## Planar operations
+
+`View2D` projects 3D points into 2D coordinates via `.x(point)` / `.y(point)`. It is particularly
+useful for streaming large containers of `Point3D` without allocating an intermediate list of
+`Point2D` — each call reads one or two scalar coordinates directly.
+
+```python
+from geompp import View2D, ProjectionType, Plane, Point3D, Vector3D
+
+# axis-aligned views (fastest path)
+v_xy = View2D.xy()   # x→x, y→y (drops z)
+v_yz = View2D.yz()   # y→x, z→y (drops x)
+v_zx = View2D.zx()   # z→x, x→y (drops y)
+
+# custom view onto any plane
+plane = Plane.from_origin_and_normal(Point3D(0, 0, 5), Vector3D(0, 0, 1))
+v_custom = View2D.on_plane(plane)
+
+pts3d = [Point3D(1, 2, 5), Point3D(3, 4, 5), Point3D(5, 6, 5)]
+
+# stream 3D points to 2D without building a Point2D list
+xs = [v_xy.x(p) for p in pts3d]  # [1.0, 3.0, 5.0]
+ys = [v_xy.y(p) for p in pts3d]  # [2.0, 4.0, 6.0]
+
+print(v_xy.type)  # ProjectionType.XY
+```
+
+## Bounding containers
+
+`BRect2D` — minimum oriented bounding rectangle (rotating calipers; requires ≥ 3 non-collinear points):
+
+```python
+import geompp
+
+pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 3),
+       geompp.Point2D(2, 4), geompp.Point2D(0, 3)]
+rect = geompp.BRect2D(pts)
+print(rect.center)                       # Point2D(2.0, 1.75)
+print(rect.axis_u, rect.axis_v)          # unit vectors along the OBB edges
+print(rect.width, rect.height)
+print(rect.area)
+corners = rect.corners()                 # list of 4 Point2D
+print(rect.contains(geompp.Point2D(2, 1)))  # True
+```
+
+`BPrism3D` — minimum oriented bounding prism (PCA + rotating calipers; requires ≥ 3 non-collinear points):
+
+```python
+import geompp
+
+pts = [
+    geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+    geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+    geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+    geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
+]
+prism = geompp.BPrism3D(pts)
+print(prism.center)                      # roughly Point3D(2, 1.5, 1)
+print(prism.axis_u, prism.axis_v, prism.axis_w)  # orthonormal frame
+print(prism.width, prism.height, prism.depth)     # 4.0, 3.0, 2.0
+print(prism.volume)                      # ~24.0
+corners = prism.corners()                # list of 8 Point3D
+print(prism.contains(geompp.Point3D(2, 1.5, 1)))  # True
+print(prism.almost_equals(geompp.BPrism3D(pts)))   # True
+```

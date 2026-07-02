@@ -3,7 +3,6 @@
 #include "constants.hpp"
 #include "point3d.hpp"
 #include "segment_iterator3d.hpp"
-#include "vector3d.hpp"
 
 #include <optional>
 #include <ostream>
@@ -28,12 +27,12 @@ class Polyline3D {
   Polyline3D(Polyline3D&&) = default;
   ~Polyline3D() = default;
 
-  inline int Size() const { return KNOTS.size(); }
+  int Size() const;
   Point3D const& operator[](std::size_t i) const;
 
   bool AlmostEquals(Polyline3D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange3D ToSegments() const;
-  inline double Length() const { return LENGTH; }
+  double Length() const;
 
 #pragma region line operations
 
@@ -154,6 +153,15 @@ class Polyline3D {
 bool operator==(Polyline3D const& lhs, Polyline3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Polyline3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline int Polyline3D::Size() const { return KNOTS.size(); }
+inline SegmentRange3D Polyline3D::ToSegments() const { return SegmentRange3D(KNOTS); }
+inline double Polyline3D::Length() const { return LENGTH; }
+inline Polyline3D::Polyline3D(std::vector<Point3D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 #pragma endregion
 

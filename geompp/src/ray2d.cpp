@@ -1,6 +1,5 @@
 #include "ray2d.hpp"
 
-#include "constants.hpp"
 #include "geompp_log.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
@@ -20,8 +19,6 @@ Ray2D Ray2D::Make(Point2D const& p0, Vector2D const& dir) {
   }
   return {p0, dir};
 }
-
-Ray2D::Ray2D(Point2D const& orig, Vector2D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
 Ray2D& Ray2D::operator=(Ray2D const& other) {
   if (this != &other) {

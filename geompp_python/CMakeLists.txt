@@ -4,8 +4,6 @@ project(geompp_python LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(GEOMPP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../geompp")
-
 # ─── pybind11 ────────────────────────────────────────────────────────────────
 # Prefer an installed copy; fall back to FetchContent.
 find_package(pybind11 2.11 CONFIG QUIET)
@@ -19,39 +17,6 @@ if(NOT pybind11_FOUND)
     )
     FetchContent_MakeAvailable(pybind11)
 endif()
-
-# ─── geompp sources (only needed in standalone / pip-install mode) ────────────
-set(GEOMPP_SOURCES
-    ${GEOMPP_ROOT}/src/constants.cpp
-    ${GEOMPP_ROOT}/src/geompp_log.cpp
-    ${GEOMPP_ROOT}/src/utils.cpp
-    ${GEOMPP_ROOT}/src/wkt_parser.cpp
-    ${GEOMPP_ROOT}/src/point2d.cpp
-    ${GEOMPP_ROOT}/src/vector2d.cpp
-    ${GEOMPP_ROOT}/src/line2d.cpp
-    ${GEOMPP_ROOT}/src/ray2d.cpp
-    ${GEOMPP_ROOT}/src/line_segment2d.cpp
-    ${GEOMPP_ROOT}/src/polyline2d.cpp
-    ${GEOMPP_ROOT}/src/triangle2d.cpp
-    ${GEOMPP_ROOT}/src/polygon2d.cpp
-    ${GEOMPP_ROOT}/src/bbox2d.cpp
-    ${GEOMPP_ROOT}/src/bball2d.cpp
-    ${GEOMPP_ROOT}/src/calc_utils2d.cpp
-    ${GEOMPP_ROOT}/src/point3d.cpp
-    ${GEOMPP_ROOT}/src/vector3d.cpp
-    ${GEOMPP_ROOT}/src/line3d.cpp
-    ${GEOMPP_ROOT}/src/line_segment3d.cpp
-    ${GEOMPP_ROOT}/src/polyline3d.cpp
-    ${GEOMPP_ROOT}/src/ray3d.cpp
-    ${GEOMPP_ROOT}/src/plane.cpp
-    ${GEOMPP_ROOT}/src/triangle3d.cpp
-    ${GEOMPP_ROOT}/src/polygon3d.cpp
-    ${GEOMPP_ROOT}/src/bbox3d.cpp
-    ${GEOMPP_ROOT}/src/bball3d.cpp
-    ${GEOMPP_ROOT}/src/geometry_collection2d.cpp
-    ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
-    ${GEOMPP_ROOT}/src/calc_utils3d.cpp
-)
 
 # ─── Binding sources (one file per class) ─────────────────────────────────────
 set(BINDING_SOURCES
@@ -77,26 +42,35 @@ set(BINDING_SOURCES
     src/bind_bbox3d.cpp
     src/bind_bball2d.cpp
     src/bind_bball3d.cpp
+    src/bind_brect2d.cpp
+    src/bind_bprism3d.cpp
     src/bind_plane.cpp
     src/bind_wktparser.cpp
     src/bind_free_functions.cpp
     src/bind_geometry_collection2d.cpp
     src/bind_geometry_collection3d.cpp
+    src/bind_view2d.cpp
 )
 
 # ─── Python extension module ─────────────────────────────────────────────────
-# Two modes:
+# Three build modes:
 #
-#  • Parent-CMake mode  (-DBUILD_PYTHON=ON from root):
+#  • Parent-CMake mode  (-DBUILD_PYTHON=ON from monorepo root):
 #      The `geompp` static-library target already exists. Link against it so
-#      we don't recompile 23 source files and glog a second time.
+#      we don't recompile sources and glog a second time.
 #
-#  • Standalone mode  (pip install ./geompp_python):
-#      No parent target. Compile geompp sources directly into the extension
-#      and fetch glog ourselves.
+#  • Monorepo standalone  (pip install ./geompp_python or pip install -e .):
+#      No parent `geompp` target, but the sibling ../geompp/ directory is
+#      present. Compile those sources directly into the extension.
+#
+#  • sdist standalone  (pip install geompp from PyPI tarball):
+#      No parent target and no ../geompp/ sibling (the sdist doesn't bundle
+#      the core C++ library). Fetch the matching version from GitHub and
+#      compile it directly into the extension. Requires network access.
 #
 if(TARGET geompp)
     # ── parent mode ──────────────────────────────────────────────────────────
+    set(GEOMPP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../geompp")
     message(STATUS "geompp_python: linking against existing `geompp` target")
 
     pybind11_add_module(_geompp NO_EXTRAS ${BINDING_SOURCES})
@@ -108,6 +82,73 @@ else()
     # ── standalone mode ───────────────────────────────────────────────────────
     message(STATUS "geompp_python: standalone build — compiling geompp sources into extension")
 
+    # ── Resolve geompp core location ─────────────────────────────────────────
+    # Try the sibling directory first (works for a monorepo checkout).
+    # If it is absent (sdist build), fetch the core sources from GitHub.
+    set(GEOMPP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../geompp")
+    if(NOT EXISTS "${GEOMPP_ROOT}/src/constants.cpp")
+        message(STATUS "geompp_python: geompp core not found at ${GEOMPP_ROOT}")
+        message(STATUS "geompp_python: fetching geompp core from GitHub (sdist build)...")
+
+        # Pin the git tag to match the Python package version.
+        # Override with -DGEOMPP_CORE_GIT_TAG=<tag> if you need a specific release.
+        set(GEOMPP_CORE_GIT_TAG "master" CACHE STRING
+            "geompp core git tag/branch to fetch when building from the sdist")
+
+        include(FetchContent)
+        FetchContent_Declare(
+            geompp_core
+            GIT_REPOSITORY https://github.com/amastrobera/geompp.git
+            GIT_TAG        ${GEOMPP_CORE_GIT_TAG}
+            GIT_SHALLOW    TRUE
+        )
+        FetchContent_GetProperties(geompp_core)
+        if(NOT geompp_core_POPULATED)
+            FetchContent_Populate(geompp_core)
+        endif()
+        # The monorepo lays out geompp/geompp/{include,src}, so the core is one
+        # level down from the repo root.
+        set(GEOMPP_ROOT "${geompp_core_SOURCE_DIR}/geompp")
+        message(STATUS "geompp_python: using fetched geompp core at ${GEOMPP_ROOT}")
+    endif()
+
+    # ── geompp sources ────────────────────────────────────────────────────────
+    set(GEOMPP_SOURCES
+        ${GEOMPP_ROOT}/src/constants.cpp
+        ${GEOMPP_ROOT}/src/geompp_log.cpp
+        ${GEOMPP_ROOT}/src/utils.cpp
+        ${GEOMPP_ROOT}/src/wkt_parser.cpp
+        ${GEOMPP_ROOT}/src/point2d.cpp
+        ${GEOMPP_ROOT}/src/vector2d.cpp
+        ${GEOMPP_ROOT}/src/line2d.cpp
+        ${GEOMPP_ROOT}/src/ray2d.cpp
+        ${GEOMPP_ROOT}/src/line_segment2d.cpp
+        ${GEOMPP_ROOT}/src/polyline2d.cpp
+        ${GEOMPP_ROOT}/src/triangle2d.cpp
+        ${GEOMPP_ROOT}/src/polygon2d.cpp
+        ${GEOMPP_ROOT}/src/bbox2d.cpp
+        ${GEOMPP_ROOT}/src/bball2d.cpp
+        ${GEOMPP_ROOT}/src/brect2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils2d.cpp
+        ${GEOMPP_ROOT}/src/point3d.cpp
+        ${GEOMPP_ROOT}/src/vector3d.cpp
+        ${GEOMPP_ROOT}/src/line3d.cpp
+        ${GEOMPP_ROOT}/src/line_segment3d.cpp
+        ${GEOMPP_ROOT}/src/polyline3d.cpp
+        ${GEOMPP_ROOT}/src/ray3d.cpp
+        ${GEOMPP_ROOT}/src/plane.cpp
+        ${GEOMPP_ROOT}/src/triangle3d.cpp
+        ${GEOMPP_ROOT}/src/polygon3d.cpp
+        ${GEOMPP_ROOT}/src/bbox3d.cpp
+        ${GEOMPP_ROOT}/src/bball3d.cpp
+        ${GEOMPP_ROOT}/src/bprism3d.cpp
+        ${GEOMPP_ROOT}/src/geometry_collection2d.cpp
+        ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils3d.cpp
+        ${GEOMPP_ROOT}/src/view2d.cpp
+    )
+
+    # ── glog ─────────────────────────────────────────────────────────────────
     if(NOT TARGET glog::glog)
         include(FetchContent)
         FetchContent_Declare(
@@ -130,6 +171,15 @@ endif()
 # Windows: suppress min/max macros from <windows.h>
 if(WIN32)
     target_compile_definitions(_geompp PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
+# Link-Time Optimization (Release builds only)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT _ipo_supported OUTPUT _ipo_err)
+if(_ipo_supported)
+    set_property(TARGET _geompp PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+else()
+    message(STATUS "geompp_python: LTO not supported: ${_ipo_err}")
 endif()
 
 # ─── Post-build: copy extension into package directory ───────────────────────

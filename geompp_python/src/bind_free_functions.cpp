@@ -138,8 +138,9 @@ void bind_free_functions(py::module_& m) {
               return geompp::convex_hull(pts, normal);
           },
           "points"_a, "normal"_a = py::none(),
-          "Andrew's monotone chain: convex hull of coplanar 3D points, returned in CCW order. "
-          "Normal is auto-detected if omitted.");
+          "Andrew's monotone chain: convex hull of 3D points, returned in CCW order. "
+          "Points do not need to be coplanar — when normal is omitted, the best-fit plane "
+          "is estimated via PCA (Jacobi eigendecomposition).");
 
     m.def("principal_axes",
           [](const std::vector<geompp::Point3D>& pts) { return geompp::principal_axes(pts); },

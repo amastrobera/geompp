@@ -20,19 +20,14 @@
 #include "triangle3d.hpp"
 #include "vector3d.hpp"
 
-#include <concepts>
+#include "concepts.hpp"
+
 #include <fstream>
 #include <optional>
 #include <string>
 #include <variant>
 
 namespace geompp {
-
-template <typename T>
-concept WktSerializable = requires(const T& obj, const std::string& wkt) {
-  { obj.ToWkt() } -> std::convertible_to<std::string>;
-  { T::FromWkt(wkt) } -> std::same_as<T>;
-};
 
 template <WktSerializable... Ts>
 using WktVariant = std::variant<Ts...>;

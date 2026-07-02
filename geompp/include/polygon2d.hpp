@@ -3,12 +3,10 @@
 #include "constants.hpp"
 #include "point2d.hpp"
 #include "segment_iterator2d.hpp"
-#include "vector2d.hpp"
 
 #include <optional>
 #include <ostream>
 #include <string>
-#include <tuple>
 #include <variant>
 
 namespace geompp {
@@ -112,6 +110,17 @@ class Polygon2D {
 bool operator==(Polygon2D const& lhs, Polygon2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Polygon2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline std::size_t Polygon2D::Size() const { return VERTICES.size(); }
+inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter)
+    : VERTICES(points), HOLES{}, PERIMETER(perimeter) {}
+inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,
+                            std::vector<std::vector<Point2D>> const& holes)
+    : VERTICES(points), HOLES(holes), PERIMETER(perimeter) {}
 
 #pragma endregion
 

@@ -31,9 +31,6 @@ Line3D Line3D::Make(Point3D const& p0, Vector3D const& dir) {
   return {p0, dir};
 }
 
-Line3D::Line3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
-
-Line3D::Line3D(Point3D const& orig, Vector3D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
 
 Line3D& Line3D::operator=(Line3D const& other) {
   if (this != &other) {

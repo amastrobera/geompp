@@ -23,10 +23,10 @@ class Line2D {
   Line2D(Line2D&&) = default;
   ~Line2D() = default;
 
-  inline Point2D const& First() const { return P0; }
-  inline Point2D const& Last() const { return P1; }
-  inline Point2D const& Origin() const { return P0; }
-  inline Vector2D const& Direction() const { return DIR; }
+  Point2D const& First() const;
+  Point2D const& Last() const;
+  Point2D const& Origin() const;
+  Vector2D const& Direction() const;
 
   bool AlmostEquals(Line2D const& other, double epsilon = DOUBLE_EPSILON) const;
 
@@ -118,6 +118,17 @@ class Line2D {
 bool operator==(Line2D const& lhs, Line2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Line2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point2D const& Line2D::First() const { return P0; }
+inline Point2D const& Line2D::Last() const { return P1; }
+inline Point2D const& Line2D::Origin() const { return P0; }
+inline Vector2D const& Line2D::Direction() const { return DIR; }
+inline Line2D::Line2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
+inline Line2D::Line2D(Point2D const& orig, Vector2D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
 
 #pragma endregion
 

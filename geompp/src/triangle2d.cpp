@@ -41,8 +41,6 @@ Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const&
   return {p0, p1, p2};
 }
 
-Triangle2D::Triangle2D(Point2D const& p0, Point2D const& p1, Point2D const& p2) : P0(p0), P1(p1), P2(p2) {}
-
 Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
   if (this != &other) {
     P0 = other.P0;

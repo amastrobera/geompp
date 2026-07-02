@@ -1,7 +1,6 @@
 #include "ray3d.hpp"
 
 #include "calc_utils3d.hpp"
-#include "constants.hpp"
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
 #include "utils.hpp"
@@ -22,8 +21,6 @@ Ray3D Ray3D::Make(Point3D const& p0, Vector3D const& dir) {
   }
   return {p0, dir};
 }
-
-Ray3D::Ray3D(Point3D const& orig, Vector3D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
 Ray3D& Ray3D::operator=(Ray3D const& other) {
   if (this != &other) {

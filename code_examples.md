@@ -2,9 +2,9 @@
 
 ## Examples
 
-  ### Creation and I/O operations
+  ### 1. Creation and I/O operations
 
-  #### Create geometries programmatically
+  #### 1.1 Create geometries programmatically
   ```cpp
   // This will be the precision used by all functions, in all threads, for this
   // run of the program, and it can be modified in later code anytime.
@@ -41,7 +41,7 @@
   ```
 
 
-  #### Import geometries from a file
+  #### 1.2 Import geometries from a file
   ```cpp
   std::string const lsv_path = "sample_geometries.lsv";
   //   POINT (1 2 3)
@@ -74,7 +74,7 @@
   will print out exactly the list of geometries above.
 
 
-  ### Containment
+  ### 2. Containment
 
   `Triangle3D::Contains(p)` and `Polygon2D/3D::Contains(p)` test whether a point lies inside a shape
   using barycentric coordinates and the winding number, respectively.
@@ -125,7 +125,7 @@
   ```
 
 
-  ### Intersections
+  ### 3. Intersections
 
   Intersection methods return `std::optional<std::variant<...>>` — callers pattern-match on the exact
   geometry without casting. `find_intersections(segments)` (Bentley–Ottmann) reports all crossing
@@ -173,9 +173,9 @@
   ```
 
 
-  ### Planar operations
+  ### 4. Planar operations
 
-  #### Coplanarity, winding order, and polygon with holes
+  #### 4.1 Coplanarity, winding order, and polygon with holes
   ```cpp
   g::DECIMAL_PRECISION = g::DP_THREE;
 
@@ -212,7 +212,7 @@
   ```
 
 
-  #### Projecting points onto a plane
+  #### 4.2 Projecting points onto a plane
 
   `Plane::ProjectOnto(p)` returns the perpendicular projection in 3D world coordinates.
   `Plane::ProjectInto(p)` maps the same projected point into the plane's local 2D frame.
@@ -246,7 +246,7 @@
   ```
 
 
-  #### Planar vs non-planar Polyline3D
+  #### 4.3 Planar vs non-planar Polyline3D
 
   `Polyline3D::IsPlanar()` checks whether all knots lie in a common plane. Only planar polylines support
   `IsSimple()`, `IsConvex()`, `ConvexHull()`, and `ToPolygon()` — call `IsPlanar()` first.
@@ -299,7 +299,45 @@
   ```
 
 
-  ### PCA on a 3D point cloud
+  #### 4.4 View2D — streaming 3D points to 2D
+
+  `View2D` maps 3D points to 2D scalars via `x()` / `y()` getters without allocating an intermediate
+  `Point2D` container. Axis-aligned views (`XY`, `YZ`, `ZX`) are the fastest path — just a direct
+  coordinate read. `OnPlane` computes dot products against the plane's local axes.
+
+  ```cpp
+  #include "view2d.hpp"
+  #include "plane.hpp"
+
+  namespace g = geompp;
+
+  // Axis-aligned views (fast path — single coordinate read)
+  auto v_xy = g::View2D::XY();   // x→x, y→y (drops z)
+  auto v_yz = g::View2D::YZ();   // y→x, z→y (drops x)
+  auto v_zx = g::View2D::ZX();   // z→x, x→y (drops y)
+
+  // Custom view onto any plane
+  auto plane    = g::Plane::FromOriginAndNormal({0, 0, 5}, {0, 0, 1});
+  auto v_custom = g::View2D::OnPlane(plane);
+
+  std::vector<g::Point3D> pts3d = {{1, 2, 5}, {3, 4, 5}, {5, 6, 5}};
+
+  // Stream 3D points to 2D without allocating a Point2D container
+  for (auto const& p : pts3d) {
+      double u = v_xy.x(p);   // 1.0 / 3.0 / 5.0
+      double w = v_xy.y(p);   // 2.0 / 4.0 / 6.0
+      GEOMPP_LOG(INFO) << "(" << u << ", " << w << ")";
+  }
+  ```
+
+  ```bash
+  (1, 2)
+  (3, 4)
+  (5, 6)
+  ```
+
+
+  ### 5. PCA on a 3D point cloud
 
   `principal_axes(points)` runs PCA (Jacobi eigen decomposition on the 3×3 covariance matrix) and returns
   a `CoordinateFrame` — three orthonormal axes sorted by variance: `X` is the direction of most spread,
@@ -336,9 +374,9 @@
   ```
 
 
-  ### Bounding containers
+  ### 6. Bounding containers
 
-  #### Simple containers for quick rejection 
+  #### 6.1 Simple containers for quick rejection 
 
   `BBox3D` gives the tight axis-aligned box; `BBall3D` (Ritter 1990) gives an approximate
   minimum enclosing sphere — both accept any cloud of points.
@@ -388,9 +426,9 @@
   ball contains (3 1 1): 1
   ```
 
-  #### Convex hull
+  #### 6.2 Convex hull
 
-  ##### Convex hull of a point cloud
+  ##### 6.2.1 Convex hull of a point cloud
 
   `convex_hull(points)` (Andrew's monotone chain) wraps any point cloud into its tightest convex polygon:
 
@@ -426,10 +464,31 @@
     POINT (-2 -4)
   ```
 
+  For 3D point clouds, `convex_hull(points)` also works — points do **not** need to be perfectly
+  coplanar. When no explicit normal is provided, the best-fit plane is estimated via PCA
+  (Jacobi eigendecomposition), and the hull is computed on the projection onto that plane.
+  You can also pass an explicit normal if known: `convex_hull(points, normal)`.
+
+  ```cpp
+  #include "point3d.hpp"
+
+  namespace g = geompp;
+
+  // Nearly-coplanar cloud with small Z jitter
+  std::vector<g::Point3D> cloud = {
+      g::Point3D(0, 0, 0.1), g::Point3D(4, 0, -0.1),
+      g::Point3D(4, 4, 0.05), g::Point3D(0, 4, -0.05),
+      g::Point3D(2, 2, 0.02),  // interior
+  };
+
+  auto hull = g::convex_hull(cloud);  // PCA detects near-XY plane, projects, computes hull
+  GEOMPP_LOG(INFO) << "3D hull has " << hull.size() << " vertices";  // 4 — interior point excluded
+  ```
+
   (CCW order, starting from the lexicographically smallest point)
 
 
-  ##### Convex hull of a polygon
+  ##### 6.2.2 Convex hull of a polygon
 
   `Polygon2D` and `Polygon3D` expose a `ConvexHull()` method that wraps the free function:
 
@@ -469,7 +528,7 @@
   ```
 
 
-  ##### Convex hull of a simple polyline
+  ##### 6.2.3 Convex hull of a simple polyline
 
   `Polyline2D::ConvexHull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `IsSimple()` first.
 
@@ -493,3 +552,54 @@
   ```bash
   hull has 4 vertices
   ```
+
+
+  #### 6.3 Oriented Minimum Bounding Rectangle
+
+  `BRect2D` computes the **tightest** axis-aligned-to-input rectangle that encloses a point cloud.
+  It is defined by a center point, two orthogonal unit axes (`axis_u`, `axis_v`), and two half-lengths
+  (`half_len_u`, `half_len_v`).
+
+  **Algorithm**: Freeman & Shapira (1975) / Toussaint (1983) rotating calipers.
+  1. Compute the convex hull of the input cloud (Andrew's monotone chain, O(n log n)).
+  2. For each hull edge, project all hull vertices onto the edge direction and its perpendicular.
+  3. The rectangle aligned with that edge has width = max − min along the edge and height = max − min
+     along the perpendicular.
+  4. Track the edge orientation that minimises area; the center is the midpoint of the extents.
+
+  This guarantees a minimum-area rectangle with one side flush with a hull edge.
+
+  ```cpp
+  #include "brect2d.hpp"
+
+  namespace g = geompp;
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // An asymmetric pentagon
+  std::vector<g::Point2D> pts = {
+      g::Point2D(0, 0), g::Point2D(4, 0),
+      g::Point2D(5, 2), g::Point2D(2, 4),
+      g::Point2D(-1, 2),
+  };
+
+  auto r = g::BRect2D(pts);
+
+  GEOMPP_LOG(INFO) << "center:     " << r.center().ToWkt();
+  GEOMPP_LOG(INFO) << "axis_u:     " << r.axis_u().ToWkt();
+  GEOMPP_LOG(INFO) << "half_u:     " << r.half_len_u();
+  GEOMPP_LOG(INFO) << "half_v:     " << r.half_len_v();
+  GEOMPP_LOG(INFO) << "area:       " << r.area();
+  GEOMPP_LOG(INFO) << "contains (2 2): " << r.Contains(g::Point2D(2, 2));  // 1
+  GEOMPP_LOG(INFO) << "contains (9 0): " << r.Contains(g::Point2D(9, 0));  // 0
+
+  auto corners = r.Corners();
+  GEOMPP_LOG(INFO) << "corners (" << corners.size() << "):";
+  for (auto const& c : corners)
+      GEOMPP_LOG(INFO) << "  " << c.ToWkt();
+  ```
+
+  `Corners()` returns the four corners in CCW order; each is guaranteed to be `Contains()`-true.
+
+  The `Contains()` test projects the query point onto the local axes and checks both projections
+  against the half-lengths — O(1) per query.

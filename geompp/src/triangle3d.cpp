@@ -46,8 +46,6 @@ Triangle3D Triangle3D::Make(Point3D const& p0, Point3D const& p1, Point3D const&
   return {p0, p1, p2};
 }
 
-Triangle3D::Triangle3D(Point3D const& p0, Point3D const& p1, Point3D const& p2) : P0(p0), P1(p1), P2(p2) {}
-
 Triangle3D& Triangle3D::operator=(Triangle3D const& other) {
   if (this != &other) {
     P0 = other.P0;

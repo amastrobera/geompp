@@ -116,12 +116,6 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
   return {unique_points, perimeter, unique_holes_points};
 }
 
-Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter) : VERTICES(points), PERIMETER(perimeter) {}
-
-Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,
-                     std::vector<std::vector<Point2D>> const& holes)
-    : VERTICES(points), HOLES(holes), PERIMETER(perimeter) {}
-
 Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   if (this != &other) {
     VERTICES = other.VERTICES;
@@ -130,8 +124,6 @@ Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   }
   return *this;
 }
-
-std::size_t Polygon2D::Size() const { return VERTICES.size(); }
 
 bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
   // size comparison of loops

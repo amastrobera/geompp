@@ -3,6 +3,7 @@
 #include "calc_utils2d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
+#include "view2d.hpp"
 
 #include "geompp_log.hpp"
 
@@ -111,106 +112,56 @@ std::optional<Point3D> intersection_line_to_line(Point3D const& L1_P0, Point3D c
   return std::nullopt;
 }
 
-std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points, std::optional<Vector3D> normal) {
+std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points, Vector3D normal) {
   if (points.size() < 3) {
     throw std::invalid_argument("less than 3 points");
   }
 
-  // TODO: can this block become a function that makes sense to use ?
-  //       Vector3D make_normal_or_throw(std::vector<Point3D> const& cloud_of_coplanar_points);
-  if (!normal) {
-    auto no_col_pts = remove_collinear(points);
-    if (no_col_pts.size() < 3) {
-      throw std::invalid_argument("less than 3 non collinear points");
-    }
-
-    Vector3D calc_normal = (no_col_pts[1] - no_col_pts[0]).Cross(no_col_pts[2] - no_col_pts[0]);
-
-    std::size_t n = no_col_pts.size();
-    if (n > 3) {
-      for (std::size_t i = 3; i < n + 1; ++i) {
-        auto p0 = no_col_pts[(i - 2) % n];
-        auto p1 = no_col_pts[(i - 1) % n];
-        auto p2 = no_col_pts[i % n];
-
-        // performance note: here we try to assess if all points are on the same plane - that is - all normals are equal
-        //  I would have used .Normalize() and compare pairs of normals but that would require 3 sqrt() calls each time
-        //  It is faster to use a cross product of the two calculated normals and check if they cross to a null vector
-        //  (if they don't they aren't on the same plane)
-        auto temp_norm = (p1 - p0).Cross(p2 - p0);
-        if (!calc_normal.Cross(temp_norm).AlmostEquals(Vector3D{0, 0, 0})) {
-          throw std::invalid_argument("points are not co-planar");
-        }
-      }
-    }
-
-    if (calc_normal.AlmostEquals(Vector3D{0, 0, 0})) {
-      throw std::logic_error("failed to calculate points normal");
-    }
-
-    normal = calc_normal;
-  }
-
-  auto dax = normal->DominantAxis();
+  auto dax = normal.DominantAxis();
 
   switch (dax) {
     case Axis::X:
-      // clang-format off
-      return convex_hull_generic_impl_2D(
-          points.size(),
-          [&points](size_t i) { return points[i].y(); },
-          [&points](size_t i) { return points[i].z(); },
-          [&points](size_t o, size_t a, size_t b) {
-              return compare((points[a].y() - points[o].y()) * (points[b].z() - points[o].z()) -
-                             (points[a].z() - points[o].z()) * (points[b].y() - points[o].y()), 0) > 0;
-          }
-      );
-      // clang-format on
+      return convex_hull_monotone_chain(points, View2D::YZ());
     case Axis::Y:
-      // clang-format off
-      return convex_hull_generic_impl_2D(
-          points.size(),
-          [&points](size_t i) { return points[i].z(); },
-          [&points](size_t i) { return points[i].x(); },
-          [&points](size_t o, size_t a, size_t b) {
-              return compare((points[a].z() - points[o].z()) * (points[b].x() - points[o].x()) -
-                             (points[a].x() - points[o].x()) * (points[b].z() - points[o].z()), 0) > 0;
-          }
-      );
-      // clang-format on
-
+      return convex_hull_monotone_chain(points, View2D::ZX());
     case Axis::Z:
-      // clang-format off
-      return convex_hull_generic_impl_2D(
-          points.size(),
-          [&points](size_t i) { return points[i].x(); },
-          [&points](size_t i) { return points[i].y(); },
-          [&points](size_t o, size_t a, size_t b) {
-              return compare((points[a].x() - points[o].x()) * (points[b].y() - points[o].y()) -
-                             (points[a].y() - points[o].y()) * (points[b].x() - points[o].x()), 0) > 0;
-          }
-      );
-      // clang-format on
-
+      return convex_hull_monotone_chain(points, View2D::XY());
     default:
       throw std::logic_error("unexpected dominant axis");
   }
 }
 
+std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points) {
+  if (points.size() < 3) {
+    throw std::invalid_argument("less than 3 points");
+  }
+
+  auto frame = principal_axes(points);
+  Vector3D normal = frame.Z;
+
+  return convex_hull_indices(points, normal);
+}
+
 namespace {
 
-// Jacobi eigendecomposition for symmetric 3x3 matrix.
-// A is modified in place (diagonal becomes eigenvalues), V accumulates eigenvectors (initialized to identity).
+// Jacobi eigendecomposition for a symmetric 3x3 matrix (Jacobi 1846).
+// Repeatedly applies Givens (plane) rotations J in the (p,q) plane to zero out
+// the largest off-diagonal element, driving A toward diagonal form.
+// After convergence: A's diagonal holds the eigenvalues, V's columns hold the
+// corresponding unit eigenvectors (V = J0 * J1 * ... * Jk).
+// A is modified in place; V must be passed as zeroed storage (we initialise it here).
 static void jacobi3(double A[3][3], double V[3][3]) {
-  // Initialize V to identity
+  // V starts as the identity — each rotation will be accumulated into it
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
       V[i][j] = (i == j) ? 1.0 : 0.0;
     }
   }
 
+  // iterate until all off-diagonal entries are negligible (at most 50 sweeps)
   for (int iter = 0; iter < 50; ++iter) {
-    // Find off-diagonal element with maximum absolute value
+    // find the largest off-diagonal element A[p][q] — this is the pivot to annihilate
+    // (only the 3 upper-triangle pairs need checking: (0,1), (0,2), (1,2))
     int p = 0, q = 1;
     double maxval = std::abs(A[0][1]);
     if (std::abs(A[0][2]) > maxval) {
@@ -223,20 +174,29 @@ static void jacobi3(double A[3][3], double V[3][3]) {
       q = 2;
       maxval = std::abs(A[1][2]);
     }
+    // converged: all off-diagonal entries are below floating-point noise
     if (maxval < 1e-12) {
       break;
     }
 
+    // compute the Givens rotation angle φ that zeros A[p][q]
+    // \_ θ = cot(2φ) = (A[q][q] - A[p][p]) / (2 * A[p][q])
+    // \_ t = tan(φ), chosen with sign(θ) so |φ| ≤ π/4 — keeps the rotation small,
+    //        numerically equivalent to the standard formula but avoids catastrophic cancellation
+    // \_ c = cos(φ) = 1/√(1+t²),  s = sin(φ) = t·c
     double theta = 0.5 * (A[q][q] - A[p][p]) / A[p][q];
     double t = (theta >= 0 ? 1.0 : -1.0) / (std::abs(theta) + std::sqrt(1.0 + theta * theta));
     double c = 1.0 / std::sqrt(1.0 + t * t);
     double s = t * c;
 
-    // Apply Givens rotation to annihilate A[p][q]
+    // apply the similarity transform A ← J^T A J in the (p,q) plane
+    // \_ update the two diagonal entries (quadratic terms of the rotation)
     double App = A[p][p], Aqq = A[q][q], Apq = A[p][q];
     A[p][p] = c * c * App - 2 * s * c * Apq + s * s * Aqq;
     A[q][q] = s * s * App + 2 * s * c * Apq + c * c * Aqq;
+    // \_ zero out the pivot (exact by construction)
     A[p][q] = A[q][p] = 0.0;
+    // \_ rotate the remaining off-diagonal rows/columns (r ≠ p,q)
     for (int r = 0; r < 3; ++r) {
       if (r == p || r == q) {
         continue;
@@ -245,6 +205,8 @@ static void jacobi3(double A[3][3], double V[3][3]) {
       A[r][p] = A[p][r] = c * Arp - s * Arq;
       A[r][q] = A[q][r] = s * Arp + c * Arq;
     }
+    // accumulate the rotation into V so that V's columns converge to the eigenvectors
+    // \_ each column of V is rotated in the same (p,q) plane
     for (int r = 0; r < 3; ++r) {
       double Vrp = V[r][p], Vrq = V[r][q];
       V[r][p] = c * Vrp - s * Vrq;

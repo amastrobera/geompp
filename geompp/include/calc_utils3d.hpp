@@ -1,7 +1,7 @@
 #pragma once
 
 #include "constants.hpp"
-#include "vector3d.hpp"
+#include "coordinate_frame.hpp"
 #include "point3d.hpp"
 
 #include <optional>
@@ -16,18 +16,19 @@ std::optional<Point3D> intersection_line_to_line(Point3D const& L1_P0, Point3D c
 
 /// @brief the Andrew's Monotone Chain algorithm to make a convex hull. It assumes the points to be all co-planar, and
 /// uses the dominant normal axis to project points in 2D
-/// @param points cloud of points
-/// @param normal the normal of the points (calculated if not given)
+/// @param points cloud of points (ideally all coplanar)
+/// @param normal the normal of the plane (ideally the plane on which the points lie)
 /// @returns list of indices of the points (from the original vector) that form a convex hull
-/// @throws normal not given and points are not coplanar, or algorithm based throw logic
-std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points,
-                                             std::optional<Vector3D> normal = std::nullopt);
+/// @throws algorithm based throw logic
+std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points, Vector3D normal);
 
-struct CoordinateFrame {
-  Vector3D X;  // primary axis   — direction of largest variance (longest spread)
-  Vector3D Y;  // secondary axis — direction of second largest variance
-  Vector3D Z;  // normal         — direction of least variance (perpendicular to best-fit plane)
-};
+/// @brief the Andrew's Monotone Chain algorithm to make a convex hull. It does NOT NEED points to be coplanar. With the
+/// help of PCA, the primary and secondary axis are computed, as well as the mean point, and the plane is calculated.
+/// After that, the algorithm uses the dominant normal axis to project points in 2D
+/// @param points cloud of points
+/// @returns list of indices of the points (from the original vector) that form a convex hull
+/// @throws algorithm based throw logic
+std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points);
 
 /// @brief Computes the three principal axes of a point cloud using PCA (Jacobi eigendecomposition).
 /// @param points The point cloud. Must contain at least 3 non-collinear points.

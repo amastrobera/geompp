@@ -20,8 +20,8 @@ class LineSegment3D {
   LineSegment3D(LineSegment3D&&) = default;
   ~LineSegment3D() = default;
 
-  inline Point3D const& First() const { return P0; }
-  inline Point3D const& Last() const { return P1; }
+  Point3D const& First() const;
+  Point3D const& Last() const;
 
   bool AlmostEquals(LineSegment3D const& other, double epsilon = DOUBLE_EPSILON) const;
   Line3D ToLine() const;
@@ -144,6 +144,14 @@ class LineSegment3D {
 bool operator==(LineSegment3D const& lhs, LineSegment3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, LineSegment3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D const& LineSegment3D::First() const { return P0; }
+inline Point3D const& LineSegment3D::Last() const { return P1; }
+inline LineSegment3D::LineSegment3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(p1) {}
 
 #pragma endregion
 

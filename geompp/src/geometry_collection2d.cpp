@@ -14,7 +14,6 @@
 
 #include <format>
 #include <fstream>
-#include <limits>
 #include <stdexcept>
 
 namespace geompp {

@@ -1184,6 +1184,35 @@ Test("ConvexHull3D_StarOuterTipsAllOnHull", () => {
   }
 });
 
+Test("ConvexHull3D_NonCoplanar_SmallZJitter_StillFindsHull", () => {
+  var pts = new List<Point3D> {
+    new(0, 0, 0.1), new(4, 0, -0.1), new(4, 4, 0.05), new(0, 4, -0.05),
+    new(2, 2, 0.02) };
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(pts));
+  Eq(4, hull.Count);
+});
+
+Test("ConvexHull3D_NonCoplanar_TiltedPlane_ReturnsTriangle", () => {
+  var pts = new List<Point3D> {
+    new(3, 0, 0), new(0, 3, 0), new(0, 0, 3), new(1, 1, 1) };
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(pts));
+  Eq(3, hull.Count);
+});
+
+Test("ConvexHull3D_NonCoplanar_AllHullPointsPresent", () => {
+  var tips = new List<Point3D> {
+    new(0, 5, 1), new(4, 2, 0.5), new(3, -3, 0), new(-2, -4, 0.5), new(-3, 1, 1) };
+  var pts = new List<Point3D>(tips) { new(0, 0, 0.6) };
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(pts));
+  Eq(5, hull.Count);
+  foreach (var tip in tips) {
+    IsTrue(hull.Exists(h => System.Math.Abs(h.X - tip.X) < 1e-6
+                         && System.Math.Abs(h.Y - tip.Y) < 1e-6
+                         && System.Math.Abs(h.Z - tip.Z) < 1e-6),
+           $"tip ({tip.X},{tip.Y},{tip.Z}) should be on the hull");
+  }
+});
+
 // ── Polygon2D ─────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPolygon2D");
 
@@ -3532,6 +3561,262 @@ Test("AlmostEquals_DifferentBall", () => {
   var b1 = new BBall3D(new Point3D(1, 2, 3), 4.0);
   var b2 = new BBall3D(new Point3D(0, 0, 0), 1.0);
   IsFalse(b1.AlmostEquals(b2));
+});
+
+// ── BRect2D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBRect2D");
+
+Test("Constructor_AxisAlignedRectangle_Center", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  };
+  var r = new BRect2D(pts);
+  IsTrue(r.Center().AlmostEquals(new Point2D(2.0, 1.0)));
+  Eq(4.0, r.Width());
+  Eq(2.0, r.Height());
+  Eq(8.0, r.Area());
+});
+
+Test("Constructor_Empty_Throws", () => {
+  bool threw = false;
+  try { new BRect2D(new Point2D[] {}); } catch { threw = true; }
+  IsTrue(threw, "BRect2D from empty list should throw");
+});
+
+Test("Constructor_SinglePoint_Throws", () => {
+  bool threw = false;
+  try { new BRect2D(new Point2D[] { new Point2D(3, 4) }); } catch { threw = true; }
+  IsTrue(threw, "BRect2D from 1 point should throw");
+});
+
+Test("Constructor_TwoPoints_Throws", () => {
+  bool threw = false;
+  try { new BRect2D(new Point2D[] { new Point2D(0, 0), new Point2D(4, 0) }); } catch { threw = true; }
+  IsTrue(threw, "BRect2D from 2 points should throw");
+});
+
+Test("Constructor_AllInputPointsContained", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(3, 0), new Point2D(3, 2),
+    new Point2D(0, 2), new Point2D(1, 0.5), new Point2D(2, 1.5)
+  };
+  var r = new BRect2D(pts);
+  foreach (var p in pts)
+    IsTrue(r.Contains(p), $"OBB must contain {p}");
+});
+
+Test("Axes_AreUnitVectors", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(2, 0), new Point2D(2, 1), new Point2D(0, 1)
+  };
+  var r = new BRect2D(pts);
+  Eq(1.0, r.AxisU().Length());
+  Eq(1.0, r.AxisV().Length());
+});
+
+Test("Axes_AreOrthogonal", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(3, 0), new Point2D(3, 2), new Point2D(0, 2)
+  };
+  var r = new BRect2D(pts);
+  Eq(0.0, r.AxisU().Dot(r.AxisV()));
+});
+
+Test("Corners_FourPointsAllContained", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  };
+  var r = new BRect2D(pts);
+  var corners = r.Corners();
+  IsTrue(corners.Length == 4, "must return 4 corners");
+  foreach (var c in corners)
+    IsTrue(r.Contains(c), "each corner must be inside the rectangle");
+});
+
+Test("Contains_Center_True", () => {
+  var r = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  IsTrue(r.Contains(new Point2D(2, 1)));
+});
+
+Test("Contains_Boundary_True", () => {
+  var r = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  IsTrue(r.Contains(new Point2D(0, 0)));    // corner
+  IsTrue(r.Contains(new Point2D(4, 1)));    // edge midpoint
+});
+
+Test("Contains_Outside_False", () => {
+  var r = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  IsFalse(r.Contains(new Point2D(5, 1)));
+  IsFalse(r.Contains(new Point2D(2, 3)));
+});
+
+Test("AlmostEquals_SameRect", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  };
+  var r1 = new BRect2D(pts);
+  var r2 = new BRect2D(pts);
+  IsTrue(r1.AlmostEquals(r2));
+  IsTrue(r1 == r2);
+});
+
+Test("AlmostEquals_DifferentRect_False", () => {
+  var r1 = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  var r2 = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(6, 0), new Point2D(6, 2), new Point2D(0, 2)
+  });
+  IsFalse(r1.AlmostEquals(r2));
+});
+
+// ── BPrism3D ──────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBPrism3D");
+
+Test("Constructor_AxisAlignedBox", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  IsTrue(Math.Abs(p.Volume() - 24.0) < 0.5, "volume should be ~24");
+  foreach (var pt in pts)
+    IsTrue(p.Contains(pt), $"prism must contain {pt}");
+});
+
+Test("Constructor_Empty_Throws", () => {
+  bool threw = false;
+  try { new BPrism3D(new Point3D[] {}); } catch { threw = true; }
+  IsTrue(threw, "BPrism3D from empty list should throw");
+});
+
+Test("Constructor_SinglePoint_Throws", () => {
+  bool threw = false;
+  try { new BPrism3D(new Point3D[] { new Point3D(3, 4, 5) }); } catch { threw = true; }
+  IsTrue(threw, "BPrism3D from 1 point should throw");
+});
+
+Test("Constructor_TwoPoints_Throws", () => {
+  bool threw = false;
+  try { new BPrism3D(new Point3D[] { new Point3D(0, 0, 0), new Point3D(4, 0, 0) }); } catch { threw = true; }
+  IsTrue(threw, "BPrism3D from 2 points should throw");
+});
+
+Test("Constructor_FlatCloud_WIsEpsilon", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+  };
+  var p = new BPrism3D(pts);
+  IsTrue(p.HalfLenW() > 0, "flat cloud w half-length must be > 0");
+});
+
+Test("Constructor_NonConvex_AllPointsContained", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(3, 0, 0),
+    new Point3D(3, 2, 0), new Point3D(0, 2, 0),
+    new Point3D(1, 0.5, 1), new Point3D(2, 1.5, 0.5),
+  };
+  var p = new BPrism3D(pts);
+  foreach (var pt in pts)
+    IsTrue(p.Contains(pt), $"prism must contain {pt}");
+});
+
+Test("Axes_AreUnitVectors", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  Eq(1.0, p.AxisU().Length());
+  Eq(1.0, p.AxisV().Length());
+  Eq(1.0, p.AxisW().Length());
+});
+
+Test("Axes_AreOrthogonal", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  Eq(0.0, p.AxisU().Dot(p.AxisV()));
+  Eq(0.0, p.AxisU().Dot(p.AxisW()));
+  Eq(0.0, p.AxisV().Dot(p.AxisW()));
+});
+
+Test("Corners_EightPointsAllContained", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  var corners = p.Corners();
+  IsTrue(corners.Length == 8, "must return 8 corners");
+  foreach (var c in corners)
+    IsTrue(p.Contains(c), "each corner must be inside the prism");
+});
+
+Test("Contains_Center_True", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  IsTrue(p.Contains(p.Center()));
+});
+
+Test("Contains_Outside_False", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  IsFalse(p.Contains(new Point3D(10, 10, 10)));
+});
+
+Test("AlmostEquals_SamePrism", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p1 = new BPrism3D(pts);
+  var p2 = new BPrism3D(pts);
+  IsTrue(p1.AlmostEquals(p2));
+  IsTrue(p1 == p2);
+});
+
+Test("AlmostEquals_DifferentPrism_False", () => {
+  var pts1 = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+  };
+  var pts2 = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(6, 0, 0),
+    new Point3D(6, 3, 0), new Point3D(0, 3, 0),
+  };
+  var p1 = new BPrism3D(pts1);
+  var p2 = new BPrism3D(pts2);
+  IsFalse(p1.AlmostEquals(p2));
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/geompp.svg)](https://pypi.org/project/geompp)
 
   A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
-  thoroughly tested, and usable from C++, C# (.Net 10 or .Net Framework 4.8), and Python 3.
+  thoroughly tested, and usable from C++, C# (.Net 8/9/10 or .Net Framework 4.8), and Python 3.
 
   This library is a spiritual successor to [GeomSharp](https://github.com/amastrobera/geom_sharp),
   rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
@@ -40,6 +40,9 @@
   | `Triangle`     | Three non-collinear points forming a closed face         |
   | `Polygon`      | A closed polygon defined by an ordered list of vertices  |
   | `BBox`         | Axis-aligned bounding box                                |
+  | `BBall`        | Minimum bounding sphere (Ritter's algorithm)             |
+  | `BRect2D`      | Minimum oriented bounding rectangle (rotating calipers) |
+  | `BPrism3D`     | Minimum oriented bounding prism (PCA + rotating calipers) |
   | `Plane`        | A flat surface in 3D defined by a point and a normal     |
 
   ### Operations
@@ -57,6 +60,69 @@
   direction in 3D)
   - **Simplicity / self-intersection** — `Polygon2D::IsSimple()` and the free functions `has_intersections(segments)` (Shamos–Hoey, boolean) / `find_intersections(segments)` (Bentley–Ottmann, returns every crossing point)
   - **Convex hull** — `convex_hull(points)` (`point2d.hpp`) — Andrew's monotone chain, returns hull vertices in CCW order
+  - **Planar operations** — `View2D` maps 3D points to 2D scalars via `x()` / `y()` getters. Particularly efficient when streaming large containers of 3D points into 2D algorithms: calling `view.x(p)` and `view.y(p)` per element avoids allocating an intermediate `Point2D` container.
+
+    ```cpp
+    #include "view2d.hpp"
+    using namespace geompp;
+
+    // axis-aligned views (fastest path — just a coordinate read)
+    auto v_xy = View2D::XY();   // x→x, y→y (drops z)
+    auto v_yz = View2D::YZ();   // y→x, z→y (drops x)
+    auto v_zx = View2D::ZX();   // z→x, x→y (drops y)
+
+    // custom view onto any plane
+    auto plane = Plane::FromOriginAndNormal({0,0,5}, {0,0,1});
+    auto v_custom = View2D::OnPlane(plane);
+
+    std::vector<Point3D> pts3d = {{1,2,5}, {3,4,5}, {5,6,5}};
+
+    // stream 3D points to 2D without building a Point2D container
+    for (auto const& p : pts3d) {
+        double u = v_xy.x(p);  // 1, 3, 5
+        double w = v_xy.y(p);  // 2, 4, 6
+    }
+    ```
+
+  - **Bounding containers** — tight-fitting containers around point clouds.
+
+    `BRect2D` computes the minimum-area oriented bounding rectangle via rotating calipers (requires ≥ 3 non-collinear points):
+
+    ```cpp
+    #include "brect2d.hpp"
+    using namespace geompp;
+
+    std::vector<Point2D> pts = {{0,0}, {4,0}, {4,3}, {2,4}, {0,3}};
+    BRect2D rect(pts);
+    std::cout << rect.center().ToWkt() << "\n";       // (2.0, 1.75)
+    std::cout << rect.width() << " × " << rect.height() << "\n";
+    std::cout << "area: " << rect.area() << "\n";
+    std::cout << "axis_u: " << rect.axis_u().ToWkt() << "\n";
+    auto corners = rect.Corners();                    // 4 Point2D corners
+    std::cout << rect.Contains({2, 1}) << "\n";       // true
+    ```
+
+    `BPrism3D` computes the minimum-volume oriented bounding prism via PCA + rotating calipers (requires ≥ 3 non-collinear points):
+
+    ```cpp
+    #include "bprism3d.hpp"
+    using namespace geompp;
+
+    std::vector<Point3D> pts = {
+      {0,0,0}, {4,0,0}, {4,3,0}, {0,3,0},
+      {0,0,2}, {4,0,2}, {4,3,2}, {0,3,2},
+    };
+    BPrism3D prism(pts);
+    std::cout << prism.center().ToWkt() << "\n";       // roughly (2, 1.5, 1)
+    std::cout << "U: " << prism.axis_u().ToWkt() << "\n";
+    std::cout << "V: " << prism.axis_v().ToWkt() << "\n";
+    std::cout << "W: " << prism.axis_w().ToWkt() << "\n";
+    std::cout << prism.width() << " × " << prism.height()
+              << " × " << prism.depth() << "\n";       // 4 × 3 × 2
+    std::cout << "volume: " << prism.volume() << "\n"; // 24.0
+    auto corners = prism.Corners();                    // 8 Point3D corners
+    std::cout << prism.Contains({2, 1.5, 1}) << "\n"; // true
+    ```
 
   Return types are `std::optional<std::variant<...>>` so callers can match on the exact geometry
   produced by an intersection without casting.
@@ -213,10 +279,16 @@
   ```powershell
   # from the main directory, geompp
 
-  # if you want to build for .Net 10
+  # .NET 8 (LTS)
+  msbuild geompp_csharp\GeomPP_Net8.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
+
+  # .NET 9 (STS)
+  msbuild geompp_csharp\GeomPP_Net9.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
+
+  # .NET 10 (LTS)
   msbuild geompp_csharp\GeomPP.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
-  # if you want to build for .Net Framework 4.8
+  # .NET Framework 4.8
   msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
   # run smoke tests, after build from the main directory geompp

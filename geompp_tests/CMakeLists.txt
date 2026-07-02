@@ -59,6 +59,8 @@ add_executable(${PROJECT_NAME}
     src/test_bbox3d.cpp
     src/test_bball2d.cpp
     src/test_bball3d.cpp
+    src/test_brect2d.cpp
+    src/test_bprism3d.cpp
     src/test_polygon2d.cpp
     src/test_polygon3d.cpp
 
@@ -69,6 +71,7 @@ add_executable(${PROJECT_NAME}
     src/test_geometry_collection3d.cpp
     src/test_calc_utils3d.cpp
     src/test_calc_utils2d.cpp
+    src/test_view2d.cpp
 
     main.cpp
 )

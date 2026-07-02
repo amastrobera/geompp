@@ -36,8 +36,8 @@ public:
     static System::Collections::Generic::IEnumerable<Point2D^>^ ConvexHull(
         System::Collections::Generic::List<Point2D^>^ points);
 
-    // ConvexHull — Andrew's monotone chain: convex hull of coplanar 3D points, returned in CCW order.
-    // Normal is auto-detected from the point cloud.
+    // ConvexHull — Andrew's monotone chain: convex hull of 3D points, returned in CCW order.
+    // Points do not need to be coplanar — the best-fit plane is estimated via PCA.
     static System::Collections::Generic::IEnumerable<Point3D^>^ ConvexHull(
         System::Collections::Generic::List<Point3D^>^ points);
 
