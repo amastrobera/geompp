@@ -1,11 +1,9 @@
 #pragma once
 
+#include "concepts.hpp"
 #include "constants.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
-
-#include "concepts.hpp"
-
 #include "view2d.hpp"
 
 #include <compare>
@@ -178,24 +176,49 @@ extern template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<
 std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points);
 
 struct MinBoundingRectResult {
-  double u_axis_x, u_axis_y;   // unit edge direction (in View2D space)
-  double v_axis_x, v_axis_y;   // CCW perpendicular (in View2D space)
+  double u_axis_x, u_axis_y;  // unit edge direction (in View2D space)
+  double v_axis_x, v_axis_y;  // CCW perpendicular (in View2D space)
   double half_len_u, half_len_v;
-  double center_u, center_v;   // center as offset from an arbitrary origin (in u,v local coords)
+  double center_u, center_v;  // center as offset from an arbitrary origin (in u,v local coords)
   // The center in the 2D projection is: origin + center_u * u_axis + center_v * v_axis
   // where origin is the first hull point (p0 of the best edge).
   // For the caller to recover the 2D center:
   //   center_2d_x = origin_x + center_u * u_axis_x + center_v * v_axis_x
   //   center_2d_y = origin_y + center_u * u_axis_y + center_v * v_axis_y
-  double origin_x, origin_y;   // origin point (first point of best edge) in View2D x,y space
+  double origin_x, origin_y;  // origin point (first point of best edge) in View2D x,y space
 };
 
-/// @brief Decomposes a planar set of line segments into simple closed rings via half-edge face tracing.
-/// Finds all crossings (Bentley-Ottmann), splits segments at those points, builds the planar graph,
-/// and returns one ring per bounded face.  Caller classifies outers vs holes via signed_area.
-/// @param segs Input segments (polygon edges, possibly self-intersecting).  Must be >= 2.
-/// @returns Closed rings (vertex sequence; closing vertex not repeated).
-std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<LineSegment2D> const& segs);
+/// @brief Winding-number contribution of a single ring (vertices) around point p.
+/// @returns winding number increment/decrement for the ring
+int winding_number(std::vector<Point2D> const& vertices, Point2D const& p);
+
+/// @brief Core convexity check: all consecutive cross products have the same sign.
+/// Does NOT check holes — callers are responsible for that guard.
+template <PointContainer Points>
+bool is_convex_with_view(Points const& vertices, View2D const& view);
+
+extern template bool is_convex_with_view(std::vector<Point2D> const&, View2D const&);
+extern template bool is_convex_with_view(std::vector<Point3D> const&, View2D const&);
+
+/// @brief Returns true if a 2D polygon (CCW outer ring + optional holes) is convex.
+/// A polygon with holes is never convex.
+bool is_convex(std::vector<Point2D> const& vertices, std::vector<std::vector<Point2D>> const& holes);
+
+/// @brief Decomposes polygon rings into simple closed rings via half-edge face tracing.
+/// Projects each point through @p view, builds 2D segments internally, finds all crossings
+/// (Bentley-Ottmann), splits at those points, and returns one ring per bounded face.
+/// Caller classifies outers vs holes via signed_area.
+/// @param outer  Outer ring vertices (Point2D or Point3D).
+/// @param holes  Inner ring vertices (same type as outer).
+/// @param view   Projects each point to 2D x/y coordinates.
+/// @returns Closed rings in 2D (vertex sequence; closing vertex not repeated). Must be >= 3 total edges.
+template <PointContainer Points>
+std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::vector<Points> const& holes,
+                                                      View2D const& view);
+
+extern template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point2D> const&,
+                                                                      std::vector<std::vector<Point2D>> const&,
+                                                                      View2D const&);
 
 /// @brief Rotating calipers (Freeman & Shapira 1975 / Toussaint 1983) on a convex hull.
 /// Projects points through `view` into 2D, computes the minimum-area bounding rectangle.
@@ -205,15 +228,12 @@ std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<LineSegment2D>
 /// @param view 2D projection used for x/y extraction
 /// @returns MinBoundingRectResult with axes, half-lengths, and center in View2D 2D space
 template <PointContainer Points>
-MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices,
-                                        Points const& points,
+MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices, Points const& points,
                                         View2D const& view);
 
-extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&,
-                                                        std::vector<Point2D> const&,
+extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point2D> const&,
                                                         View2D const&);
-extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&,
-                                                        std::vector<Point3D> const&,
+extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point3D> const&,
                                                         View2D const&);
 
 }  // namespace geompp

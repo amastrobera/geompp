@@ -33,8 +33,8 @@ class Polygon2D {
   Point2D Centroid() const;
   double Area() const;
   double Perimeter() const;
-  bool IsSimple() const;  // no self-intersections, but holes are allowed
-  bool IsConvex() const;  // no holes and all turns in the same direction
+  bool IsSimple() const;   // no self-intersections, but holes are allowed
+  bool IsConvex() const;   // no holes and all turns in the same direction — cached at construction
   Polygon2D ConvexHull();
   /// @brief Decomposes a self-intersecting polygon into one or more simple polygons.
   /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
@@ -103,9 +103,10 @@ class Polygon2D {
   std::vector<Point2D> VERTICES;
   std::vector<std::vector<Point2D>> HOLES;
   double PERIMETER;
+  bool IS_CONVEX;
 
-  Polygon2D(std::vector<Point2D> const& points, double perimeter);
-  Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes);
+  Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex);
+  Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes, bool is_convex);
 };
 
 #pragma region Operator Overloading
@@ -119,11 +120,12 @@ std::ostream& operator<<(std::ostream& os, Polygon2D const& g);
 #pragma region Inlined Functions
 
 inline std::size_t Polygon2D::Size() const { return VERTICES.size(); }
-inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter)
-    : VERTICES(points), HOLES{}, PERIMETER(perimeter) {}
+inline bool Polygon2D::IsConvex() const { return IS_CONVEX; }
+inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex)
+    : VERTICES(points), HOLES{}, PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,
-                            std::vector<std::vector<Point2D>> const& holes)
-    : VERTICES(points), HOLES(holes), PERIMETER(perimeter) {}
+                            std::vector<std::vector<Point2D>> const& holes, bool is_convex)
+    : VERTICES(points), HOLES(holes), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 
 #pragma endregion
 

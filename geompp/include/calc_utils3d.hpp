@@ -43,4 +43,14 @@ Vector3D principal_normal(std::vector<Point3D> const& points);
 /// @param points The point cloud. Must contain at least 3 non-collinear points.
 Vector3D principal_direction(std::vector<Point3D> const& points);
 
+/// @brief tells if a polygon made of 1 outer loop and m-inner loops (holes) is convex. When holes are present the
+/// polygon is automatically non-convex.
+/// It assumes all points are on the same plane. No matter the inputs this will be
+/// forced by (implicit) projection on the dominant axis (2D projection preserves convexity property)
+/// @param vertices outer polygon loop
+/// @param holes inner loops
+/// @param normal polygon normal (plane onto which the math will be done)
+bool is_convex(std::vector<Point3D> const& vertices, std::vector<std::vector<Point3D>> const& holes,
+               Vector3D const& normal);
+
 }  // namespace geompp

@@ -53,7 +53,9 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
     perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % n0]);
   }
 
-  return {unique_points, outer_plane, perimeter};
+  bool is_poly_convex = is_convex(unique_points, {}, outer_plane.normal());
+
+  return {unique_points, outer_plane, perimeter, is_poly_convex};
 }
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes) {
@@ -110,7 +112,9 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
     perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % nh]);
   }
 
-  return {unique_points, outer_plane, perimeter, unique_holes_points};
+  bool is_poly_convex = is_convex(unique_points, unique_holes_points, outer_plane.normal());
+
+  return {unique_points, outer_plane, perimeter, unique_holes_points, is_poly_convex};
 }
 
 Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
@@ -119,6 +123,7 @@ Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
     HOLES = other.HOLES;
     PLANE = other.PLANE;
     PERIMETER = other.PERIMETER;
+    IS_CONVEX = other.IS_CONVEX;
   }
   return *this;
 }
@@ -223,63 +228,15 @@ bool Polygon3D::IsSimple() const {
   return true;
 }
 
-bool Polygon3D::IsConvex() const {
-  // a convex polygon must have no holes
-  if (!HOLES.empty()) {
-    return false;
-  }
-
-  int n = static_cast<int>(VERTICES.size());
-  if (n < 3) {
-    return false;
-  }
-
-  // project onto 2D using the polygon's plane, then check all cross products have the same sign
-  auto to2d = [this](Point3D const& p) -> Point2D { return PLANE.ProjectInto(p); };
-
-  bool seen_positive = false;
-  bool seen_negative = false;
-  for (int i = 0; i < n; ++i) {
-    Point2D v0 = to2d(VERTICES[i]);
-    Point2D v1 = to2d(VERTICES[(i + 1) % n]);
-    Point2D v2 = to2d(VERTICES[(i + 2) % n]);
-    Vector2D e1 = v1 - v0;
-    Vector2D e2 = v2 - v1;
-    double cross = e1.Cross(e2);
-    auto ord = compare(cross, 0.0);
-    if (ord == std::partial_ordering::equivalent) {
-      continue;  // collinear edge — neutral
-    }
-    if (ord > 0) {
-      seen_positive = true;
-    } else {
-      seen_negative = true;
-    }
-    if (seen_positive && seen_negative) {
-      return false;
-    }
-  }
-  return true;
-}
 
 std::vector<Polygon3D> Polygon3D::Simplify() const {
   if (IsSimple()) {
     return {*this};
   }
 
-  // Project to 2D using the dominant axis (same pattern as IsSimple / IsConvex)
   Vector3D n = PLANE.normal();
   Axis dax = n.DominantAxis();
-
-  auto to2d = [dax](Point3D const& p) -> Point2D {
-    if (dax == Axis::X) {
-      return Point2D(p.y(), p.z());
-    }
-    if (dax == Axis::Y) {
-      return Point2D(p.z(), p.x());
-    }
-    return Point2D(p.x(), p.y());
-  };
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
 
   // Plane equation n·p = d (used for back-projection of intersection points)
   Point3D orig = PLANE.origin();
@@ -295,22 +252,7 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
     return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
   };
 
-  // Build projected segments: outer ring + holes
-  std::vector<LineSegment2D> all_segs;
-  {
-    int nv = static_cast<int>(VERTICES.size());
-    for (int i = 0; i < nv; ++i) {
-      all_segs.push_back(LineSegment2D::Make(to2d(VERTICES[i]), to2d(VERTICES[(i + 1) % nv])));
-    }
-  }
-  for (auto const& hole : HOLES) {
-    int nh = static_cast<int>(hole.size());
-    for (int i = 0; i < nh; ++i) {
-      all_segs.push_back(LineSegment2D::Make(to2d(hole[i]), to2d(hole[(i + 1) % nh])));
-    }
-  }
-
-  auto rings2d = simplify_rings_impl(all_segs);
+  auto rings2d = simplify_rings_impl(VERTICES, HOLES, view);
 
   // Detect whether the dominant-axis projection reverses chirality.
   // For Y-dominant the mapping (z,x) mirrors the coordinate system, so a CCW 3D polygon
@@ -318,7 +260,7 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
   std::vector<Point2D> outer2d;
   outer2d.reserve(VERTICES.size());
   for (auto const& v : VERTICES) {
-    outer2d.push_back(to2d(v));
+    outer2d.emplace_back(view.x(v), view.y(v));
   }
   bool projection_flips = compare(signed_area(outer2d), 0.0) < 0;
 

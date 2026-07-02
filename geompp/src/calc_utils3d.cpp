@@ -284,4 +284,14 @@ Vector3D principal_normal(std::vector<Point3D> const& points) { return principal
 
 Vector3D principal_direction(std::vector<Point3D> const& points) { return principal_axes(points).X; }
 
+bool is_convex(std::vector<Point3D> const& vertices, std::vector<std::vector<Point3D>> const& holes,
+               Vector3D const& normal) {
+  if (!holes.empty() || vertices.size() < 3) {
+    return false;
+  }
+  Axis dax = normal.DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  return is_convex_with_view(vertices, view);
+}
+
 }  // namespace geompp

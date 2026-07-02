@@ -9,6 +9,7 @@
 #include "geompp_log.hpp"
 
 #include "point3d.hpp"
+#include "vector3d.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -698,7 +699,27 @@ std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points)
   return convex_hull_monotone_chain(points, View2D::XY());
 }
 
-std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<LineSegment2D> const& segs) {
+template <PointContainer Points>
+std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::vector<Points> const& holes,
+                                                      View2D const& view) {
+  // --- Stage 1: project rings to 2D segments ---
+  std::vector<LineSegment2D> segs;
+  {
+    int n = static_cast<int>(std::ranges::size(outer));
+    segs.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      segs.emplace_back(LineSegment2D::Make(Point2D(view.x(outer[i]), view.y(outer[i])),
+                                            Point2D(view.x(outer[(i + 1) % n]), view.y(outer[(i + 1) % n]))));
+    }
+  }
+  for (auto const& hole : holes) {
+    int nh = static_cast<int>(std::ranges::size(hole));
+    for (int i = 0; i < nh; ++i) {
+      segs.emplace_back(LineSegment2D::Make(Point2D(view.x(hole[i]), view.y(hole[i])),
+                                            Point2D(view.x(hole[(i + 1) % nh]), view.y(hole[(i + 1) % nh]))));
+    }
+  }
+
   if (segs.size() < 3) {
     throw std::invalid_argument("simplify_rings_impl: need at least 3 segments");
   }
@@ -847,5 +868,71 @@ std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<LineSegment2D>
 
   return rings;
 }
+
+int winding_number(std::vector<Point2D> const& vertices, Point2D const& p) {
+  int wn = 0;
+  int n = static_cast<int>(vertices.size());
+  for (int i1 = 0; i1 < n; ++i1) {
+    int i2 = (i1 + 1) % n;
+    auto const& v1 = vertices[i1];
+    auto const& v2 = vertices[i2];
+    if (compare(v1.y(), p.y()) <= 0) {   // edge starts below p
+      if (compare(v2.y(), p.y()) > 0) {  //   ends above p (upward crossing)
+        if (is_left(v1, v2, p)) {        //   p left of the edge
+          ++wn;
+        }
+      }
+    } else {                              // edge starts above p
+      if (compare(v2.y(), p.y()) <= 0) {  //   ends below p (downward crossing)
+        if (is_right(v1, v2, p)) {        //   p right of the edge
+          --wn;
+        }
+      }
+    }
+  }
+  return wn;
+}
+
+template <PointContainer Points>
+bool is_convex_with_view(Points const& vertices, View2D const& view) {
+  int n = static_cast<int>(vertices.size());
+  bool seen_positive = false;
+  bool seen_negative = false;
+  for (int i = 0; i < n; ++i) {
+    double x0 = view.x(vertices[i]), y0 = view.y(vertices[i]);
+    double x1 = view.x(vertices[(i + 1) % n]), y1 = view.y(vertices[(i + 1) % n]);
+    double x2 = view.x(vertices[(i + 2) % n]), y2 = view.y(vertices[(i + 2) % n]);
+    double cross = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
+    auto ord = compare(cross, 0.0);
+    if (ord == 0) {
+      continue;
+    }
+    if (ord > 0) {
+      seen_positive = true;
+    } else {
+      seen_negative = true;
+    }
+    if (seen_positive && seen_negative) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template bool is_convex_with_view(std::vector<Point2D> const&, View2D const&);
+template bool is_convex_with_view(std::vector<Point3D> const&, View2D const&);
+
+bool is_convex(std::vector<Point2D> const& vertices, std::vector<std::vector<Point2D>> const& holes) {
+  if (!holes.empty() || vertices.size() < 3) {
+    return false;
+  }
+  return is_convex_with_view(vertices, View2D::XY());
+}
+
+template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point2D> const&,
+                                                               std::vector<std::vector<Point2D>> const&, View2D const&);
+
+template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point3D> const&,
+                                                               std::vector<std::vector<Point3D>> const&, View2D const&);
 
 }  // namespace geompp

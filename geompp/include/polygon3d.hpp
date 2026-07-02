@@ -107,10 +107,11 @@ class Polygon3D {
   std::vector<std::vector<Point3D>> HOLES;
   Plane PLANE;
   double PERIMETER;
+  bool IS_CONVEX;
 
-  Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter);
+  Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex);
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
-            std::vector<std::vector<Point3D>> const& holes);
+            std::vector<std::vector<Point3D>> const& holes, bool is_convex);
 };
 
 #pragma region Operator Overloading
@@ -125,11 +126,12 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g);
 
 inline std::size_t Polygon3D::Size() const { return VERTICES.size(); }
 inline Plane Polygon3D::GetPlane() const { return PLANE; }
-inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter)
-    : VERTICES(points), HOLES{}, PLANE(plane), PERIMETER(perimeter) {}
+inline bool Polygon3D::IsConvex() const { return IS_CONVEX; }
+inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex)
+    : VERTICES(points), HOLES{}, PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
-                            std::vector<std::vector<Point3D>> const& holes)
-    : VERTICES(points), HOLES(holes), PLANE(plane), PERIMETER(perimeter) {}
+                            std::vector<std::vector<Point3D>> const& holes, bool is_convex)
+    : VERTICES(points), HOLES(holes), PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 
 #pragma endregion
 

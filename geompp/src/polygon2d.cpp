@@ -20,40 +20,6 @@
 
 namespace geompp {
 
-namespace {
-
-int wn_count(std::vector<Point2D> const& vertices, Point2D const& p) {
-  int wn = 0;
-
-  int i2 = -1;
-  int n = vertices.size();
-  for (int i1 = 0; i1 < n; ++i1) {
-    i2 = (i1 + 1) % n;
-
-    auto const& v1 = vertices[i1];
-    auto const& v2 = vertices[i2];
-
-    if (compare(v1.y(), p.y()) <= 0) {   // edge from v(i) to v(i+1) is starts below p
-      if (compare(v2.y(), p.y()) > 0) {  //     ... and ends above p (upward crossing)
-        if (is_left(v1, v2, p)) {        //     p left of the edge
-          ++wn;                          // valid up-intersect
-        }
-      }
-
-    } else {                              // edge from v(i) to v(i+1) is starts above p
-      if (compare(v2.y(), p.y()) <= 0) {  //     ... and ends below p (downward crossing)
-        if (is_right(v1, v2, p)) {        //     p is right of the edge
-          --wn;                           // valid down-intersect
-        }
-      }
-    }
-  }
-
-  return wn;
-}
-
-}  // namespace
-
 #pragma region Constructors
 
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
@@ -75,7 +41,9 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
     perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % n0]);
   }
 
-  return {unique_points, perimeter};
+  bool is_poly_convex = is_convex(unique_points, {});
+
+  return {unique_points, perimeter, is_poly_convex};
 }
 
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes) {
@@ -115,7 +83,9 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
     perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % nh]);
   }
 
-  return {unique_points, perimeter, unique_holes_points};
+  bool is_poly_convex = is_convex(unique_points, unique_holes_points);
+
+  return {unique_points, perimeter, unique_holes_points, is_poly_convex};
 }
 
 Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
@@ -123,6 +93,7 @@ Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
     VERTICES = other.VERTICES;
     HOLES = other.HOLES;
     PERIMETER = other.PERIMETER;
+    IS_CONVEX = other.IS_CONVEX;
   }
   return *this;
 }
@@ -213,43 +184,6 @@ bool Polygon2D::IsSimple() const {
   return true;
 }
 
-bool Polygon2D::IsConvex() const {
-  // a convex polygon must have no holes
-  if (!HOLES.empty()) {
-    return false;
-  }
-
-  int n = static_cast<int>(VERTICES.size());
-  if (n < 3) {
-    return false;
-  }
-
-  // check that all consecutive cross products have the same sign
-  bool seen_positive = false;
-  bool seen_negative = false;
-  for (int i = 0; i < n; ++i) {
-    auto const& v0 = VERTICES[i];
-    auto const& v1 = VERTICES[(i + 1) % n];
-    auto const& v2 = VERTICES[(i + 2) % n];
-    Vector2D e1 = v1 - v0;
-    Vector2D e2 = v2 - v1;
-    double cross = e1.Cross(e2);
-    auto ord = compare(cross, 0.0);
-    if (ord == std::partial_ordering::equivalent) {
-      continue;  // collinear edge — neutral
-    }
-    if (ord > 0) {
-      seen_positive = true;
-    } else {
-      seen_negative = true;
-    }
-    if (seen_positive && seen_negative) {
-      return false;
-    }
-  }
-  return true;
-}
-
 Polygon2D Polygon2D::ConvexHull() {
   auto cv_indices = convex_hull_indices(VERTICES);
   std::vector<Point2D> cv_points;
@@ -274,22 +208,7 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
     return {*this};
   }
 
-  // Build all segments: outer ring + holes
-  std::vector<LineSegment2D> all_segs;
-  {
-    int n = static_cast<int>(VERTICES.size());
-    for (int i = 0; i < n; ++i) {
-      all_segs.push_back(LineSegment2D::Make(VERTICES[i], VERTICES[(i + 1) % n]));
-    }
-  }
-  for (auto const& hole : HOLES) {
-    int nh = static_cast<int>(hole.size());
-    for (int i = 0; i < nh; ++i) {
-      all_segs.push_back(LineSegment2D::Make(hole[i], hole[(i + 1) % nh]));
-    }
-  }
-
-  auto rings = simplify_rings_impl(all_segs);
+  auto rings = simplify_rings_impl(VERTICES, HOLES, View2D::XY());
 
   // The half-edge walk traces interior faces with CW orientation (SA < 0) and the outer
   // (unbounded) graph face with CCW orientation (SA > 0).  Flip each CW interior ring to
@@ -318,8 +237,7 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
   // Sort candidates by area descending so larger rings come first
   std::vector<int> order(candidates.size());
   std::iota(order.begin(), order.end(), 0);
-  std::sort(order.begin(), order.end(),
-            [&](int a, int b) { return candidate_areas[a] > candidate_areas[b]; });
+  std::sort(order.begin(), order.end(), [&](int a, int b) { return candidate_areas[a] > candidate_areas[b]; });
   {
     std::vector<std::vector<Point2D>> sorted_c(candidates.size());
     std::vector<double> sorted_a(candidate_areas.size());
@@ -437,9 +355,9 @@ bool Polygon2D::Contains(Point2D const& point) const {
 
   // strict containment: winding number method
   int wn = 0;
-  wn += wn_count(VERTICES, point);
+  wn += winding_number(VERTICES, point);
   for (auto const& hole : HOLES) {
-    wn += wn_count(hole, point);
+    wn += winding_number(hole, point);
   }
   return wn != 0;  // wn == 0 if the point is outside
 }
