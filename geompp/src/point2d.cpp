@@ -381,7 +381,7 @@ std::vector<Point2D> convex_hull(std::vector<Point2D> const& points) {
     return points;
   }
 
-  auto cv_indices = convex_hull_indices(points);
+  auto cv_indices = detail::convex_hull_indices(points);
 
   std::vector<Point2D> cv;
   cv.reserve(cv_indices.size());

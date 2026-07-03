@@ -12,7 +12,8 @@
 #include <optional>
 #include <vector>
 
-namespace g = geompp;
+namespace g  = geompp;
+namespace gd = geompp::detail;
 
 namespace geompp_tests {
 
@@ -27,9 +28,9 @@ class CalcUtils2DTest : public ::testing::Test {
 // --------------------------------------------------------------------------------------------------
 
 TEST_F(CalcUtils2DTest, Event2D_OrdersByXThenYThenType) {
-  g::Event2D a{g::EventType2D::LEFT, g::Point2D(0, 0), 0, std::nullopt};
-  g::Event2D b{g::EventType2D::LEFT, g::Point2D(1, 0), 0, std::nullopt};
-  g::Event2D c{g::EventType2D::LEFT, g::Point2D(0, 1), 0, std::nullopt};
+  gd::Event2D a{gd::EventType2D::LEFT, g::Point2D(0, 0), 0, std::nullopt};
+  gd::Event2D b{gd::EventType2D::LEFT, g::Point2D(1, 0), 0, std::nullopt};
+  gd::Event2D c{gd::EventType2D::LEFT, g::Point2D(0, 1), 0, std::nullopt};
 
   // smaller x is less
   EXPECT_TRUE(a < b);
@@ -42,9 +43,9 @@ TEST_F(CalcUtils2DTest, Event2D_OrdersByXThenYThenType) {
 
 TEST_F(CalcUtils2DTest, Event2D_SamePointOrdersByTypeEnum) {
   // EventType2D enum order is LEFT(0) < INTERSECTION(1) < RIGHT(2)
-  g::Event2D left{g::EventType2D::LEFT, g::Point2D(2, 2), 0, std::nullopt};
-  g::Event2D intersection{g::EventType2D::INTERSECTION, g::Point2D(2, 2), 0, std::nullopt};
-  g::Event2D right{g::EventType2D::RIGHT, g::Point2D(2, 2), 0, std::nullopt};
+  gd::Event2D left{gd::EventType2D::LEFT, g::Point2D(2, 2), 0, std::nullopt};
+  gd::Event2D intersection{gd::EventType2D::INTERSECTION, g::Point2D(2, 2), 0, std::nullopt};
+  gd::Event2D right{gd::EventType2D::RIGHT, g::Point2D(2, 2), 0, std::nullopt};
 
   EXPECT_TRUE(left < intersection);
   EXPECT_TRUE(intersection < right);
@@ -53,9 +54,9 @@ TEST_F(CalcUtils2DTest, Event2D_SamePointOrdersByTypeEnum) {
 }
 
 TEST_F(CalcUtils2DTest, Event2D_EqualWhenAllFieldsMatch) {
-  g::Event2D a{g::EventType2D::LEFT, g::Point2D(1, 2), 3, std::nullopt};
-  g::Event2D b{g::EventType2D::LEFT, g::Point2D(1, 2), 3, std::nullopt};
-  g::Event2D c{g::EventType2D::RIGHT, g::Point2D(1, 2), 3, std::nullopt};
+  gd::Event2D a{gd::EventType2D::LEFT, g::Point2D(1, 2), 3, std::nullopt};
+  gd::Event2D b{gd::EventType2D::LEFT, g::Point2D(1, 2), 3, std::nullopt};
+  gd::Event2D c{gd::EventType2D::RIGHT, g::Point2D(1, 2), 3, std::nullopt};
 
   EXPECT_TRUE(a == b);
   EXPECT_FALSE(a == c);
@@ -67,7 +68,7 @@ TEST_F(CalcUtils2DTest, Event2D_EqualWhenAllFieldsMatch) {
 
 TEST_F(CalcUtils2DTest, EventQueue_EmptyWhenNoSegments) {
   std::vector<g::LineSegment2D> segments;
-  g::EventQueue2D queue(segments);
+  gd::EventQueue2D queue(segments);
 
   EXPECT_TRUE(queue.Empty());
   EXPECT_FALSE(queue.Top().has_value());  // Top() peeks; returns nullopt on empty queue
@@ -78,7 +79,7 @@ TEST_F(CalcUtils2DTest, EventQueue_BuildsTwoEventsPerSegment) {
       g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0)),
       g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(3, 1)),
   };
-  g::EventQueue2D queue(segments);
+  gd::EventQueue2D queue(segments);
 
   std::size_t count = 0;
   while (!queue.Empty()) {
@@ -95,9 +96,9 @@ TEST_F(CalcUtils2DTest, EventQueue_PopReturnsInPriorityOrder) {
       g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0)),
       g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(3, 1)),
   };
-  g::EventQueue2D queue(segments);
+  gd::EventQueue2D queue(segments);
 
-  std::vector<g::Event2D> popped;
+  std::vector<gd::Event2D> popped;
   while (auto ev = queue.Pop()) {
     popped.push_back(*ev);
   }
@@ -116,7 +117,7 @@ TEST_F(CalcUtils2DTest, EventQueue_PopReturnsInPriorityOrder) {
 
 TEST_F(CalcUtils2DTest, EventQueue_TopPeeksWithoutConsuming) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0))};
-  g::EventQueue2D queue(segments);
+  gd::EventQueue2D queue(segments);
 
   auto first = queue.Top();
   auto second = queue.Top();
@@ -136,10 +137,10 @@ TEST_F(CalcUtils2DTest, EventQueue_TopPeeksWithoutConsuming) {
 
 TEST_F(CalcUtils2DTest, EventQueue_PushAddsEvent) {
   std::vector<g::LineSegment2D> empty;
-  g::EventQueue2D queue(empty);
+  gd::EventQueue2D queue(empty);
   EXPECT_TRUE(queue.Empty());
 
-  g::Event2D ev{g::EventType2D::LEFT, g::Point2D(5, 5), 0, std::nullopt};
+  gd::Event2D ev{gd::EventType2D::LEFT, g::Point2D(5, 5), 0, std::nullopt};
   queue.Push(ev);
 
   EXPECT_FALSE(queue.Empty());
@@ -150,11 +151,11 @@ TEST_F(CalcUtils2DTest, EventQueue_PushAddsEvent) {
 
 TEST_F(CalcUtils2DTest, EventQueue_ContainsFindsEvent) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0))};
-  g::EventQueue2D queue(segments);
+  gd::EventQueue2D queue(segments);
 
   // The ctor built a LEFT event at (0,0) for segment 0
-  g::Event2D left_at_origin{g::EventType2D::LEFT, g::Point2D(0, 0), 0, std::nullopt};
-  g::Event2D absent{g::EventType2D::INTERSECTION, g::Point2D(99, 99), 0, std::nullopt};
+  gd::Event2D left_at_origin{gd::EventType2D::LEFT, g::Point2D(0, 0), 0, std::nullopt};
+  gd::Event2D absent{gd::EventType2D::INTERSECTION, g::Point2D(99, 99), 0, std::nullopt};
 
   EXPECT_TRUE(queue.Contains(left_at_origin));
   EXPECT_FALSE(queue.Contains(absent));
@@ -162,10 +163,10 @@ TEST_F(CalcUtils2DTest, EventQueue_ContainsFindsEvent) {
 
 TEST_F(CalcUtils2DTest, EventQueue_AssignsLeftAndRightTypes) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0))};
-  g::EventQueue2D queue(segments);
+  gd::EventQueue2D queue(segments);
 
-  std::optional<g::EventType2D> type_at_origin;
-  std::optional<g::EventType2D> type_at_far;
+  std::optional<gd::EventType2D> type_at_origin;
+  std::optional<gd::EventType2D> type_at_far;
   while (auto ev = queue.Pop()) {
     if (ev->Point.x() == 0.0) {
       type_at_origin = ev->Type;
@@ -176,14 +177,14 @@ TEST_F(CalcUtils2DTest, EventQueue_AssignsLeftAndRightTypes) {
 
   ASSERT_TRUE(type_at_origin.has_value());
   ASSERT_TRUE(type_at_far.has_value());
-  EXPECT_EQ(*type_at_origin, g::EventType2D::LEFT);   // smaller endpoint
-  EXPECT_EQ(*type_at_far, g::EventType2D::RIGHT);     // larger endpoint
+  EXPECT_EQ(*type_at_origin, gd::EventType2D::LEFT);   // smaller endpoint
+  EXPECT_EQ(*type_at_far, gd::EventType2D::RIGHT);     // larger endpoint
 }
 
 TEST_F(CalcUtils2DTest, EventQueue_FromSegmentRange) {
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(2, 0)};
   g::SegmentRange2D range(pts);  // open polyline -> 2 segments
-  g::EventQueue2D queue(range);
+  gd::EventQueue2D queue(range);
 
   std::size_t count = 0;
   while (queue.Pop()) {
@@ -194,7 +195,7 @@ TEST_F(CalcUtils2DTest, EventQueue_FromSegmentRange) {
 
 TEST_F(CalcUtils2DTest, EventQueue_FromPolygon) {
   g::Polygon2D triangle = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3)});
-  g::EventQueue2D queue(triangle);
+  gd::EventQueue2D queue(triangle);
 
   std::size_t count = 0;
   while (queue.Pop()) {
@@ -207,7 +208,7 @@ TEST_F(CalcUtils2DTest, EventQueue_FromPolygon) {
 // SweepLine2D
 // --------------------------------------------------------------------------------------------------
 
-using SweepLineVec = g::SweepLine2D<std::vector<g::LineSegment2D>>;
+using SweepLineVec = gd::SweepLine2D<std::vector<g::LineSegment2D>>;
 
 TEST_F(CalcUtils2DTest, SweepLine_AddReturnsElementForSegment) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
@@ -356,7 +357,7 @@ TEST_F(CalcUtils2DTest, SweepLine_WorksWithSegmentRange) {
   // exercises the SweepLine2D<SegmentRange2D> explicit instantiation
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(20, 0)};
   g::SegmentRange2D range(pts);
-  g::SweepLine2D<g::SegmentRange2D> sweep(range);
+  gd::SweepLine2D<g::SegmentRange2D> sweep(range);
 
   auto elem = sweep.Add(0);
   ASSERT_TRUE(elem.Segment.has_value());
@@ -369,8 +370,8 @@ TEST_F(CalcUtils2DTest, SweepLine_WorksWithSegmentRange) {
 // --------------------------------------------------------------------------------------------------
 
 TEST_F(CalcUtils2DTest, IntersectionEvent2D_OrdersByPoint) {
-  g::IntersectionEvent2D a{g::Point2D(0, 0), {0, 1}};
-  g::IntersectionEvent2D b{g::Point2D(1, 0), {0, 1}};
+  gd::IntersectionEvent2D a{g::Point2D(0, 0), {0, 1}};
+  gd::IntersectionEvent2D b{g::Point2D(1, 0), {0, 1}};
 
   EXPECT_TRUE(a < b);
   EXPECT_FALSE(b < a);
@@ -378,15 +379,15 @@ TEST_F(CalcUtils2DTest, IntersectionEvent2D_OrdersByPoint) {
 
 TEST_F(CalcUtils2DTest, IntersectionEvent2D_EqualWhenSamePoint) {
   // equality is defined only on Point (not SegmentIds)
-  g::IntersectionEvent2D a{g::Point2D(1, 1), {0, 1}};
-  g::IntersectionEvent2D b{g::Point2D(1, 1), {2, 3}};
+  gd::IntersectionEvent2D a{g::Point2D(1, 1), {0, 1}};
+  gd::IntersectionEvent2D b{g::Point2D(1, 1), {2, 3}};
 
   EXPECT_TRUE(a == b);
 }
 
 TEST_F(CalcUtils2DTest, IntersectionEvent2D_NotEqualWhenDifferentPoint) {
-  g::IntersectionEvent2D a{g::Point2D(1, 1), {0, 1}};
-  g::IntersectionEvent2D b{g::Point2D(2, 2), {0, 1}};
+  gd::IntersectionEvent2D a{g::Point2D(1, 1), {0, 1}};
+  gd::IntersectionEvent2D b{g::Point2D(2, 2), {0, 1}};
 
   EXPECT_FALSE(a == b);
 }
@@ -583,14 +584,14 @@ TEST_F(CalcUtils2DTest, FindIntersections_ThreeSegmentsThreeDistinctPoints) {
 TEST_F(CalcUtils2DTest, HasIntersections_WorksWithSegmentRange_SimplePolygon) {
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(g::has_intersections_impl(range));
+  EXPECT_FALSE(gd::has_intersections_impl(range));
 }
 
 TEST_F(CalcUtils2DTest, FindIntersections_WorksWithSegmentRange_SelfIntersecting) {
   // same shape as SelfIntersectingRing but constructed as a SegmentRange2D
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(g::find_intersections_impl(range).empty());
+  EXPECT_FALSE(gd::find_intersections_impl(range).empty());
 }
 
 }  // namespace geompp_tests

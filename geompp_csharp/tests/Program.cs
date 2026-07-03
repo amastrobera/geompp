@@ -1289,35 +1289,35 @@ Test("Contains_OnBoundary_True", () => {
   IsTrue(poly.Contains(new Point2D(1, 2)), "hole left edge");
 });
 
-Test("IsOnBoundary_OnEdge_True", () => {
+Test("IsOnPerimeter_OnEdge_True", () => {
   var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
-  IsTrue(sq.IsOnBoundary(new Point2D(0,   0)),   "vertex (0,0)");
-  IsTrue(sq.IsOnBoundary(new Point2D(1,   0)),   "vertex (1,0)");
-  IsTrue(sq.IsOnBoundary(new Point2D(1,   1)),   "vertex (1,1)");
-  IsTrue(sq.IsOnBoundary(new Point2D(0,   1)),   "vertex (0,1)");
-  IsTrue(sq.IsOnBoundary(new Point2D(0.5, 0)),   "bottom edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point2D(1,   0.5)), "right edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point2D(0.5, 1)),   "top edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point2D(0,   0.5)), "left edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0,   0)),   "vertex (0,0)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(1,   0)),   "vertex (1,0)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(1,   1)),   "vertex (1,1)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0,   1)),   "vertex (0,1)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0.5, 0)),   "bottom edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(1,   0.5)), "right edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0.5, 1)),   "top edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0,   0.5)), "left edge midpoint");
   var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
   var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
   var poly  = Polygon2D.Make(outer, new[] { hole });
-  IsTrue(poly.IsOnBoundary(new Point2D(2, 0)), "outer bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point2D(4, 2)), "outer right edge");
-  IsTrue(poly.IsOnBoundary(new Point2D(2, 1)), "hole bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point2D(1, 2)), "hole left edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(2, 0)), "outer bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(4, 2)), "outer right edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(2, 1)), "hole bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(1, 2)), "hole left edge");
 });
 
-Test("IsOnBoundary_Interior_False", () => {
+Test("IsOnPerimeter_Interior_False", () => {
   var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
-  IsFalse(sq.IsOnBoundary(new Point2D(0.5, 0.5)),  "interior");
-  IsFalse(sq.IsOnBoundary(new Point2D(-0.1, 0.5)), "outside left");
-  IsFalse(sq.IsOnBoundary(new Point2D(1.1,  0.5)), "outside right");
+  IsFalse(sq.IsOnPerimeter(new Point2D(0.5, 0.5)),  "interior");
+  IsFalse(sq.IsOnPerimeter(new Point2D(-0.1, 0.5)), "outside left");
+  IsFalse(sq.IsOnPerimeter(new Point2D(1.1,  0.5)), "outside right");
   var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
   var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
   var poly  = Polygon2D.Make(outer, new[] { hole });
-  IsFalse(poly.IsOnBoundary(new Point2D(0.5, 0.5)), "interior strip");
-  IsFalse(poly.IsOnBoundary(new Point2D(2,   2)),   "inside hole");
+  IsFalse(poly.IsOnPerimeter(new Point2D(0.5, 0.5)), "interior strip");
+  IsFalse(poly.IsOnPerimeter(new Point2D(2,   2)),   "inside hole");
 });
 
 // NOTE: IsSimple() correctness rides on the (currently provisional) sweep-line comparator; these encode the
@@ -1351,6 +1351,91 @@ Test("ToPoints_RoundTrip", () => {
   for (int i = 0; i < pts.Length; ++i) {
     IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after ToPoints round-trip");
   }
+});
+
+Console.WriteLine("\nPolygon2D::Intersection");
+
+// Polygon2D intersects Line2D → chord segment
+Test("Intersection_Line_PassesThrough_ReturnsChord", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var line = Line2D.Make(new Point2D(0, 0.5), new Point2D(1, 0.5));
+  var r = sq.Intersection(line);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[], "expected array<LineSegment2D>");
+  var segs = (LineSegment2D[])r!;
+  Eq(1, segs.Length);
+});
+
+Test("Intersection_Line_Misses_ReturnsNull", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var line = Line2D.Make(new Point2D(5, 0), new Point2D(5, 1));
+  IsNull(sq.Intersection(line));
+});
+
+Test("Intersects_Line_True_And_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Intersects(Line2D.Make(new Point2D(0.5, -1), new Point2D(0.5, 2))));
+  IsFalse(sq.Intersects(Line2D.Make(new Point2D(5, 0), new Point2D(5, 1))));
+});
+
+// Polygon2D intersects Ray2D
+Test("Intersection_Ray_Hits_ReturnsChord", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var ray = Ray2D.Make(new Point2D(-1, 0.5), new Vector2D(1, 0));
+  var r = sq.Intersection(ray);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[], "expected array<LineSegment2D>");
+  var segs = (LineSegment2D[])r!;
+  Eq(1, segs.Length);
+});
+
+Test("Intersection_Ray_PointingAway_ReturnsNull", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsNull(sq.Intersection(Ray2D.Make(new Point2D(5, 0.5), new Vector2D(1, 0))));
+});
+
+Test("Intersection_Ray_OriginInside_ReturnsClipped", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var ray = Ray2D.Make(new Point2D(0.5, 0.5), new Vector2D(1, 0));
+  var r = sq.Intersection(ray);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[]);
+});
+
+Test("Intersects_Ray_True_And_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Intersects(Ray2D.Make(new Point2D(-1, 0.5), new Vector2D(1, 0))));
+  IsFalse(sq.Intersects(Ray2D.Make(new Point2D(5, 0.5), new Vector2D(1, 0))));
+});
+
+// Polygon2D intersects LineSegment2D
+Test("Intersection_Segment_Pierces_ReturnsChord", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var seg = LineSegment2D.Make(new Point2D(-0.5, 0.5), new Point2D(1.5, 0.5));
+  var r = sq.Intersection(seg);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[]);
+  var segs = (LineSegment2D[])r!;
+  Eq(1, segs.Length);
+});
+
+Test("Intersection_Segment_TooShort_ReturnsNull", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsNull(sq.Intersection(LineSegment2D.Make(new Point2D(-2, 0.5), new Point2D(-0.5, 0.5))));
+});
+
+Test("Intersection_Segment_EntirelyInside", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var seg = LineSegment2D.Make(new Point2D(0.2, 0.5), new Point2D(0.8, 0.5));
+  var r = sq.Intersection(seg);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[]);
+});
+
+Test("Intersects_Segment_True_And_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Intersects(LineSegment2D.Make(new Point2D(-0.5, 0.5), new Point2D(1.5, 0.5))));
+  IsFalse(sq.Intersects(LineSegment2D.Make(new Point2D(-2, 0.5), new Point2D(-0.5, 0.5))));
 });
 
 // ── Polygon3D ─────────────────────────────────────────────────────────────────
@@ -1446,35 +1531,35 @@ Test("Contains_OnBoundary_True", () => {
   IsTrue(poly.Contains(new Point3D(2, 1, 0)), "hole bottom edge");
 });
 
-Test("IsOnBoundary_OnEdge_True", () => {
+Test("IsOnPerimeter_OnEdge_True", () => {
   var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
-  IsTrue(sq.IsOnBoundary(new Point3D(0,   0,   0)), "vertex (0,0,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(1,   0,   0)), "vertex (1,0,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(1,   1,   0)), "vertex (1,1,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(0,   1,   0)), "vertex (0,1,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(0.5, 0,   0)), "bottom edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point3D(1,   0.5, 0)), "right edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point3D(0.5, 1,   0)), "top edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point3D(0,   0.5, 0)), "left edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0,   0,   0)), "vertex (0,0,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(1,   0,   0)), "vertex (1,0,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(1,   1,   0)), "vertex (1,1,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0,   1,   0)), "vertex (0,1,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0.5, 0,   0)), "bottom edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(1,   0.5, 0)), "right edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0.5, 1,   0)), "top edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0,   0.5, 0)), "left edge midpoint");
   var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
   var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
   var poly  = Polygon3D.Make(outer, new[] { hole });
-  IsTrue(poly.IsOnBoundary(new Point3D(2, 0, 0)), "outer bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point3D(4, 2, 0)), "outer right edge");
-  IsTrue(poly.IsOnBoundary(new Point3D(2, 1, 0)), "hole bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point3D(1, 2, 0)), "hole left edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(2, 0, 0)), "outer bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(4, 2, 0)), "outer right edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(2, 1, 0)), "hole bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(1, 2, 0)), "hole left edge");
 });
 
-Test("IsOnBoundary_Interior_False", () => {
+Test("IsOnPerimeter_Interior_False", () => {
   var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
-  IsFalse(sq.IsOnBoundary(new Point3D(0.5, 0.5, 0)),    "interior");
-  IsFalse(sq.IsOnBoundary(new Point3D(-0.1, 0.5, 0)),   "outside left");
-  IsFalse(sq.IsOnBoundary(new Point3D(0.5,  0.5, 0.01)), "off-plane");
+  IsFalse(sq.IsOnPerimeter(new Point3D(0.5, 0.5, 0)),    "interior");
+  IsFalse(sq.IsOnPerimeter(new Point3D(-0.1, 0.5, 0)),   "outside left");
+  IsFalse(sq.IsOnPerimeter(new Point3D(0.5,  0.5, 0.01)), "off-plane");
   var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
   var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
   var poly  = Polygon3D.Make(outer, new[] { hole });
-  IsFalse(poly.IsOnBoundary(new Point3D(0.5, 0.5, 0)), "interior strip");
-  IsFalse(poly.IsOnBoundary(new Point3D(2,   2,   0)), "inside hole");
+  IsFalse(poly.IsOnPerimeter(new Point3D(0.5, 0.5, 0)), "interior strip");
+  IsFalse(poly.IsOnPerimeter(new Point3D(2,   2,   0)), "inside hole");
 });
 
 // NOTE: IsSimple() correctness rides on the (currently provisional) sweep-line comparator; these encode the
@@ -3477,6 +3562,63 @@ Console.WriteLine("\nPolygon3D::Simplify");
                 IsTrue(Math.Abs(p[i].Z) < 1e-9, $"vertex z should be 0, got {p[i].Z}");
             }
         }
+    });
+}
+
+Console.WriteLine("\nPolygon3D::Intersection");
+{
+    var sq = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(1,1,0), new Point3D(0,1,0)
+    });
+    var lineHit      = Line3D.Make(new Point3D(0.5, 0.5, -1), new Point3D(0.5, 0.5,  1));
+    var lineMiss     = Line3D.Make(new Point3D(2,   0.5, -1), new Point3D(2,   0.5,  1));
+    var lineParallel = Line3D.Make(new Point3D(0,   0,    1), new Point3D(1,   1,    1));
+    var rayHit       = Ray3D.Make(new Point3D(0.5, 0.5,  1), new Vector3D(0, 0, -1));
+    var rayAway      = Ray3D.Make(new Point3D(0.5, 0.5,  1), new Vector3D(0, 0,  1));
+    var rayMiss      = Ray3D.Make(new Point3D(2,   0.5,  1), new Vector3D(0, 0, -1));
+    var segHit       = LineSegment3D.Make(new Point3D(0.5, 0.5, -1), new Point3D(0.5, 0.5,  1));
+    var segShort     = LineSegment3D.Make(new Point3D(0.5, 0.5,  0.5), new Point3D(0.5, 0.5, 1));
+    var segMiss      = LineSegment3D.Make(new Point3D(2,   0.5, -1), new Point3D(2,   0.5,  1));
+
+    Test("Intersects_Line_Hit",          () => IsTrue(sq.Intersects(lineHit)));
+    Test("Intersects_Line_Miss",         () => IsTrue(!sq.Intersects(lineMiss)));
+    Test("Intersects_Line_Parallel",     () => IsTrue(!sq.Intersects(lineParallel)));
+    Test("Intersection_Line_Hit_Point",  () => {
+        var r = sq.Intersection(lineHit);
+        NotNull(r);
+        Eq(0.5, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.0, r.Z, 3);
+    });
+    Test("Intersection_Line_Miss_Null",  () => IsNull(sq.Intersection(lineMiss)));
+
+    Test("Intersects_Ray_Hit",           () => IsTrue(sq.Intersects(rayHit)));
+    Test("Intersects_Ray_Away",          () => IsTrue(!sq.Intersects(rayAway)));
+    Test("Intersects_Ray_Miss",          () => IsTrue(!sq.Intersects(rayMiss)));
+    Test("Intersection_Ray_Hit_Point",   () => {
+        var r = sq.Intersection(rayHit);
+        NotNull(r);
+        Eq(0.5, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.0, r.Z, 3);
+    });
+    Test("Intersection_Ray_Away_Null",   () => IsNull(sq.Intersection(rayAway)));
+
+    Test("Intersects_Segment_Hit",       () => IsTrue(sq.Intersects(segHit)));
+    Test("Intersects_Segment_Short",     () => IsTrue(!sq.Intersects(segShort)));
+    Test("Intersects_Segment_Miss",      () => IsTrue(!sq.Intersects(segMiss)));
+    Test("Intersection_Segment_Hit_Point", () => {
+        var r = sq.Intersection(segHit);
+        NotNull(r);
+        Eq(0.5, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.0, r.Z, 3);
+    });
+    Test("Intersection_Segment_Short_Null", () => IsNull(sq.Intersection(segShort)));
+
+    // Non-XY plane: YZ square at x=0; normal = +X
+    var yz = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(0,1,0), new Point3D(0,1,1), new Point3D(0,0,1)
+    });
+    var lineThruYZ = Line3D.Make(new Point3D(-1, 0.5, 0.5), new Point3D(1, 0.5, 0.5));
+    Test("Intersection_Line_YZPlane_Point", () => {
+        var r = yz.Intersection(lineThruYZ);
+        NotNull(r);
+        Eq(0.0, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.5, r.Z, 3);
     });
 }
 

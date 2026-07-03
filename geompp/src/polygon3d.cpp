@@ -21,7 +21,6 @@
 #include <fstream>
 #include <limits>
 #include <numeric>
-#include <ranges>
 #include <sstream>
 #include <stdexcept>
 
@@ -197,22 +196,15 @@ double Polygon3D::Perimeter() const { return PERIMETER; }
 
 bool Polygon3D::IsSimple() const {
   Axis dax = PLANE.normal().DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
 
-  auto make_segs = [dax](std::vector<Point3D> const& ring) {
-    auto to2d = [dax](Point3D const& p) -> Point2D {
-      if (dax == Axis::X) {
-        return Point2D(p.y(), p.z());
-      }
-      if (dax == Axis::Y) {
-        return Point2D(p.z(), p.x());
-      }
-      return Point2D(p.x(), p.y());
-    };
+  auto make_segs = [&view](std::vector<Point3D> const& ring) {
     std::vector<LineSegment2D> segs;
     segs.reserve(ring.size());
     int n = (int)ring.size();
     for (int i = 0; i < n; ++i) {
-      segs.push_back(LineSegment2D::Make(to2d(ring[i]), to2d(ring[(i + 1) % n])));
+      segs.push_back(LineSegment2D::Make(Point2D(view.x(ring[i]), view.y(ring[i])),
+                                         Point2D(view.x(ring[(i + 1) % n]), view.y(ring[(i + 1) % n]))));
     }
     return segs;
   };
@@ -227,7 +219,6 @@ bool Polygon3D::IsSimple() const {
   }
   return true;
 }
-
 
 std::vector<Polygon3D> Polygon3D::Simplify() const {
   if (IsSimple()) {
@@ -252,7 +243,7 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
     return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
   };
 
-  auto rings2d = simplify_rings_impl(VERTICES, HOLES, view);
+  auto rings2d = detail::simplify_rings_impl(VERTICES, HOLES, view);
 
   // Detect whether the dominant-axis projection reverses chirality.
   // For Y-dominant the mapping (z,x) mirrors the coordinate system, so a CCW 3D polygon
@@ -297,8 +288,7 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
   // Sort candidates by area descending (largest first)
   std::vector<int> order(candidates2d.size());
   std::iota(order.begin(), order.end(), 0);
-  std::sort(order.begin(), order.end(),
-            [&](int a, int b) { return candidate_areas[a] > candidate_areas[b]; });
+  std::sort(order.begin(), order.end(), [&](int a, int b) { return candidate_areas[a] > candidate_areas[b]; });
   {
     std::vector<std::vector<Point2D>> sorted_c(candidates2d.size());
     std::vector<double> sorted_a(candidate_areas.size());
@@ -389,7 +379,7 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
 }
 
 Polygon3D Polygon3D::ConvexHull() {
-  auto cv_indices = convex_hull_indices(VERTICES);
+  auto cv_indices = detail::convex_hull_indices(VERTICES);
   std::vector<Point3D> cv_points;
   cv_points.reserve(cv_indices.size());
   for (std::size_t i : cv_indices) {
@@ -429,48 +419,31 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Polygon3D::IsOnBoundary(Point3D const& point) const {
+bool Polygon3D::IsOnPerimeter(Point3D const& point) const {
   if (!PLANE.Contains(point)) {
     return false;
   }
-
-  auto project_view = VERTICES | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
-  std::vector<Point2D> outer2d(project_view.begin(), project_view.end());
-
-  std::vector<std::vector<Point2D>> inners2d;
-  for (auto const& hole : HOLES) {
-    auto project_view_h = hole | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
-    inners2d.push_back(std::vector<Point2D>(project_view_h.begin(), project_view_h.end()));
-  }
-
-  auto proj_poly = Polygon2D::Make(outer2d, inners2d);
-  return proj_poly.IsOnBoundary(PLANE.ProjectInto(point));
+  Axis dax = PLANE.normal().DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  return detail::is_on_perimeter_with_view(VERTICES, HOLES, view, view.x(point), view.y(point));
 }
 
 bool Polygon3D::Contains(Point3D const& point) const {
-  // quick rejection with bounding box
   if (!BBox3D(*this).Contains(point)) {
     return false;
   }
 
-  // another quick rejection: if not on the plane, can't belong to the polygon
   if (!PLANE.Contains(point)) {
     return false;
   }
 
-  // final test: project all in 2D, and verify in 2D
-  auto project_view = VERTICES | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
-  std::vector<Point2D> outer2d(project_view.begin(), project_view.end());
-
-  std::vector<std::vector<Point2D>> inners2d;
-  for (auto const& hole : HOLES) {
-    auto project_view_h = hole | std::views::transform([&](auto const& p) { return PLANE.ProjectInto(p); });
-    inners2d.push_back(std::vector<Point2D>(project_view_h.begin(), project_view_h.end()));
+  if (IsOnPerimeter(point)) {
+    return true;
   }
 
-  auto proj_poly = Polygon2D::Make(outer2d, inners2d);
-
-  return proj_poly.Contains(PLANE.ProjectInto(point));
+  Axis dax = PLANE.normal().DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  return detail::polygon_contains_with_view(VERTICES, HOLES, view, view.x(point), view.y(point));
 }
 
 bool Polygon3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }
@@ -479,12 +452,52 @@ bool Polygon3D::Intersects(Ray3D const& ray) const { return Intersection(ray).ha
 
 bool Polygon3D::Intersects(LineSegment3D const& segment) const { return Intersection(segment).has_value(); }
 
-Polygon3D::ReturnSet Polygon3D::Intersection(Line3D const& line) const { throw std::runtime_error("not implemented"); }
+std::optional<Point3D> Polygon3D::Intersection(Line3D const& line) const {
+  auto plane_inter = PLANE.Intersection(line);
 
-Polygon3D::ReturnSet Polygon3D::Intersection(Ray3D const& ray) const { throw std::runtime_error("not implemented"); }
+  if (!(plane_inter.has_value() && std::holds_alternative<Point3D>(*plane_inter))) {
+    return std::nullopt;
+  }
 
-Polygon3D::ReturnSet Polygon3D::Intersection(LineSegment3D const& other) const {
-  throw std::runtime_error("not implemented");
+  auto const& intersection_point = std::get<Point3D>(plane_inter.value());
+
+  if (!Contains(intersection_point)) {
+    return std::nullopt;
+  }
+
+  return intersection_point;
+}
+
+std::optional<Point3D> Polygon3D::Intersection(Ray3D const& ray) const {
+  auto plane_inter = PLANE.Intersection(ray);
+
+  if (!(plane_inter.has_value() && std::holds_alternative<Point3D>(*plane_inter))) {
+    return std::nullopt;
+  }
+
+  auto const& intersection_point = std::get<Point3D>(plane_inter.value());
+
+  if (!Contains(intersection_point)) {
+    return std::nullopt;
+  }
+
+  return intersection_point;
+}
+
+std::optional<Point3D> Polygon3D::Intersection(LineSegment3D const& segment) const {
+  auto plane_inter = PLANE.Intersection(segment);
+
+  if (!(plane_inter.has_value() && std::holds_alternative<Point3D>(*plane_inter))) {
+    return std::nullopt;
+  }
+
+  auto const& intersection_point = std::get<Point3D>(plane_inter.value());
+
+  if (!Contains(intersection_point)) {
+    return std::nullopt;
+  }
+
+  return intersection_point;
 }
 
 #pragma endregion

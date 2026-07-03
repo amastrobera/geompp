@@ -29,7 +29,7 @@ void bind_polygon3d(py::module_& m) {
              "Returns [self] if already simple.")
         .def("distance_to", &geompp::Polygon3D::DistanceTo,  "point"_a)
         .def("contains",       &geompp::Polygon3D::Contains,      "point"_a)
-        .def("is_on_boundary", &geompp::Polygon3D::IsOnBoundary, "point"_a)
+        .def("is_on_perimeter", &geompp::Polygon3D::IsOnPerimeter, "point"_a)
         .def("convex_hull",    &geompp::Polygon3D::ConvexHull, "Returns the convex hull as a new Polygon3D.")
         .def("to_points",      &geompp::Polygon3D::ToPoints,   "Returns the vertices as a list of Point3D.")
         BIND_ALMOST_EQUALS(Polygon3D)
@@ -41,11 +41,11 @@ void bind_polygon3d(py::module_& m) {
         .def("intersects",
              [](const geompp::Polygon3D& p, const geompp::LineSegment3D& s) { return p.Intersects(s); }, "segment"_a)
         .def("intersection",
-             [](const geompp::Polygon3D& p, const geompp::Line3D& l) -> py::object { return opt_variant_to_py(p.Intersection(l)); }, "line"_a)
+             [](const geompp::Polygon3D& p, const geompp::Line3D& l) -> py::object { return opt_to_py(p.Intersection(l)); }, "line"_a)
         .def("intersection",
-             [](const geompp::Polygon3D& p, const geompp::Ray3D& r) -> py::object { return opt_variant_to_py(p.Intersection(r)); }, "ray"_a)
+             [](const geompp::Polygon3D& p, const geompp::Ray3D& r) -> py::object { return opt_to_py(p.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::Polygon3D& p, const geompp::LineSegment3D& s) -> py::object { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
+             [](const geompp::Polygon3D& p, const geompp::LineSegment3D& s) -> py::object { return opt_to_py(p.Intersection(s)); }, "segment"_a)
         .def("__len__",     &geompp::Polygon3D::Size)
         .def("__getitem__", [](const geompp::Polygon3D& p, int i) -> geompp::Point3D {
             if (i < 0) {

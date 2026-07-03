@@ -26,6 +26,12 @@ concept WktSerializable = requires(const T& obj, const std::string& wkt) {
 };
 
 template <typename T>
+concept Point = requires(std::ranges::range_value_t<T> const& p) {
+  { p.x() } -> std::convertible_to<double>;  // element must expose x() and y()
+  { p.y() } -> std::convertible_to<double>;
+};
+
+template <typename T>
 concept PointContainer =
        std::ranges::random_access_range<T>  // operator[](size_t) and iteration
     && std::ranges::sized_range<T>          // size() / empty()

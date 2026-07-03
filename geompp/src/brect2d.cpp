@@ -60,12 +60,12 @@ BRect2D::BRect2D(Points const& points) {
   if (n < 3) {
     throw std::invalid_argument("cannot make oriented bounding rectangle from less than 3 points");
   }
-  auto hull_idx = convex_hull_indices(points);
+  auto hull_idx = detail::convex_hull_indices(points);
   std::size_t m = hull_idx.size();
   if (m < 3) {
     throw std::invalid_argument("cannot make oriented bounding rectangle from collinear or coincident points");
   }
-  auto mbr = min_bounding_rect(hull_idx, points, View2D::XY());
+  auto mbr = detail::min_bounding_rect(hull_idx, points, View2D::XY());
   AXIS_U = Vector2D{mbr.u_axis_x, mbr.u_axis_y}.Normalize();
   AXIS_V = Vector2D{mbr.v_axis_x, mbr.v_axis_y}.Normalize();
   HALF_LEN_U = mbr.half_len_u;

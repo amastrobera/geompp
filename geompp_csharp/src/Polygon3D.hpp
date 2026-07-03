@@ -35,7 +35,7 @@ public:
     bool     IsConvex();
     double   DistanceTo(Point3D^ point);
     bool     Contains(Point3D^ point);
-    bool     IsOnBoundary(Point3D^ point);
+    bool     IsOnPerimeter(Point3D^ point);
     Polygon3D^                ConvexHull();
     array<Polygon3D^>^        Simplify();
     array<Point3D^>^          ToPoints();

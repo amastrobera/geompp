@@ -24,6 +24,7 @@
 #include <variant>
 
 namespace geompp {
+namespace detail {
 
 namespace {
 
@@ -398,19 +399,13 @@ std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segment
 
       if (elem.Above && !shares_endpoint(elem.Segment->Seg, elem.Above->Seg)) {
         if (auto inter_p = elem.Segment->Seg.Intersection(elem.Above->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Segment->Id,
-                                     elem.Above->Id});
-          }
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Segment->Id, elem.Above->Id});
         }
       }
 
       if (elem.Below && !shares_endpoint(elem.Below->Seg, elem.Segment->Seg)) {
         if (auto inter_p = elem.Below->Seg.Intersection(elem.Segment->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Below->Id,
-                                     elem.Segment->Id});
-          }
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Below->Id, elem.Segment->Id});
         }
       }
 
@@ -428,12 +423,9 @@ std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segment
 
       if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
         if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_event =
-                Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id, above_elem->Id};
-            if (!event_queue.Contains(inter_event)) {
-              event_queue.Push(inter_event);
-            }
+          auto inter_event = Event2D{EventType2D::INTERSECTION, inter_p.value(), below_elem->Id, above_elem->Id};
+          if (!event_queue.Contains(inter_event)) {
+            event_queue.Push(inter_event);
           }
         }
       }
@@ -513,24 +505,18 @@ std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segment
       // now : segB < seg2 < seg1 < segA
       if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
         if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg1.Segment->Id,
-                                    new_seg1.Above->Id};
-            if (!event_queue.Contains(inter_ev)) {
-              event_queue.Push(inter_ev);
-            }
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg1.Segment->Id, new_seg1.Above->Id};
+          if (!event_queue.Contains(inter_ev)) {
+            event_queue.Push(inter_ev);
           }
         }
       }
 
       if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
         if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg2.Below->Id,
-                                    new_seg2.Segment->Id};
-            if (!event_queue.Contains(inter_ev)) {
-              event_queue.Push(inter_ev);
-            }
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg2.Below->Id, new_seg2.Segment->Id};
+          if (!event_queue.Contains(inter_ev)) {
+            event_queue.Push(inter_ev);
           }
         }
       }
@@ -869,6 +855,12 @@ std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::
   return rings;
 }
 
+template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point2D> const&,
+                                                               std::vector<std::vector<Point2D>> const&, View2D const&);
+
+template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point3D> const&,
+                                                               std::vector<std::vector<Point3D>> const&, View2D const&);
+
 int winding_number(std::vector<Point2D> const& vertices, Point2D const& p) {
   int wn = 0;
   int n = static_cast<int>(vertices.size());
@@ -929,10 +921,249 @@ bool is_convex(std::vector<Point2D> const& vertices, std::vector<std::vector<Poi
   return is_convex_with_view(vertices, View2D::XY());
 }
 
-template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point2D> const&,
-                                                               std::vector<std::vector<Point2D>> const&, View2D const&);
+template <PointContainer Points>
+bool is_on_perimeter_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                               double py) {
+  Point2D test_pt(px, py);
+  auto check_ring = [&](auto const& ring) -> bool {
+    int n = static_cast<int>(ring.size());
+    for (int i = 0; i < n; ++i) {
+      Point2D v1(view.x(ring[i]), view.y(ring[i]));
+      Point2D v2(view.x(ring[(i + 1) % n]), view.y(ring[(i + 1) % n]));
+      if (LineSegment2D::Make(v1, v2).Contains(test_pt)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  if (check_ring(outer)) {
+    return true;
+  }
+  for (auto const& hole : holes) {
+    if (check_ring(hole)) {
+      return true;
+    }
+  }
+  return false;
+}
 
-template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point3D> const&,
-                                                               std::vector<std::vector<Point3D>> const&, View2D const&);
+template bool is_on_perimeter_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                        View2D const&, double, double);
+template bool is_on_perimeter_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                        View2D const&, double, double);
 
+template <PointContainer Points>
+bool polygon_contains_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                                double py) {
+  auto ring_winding = [&](auto const& ring) -> int {
+    int wn = 0;
+    int n = static_cast<int>(ring.size());
+    for (int i = 0; i < n; ++i) {
+      double v1y = view.y(ring[i]);
+      double v2y = view.y(ring[(i + 1) % n]);
+      if (compare(v1y, py) <= 0) {
+        if (compare(v2y, py) > 0) {
+          double v1x = view.x(ring[i]), v2x = view.x(ring[(i + 1) % n]);
+          if (compare((v2x - v1x) * (py - v1y) - (v2y - v1y) * (px - v1x), 0.0) > 0) {
+            ++wn;
+          }
+        }
+      } else {
+        if (compare(v2y, py) <= 0) {
+          double v1x = view.x(ring[i]), v2x = view.x(ring[(i + 1) % n]);
+          if (compare((v2x - v1x) * (py - v1y) - (v2y - v1y) * (px - v1x), 0.0) < 0) {
+            --wn;
+          }
+        }
+      }
+    }
+    return wn;
+  };
+
+  int wn = ring_winding(outer);
+  if (wn == 0) {  // early terminate if outside
+    return false;
+  }
+
+  for (auto const& hole : holes) {
+    wn += ring_winding(hole);
+
+    if (wn == 0) {  // since valid holes cannot overlap each other
+                    // early terminate if inside one of the holes
+      return false;
+    }
+  }
+  return wn != 0;
+}
+
+template bool polygon_contains_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                         View2D const&, double, double);
+template bool polygon_contains_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                         View2D const&, double, double);
+
+template <PointContainer Points, Point P>
+std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    Points const& outer_coplanar_ccw, std::vector<Points> const& holes_coplanar_cw, bool is_convex_input,
+    P const& line_p0, P const& line_p1, View2D const& view) {
+  // Debug-mode invariant checks. Disabled in Release (NDEBUG defined).
+  assert(are_ccw(outer_coplanar_ccw));
+  if constexpr (std::is_same_v<typename Points::value_type, Point3D>) {
+    assert(are_coplanar(outer_coplanar_ccw));
+  }
+  assert(!is_convex_input || is_convex_with_view(outer_coplanar_ccw, view));
+  assert(!is_convex_input || holes_coplanar_cw.empty());
+  for (auto const& hole : holes_coplanar_cw) {
+    assert(are_cw(hole));
+    if constexpr (std::is_same_v<typename Points::value_type, Point3D>) {
+      assert(are_coplanar(hole));
+    }
+  }
+
+  // actual algorithm
+
+  // Project the line endpoints to 2D once; all geometry lives in this view's plane.
+  // edge e(i): v_0 = outer[(i+1)%n], v_1 = outer[i]
+  //   ex = view.x(v1) - view.x(v0),  ey = view.y(v1) - view.y(v0)
+  //   outward normal for CCW ring: -Perp(ex,ey) = (ey, -ex)
+  //   N = -(p0 - v0) · (ey,-ex)  =  -(p0x-v0x)*ey + (p0y-v0y)*ex
+  //   D =  p_vec    · (ey,-ex)   =   dx*ey - dy*ex
+  double p0x = view.x(line_p0), p0y = view.y(line_p0);
+  double dx = view.x(line_p1) - p0x;
+  double dy = view.y(line_p1) - p0y;
+
+  auto edge_ND = [&](P const& v0, P const& v1) -> std::pair<double, double> {
+    double v0x = view.x(v0), v0y = view.y(v0);
+    double ex = view.x(v1) - v0x, ey = view.y(v1) - v0y;
+    double N = -(p0x - v0x) * ey + (p0y - v0y) * ex;
+    double D = dx * ey - dy * ex;
+    return {N, D};
+  };
+
+  std::vector<std::pair<double, double>> t_list;
+
+  if (is_convex_input) {  // quick exit on entering and leaving edges
+    double t_e = std::numeric_limits<double>::min();
+    bool is_t_e_set = false;
+    double t_l = std::numeric_limits<double>::max();
+    bool is_t_l_set = false;
+    std::size_t n = outer_coplanar_ccw.size();
+
+    for (std::size_t i = 0; i < n; ++i) {
+      auto const& v_0 = outer_coplanar_ccw[(i + 1) % n];
+      auto const& v_1 = outer_coplanar_ccw[i];
+      auto [N, D] = edge_ND(v_0, v_1);
+
+      auto D_compare_to_0 = compare(D, 0);
+      if (D_compare_to_0 == 0) {  // line is parallel to edge e(i)
+        if (compare(N, 0) < 0) {  // P0 is outside the edge e(i)
+          break;                  // early terminate (valid for convex: one miss = total miss)
+
+        } else {
+          continue;  // ignore edge e(i)
+        }
+      }
+
+      double t = N / D;
+      if (D_compare_to_0 < 0) {  // the line is ENTERING polygon through the edge e(i)
+        if (!is_t_e_set) {       // init
+          t_e = t;
+          is_t_e_set = true;
+
+        } else {
+          if (compare(t, t_e) > 0) {  // update our t_e to the greatest of the old and new value
+            t_e = t;
+          }
+        }
+
+        if (is_t_e_set && is_t_l_set &&  // if both are set
+            compare(t_e, t_l) > 0) {     // quick rejection if not t_e < t_l
+          break;
+        }
+
+      } else {              // the line is LEAVING polygon through the edge e(i), on D_compare_to_0 > 0
+        if (!is_t_l_set) {  // init
+          t_l = t;
+          is_t_l_set = true;
+
+        } else {
+          if (compare(t, t_l) < 0) {  // update our t_l to the smallest of the old and new value
+            t_l = t;
+          }
+        }
+
+        if (is_t_e_set && is_t_l_set &&  // if both are set
+            compare(t_e, t_l) > 0) {     // quick rejection if not t_e < t_l
+          break;
+        }
+      }
+    }
+
+    // only if we have both an ENTERING edge and a LEAVING edge we have an intersection,
+    // otherwise it's an overlap (OnPerimeter)
+    if (is_t_e_set && is_t_l_set && compare(t_e, t_l) < 0) {
+      t_list.emplace_back(t_e, t_l);
+    }
+
+  } else {  // Collect, Sort, Parity
+
+    // we don't need to care about separating t_e from t_l
+    // the Jordan Curve Theorem guarantees that an infinite line crossing a closed shape will always alternate:
+    // Enter-> Leave-> Enter -> Leave, always paired up
+    // (try it graphically on a piece of paper: outer CCW and inner CW guarantee this)
+
+    // the list of ts will always have an even number
+    // (mathematically guaranteed if we close the for-loop of points)
+    // so we can expect to always have something like this once sorted (<t_e, t_l>, <t_e, t_l>, <t_e, t_l>, ...)
+
+    // special case: overlap with vertex: the values of (sorted) t_e and t_l are equal: we will remove them
+
+    std::vector<double> t_all;
+    std::size_t n = outer_coplanar_ccw.size();
+
+    for (std::size_t i = 0; i < n; ++i) {
+      auto const& v_0 = outer_coplanar_ccw[(i + 1) % n];  // guarantees the loop of points to be closed
+      auto const& v_1 = outer_coplanar_ccw[i];
+      auto [N, D] = edge_ND(v_0, v_1);
+
+      auto D_compare_to_0 = compare(D, 0);
+      if (D_compare_to_0 == 0) {  // line is parallel to edge e(i)
+        continue;  // skip — parallel to one edge does not mean the line misses the whole concave polygon
+      }
+
+      double t = N / D;
+      t_all.push_back(t);
+    }
+
+    // sort the list
+    if (!t_all.empty()) {
+      // sort ASC, using the std::partial_ordering and the optimized ranges algorithm
+      std::ranges::sort(t_all);
+      // remove consecutive duplicates
+      remove_all_duplicated_elements(t_all);
+
+      if (!t_all.empty()) {
+        std::size_t m = t_all.size();
+        if (m % 2 != 0) {  // impossible (mathematically) to get an odd number
+          throw std::runtime_error("found an odd number of t_all intervals in sorted vector");
+        }
+
+        for (std::size_t i = 0; i < m - 1; i += 2) {
+          t_list.emplace_back(t_all[i], t_all[i + 1]);
+        }
+      }
+    }
+  }
+
+  return t_list;
+}
+
+template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view);
+
+template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    std::vector<Point3D> const& outer_coplanar_ccw, std::vector<std::vector<Point3D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point3D const& line_p0, Point3D const& line_p1, View2D const& view);
+
+}  // namespace detail
 }  // namespace geompp

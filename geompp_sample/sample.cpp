@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 #include "constants.hpp"
 #include "geompp_log.hpp"
+#include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
@@ -8,6 +9,8 @@
 #include "point3d.hpp"
 #include "polygon2d.hpp"
 #include "polygon3d.hpp"
+#include "ray2d.hpp"
+#include "vector2d.hpp"
 #include "vector3d.hpp"
 #include "wkt_parser.hpp"
 
@@ -38,7 +41,7 @@ void example_1() {
   if (s1.Intersects(s2)) {
     auto result = s1.Intersection(s2);
     if (result.has_value()) {
-      auto p = std::get<g::Point3D>(*result);
+      auto p = *result;
       GEOMPP_LOG(INFO) << "intersection found: " << p.ToWkt();
 
       p.ToFile("intersection.wkt");
@@ -217,6 +220,82 @@ void example_5() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Example 6 — Polygon2D intersection with Line, Ray, and LineSegment
+// ─────────────────────────────────────────────────────────────────────────────
+void example_6() {
+  std::cout << "\n=== Example 6: Polygon2D::Intersection (Line / Ray / Segment) ===\n";
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Unit square (CCW)
+  auto sq = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+
+  // ── Line2D through the square at y = 0.5 ──────────────────────────────────
+  auto line = g::Line2D::Make(g::Point2D(-1, 0.5), g::Point2D(2, 0.5));
+
+  if (sq.Intersects(line)) {
+    auto result = sq.Intersection(line);
+    if (result.has_value()) {
+      std::visit([](auto const& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, g::Point2D>) {
+          GEOMPP_LOG(INFO) << "line touches at point: " << v.ToWkt();
+        } else {
+          GEOMPP_LOG(INFO) << v.size() << " chord segment(s):";
+          for (auto const& s : v) {
+            GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+          }
+        }
+      }, result.value());
+    }
+  }
+  // expected: 1 chord segment: LINESTRING (0 0.5, 1 0.5)
+
+  // ── Ray2D from inside the square ──────────────────────────────────────────
+  auto ray = g::Ray2D::Make(g::Point2D(0.5, 0.5), g::Vector2D(1, 0));
+
+  if (sq.Intersects(ray)) {
+    auto result = sq.Intersection(ray);
+    if (result.has_value()) {
+      std::visit([](auto const& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, g::Point2D>) {
+          GEOMPP_LOG(INFO) << "ray touches at point: " << v.ToWkt();
+        } else {
+          GEOMPP_LOG(INFO) << v.size() << " chord segment(s) from ray:";
+          for (auto const& s : v) {
+            GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+          }
+        }
+      }, result.value());
+    }
+  }
+  // expected: 1 chord from (0.5,0.5) to (1,0.5)
+
+  // ── LineSegment2D that pierces the square ─────────────────────────────────
+  auto seg = g::LineSegment2D::Make(g::Point2D(-0.5, 0.5), g::Point2D(1.5, 0.5));
+
+  if (sq.Intersects(seg)) {
+    auto result = sq.Intersection(seg);
+    if (result.has_value()) {
+      std::visit([](auto const& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, g::Point2D>) {
+          GEOMPP_LOG(INFO) << "segment touches at point: " << v.ToWkt();
+        } else {
+          GEOMPP_LOG(INFO) << v.size() << " chord segment(s) from segment:";
+          for (auto const& s : v) {
+            GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+          }
+        }
+      }, result.value());
+    }
+  }
+  // expected: 1 chord segment: LINESTRING (0 0.5, 1 0.5)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 int main() {
   example_1();
 
@@ -227,6 +306,8 @@ int main() {
   example_4();
 
   example_5();
+
+  example_6();
 
   return 0;
 }

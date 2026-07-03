@@ -7,6 +7,7 @@
 #include <optional>
 
 namespace geompp {
+namespace detail {
 
 void distance_line_to_line(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0, Point3D const& L2_P1,
                            double& sc, double& tc);
@@ -29,6 +30,8 @@ std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points,
 /// @returns list of indices of the points (from the original vector) that form a convex hull
 /// @throws algorithm based throw logic
 std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points);
+
+}  // namespace detail
 
 /// @brief Computes the three principal axes of a point cloud using PCA (Jacobi eigendecomposition).
 /// @param points The point cloud. Must contain at least 3 non-collinear points.

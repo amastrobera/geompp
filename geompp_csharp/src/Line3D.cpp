@@ -149,7 +149,7 @@ Point3D^ Line3D::Intersection(Line3D^ other) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Line3D::Intersection(Ray3D^ ray) {
@@ -157,7 +157,7 @@ Point3D^ Line3D::Intersection(Ray3D^ ray) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Line3D::Intersection(LineSegment3D^ segment) {
@@ -165,7 +165,7 @@ Point3D^ Line3D::Intersection(LineSegment3D^ segment) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

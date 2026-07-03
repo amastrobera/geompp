@@ -95,8 +95,8 @@ bool Polygon3D::Contains(Point3D^ point) {
     return _native->Contains(*point->_native);
 }
 
-bool Polygon3D::IsOnBoundary(Point3D^ point) {
-    return _native->IsOnBoundary(*point->_native);
+bool Polygon3D::IsOnPerimeter(Point3D^ point) {
+    return _native->IsOnPerimeter(*point->_native);
 }
 
 bool Polygon3D::IsSimple() {
@@ -168,7 +168,7 @@ Point3D^ Polygon3D::Intersection(Line3D^ line) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Polygon3D::Intersection(Ray3D^ ray) {
@@ -176,7 +176,7 @@ Point3D^ Polygon3D::Intersection(Ray3D^ ray) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Polygon3D::Intersection(LineSegment3D^ segment) {
@@ -184,7 +184,7 @@ Point3D^ Polygon3D::Intersection(LineSegment3D^ segment) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

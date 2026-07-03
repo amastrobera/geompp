@@ -182,10 +182,10 @@
   | Metric | Count | Notes |
   |--------|-------|-------|
   | Public methods | ~399 | Excl. ctors/dtors/operators |
-  | C++ tested | ~343 | ~86% |
-  | Python tested | ~195 | ~49% |
-  | C# tested | ~200 | ~50% |
-  | Stubs (not yet impl.) | 13 | Polygon intersection/distance; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
+  | C++ tested | ~355 | ~89% |
+  | Python tested | ~210 | ~53% |
+  | C# tested | ~215 | ~54% |
+  | Stubs (not yet impl.) | 10 | Polygon2D/3D::DistanceTo; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
 
   More on [test coverage](./test_coverage_report.md).
 

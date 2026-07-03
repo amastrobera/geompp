@@ -180,8 +180,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Line3D const& line) const {
   for (auto const& seg : ToSegments()) {
     auto inter = line.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-      intersections.push_back(std::get<Point3D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -202,8 +202,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Ray3D const& ray) const {
   for (auto const& seg : ToSegments()) {
     auto inter = ray.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-      intersections.push_back(std::get<Point3D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -224,8 +224,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(LineSegment3D const& segment) con
   for (auto const& seg : ToSegments()) {
     auto inter = segment.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-      intersections.push_back(std::get<Point3D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -247,8 +247,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other) const {
     for (auto const& other_seg : other.ToSegments()) {
       auto inter = seg.Intersection(other_seg);
 
-      if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-        intersections.push_back(std::get<Point3D>(*inter));
+      if (inter.has_value()) {
+        intersections.push_back(*inter);
       }
     }
   }
@@ -291,7 +291,7 @@ bool Polyline3D::IsSimple() const {
     segs.push_back(LineSegment2D::Make(to2d(KNOTS[i]), to2d(KNOTS[i + 1])));
   }
 
-  return !has_intersections_impl(segs);
+  return !detail::has_intersections_impl(segs);
 }
 
 bool Polyline3D::IsConvex() const {

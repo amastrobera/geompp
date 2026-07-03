@@ -113,9 +113,9 @@ Tests whether a point lies inside the polygon (winding-number check).
 
 **Returns** — true if point is in the polygon's closed region (interior or boundary).
 
-## `is_on_boundary`
+## `is_on_perimeter`
 
-`is_on_boundary(point: `[`Point3D`](Point3D.md)`) -> bool`
+`is_on_perimeter(point: `[`Point3D`](Point3D.md)`) -> bool`
 
 Tests whether a point lies on the polygon's boundary (any of its edges).
 

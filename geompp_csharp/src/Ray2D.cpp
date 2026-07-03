@@ -107,7 +107,7 @@ Point2D^ Ray2D::Intersection(Line2D^ line) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+    return gcnew Point2D(new geompp::Point2D(result.value()));
 }
 
 Point2D^ Ray2D::Intersection(Ray2D^ other) {
@@ -115,7 +115,7 @@ Point2D^ Ray2D::Intersection(Ray2D^ other) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+    return gcnew Point2D(new geompp::Point2D(result.value()));
 }
 
 Point2D^ Ray2D::Intersection(LineSegment2D^ segment) {
@@ -123,7 +123,7 @@ Point2D^ Ray2D::Intersection(LineSegment2D^ segment) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+    return gcnew Point2D(new geompp::Point2D(result.value()));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

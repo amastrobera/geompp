@@ -237,7 +237,7 @@ TEST_F(LineSegment3DTest, IntersectionWithLine3D) {
 
   auto result = s.Intersection(l_cross);
   ASSERT_TRUE(result.has_value());
-  ASSERT_EQ(g::Point3D(2, 0, 0), std::get<g::Point3D>(*result));
+  ASSERT_EQ(g::Point3D(2, 0, 0), *result);
 
   // parallel line (same direction) → no intersection
   auto l_parallel = g::Line3D::Make(g::Point3D(0, 1, 0), g::Point3D(4, 1, 0));
@@ -332,8 +332,7 @@ TEST_F(LineSegment3DTest, IntersectionWithRay3D) {
   {
     auto inter = seg.Intersection(ray_hit);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D::Zero(), std::get<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D::Zero(), *inter);
   }
 
   // ray pointing right — goes away from segment
@@ -352,8 +351,7 @@ TEST_F(LineSegment3DTest, IntersectionWithSegment3D) {
   {
     auto inter = seg_v.Intersection(seg_h);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D::Zero(), std::get<g::Point3D>(*inter));
+    EXPECT_EQ(g::Point3D::Zero(), *inter);
   }
 
   // parallel segments — no intersection

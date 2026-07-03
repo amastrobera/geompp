@@ -95,11 +95,11 @@ double LineSegment2D::DistanceTo(Point2D const& point) const { return (point - P
 #pragma region Collections Operations
 
 bool has_intersections(std::vector<LineSegment2D> const& segments) {
-  return has_intersections_impl(segments);
+  return detail::has_intersections_impl(segments);
 }
 
 std::vector<Point2D> find_intersections(std::vector<LineSegment2D> const& segments) {
-  auto events = find_intersections_impl(segments);
+  auto events = detail::find_intersections_impl(segments);
   std::vector<Point2D> pts;
   pts.reserve(events.size());
   for (auto const& ev : events) {
@@ -111,13 +111,13 @@ std::vector<Point2D> find_intersections(std::vector<LineSegment2D> const& segmen
 bool intersect(LineSegment2D const& seg1, LineSegment2D const& seg2) {
   auto l1 = seg1.First();
   auto r1 = seg1.Last();
-  if (compare_event_point(l1, r1) > 0) {
+  if (detail::compare_event_point(l1, r1) > 0) {
     std::swap(l1, r1);
   }
 
   auto l2 = seg2.First();
   auto r2 = seg2.Last();
-  if (compare_event_point(l2, r2) > 0) {
+  if (detail::compare_event_point(l2, r2) > 0) {
     std::swap(l2, r2);
   }
 
@@ -163,7 +163,7 @@ bool LineSegment2D::Intersects(Ray2D const& ray) const { return Intersection(ray
 
 bool LineSegment2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
-LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line) const {
+std::optional<Point2D>LineSegment2D::Intersection(Line2D const& line) const {
   double sc, tc;
   auto Pc = ToLine().Intersection(line, sc, tc);
 
@@ -175,7 +175,7 @@ LineSegment2D::ReturnSet LineSegment2D::Intersection(Line2D const& line) const {
   return Pc;
 }
 
-LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
+std::optional<Point2D>LineSegment2D::Intersection(Ray2D const& ray) const {
   double sc, tc;
   auto Pc = ToLine().Intersection(ray.ToLine(), sc, tc);
 
@@ -187,7 +187,7 @@ LineSegment2D::ReturnSet LineSegment2D::Intersection(Ray2D const& ray) const {
   return Pc;
 }
 
-LineSegment2D::ReturnSet LineSegment2D::Intersection(LineSegment2D const& other) const {
+std::optional<Point2D>LineSegment2D::Intersection(LineSegment2D const& other) const {
   double sc, tc;
   auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
 

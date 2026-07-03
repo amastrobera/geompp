@@ -73,13 +73,13 @@ BPrism3D::BPrism3D(Points const& points) {
   auto plane = Plane::FromOriginAndAxes(average_pt, frame.X, frame.Y);
   auto view = View2D::OnPlane(plane);
 
-  auto hull_idx = convex_hull_monotone_chain(points, view);
+  auto hull_idx = detail::convex_hull_monotone_chain(points, view);
   std::size_t m = hull_idx.size();
   if (m < 3) {
     throw std::invalid_argument("cannot make oriented bounding prism from collinear or coincident points");
   }
 
-  auto mbr = min_bounding_rect(hull_idx, points, view);
+  auto mbr = detail::min_bounding_rect(hull_idx, points, view);
   AXIS_U = (mbr.u_axis_x * frame.X + mbr.u_axis_y * frame.Y).Normalize();
   AXIS_V = (mbr.v_axis_x * frame.X + mbr.v_axis_y * frame.Y).Normalize();
   HALF_LEN_U = mbr.half_len_u;

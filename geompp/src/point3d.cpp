@@ -175,7 +175,7 @@ std::vector<Point3D> convex_hull(std::vector<Point3D> const& points, std::option
   }
 
   // dispatch: if a normal is provided, assume coplanar; otherwise use PCA to approximate the plane
-  auto cv_indices = normal.has_value() ? convex_hull_indices(points, normal.value()) : convex_hull_indices(points);
+  auto cv_indices = normal.has_value() ? detail::convex_hull_indices(points, normal.value()) : detail::convex_hull_indices(points);
 
   std::vector<Point3D> cv;
   cv.reserve(cv_indices.size());

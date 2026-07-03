@@ -41,7 +41,7 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
     perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % n0]);
   }
 
-  bool is_poly_convex = is_convex(unique_points, {});
+  bool is_poly_convex = detail::is_convex(unique_points, {});
 
   return {unique_points, perimeter, is_poly_convex};
 }
@@ -83,7 +83,7 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
     perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % nh]);
   }
 
-  bool is_poly_convex = is_convex(unique_points, unique_holes_points);
+  bool is_poly_convex = detail::is_convex(unique_points, unique_holes_points);
 
   return {unique_points, perimeter, unique_holes_points, is_poly_convex};
 }
@@ -171,12 +171,12 @@ double Polygon2D::Perimeter() const { return PERIMETER; }
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
 bool Polygon2D::IsSimple() const {
-  if (has_intersections_impl(ToSegments())) {
+  if (detail::has_intersections_impl(ToSegments())) {
     return false;
   }
 
   for (auto const& hole : HOLES) {
-    if (has_intersections_impl(SegmentRange2D(hole, true))) {
+    if (detail::has_intersections_impl(SegmentRange2D(hole, true))) {
       return false;
     }
   }
@@ -185,7 +185,7 @@ bool Polygon2D::IsSimple() const {
 }
 
 Polygon2D Polygon2D::ConvexHull() {
-  auto cv_indices = convex_hull_indices(VERTICES);
+  auto cv_indices = detail::convex_hull_indices(VERTICES);
   std::vector<Point2D> cv_points;
   cv_points.reserve(cv_indices.size());
   for (std::size_t i : cv_indices) {
@@ -208,7 +208,7 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
     return {*this};
   }
 
-  auto rings = simplify_rings_impl(VERTICES, HOLES, View2D::XY());
+  auto rings = detail::simplify_rings_impl(VERTICES, HOLES, View2D::XY());
 
   // The half-edge walk traces interior faces with CW orientation (SA < 0) and the outer
   // (unbounded) graph face with CCW orientation (SA > 0).  Flip each CW interior ring to
@@ -323,22 +323,8 @@ std::ostream& operator<<(std::ostream& os, Polygon2D const& g) {
 
 #pragma region Geometrical Operations
 
-bool Polygon2D::IsOnBoundary(Point2D const& point) const {
-  int n = VERTICES.size();
-  for (int i = 0; i < n; ++i) {
-    if (LineSegment2D::Make(VERTICES[i], VERTICES[(i + 1) % n]).Contains(point)) {
-      return true;
-    }
-  }
-  for (auto const& hole : HOLES) {
-    int nh = hole.size();
-    for (int i = 0; i < nh; ++i) {
-      if (LineSegment2D::Make(hole[i], hole[(i + 1) % nh]).Contains(point)) {
-        return true;
-      }
-    }
-  }
-  return false;
+bool Polygon2D::IsOnPerimeter(Point2D const& point) const {
+  return detail::is_on_perimeter_with_view(VERTICES, HOLES, View2D::XY(), point.x(), point.y());
 }
 
 // winding number method — boundary-inclusive (matches Triangle behaviour)
@@ -349,17 +335,11 @@ bool Polygon2D::Contains(Point2D const& point) const {
   }
 
   // containment on boundaries (slow?)
-  if (IsOnBoundary(point)) {
+  if (IsOnPerimeter(point)) {
     return true;
   }
 
-  // strict containment: winding number method
-  int wn = 0;
-  wn += winding_number(VERTICES, point);
-  for (auto const& hole : HOLES) {
-    wn += winding_number(hole, point);
-  }
-  return wn != 0;  // wn == 0 if the point is outside
+  return detail::polygon_contains_with_view(VERTICES, HOLES, View2D::XY(), point.x(), point.y());
 }
 
 bool Polygon2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
@@ -368,12 +348,134 @@ bool Polygon2D::Intersects(Ray2D const& ray) const { return Intersection(ray).ha
 
 bool Polygon2D::Intersects(LineSegment2D const& segment) const { return Intersection(segment).has_value(); }
 
-Polygon2D::ReturnSet Polygon2D::Intersection(Line2D const& line) const { throw std::runtime_error("not implemented"); }
+std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Line2D const& line) const {
+  auto const& p0 = line.First();
+  auto const& p1 = line.Last();
 
-Polygon2D::ReturnSet Polygon2D::Intersection(Ray2D const& ray) const { throw std::runtime_error("not implemented"); }
+  auto intervals = detail::compute_parametric_intersection_intervals(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
 
-Polygon2D::ReturnSet Polygon2D::Intersection(LineSegment2D const& other) const {
-  throw std::runtime_error("not implemented");
+  if (intervals.empty()) {
+    return std::nullopt;
+  }
+  // if they exist, they are guaranteed to be of even number, sorted, non duplicated
+  // and also te < tl, for each pair te = t(i), tl = t(i+1)
+
+  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+
+  std::vector<LineSegment2D> segs;
+  for (auto const& [te, tl] : intervals) {
+    segs.push_back(LineSegment2D::Make(eval(te), eval(tl)));
+  }
+  return segs;
+}
+
+std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Ray2D const& ray) const {
+  Point2D const p0 = ray.Origin();
+  Point2D const p1(p0.x() + ray.Direction().x(), p0.y() + ray.Direction().y());
+
+  auto intervals = detail::compute_parametric_intersection_intervals(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+
+  if (intervals.empty()) {
+    return std::nullopt;
+  }
+  // if they exist, they are guaranteed to be of even number, sorted, non duplicated
+  // and also te < tl, for each pair te = t(i), tl = t(i+1)
+
+  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+
+  std::vector<LineSegment2D> intersection_list;
+
+  // Clip to ray domain [0, +inf)
+  for (auto const& [te, tl] : intervals) {
+    auto is_te_valid = compare(te, 0.0) >= 0;
+    auto is_tl_valid = compare(tl, 0.0) >= 0;
+
+    // case 1: both intersections are behind the ray
+    if (!is_te_valid && !is_tl_valid) {
+      continue;
+    }
+
+    // case 2: only the last point of the pair is valid for the ray
+    //         the ray is inside the polygon
+    if (!is_te_valid && is_tl_valid) {
+      if (compare(tl, 0) > 0) {
+        intersection_list.push_back(LineSegment2D::Make(eval(0.0), eval(tl)));
+      }
+      continue;
+    }
+
+    // case 3: both te and tl are valid points, make a segment
+    // compute_parametric_intersection_intervals guarantees te < t1
+    intersection_list.push_back(LineSegment2D::Make(eval(te), eval(tl)));
+  }
+
+  if (!intersection_list.empty()) {
+    return intersection_list;
+  }
+
+  return std::nullopt;
+}
+
+std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D const& other) const {
+  auto const& p0 = other.First();
+  auto const& p1 = other.Last();
+
+  auto intervals = detail::compute_parametric_intersection_intervals(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+
+  if (intervals.empty()) {
+    return std::nullopt;
+  }
+  // if they exist, they are guaranteed to be of even number, sorted, non duplicated
+  // and also te < tl, for each pair te = t(i), tl = t(i+1)
+
+  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+
+  std::vector<LineSegment2D> intersection_list;
+
+  // Clip to segment domain [0, 1]
+  for (auto const& [te, tl] : intervals) {
+    auto te_ge_0 = compare(te, 0.0) >= 0;
+    auto te_se_1 = compare(te, 1.0) <= 0;
+    auto tl_ge_0 = compare(tl, 0.0) >= 0;
+    auto tl_se_1 = compare(tl, 1.0) <= 0;
+
+    // case 1: the whole segment is inside the polygon
+    if ((!te_ge_0 && te_se_1) && (tl_ge_0 && !tl_se_1)) {
+      intersection_list.push_back(LineSegment2D::Make(eval(0.0), eval(1.0)));
+      continue;
+    }
+
+    // case 2: the segment finishes inside the polygon
+    if ((te_ge_0 && te_se_1) && (tl_ge_0 && !tl_se_1)) {
+      if (compare(te, 1.0) < 0) {
+        intersection_list.push_back(LineSegment2D::Make(eval(te), eval(1.0)));
+      }
+      continue;
+    }
+
+    // case 3: the segment starts inside the polygon
+    if ((!te_ge_0 && te_se_1) && (tl_ge_0 && tl_se_1)) {
+      if (compare(tl, 1.0) > 0) {
+        intersection_list.push_back(LineSegment2D::Make(eval(0.0), eval(tl)));
+      }
+      continue;
+    }
+
+    // case 4: proper intersection
+    if ((te_ge_0 && te_se_1) && (tl_ge_0 && tl_se_1)) {
+      // compute_parametric_intersection_intervals guarantees te < t1
+      intersection_list.push_back(LineSegment2D::Make(eval(te), eval(tl)));
+      continue;
+    }
+
+    // no intersection to report
+  }
+
+  if (!intersection_list.empty()) {
+    return intersection_list;
+  }
+
+  return std::nullopt;
 }
 
 #pragma endregion

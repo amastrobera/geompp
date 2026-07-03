@@ -45,10 +45,10 @@ void bind_line3d(py::module_& m) {
         .def("intersects",
              [](const geompp::Line3D& l, const geompp::LineSegment3D& s) { return l.Intersects(s); }, "segment"_a)
         .def("intersection",
-             [](const geompp::Line3D& l, const geompp::Line3D& o)        -> py::object { return opt_variant_to_py(l.Intersection(o)); }, "other"_a)
+             [](const geompp::Line3D& l, const geompp::Line3D& o)        -> py::object { return opt_to_py(l.Intersection(o)); }, "other"_a)
         .def("intersection",
-             [](const geompp::Line3D& l, const geompp::Ray3D& r)         -> py::object { return opt_variant_to_py(l.Intersection(r)); }, "ray"_a)
+             [](const geompp::Line3D& l, const geompp::Ray3D& r)         -> py::object { return opt_to_py(l.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::Line3D& l, const geompp::LineSegment3D& s) -> py::object { return opt_variant_to_py(l.Intersection(s)); }, "segment"_a)
+             [](const geompp::Line3D& l, const geompp::LineSegment3D& s) -> py::object { return opt_to_py(l.Intersection(s)); }, "segment"_a)
         .def("__eq__", [](const geompp::Line3D& a, const geompp::Line3D& b) { return a == b; });
 }

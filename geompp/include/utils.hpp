@@ -30,6 +30,16 @@ std::vector<std::string> tokenize_string(std::string const& str, char delimiter 
 
 int count_decimal_places(double number);
 
+/// @brief removes duplicates from a sorted vector (duplicates are consecutive)
+///        input {0,0,0,1,2,3,4,4,5} --> output: {0,1,2,3,4,5}
+/// @param sorted_vec vector of sorted elements
+void remove_duplicates(std::vector<double>& sorted_vec, double epsilon = DOUBLE_EPSILON);
+
+/// @brief removes ALL elements that have (consecutve) duplicates and the elements themselves.
+///        input {0,0,0,1,2,3,4,4,5} --> output: {1,2,3,5}
+/// @param sorted_vec vector of sorted elements
+void remove_all_duplicated_elements(std::vector<double>& sorted_vec, double epsilon = DOUBLE_EPSILON);
+
 }  // namespace geompp
 
 #pragma region Template Implementation
@@ -49,9 +59,10 @@ std::string string_join(std::vector<T> const& items, std::string const& delim = 
 }
 
 template <typename T>
-  requires requires(T t) {
-    { t.ToWkt() } -> std::convertible_to<std::string>;
-  }
+requires requires(T t) {
+  { t.ToWkt() }
+  ->std::convertible_to<std::string>;
+}
 std::string ToWkt(const std::vector<T>& items) {
   std::string out = "GEOMETRYCOLLECTION(";
   for (std::size_t i = 0; i < items.size(); ++i) {

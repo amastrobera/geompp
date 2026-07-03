@@ -108,9 +108,9 @@ Tests whether a point lies inside the polygon (winding-number check).
 
 **Returns** — true if point is in the polygon's closed region.
 
-## `IsOnBoundary`
+## `IsOnPerimeter`
 
-`bool IsOnBoundary(`[`Point2D`](Point2D.md)`^ point)`
+`bool IsOnPerimeter(`[`Point2D`](Point2D.md)`^ point)`
 
 Tests whether a point lies on the polygon's boundary.
 
@@ -154,7 +154,16 @@ Tests whether this polygon intersects a segment.
 
 ## `Intersection`
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`Line2D`](Line2D.md)`^ line)`
+Returns `null` on miss, [`Point2D`](Point2D.md)`^` for a single tangent touch, or `array<`[`LineSegment2D`](LineSegment2D.md)`^>` for one or more chord segments. Use pattern matching to distinguish:
+
+```csharp
+var r = poly.Intersection(line);
+if (r is null)             { /* no intersection */ }
+else if (r is Point2D pt)  { /* tangent touch */ }
+else if (r is LineSegment2D[] segs) { /* chord(s) */ }
+```
+
+`object^ Intersection(`[`Line2D`](Line2D.md)`^ line)`
 
 Intersection of this polygon with a line.
 
@@ -162,9 +171,9 @@ Intersection of this polygon with a line.
 
 - `line` ([`Line2D`](Line2D.md)^) — The line.
 
-**Returns** — The crossing point, or std::nullopt if the line misses the polygon.
+**Returns** — `null` on miss; `Point2D^` for tangent touch; `array<LineSegment2D^>` for chord(s).
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`Ray2D`](Ray2D.md)`^ ray)`
+`object^ Intersection(`[`Ray2D`](Ray2D.md)`^ ray)`
 
 Intersection of this polygon with a ray.
 
@@ -172,9 +181,9 @@ Intersection of this polygon with a ray.
 
 - `ray` ([`Ray2D`](Ray2D.md)^) — The ray.
 
-**Returns** — The crossing point if within the ray's domain, or std::nullopt otherwise.
+**Returns** — `null` on miss; chord(s) clipped to `t ≥ 0`. If the ray's origin is inside the polygon the returned segment starts there.
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`LineSegment2D`](LineSegment2D.md)`^ other)`
+`object^ Intersection(`[`LineSegment2D`](LineSegment2D.md)`^ other)`
 
 Intersection of this polygon with a segment.
 
@@ -182,7 +191,7 @@ Intersection of this polygon with a segment.
 
 - `other` ([`LineSegment2D`](LineSegment2D.md)^) — The segment.
 
-**Returns** — The crossing point if it lies on the segment, or std::nullopt otherwise.
+**Returns** — `null` on miss; chord(s) clipped to the segment's `[0, 1]` parametric domain.
 
 
 ---

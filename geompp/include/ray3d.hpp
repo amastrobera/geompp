@@ -97,8 +97,6 @@ class Ray3D {
   /// @return true if @p point is collinear with the ray's direction AND ahead of (or at) the origin.
   bool Contains(Point3D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point3D>>;
-
   /// @brief Tests whether this ray intersects a line.
   /// @param line The line.
   /// @return true if they meet at a point on the ray's domain (sc on the ray >= 0).
@@ -117,17 +115,17 @@ class Ray3D {
   /// @brief Intersection point of this ray with a line.
   /// @param line The line.
   /// @return The intersection point if it lies on the ray (sc >= 0), or std::nullopt otherwise.
-  ReturnSet Intersection(Line3D const& line) const;
+  std::optional<Point3D> Intersection(Line3D const& line) const;
 
   /// @brief Intersection point of two rays.
   /// @param other The other ray.
   /// @return The intersection point if it lies on both rays' domains, or std::nullopt otherwise.
-  ReturnSet Intersection(Ray3D const& other) const;
+  std::optional<Point3D> Intersection(Ray3D const& other) const;
 
   /// @brief Intersection point of this ray with a segment.
   /// @param segment The segment.
   /// @return The intersection point if it lies on both the ray and the segment, or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment3D const& segment) const;
+  std::optional<Point3D> Intersection(LineSegment3D const& segment) const;
 
 #pragma endregion
 

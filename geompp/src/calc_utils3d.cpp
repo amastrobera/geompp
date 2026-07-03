@@ -12,6 +12,8 @@
 
 namespace geompp {
 
+namespace detail {
+
 void distance_line_to_line(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0, Point3D const& L2_P1,
                            double& sc, double& tc) {
   // defined L1: P0 + s*(P1 - P0) = P0 + s*U
@@ -141,6 +143,8 @@ std::vector<std::size_t> convex_hull_indices(std::vector<Point3D> const& points)
 
   return convex_hull_indices(points, normal);
 }
+
+}  // namespace detail
 
 namespace {
 
@@ -291,7 +295,7 @@ bool is_convex(std::vector<Point3D> const& vertices, std::vector<std::vector<Poi
   }
   Axis dax = normal.DominantAxis();
   View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
-  return is_convex_with_view(vertices, view);
+  return detail::is_convex_with_view(vertices, view);
 }
 
 }  // namespace geompp

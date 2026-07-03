@@ -9,13 +9,23 @@
 #include <compare>
 #include <optional>
 #include <queue>
+#include <utility>
 #include <vector>
 
 namespace geompp {
 
-class Point2D;
+// Forward declarations for types only needed by reference in EventQueue2D constructors.
+// Placed here (not inside detail) so name lookup from within detail finds geompp::Polygon2D
+// and geompp::SegmentRange2D, not shadow types.
 class Polygon2D;
 class SegmentRange2D;
+
+namespace detail {
+
+// Note: Point2D is NOT declared here. Unqualified lookup walks up to namespace geompp
+// and finds geompp::Point2D (which is fully defined via "point2d.hpp" above).
+// Do NOT add 'class Point2D;' or 'using Point2D = ...' here — MSVC mangles alias
+// names differently from the canonical type in explicit template instantiations.
 
 std::partial_ordering compare_event_point(Point2D a, Point2D b);  // for ordering events in the sweep line algorithm
 
@@ -236,4 +246,56 @@ extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t>
 extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point3D> const&,
                                                         View2D const&);
 
+/// @brief Computes the parametric intervals [t0, t1] on a line where it intersects a polygon.
+/// @param outer_coplanar_ccw  Outer ring vertices in CCW winding order, all coplanar. Asserted in debug mode.
+/// @param holes_coplanar_cw   Hole ring vertices in CW winding order, all coplanar. Asserted in debug mode.
+/// @param is_convex_input     Caller's assertion that the polygon is convex (enables the fast convex path).
+///                            Asserted in debug mode against the actual vertex data.
+template <PointContainer Points, Point P>
+std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    Points const& outer_coplanar_ccw, std::vector<Points> const& holes_coplanar_cw, bool is_convex_input,
+    P const& line_p0, P const& line_p1, View2D const& view);
+
+extern template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view);
+
+extern template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    std::vector<Point3D> const& outer_coplanar_ccw, std::vector<std::vector<Point3D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point3D const& line_p0, Point3D const& line_p1, View2D const& view);
+
+/// @brief Point-on-edge perimeter test projected through a View2D.
+/// Works for both 2D (View2D::XY()) and 3D (dominant-axis view) rings.
+/// @param outer  Outer ring vertices (Point2D or Point3D).
+/// @param holes  Inner ring vertices (same type as outer).
+/// @param view   Projects each vertex to 2D x/y coordinates.
+/// @param px     Test point x in view space.
+/// @param py     Test point y in view space.
+template <PointContainer Points>
+bool is_on_perimeter_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                               double py);
+
+extern template bool is_on_perimeter_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                               View2D const&, double, double);
+extern template bool is_on_perimeter_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                               View2D const&, double, double);
+
+/// @brief Winding-number point-in-polygon test projected through a View2D.
+/// Works for both 2D (View2D::XY()) and 3D (dominant-axis view) rings.
+/// Does NOT check the perimeter — callers handle that separately.
+/// @param outer  Outer ring vertices (Point2D or Point3D).
+/// @param holes  Inner ring vertices (same type as outer).
+/// @param view   Projects each vertex to 2D x/y coordinates.
+/// @param px     Test point x in view space.
+/// @param py     Test point y in view space.
+template <PointContainer Points>
+bool polygon_contains_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                                double py);
+
+extern template bool polygon_contains_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                                View2D const&, double, double);
+extern template bool polygon_contains_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                                View2D const&, double, double);
+
+}  // namespace detail
 }  // namespace geompp

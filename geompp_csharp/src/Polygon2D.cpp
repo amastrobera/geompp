@@ -90,8 +90,8 @@ bool Polygon2D::Contains(Point2D^ point) {
     return _native->Contains(*point->_native);
 }
 
-bool Polygon2D::IsOnBoundary(Point2D^ point) {
-    return _native->IsOnBoundary(*point->_native);
+bool Polygon2D::IsOnPerimeter(Point2D^ point) {
+    return _native->IsOnPerimeter(*point->_native);
 }
 
 bool Polygon2D::IsSimple() {
@@ -158,28 +158,32 @@ bool Polygon2D::Intersects(LineSegment2D^ segment) {
 
 // ── Intersection ──────────────────────────────────────────────────────────────
 
-Point2D^ Polygon2D::Intersection(Line2D^ line) {
-    auto result = _native->Intersection(*line->_native);
+static System::Object^ variant_to_managed(geompp::Polygon2D::ReturnSet const& result) {
     if (!result.has_value()) {
         return nullptr;
     }
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+    auto const& var = result.value();
+    if (std::holds_alternative<geompp::Point2D>(var)) {
+        return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(var)));
+    }
+    auto const& native_segs = std::get<std::vector<geompp::LineSegment2D>>(var);
+    auto arr = gcnew array<LineSegment2D^>(static_cast<int>(native_segs.size()));
+    for (int i = 0; i < static_cast<int>(native_segs.size()); ++i) {
+        arr[i] = gcnew LineSegment2D(new geompp::LineSegment2D(native_segs[i]));
+    }
+    return arr;
 }
 
-Point2D^ Polygon2D::Intersection(Ray2D^ ray) {
-    auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value()) {
-        return nullptr;
-    }
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+System::Object^ Polygon2D::Intersection(Line2D^ line) {
+    return variant_to_managed(_native->Intersection(*line->_native));
 }
 
-Point2D^ Polygon2D::Intersection(LineSegment2D^ segment) {
-    auto result = _native->Intersection(*segment->_native);
-    if (!result.has_value()) {
-        return nullptr;
-    }
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+System::Object^ Polygon2D::Intersection(Ray2D^ ray) {
+    return variant_to_managed(_native->Intersection(*ray->_native));
+}
+
+System::Object^ Polygon2D::Intersection(LineSegment2D^ segment) {
+    return variant_to_managed(_native->Intersection(*segment->_native));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

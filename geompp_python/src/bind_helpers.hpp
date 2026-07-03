@@ -37,6 +37,14 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: convert std::optional<T> to py::object.
+// ─────────────────────────────────────────────────────────────────────────────
+template <typename T>
+inline py::object opt_to_py(const std::optional<T>& opt) {
+    return opt.has_value() ? py::cast(*opt) : py::none();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helper: convert std::optional<std::variant<Ts...>> to py::object.
 //
 // pybind11 3.x variant_caster fails for class-typed variants, so we use

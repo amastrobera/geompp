@@ -45,7 +45,7 @@ Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
 }
 
 bool Polyline2D::IsSimple() const {
-  if (has_intersections_impl(ToSegments())) {
+  if (detail::has_intersections_impl(ToSegments())) {
     return false;
   }
 
@@ -245,8 +245,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line) const {
   for (auto const& seg : ToSegments()) {
     auto inter = line.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-      intersections.push_back(std::get<Point2D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -267,8 +267,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray) const {
   for (auto const& seg : ToSegments()) {
     auto inter = ray.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-      intersections.push_back(std::get<Point2D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -289,8 +289,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment) con
   for (auto const& seg : ToSegments()) {
     auto inter = segment.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-      intersections.push_back(std::get<Point2D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -312,8 +312,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other) const {
     for (auto const& other_seg : other.ToSegments()) {
       auto inter = seg.Intersection(other_seg);
 
-      if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-        intersections.push_back(std::get<Point2D>(*inter));
+      if (inter.has_value()) {
+        intersections.push_back(*inter);
       }
     }
   }

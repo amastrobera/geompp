@@ -67,8 +67,6 @@ class Ray2D {
   /// @return true if @p point is collinear with the ray's direction AND ahead of (or at) the origin.
   bool Contains(Point2D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point2D>>;
-
   /// @brief Tests whether this ray intersects a line.
   /// @param line The line.
   /// @return true if they meet at a point on the ray's domain.
@@ -87,17 +85,17 @@ class Ray2D {
   /// @brief Intersection point of this ray with a line.
   /// @param line The line.
   /// @return The intersection point if it lies on the ray, or std::nullopt otherwise.
-  ReturnSet Intersection(Line2D const& line) const;
+  std::optional<Point2D> Intersection(Line2D const& line) const;
 
   /// @brief Intersection point of two rays.
   /// @param other The other ray.
   /// @return The intersection point if it lies on both rays' domains, or std::nullopt otherwise.
-  ReturnSet Intersection(Ray2D const& other) const;
+  std::optional<Point2D> Intersection(Ray2D const& other) const;
 
   /// @brief Intersection point of this ray with a segment.
   /// @param segment The segment.
   /// @return The intersection point if it lies on both the ray and the segment, or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment2D const& segment) const;
+  std::optional<Point2D> Intersection(LineSegment2D const& segment) const;
 
 #pragma endregion
 

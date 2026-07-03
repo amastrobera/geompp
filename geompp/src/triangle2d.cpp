@@ -131,10 +131,8 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto points_view = std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
                                                 LineSegment2D::Make(P2, P0)} |
                      std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line); }) |
-                     std::views::filter([](LineSegment2D::ReturnSet const& res) {
-                       return res.has_value() && std::holds_alternative<Point2D>(*res);
-                     }) |
-                     std::views::transform([](LineSegment2D::ReturnSet const& res) { return std::get<Point2D>(*res); });
+                     std::views::filter([](std::optional<Point2D> const& res) { return res.has_value(); }) |
+                     std::views::transform([](std::optional<Point2D> const& res) { return *res; });
 
   std::vector<Point2D> intersections(points_view.begin(), points_view.end());
 

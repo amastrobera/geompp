@@ -1246,21 +1246,21 @@ class TestPolygon2D:
         assert poly.contains(geompp.Point2D(2,   1))      # hole bottom edge
         assert poly.contains(geompp.Point2D(1,   2))      # hole left edge
 
-    def test_is_on_boundary(self, square):
+    def test_is_on_perimeter(self, square):
         # vertices
-        assert square.is_on_boundary(geompp.Point2D(0,   0))
-        assert square.is_on_boundary(geompp.Point2D(1,   0))
-        assert square.is_on_boundary(geompp.Point2D(1,   1))
-        assert square.is_on_boundary(geompp.Point2D(0,   1))
+        assert square.is_on_perimeter(geompp.Point2D(0,   0))
+        assert square.is_on_perimeter(geompp.Point2D(1,   0))
+        assert square.is_on_perimeter(geompp.Point2D(1,   1))
+        assert square.is_on_perimeter(geompp.Point2D(0,   1))
         # edge midpoints
-        assert square.is_on_boundary(geompp.Point2D(0.5, 0))
-        assert square.is_on_boundary(geompp.Point2D(1,   0.5))
-        assert square.is_on_boundary(geompp.Point2D(0.5, 1))
-        assert square.is_on_boundary(geompp.Point2D(0,   0.5))
+        assert square.is_on_perimeter(geompp.Point2D(0.5, 0))
+        assert square.is_on_perimeter(geompp.Point2D(1,   0.5))
+        assert square.is_on_perimeter(geompp.Point2D(0.5, 1))
+        assert square.is_on_perimeter(geompp.Point2D(0,   0.5))
         # interior and outside must be False
-        assert not square.is_on_boundary(geompp.Point2D(0.5, 0.5))
-        assert not square.is_on_boundary(geompp.Point2D(-0.1, 0.5))
-        assert not square.is_on_boundary(geompp.Point2D(1.1,  0.5))
+        assert not square.is_on_perimeter(geompp.Point2D(0.5, 0.5))
+        assert not square.is_on_perimeter(geompp.Point2D(-0.1, 0.5))
+        assert not square.is_on_perimeter(geompp.Point2D(1.1,  0.5))
         # hole boundary
         outer = [
             geompp.Point2D(0, 0), geompp.Point2D(4, 0),
@@ -1271,12 +1271,12 @@ class TestPolygon2D:
             geompp.Point2D(3, 3), geompp.Point2D(3, 1),
         ]
         poly = geompp.Polygon2D.make(outer, [hole])
-        assert poly.is_on_boundary(geompp.Point2D(2, 0))  # outer bottom
-        assert poly.is_on_boundary(geompp.Point2D(4, 2))  # outer right
-        assert poly.is_on_boundary(geompp.Point2D(2, 1))  # hole bottom
-        assert poly.is_on_boundary(geompp.Point2D(1, 2))  # hole left
-        assert not poly.is_on_boundary(geompp.Point2D(0.5, 0.5))  # interior
-        assert not poly.is_on_boundary(geompp.Point2D(2,   2))    # inside hole
+        assert poly.is_on_perimeter(geompp.Point2D(2, 0))  # outer bottom
+        assert poly.is_on_perimeter(geompp.Point2D(4, 2))  # outer right
+        assert poly.is_on_perimeter(geompp.Point2D(2, 1))  # hole bottom
+        assert poly.is_on_perimeter(geompp.Point2D(1, 2))  # hole left
+        assert not poly.is_on_perimeter(geompp.Point2D(0.5, 0.5))  # interior
+        assert not poly.is_on_perimeter(geompp.Point2D(2,   2))    # inside hole
 
     # NOTE: is_simple() correctness rides on the (currently provisional) sweep-line comparator; these encode
     # the intended behaviour and should be re-verified once the real sweep-status ordering is in place.
@@ -1293,6 +1293,100 @@ class TestPolygon2D:
             geompp.Point2D(1, 3), geompp.Point2D(3, 3),
         ])
         assert not p.is_simple()
+
+
+# ─── Polygon2D Intersection ───────────────────────────────────────────────────
+
+class TestPolygon2DIntersection:
+    @pytest.fixture
+    def sq(self):
+        return geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(1, 0),
+            geompp.Point2D(1, 1), geompp.Point2D(0, 1),
+        ])
+
+    # ── Line2D ───────────────────────────────────────────────────────────────
+
+    def test_intersection_line_passes_through(self, sq):
+        line = geompp.Line2D.make(geompp.Point2D(0, 0.5), geompp.Point2D(1, 0.5))
+        result = sq.intersection(line)
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 1
+        seg = result[0]
+        endpoints = {(round(seg.first.x, 3), round(seg.first.y, 3)),
+                     (round(seg.last.x,  3), round(seg.last.y,  3))}
+        assert (0.0, 0.5) in endpoints
+        assert (1.0, 0.5) in endpoints
+
+    def test_intersection_line_misses(self, sq):
+        line = geompp.Line2D.make(geompp.Point2D(5, 0), geompp.Point2D(5, 1))
+        assert sq.intersection(line) is None
+
+    def test_intersects_line_true(self, sq):
+        line = geompp.Line2D.make(geompp.Point2D(0.5, -1), geompp.Point2D(0.5, 2))
+        assert sq.intersects(line)
+
+    def test_intersects_line_false(self, sq):
+        line = geompp.Line2D.make(geompp.Point2D(5, 0), geompp.Point2D(5, 1))
+        assert not sq.intersects(line)
+
+    # ── Ray2D ────────────────────────────────────────────────────────────────
+
+    def test_intersection_ray_hits(self, sq):
+        ray = geompp.Ray2D.make(geompp.Point2D(-1, 0.5), geompp.Vector2D(1, 0))
+        result = sq.intersection(ray)
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+    def test_intersection_ray_pointing_away(self, sq):
+        ray = geompp.Ray2D.make(geompp.Point2D(5, 0.5), geompp.Vector2D(1, 0))
+        assert sq.intersection(ray) is None
+
+    def test_intersection_ray_origin_inside(self, sq):
+        # Origin inside polygon, ray clips from origin to exit.
+        ray = geompp.Ray2D.make(geompp.Point2D(0.5, 0.5), geompp.Vector2D(1, 0))
+        result = sq.intersection(ray)
+        assert result is not None
+        assert isinstance(result, list)
+        seg = result[0]
+        endpoints = {(round(seg.first.x, 3), round(seg.first.y, 3)),
+                     (round(seg.last.x,  3), round(seg.last.y,  3))}
+        assert (0.5, 0.5) in endpoints
+
+    def test_intersects_ray(self, sq):
+        assert sq.intersects(geompp.Ray2D.make(geompp.Point2D(-1, 0.5), geompp.Vector2D(1, 0)))
+        assert not sq.intersects(geompp.Ray2D.make(geompp.Point2D(5, 0.5), geompp.Vector2D(1, 0)))
+
+    # ── LineSegment2D ─────────────────────────────────────────────────────────
+
+    def test_intersection_segment_pierces(self, sq):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(-0.5, 0.5), geompp.Point2D(1.5, 0.5))
+        result = sq.intersection(seg)
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 1
+        chord = result[0]
+        endpoints = {(round(chord.first.x, 3), round(chord.first.y, 3)),
+                     (round(chord.last.x,  3), round(chord.last.y,  3))}
+        assert (0.0, 0.5) in endpoints
+        assert (1.0, 0.5) in endpoints
+
+    def test_intersection_segment_too_short(self, sq):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(-2, 0.5), geompp.Point2D(-0.5, 0.5))
+        assert sq.intersection(seg) is None
+
+    def test_intersection_segment_entirely_inside(self, sq):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(0.2, 0.5), geompp.Point2D(0.8, 0.5))
+        result = sq.intersection(seg)
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+    def test_intersects_segment(self, sq):
+        assert sq.intersects(geompp.LineSegment2D.make(geompp.Point2D(-0.5, 0.5), geompp.Point2D(1.5, 0.5)))
+        assert not sq.intersects(geompp.LineSegment2D.make(geompp.Point2D(-2, 0.5), geompp.Point2D(-0.5, 0.5)))
 
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
@@ -1583,26 +1677,26 @@ class TestPolygon3D:
         assert yz_sq.contains(geompp.Point3D(0, 0.5, 0.5))
         assert not yz_sq.contains(geompp.Point3D(1, 0.5, 0.5))  # off-plane
 
-    def test_is_on_boundary(self):
+    def test_is_on_perimeter(self):
         pts = [
             geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
             geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
         ]
         sq = geompp.Polygon3D.make(pts)
         # vertices
-        assert sq.is_on_boundary(geompp.Point3D(0,   0,   0))
-        assert sq.is_on_boundary(geompp.Point3D(1,   0,   0))
-        assert sq.is_on_boundary(geompp.Point3D(1,   1,   0))
-        assert sq.is_on_boundary(geompp.Point3D(0,   1,   0))
+        assert sq.is_on_perimeter(geompp.Point3D(0,   0,   0))
+        assert sq.is_on_perimeter(geompp.Point3D(1,   0,   0))
+        assert sq.is_on_perimeter(geompp.Point3D(1,   1,   0))
+        assert sq.is_on_perimeter(geompp.Point3D(0,   1,   0))
         # edge midpoints
-        assert sq.is_on_boundary(geompp.Point3D(0.5, 0,   0))
-        assert sq.is_on_boundary(geompp.Point3D(1,   0.5, 0))
-        assert sq.is_on_boundary(geompp.Point3D(0.5, 1,   0))
-        assert sq.is_on_boundary(geompp.Point3D(0,   0.5, 0))
+        assert sq.is_on_perimeter(geompp.Point3D(0.5, 0,   0))
+        assert sq.is_on_perimeter(geompp.Point3D(1,   0.5, 0))
+        assert sq.is_on_perimeter(geompp.Point3D(0.5, 1,   0))
+        assert sq.is_on_perimeter(geompp.Point3D(0,   0.5, 0))
         # interior and outside must be False
-        assert not sq.is_on_boundary(geompp.Point3D(0.5, 0.5, 0))
-        assert not sq.is_on_boundary(geompp.Point3D(-0.1, 0.5, 0))
-        assert not sq.is_on_boundary(geompp.Point3D(0.5,  0.5, 0.01))  # off-plane
+        assert not sq.is_on_perimeter(geompp.Point3D(0.5, 0.5, 0))
+        assert not sq.is_on_perimeter(geompp.Point3D(-0.1, 0.5, 0))
+        assert not sq.is_on_perimeter(geompp.Point3D(0.5,  0.5, 0.01))  # off-plane
         # hole boundary
         outer = [
             geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
@@ -1613,12 +1707,89 @@ class TestPolygon3D:
             geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
         ]
         poly = geompp.Polygon3D.make(outer, [hole])
-        assert poly.is_on_boundary(geompp.Point3D(2, 0, 0))  # outer bottom
-        assert poly.is_on_boundary(geompp.Point3D(4, 2, 0))  # outer right
-        assert poly.is_on_boundary(geompp.Point3D(2, 1, 0))  # hole bottom
-        assert poly.is_on_boundary(geompp.Point3D(1, 2, 0))  # hole left
-        assert not poly.is_on_boundary(geompp.Point3D(0.5, 0.5, 0))  # interior
-        assert not poly.is_on_boundary(geompp.Point3D(2,   2,   0))  # inside hole
+        assert poly.is_on_perimeter(geompp.Point3D(2, 0, 0))  # outer bottom
+        assert poly.is_on_perimeter(geompp.Point3D(4, 2, 0))  # outer right
+        assert poly.is_on_perimeter(geompp.Point3D(2, 1, 0))  # hole bottom
+        assert poly.is_on_perimeter(geompp.Point3D(1, 2, 0))  # hole left
+        assert not poly.is_on_perimeter(geompp.Point3D(0.5, 0.5, 0))  # interior
+        assert not poly.is_on_perimeter(geompp.Point3D(2,   2,   0))  # inside hole
+
+
+# ─── Polygon3D::Intersection ──────────────────────────────────────────────────
+
+class TestPolygon3DIntersection:
+    def _sq(self):
+        return geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ])
+
+    def test_intersection_line_hits_center(self):
+        result = self._sq().intersection(
+            geompp.Line3D.make(geompp.Point3D(0.5, 0.5, -1), geompp.Point3D(0.5, 0.5, 1)))
+        assert result is not None
+        assert result.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+    def test_intersection_line_misses_outside(self):
+        assert self._sq().intersection(
+            geompp.Line3D.make(geompp.Point3D(2, 0.5, -1), geompp.Point3D(2, 0.5, 1))) is None
+
+    def test_intersection_line_parallel_miss(self):
+        assert self._sq().intersection(
+            geompp.Line3D.make(geompp.Point3D(0, 0, 1), geompp.Point3D(1, 1, 1))) is None
+
+    def test_intersects_line(self):
+        sq = self._sq()
+        assert sq.intersects(geompp.Line3D.make(geompp.Point3D(0.5, 0.5, -1), geompp.Point3D(0.5, 0.5, 1)))
+        assert not sq.intersects(geompp.Line3D.make(geompp.Point3D(2, 0.5, -1), geompp.Point3D(2, 0.5, 1)))
+
+    def test_intersection_ray_hits_center(self):
+        result = self._sq().intersection(
+            geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 1), geompp.Vector3D(0, 0, -1)))
+        assert result is not None
+        assert result.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+    def test_intersection_ray_pointing_away(self):
+        assert self._sq().intersection(
+            geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 1), geompp.Vector3D(0, 0, 1))) is None
+
+    def test_intersection_ray_misses_outside(self):
+        assert self._sq().intersection(
+            geompp.Ray3D.make(geompp.Point3D(2, 0.5, 1), geompp.Vector3D(0, 0, -1))) is None
+
+    def test_intersects_ray(self):
+        sq = self._sq()
+        assert sq.intersects(geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 1), geompp.Vector3D(0, 0, -1)))
+        assert not sq.intersects(geompp.Ray3D.make(geompp.Point3D(0.5, 0.5, 1), geompp.Vector3D(0, 0, 1)))
+
+    def test_intersection_segment_pierces(self):
+        result = self._sq().intersection(
+            geompp.LineSegment3D.make(geompp.Point3D(0.5, 0.5, -1), geompp.Point3D(0.5, 0.5, 1)))
+        assert result is not None
+        assert result.almost_equals(geompp.Point3D(0.5, 0.5, 0))
+
+    def test_intersection_segment_too_short(self):
+        assert self._sq().intersection(
+            geompp.LineSegment3D.make(geompp.Point3D(0.5, 0.5, 0.5), geompp.Point3D(0.5, 0.5, 1))) is None
+
+    def test_intersection_segment_misses_outside(self):
+        assert self._sq().intersection(
+            geompp.LineSegment3D.make(geompp.Point3D(2, 0.5, -1), geompp.Point3D(2, 0.5, 1))) is None
+
+    def test_intersects_segment(self):
+        sq = self._sq()
+        assert sq.intersects(geompp.LineSegment3D.make(geompp.Point3D(0.5, 0.5, -1), geompp.Point3D(0.5, 0.5, 1)))
+        assert not sq.intersects(geompp.LineSegment3D.make(geompp.Point3D(0.5, 0.5, 0.5), geompp.Point3D(0.5, 0.5, 1)))
+
+    def test_intersection_non_xy_plane(self):
+        # YZ square at x=0; normal = +X. Line along X through center (0, 0.5, 0.5).
+        yz = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+            geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
+        ])
+        result = yz.intersection(geompp.Line3D.make(geompp.Point3D(-1, 0.5, 0.5), geompp.Point3D(1, 0.5, 0.5)))
+        assert result is not None
+        assert result.almost_equals(geompp.Point3D(0, 0.5, 0.5))
 
 
 # ─── Free function centroid (3D) ─────────────────────────────────────────────

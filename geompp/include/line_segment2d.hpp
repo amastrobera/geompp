@@ -71,8 +71,6 @@ class LineSegment2D {
   /// @return true if @p point is collinear with the segment and falls within [First, Last].
   bool Contains(Point2D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point2D>>;
-
   /// @brief Tests whether this segment intersects a line.
   /// @param line The line.
   /// @return true if the line crosses or touches the segment.
@@ -91,17 +89,17 @@ class LineSegment2D {
   /// @brief Intersection point of this segment with a line.
   /// @param line The line.
   /// @return The intersection point if it lies on the segment, or std::nullopt otherwise.
-  ReturnSet Intersection(Line2D const& line) const;
+  std::optional<Point2D> Intersection(Line2D const& line) const;
 
   /// @brief Intersection point of this segment with a ray.
   /// @param ray The ray.
   /// @return The intersection point if it lies on both, or std::nullopt otherwise.
-  ReturnSet Intersection(Ray2D const& ray) const;
+  std::optional<Point2D> Intersection(Ray2D const& ray) const;
 
   /// @brief Intersection point of two segments.
   /// @param other The other segment.
   /// @return The intersection point if it lies on both segments, or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment2D const& other) const;
+  std::optional<Point2D> Intersection(LineSegment2D const& other) const;
 
 #pragma endregion
 

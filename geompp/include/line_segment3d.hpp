@@ -99,8 +99,6 @@ class LineSegment3D {
   /// @return true if @p point is collinear with the segment and falls within [First, Last].
   bool Contains(Point3D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point3D>>;
-
   /// @brief Tests whether this segment intersects a line.
   /// @param line The line.
   /// @return true if the line crosses the segment's interior or an endpoint.
@@ -119,17 +117,17 @@ class LineSegment3D {
   /// @brief Intersection point of this segment with a line.
   /// @param line The line.
   /// @return The intersection point if it lies on the segment (sc in [0, 1]), or std::nullopt otherwise.
-  ReturnSet Intersection(Line3D const& line) const;
+  std::optional<Point3D> Intersection(Line3D const& line) const;
 
   /// @brief Intersection point of this segment with a ray.
   /// @param ray The ray.
   /// @return The intersection point if it lies on both the segment and the ray, or std::nullopt otherwise.
-  ReturnSet Intersection(Ray3D const& ray) const;
+  std::optional<Point3D> Intersection(Ray3D const& ray) const;
 
   /// @brief Intersection point of two segments.
   /// @param other The other segment.
   /// @return The intersection point if it lies on both segments, or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment3D const& other) const;
+  std::optional<Point3D> Intersection(LineSegment3D const& other) const;
 
 #pragma endregion
 

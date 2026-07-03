@@ -93,7 +93,7 @@ std::optional<LineSegment3D> LineSegment3D::Distance(Line3D const& line) const {
   auto Q1 = line.Last();
 
   double sc, tc;
-  distance_line_to_line(P0, P1, Q0, Q1, sc, tc);
+  detail::distance_line_to_line(P0, P1, Q0, Q1, sc, tc);
 
   // boundary check for segment
   if (compare(sc, 0) < 0) {
@@ -132,13 +132,13 @@ std::optional<LineSegment3D> LineSegment3D::Distance(Ray3D const& ray) const {
   auto Q1 = ray.Origin() + ray.Direction();
 
   double sc, tc;
-  distance_line_to_line(P0, P1, Q0, Q1, sc, tc);
+  detail::distance_line_to_line(P0, P1, Q0, Q1, sc, tc);
 
   auto U = P1 - P0;
   auto V = Q1 - Q0;
 
   // Pre-clamp overlap check: segment/ray clamping below collapses the magic-zero
-  // from distance_line_to_line in the collinear-overlap case.
+  // from detail::distance_line_to_line in the collinear-overlap case.
   {
     auto raw_P = P0 + U * sc;
     auto raw_Q = Q0 + V * tc;
@@ -184,13 +184,13 @@ std::optional<LineSegment3D> LineSegment3D::Distance(LineSegment3D const& seg) c
   auto Q1 = seg.Last();
 
   double sc, tc;
-  distance_line_to_line(P0, P1, Q0, Q1, sc, tc);
+  detail::distance_line_to_line(P0, P1, Q0, Q1, sc, tc);
 
   auto U = P1 - P0;
   auto V = Q1 - Q0;
 
   // Pre-clamp overlap check: segment clamping below collapses the magic-zero
-  // from distance_line_to_line in the collinear-overlap case.
+  // from detail::distance_line_to_line in the collinear-overlap case.
   {
     auto raw_P = P0 + U * sc;
     auto raw_Q = Q0 + V * tc;
@@ -259,9 +259,9 @@ bool LineSegment3D::Intersects(Ray3D const& ray) const { return Intersection(ray
 
 bool LineSegment3D::Intersects(LineSegment3D const& other) const { return Intersection(other).has_value(); }
 
-LineSegment3D::ReturnSet LineSegment3D::Intersection(Line3D const& line) const {
+std::optional<Point3D>LineSegment3D::Intersection(Line3D const& line) const {
   double sc, tc;
-  auto Pc = intersection_line_to_line(P0, P1, line.First(), line.Last(), sc, tc);
+  auto Pc = detail::intersection_line_to_line(P0, P1, line.First(), line.Last(), sc, tc);
 
   // respecting LineSegment and Ray constraints: sc should be between 0 and 1
   if (!(Pc.has_value() && is_in_range(sc, 0, 1))) {
@@ -271,9 +271,9 @@ LineSegment3D::ReturnSet LineSegment3D::Intersection(Line3D const& line) const {
   return Pc;  // intersection!
 }
 
-LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray) const {
+std::optional<Point3D>LineSegment3D::Intersection(Ray3D const& ray) const {
   double sc, tc;
-  auto Pc = intersection_line_to_line(P0, P1, ray.Origin(), ray.Origin() + ray.Direction(), sc, tc);
+  auto Pc = detail::intersection_line_to_line(P0, P1, ray.Origin(), ray.Origin() + ray.Direction(), sc, tc);
 
   // respecting LineSegment and Ray constraints: sc should be between 0 and 1, tc should be greater than 0
   if (!(Pc.has_value() && is_in_range(sc, 0, 1) && is_greater_or_equal(tc, 0))) {
@@ -283,9 +283,9 @@ LineSegment3D::ReturnSet LineSegment3D::Intersection(Ray3D const& ray) const {
   return Pc;  // intersection!
 }
 
-LineSegment3D::ReturnSet LineSegment3D::Intersection(LineSegment3D const& other) const {
+std::optional<Point3D>LineSegment3D::Intersection(LineSegment3D const& other) const {
   double sc, tc;
-  auto Pc = intersection_line_to_line(P0, P1, other.First(), other.Last(), sc, tc);
+  auto Pc = detail::intersection_line_to_line(P0, P1, other.First(), other.Last(), sc, tc);
 
   // respecting LineSegment constraints: sc and tc should be between 0 and 1
   if (!(Pc.has_value() && is_in_range(sc, 0, 1) && is_in_range(tc, 0, 1))) {

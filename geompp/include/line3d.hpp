@@ -134,8 +134,6 @@ class Line3D {
   /// @return true if @p point is collinear with this line within decimal precision.
   bool Contains(Point3D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point3D>>;
-
   /// @brief Tests whether this line intersects another line.
   /// @param other The other line.
   /// @return true if they meet at a single point (skew or parallel lines return false; collinear lines return true).
@@ -159,18 +157,18 @@ class Line3D {
   /// @brief Intersection point of two lines.
   /// @param other The other line.
   /// @return The intersection point wrapped in the variant, or std::nullopt for parallel/skew lines.
-  ReturnSet Intersection(Line3D const& other) const;
+  std::optional<Point3D> Intersection(Line3D const& other) const;
 
   /// @brief Intersection point of this line with a ray.
   /// @param ray The ray.
   /// @return The intersection point if it lies on the ray (sc >= 0), or std::nullopt otherwise.
-  ReturnSet Intersection(Ray3D const& ray) const;
+  std::optional<Point3D> Intersection(Ray3D const& ray) const;
 
   /// @brief Intersection point of this line with a segment.
   /// @param segment The segment.
   /// @return The intersection point if it lies on the segment (sc in [0, 1]), or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment3D const& segment) const;
-  // TODO make ReturnSet public, and write Intersection(triangle)
+  std::optional<Point3D> Intersection(LineSegment3D const& segment) const;
+  // TODO write Intersection(Triangle3D)
 
 #pragma endregion
 
