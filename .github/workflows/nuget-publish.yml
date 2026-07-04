@@ -60,6 +60,7 @@ jobs:
           msbuild geompp_csharp\GeomPP_Net8.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:TargetName=GeomPP `
             /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release_Net8\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
@@ -69,6 +70,7 @@ jobs:
           msbuild geompp_csharp\GeomPP_Net9.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:TargetName=GeomPP `
             /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release_Net9\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
@@ -88,6 +90,7 @@ jobs:
           msbuild geompp_csharp\GeomPP_Net48.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:TargetName=GeomPP `
             /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release_Net48\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
