@@ -237,17 +237,11 @@ void example_6() {
   if (sq.Intersects(line)) {
     auto result = sq.Intersection(line);
     if (result.has_value()) {
-      std::visit([](auto const& v) {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, g::Point2D>) {
-          GEOMPP_LOG(INFO) << "line touches at point: " << v.ToWkt();
-        } else {
-          GEOMPP_LOG(INFO) << v.size() << " chord segment(s):";
-          for (auto const& s : v) {
-            GEOMPP_LOG(INFO) << "  " << s.ToWkt();
-          }
-        }
-      }, result.value());
+      auto const& segs = result.value();
+      GEOMPP_LOG(INFO) << segs.size() << " chord segment(s):";
+      for (auto const& s : segs) {
+        GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+      }
     }
   }
   // expected: 1 chord segment: LINESTRING (0 0.5, 1 0.5)
@@ -258,17 +252,11 @@ void example_6() {
   if (sq.Intersects(ray)) {
     auto result = sq.Intersection(ray);
     if (result.has_value()) {
-      std::visit([](auto const& v) {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, g::Point2D>) {
-          GEOMPP_LOG(INFO) << "ray touches at point: " << v.ToWkt();
-        } else {
-          GEOMPP_LOG(INFO) << v.size() << " chord segment(s) from ray:";
-          for (auto const& s : v) {
-            GEOMPP_LOG(INFO) << "  " << s.ToWkt();
-          }
-        }
-      }, result.value());
+      auto const& segs = result.value();
+      GEOMPP_LOG(INFO) << segs.size() << " chord segment(s) from ray:";
+      for (auto const& s : segs) {
+        GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+      }
     }
   }
   // expected: 1 chord from (0.5,0.5) to (1,0.5)
@@ -279,17 +267,11 @@ void example_6() {
   if (sq.Intersects(seg)) {
     auto result = sq.Intersection(seg);
     if (result.has_value()) {
-      std::visit([](auto const& v) {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, g::Point2D>) {
-          GEOMPP_LOG(INFO) << "segment touches at point: " << v.ToWkt();
-        } else {
-          GEOMPP_LOG(INFO) << v.size() << " chord segment(s) from segment:";
-          for (auto const& s : v) {
-            GEOMPP_LOG(INFO) << "  " << s.ToWkt();
-          }
-        }
-      }, result.value());
+      auto const& segs = result.value();
+      GEOMPP_LOG(INFO) << segs.size() << " chord segment(s) from segment:";
+      for (auto const& s : segs) {
+        GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+      }
     }
   }
   // expected: 1 chord segment: LINESTRING (0 0.5, 1 0.5)
