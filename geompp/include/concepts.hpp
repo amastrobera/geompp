@@ -26,8 +26,8 @@ concept WktSerializable = requires(const T& obj, const std::string& wkt) {
 };
 
 template <typename T>
-concept Point = requires(std::ranges::range_value_t<T> const& p) {
-  { p.x() } -> std::convertible_to<double>;  // element must expose x() and y()
+concept Point = requires(T const& p) {
+  { p.x() } -> std::convertible_to<double>;
   { p.y() } -> std::convertible_to<double>;
 };
 

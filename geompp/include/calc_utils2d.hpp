@@ -256,13 +256,13 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
     Points const& outer_coplanar_ccw, std::vector<Points> const& holes_coplanar_cw, bool is_convex_input,
     P const& line_p0, P const& line_p1, View2D const& view);
 
-extern template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+/// @brief Concrete Point2D wrapper for compute_parametric_intersection_intervals.
+/// The template definition lives in calc_utils2d.cpp only; this non-template
+/// declaration lets other TUs call it without triggering implicit instantiation
+/// (which would fail because the template body is not in the header).
+std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
     std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
     bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view);
-
-extern template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
-    std::vector<Point3D> const& outer_coplanar_ccw, std::vector<std::vector<Point3D>> const& holes_coplanar_cw,
-    bool is_convex_input, Point3D const& line_p0, Point3D const& line_p1, View2D const& view);
 
 /// @brief Point-on-edge perimeter test projected through a View2D.
 /// Works for both 2D (View2D::XY()) and 3D (dominant-axis view) rings.

@@ -352,7 +352,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Line2D const& 
   auto const& p0 = line.First();
   auto const& p1 = line.Last();
 
-  auto intervals = detail::compute_parametric_intersection_intervals(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+  auto intervals = detail::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
 
   if (intervals.empty()) {
     return std::nullopt;
@@ -373,7 +373,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Ray2D const& r
   Point2D const p0 = ray.Origin();
   Point2D const p1(p0.x() + ray.Direction().x(), p0.y() + ray.Direction().y());
 
-  auto intervals = detail::compute_parametric_intersection_intervals(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+  auto intervals = detail::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
 
   if (intervals.empty()) {
     return std::nullopt;
@@ -420,7 +420,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
   auto const& p0 = other.First();
   auto const& p1 = other.Last();
 
-  auto intervals = detail::compute_parametric_intersection_intervals(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+  auto intervals = detail::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
 
   if (intervals.empty()) {
     return std::nullopt;
@@ -455,7 +455,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
 
     // case 3: the segment starts inside the polygon
     if ((!te_ge_0 && te_se_1) && (tl_ge_0 && tl_se_1)) {
-      if (compare(tl, 1.0) > 0) {
+      if (compare(tl, 0.0) > 0) {
         intersection_list.push_back(LineSegment2D::Make(eval(0.0), eval(tl)));
       }
       continue;

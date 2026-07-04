@@ -495,8 +495,7 @@ TEST_F(Polygon2DTest, Intersection_Line_PassesThrough_ReturnsSegment) {
   auto line = g::Line2D::Make(g::Point2D(0, 0.5), g::Point2D(1, 0.5));
   auto result = sq.Intersection(line);
   ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(std::holds_alternative<std::vector<g::LineSegment2D>>(result.value()));
-  auto const& segs = std::get<std::vector<g::LineSegment2D>>(result.value());
+  auto const& segs = result.value();
   ASSERT_EQ(1u, segs.size());
   EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0, 0.5)));
   EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(1, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(1, 0.5)));
@@ -522,8 +521,7 @@ TEST_F(Polygon2DTest, Intersection_Ray_Hits_ReturnsSegment) {
   auto ray = g::Ray2D::Make(g::Point2D(-1, 0.5), g::Vector2D(1, 0));
   auto result = sq.Intersection(ray);
   ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(std::holds_alternative<std::vector<g::LineSegment2D>>(result.value()));
-  auto const& segs = std::get<std::vector<g::LineSegment2D>>(result.value());
+  auto const& segs = result.value();
   ASSERT_EQ(1u, segs.size());
 }
 
@@ -540,8 +538,7 @@ TEST_F(Polygon2DTest, Intersection_Ray_OriginInside_ReturnsClippedSegment) {
   auto ray = g::Ray2D::Make(g::Point2D(0.5, 0.5), g::Vector2D(1, 0));
   auto result = sq.Intersection(ray);
   ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(std::holds_alternative<std::vector<g::LineSegment2D>>(result.value()));
-  auto const& segs = std::get<std::vector<g::LineSegment2D>>(result.value());
+  auto const& segs = result.value();
   ASSERT_EQ(1u, segs.size());
   // One endpoint is the ray origin (0.5,0.5), the other is the exit (1,0.5)
   bool has_origin = segs[0].First().AlmostEquals(g::Point2D(0.5, 0.5)) ||
@@ -563,8 +560,7 @@ TEST_F(Polygon2DTest, Intersection_Segment_Pierces_ReturnsSegment) {
   auto seg = g::LineSegment2D::Make(g::Point2D(-0.5, 0.5), g::Point2D(1.5, 0.5));
   auto result = sq.Intersection(seg);
   ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(std::holds_alternative<std::vector<g::LineSegment2D>>(result.value()));
-  auto const& segs = std::get<std::vector<g::LineSegment2D>>(result.value());
+  auto const& segs = result.value();
   ASSERT_EQ(1u, segs.size());
   EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0, 0.5)));
   EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(1, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(1, 0.5)));
@@ -583,8 +579,7 @@ TEST_F(Polygon2DTest, Intersection_Segment_EntirelyInside_ReturnsEntireSegment) 
   auto seg = g::LineSegment2D::Make(g::Point2D(0.2, 0.5), g::Point2D(0.8, 0.5));
   auto result = sq.Intersection(seg);
   ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(std::holds_alternative<std::vector<g::LineSegment2D>>(result.value()));
-  auto const& segs = std::get<std::vector<g::LineSegment2D>>(result.value());
+  auto const& segs = result.value();
   ASSERT_EQ(1u, segs.size());
   EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0.2, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0.2, 0.5)));
   EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0.8, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0.8, 0.5)));

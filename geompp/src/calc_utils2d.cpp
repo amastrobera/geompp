@@ -12,6 +12,7 @@
 #include "vector3d.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <iterator>
@@ -1022,11 +1023,13 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
   // actual algorithm
 
   // Project the line endpoints to 2D once; all geometry lives in this view's plane.
-  // edge e(i): v_0 = outer[(i+1)%n], v_1 = outer[i]
-  //   ex = view.x(v1) - view.x(v0),  ey = view.y(v1) - view.y(v0)
-  //   outward normal for CCW ring: -Perp(ex,ey) = (ey, -ex)
-  //   N = -(p0 - v0) · (ey,-ex)  =  -(p0x-v0x)*ey + (p0y-v0y)*ex
-  //   D =  p_vec    · (ey,-ex)   =   dx*ey - dy*ex
+  // edge e(i): v_0 = outer[i], v_1 = outer[(i+1)%n]  (CCW order)
+  //   ex = v1x - v0x,  ey = v1y - v0y
+  //   outward normal for CCW ring: n = (ey, -ex)
+  //   N = -n · (P0 - Vi)  =  -(ey, -ex) · (p0x - v0x,  p0y - v0y)
+  //                       = -(ey * (p0x - v0x) + (-ex) * (p0y - v0y))
+  //                       = -(p0x - v0x) * ey + (p0y - v0y)*ex
+  //   D = n · (P1 - P0)   =  dx*ey - dy*ex
   double p0x = view.x(line_p0), p0y = view.y(line_p0);
   double dx = view.x(line_p1) - p0x;
   double dy = view.y(line_p1) - p0y;
@@ -1049,8 +1052,8 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
     std::size_t n = outer_coplanar_ccw.size();
 
     for (std::size_t i = 0; i < n; ++i) {
-      auto const& v_0 = outer_coplanar_ccw[(i + 1) % n];
-      auto const& v_1 = outer_coplanar_ccw[i];
+      auto const& v_0 = outer_coplanar_ccw[i];
+      auto const& v_1 = outer_coplanar_ccw[(i + 1) % n];
       auto [N, D] = edge_ND(v_0, v_1);
 
       auto D_compare_to_0 = compare(D, 0);
@@ -1121,8 +1124,8 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
     std::size_t n = outer_coplanar_ccw.size();
 
     for (std::size_t i = 0; i < n; ++i) {
-      auto const& v_0 = outer_coplanar_ccw[(i + 1) % n];  // guarantees the loop of points to be closed
-      auto const& v_1 = outer_coplanar_ccw[i];
+      auto const& v_0 = outer_coplanar_ccw[i];
+      auto const& v_1 = outer_coplanar_ccw[(i + 1) % n];  // guarantees the loop of points to be closed
       auto [N, D] = edge_ND(v_0, v_1);
 
       auto D_compare_to_0 = compare(D, 0);
@@ -1157,13 +1160,12 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
   return t_list;
 }
 
-template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
     std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
-    bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view);
-
-template std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
-    std::vector<Point3D> const& outer_coplanar_ccw, std::vector<std::vector<Point3D>> const& holes_coplanar_cw,
-    bool is_convex_input, Point3D const& line_p0, Point3D const& line_p1, View2D const& view);
+    bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view) {
+  return compute_parametric_intersection_intervals(outer_coplanar_ccw, holes_coplanar_cw, is_convex_input, line_p0,
+                                                   line_p1, view);
+}
 
 }  // namespace detail
 }  // namespace geompp
