@@ -87,6 +87,23 @@ jobs:
             /p:Platform=x64 `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
+      # Fail fast if any DLL is missing before nuget pack attempts to find them.
+      - name: Verify DLL outputs exist
+        shell: pwsh
+        run: |
+          $dlls = @(
+            "geompp_csharp\x64\Release_Net8\GeomPP.dll",
+            "geompp_csharp\x64\Release_Net9\GeomPP.dll",
+            "geompp_csharp\x64\Release\GeomPP.dll",
+            "geompp_csharp\x64\Release_Net48\GeomPP.dll"
+          )
+          $missing = $dlls | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            $missing | ForEach-Object { Write-Error "Missing: $_" }
+            exit 1
+          }
+          Write-Host "All DLLs present."
+
       # Resolve tag and version (supports both push-tag and manual dispatch)
       - name: Extract version from tag
         id: ver
