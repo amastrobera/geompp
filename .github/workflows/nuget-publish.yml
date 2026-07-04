@@ -60,6 +60,7 @@ jobs:
           msbuild geompp_csharp\GeomPP_Net8.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release_Net8\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
       # Output: geompp_csharp\x64\Release_Net9\GeomPP.dll
@@ -68,6 +69,7 @@ jobs:
           msbuild geompp_csharp\GeomPP_Net9.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release_Net9\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
       # Output: geompp_csharp\x64\Release\GeomPP.dll
@@ -76,6 +78,7 @@ jobs:
           msbuild geompp_csharp\GeomPP.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
       # Build the same sources targeting .NET Framework 4.8 (classic CLR, /clr).
@@ -85,6 +88,7 @@ jobs:
           msbuild geompp_csharp\GeomPP_Net48.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release_Net48\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 
       # Fail fast if any DLL is missing before nuget pack attempts to find them.
