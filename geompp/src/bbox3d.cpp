@@ -1,21 +1,11 @@
 #include "bbox3d.hpp"
 
-// #include "line_segment3d.hpp"
-// #include "polygon3d.hpp"
-// #include "polyline3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
-#include "vector3d.hpp"
 
-#include <cmath>
-#include <format>
-#include <fstream>
-#include <iostream>  // TODO: replace with logger lib
-#include <unordered_set>
+#include <vector>
 
 namespace geompp {
-
-BBox3D::BBox3D(Point3D const& min, Point3D const& max) : MIN(min), MAX(max) {}
 
 BBox3D::BBox3D(LineSegment3D const& s) {
   double ax = s.First().x(), bx = s.Last().x();
@@ -135,8 +125,6 @@ BBox3D::BBox3D(Triangle3D const& s) {
   MAX = {max_x, max_y, max_z};
 }
 
-BBox3D::BBox3D(BBox3D const& b) : MIN(b.MIN), MAX(b.MAX) {}
-
 BBox3D& BBox3D::operator=(BBox3D const& other) {
   if (this != &other) {
     MIN = other.MIN;
@@ -163,5 +151,42 @@ bool BBox3D::Contains(Point3D const& p) const {
 bool operator==(BBox3D const& lhs, BBox3D const& rhs) { return lhs.AlmostEquals(rhs); }
 
 #pragma endregion
+
+template <PointContainer Points>
+BBox3D::BBox3D(Points const& points) {
+  if (std::ranges::empty(points)) {
+    throw std::runtime_error("cannot make bounding box of empty point cloud");
+  }
+  auto b = std::ranges::begin(points);
+  double max_x = (*b).x(), min_x = (*b).x();
+  double max_y = (*b).y(), min_y = (*b).y();
+  double max_z = (*b).z(), min_z = (*b).z();
+  ++b;
+  for (auto e = std::ranges::end(points); b != e; ++b) {
+    double x = (*b).x(), y = (*b).y(), z = (*b).z();
+    if (compare(x, max_x) > 0) {
+      max_x = x;
+    }
+    if (compare(y, max_y) > 0) {
+      max_y = y;
+    }
+    if (compare(z, max_z) > 0) {
+      max_z = z;
+    }
+    if (compare(x, min_x) < 0) {
+      min_x = x;
+    }
+    if (compare(y, min_y) < 0) {
+      min_y = y;
+    }
+    if (compare(z, min_z) < 0) {
+      min_z = z;
+    }
+  }
+  MIN = {min_x, min_y, min_z};
+  MAX = {max_x, max_y, max_z};
+}
+
+template BBox3D::BBox3D(std::vector<Point3D> const&);
 
 }  // namespace geompp

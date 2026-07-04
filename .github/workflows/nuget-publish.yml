@@ -36,13 +36,40 @@ jobs:
       - name: Set up NuGet
         uses: NuGet/setup-nuget@v2
 
+      # Ensure all three .NET SDK versions are available for /clr:netcore builds
+      - name: Set up .NET SDKs (8, 9, 10)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
       # Build only the geompp static library (skips tests and samples)
       - name: Build geompp (C++ static library)
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target geompp
 
-      # Build the C++/CLI wrapper DLL targeting .NET 10 (CoreCLR, /clr:netcore).
+      # Build the C++/CLI wrapper DLL for each .NET TFM (CoreCLR, /clr:netcore).
+      # Each project writes to a distinct OutDir to avoid clobbering siblings.
+
+      # Output: geompp_csharp\x64\Release_Net8\GeomPP.dll
+      - name: Build GeomPP.dll (.NET 8)
+        run: |
+          msbuild geompp_csharp\GeomPP_Net8.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:GeomppBuildRoot="${{ github.workspace }}\build"
+
+      # Output: geompp_csharp\x64\Release_Net9\GeomPP.dll
+      - name: Build GeomPP.dll (.NET 9)
+        run: |
+          msbuild geompp_csharp\GeomPP_Net9.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:GeomppBuildRoot="${{ github.workspace }}\build"
+
       # Output: geompp_csharp\x64\Release\GeomPP.dll
       - name: Build GeomPP.dll (.NET 10)
         run: |

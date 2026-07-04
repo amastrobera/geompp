@@ -16,13 +16,10 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
-#include <type_traits>
 
 namespace geompp {
 
 #pragma region Constructors
-
-Polyline2D::Polyline2D(std::vector<Point2D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 Polyline2D Polyline2D::Make(std::vector<Point2D> const& points) {
   auto unique_points = remove_collinear(points);
@@ -47,14 +44,8 @@ Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
   return *this;
 }
 
-int Polyline2D::Size() const { return KNOTS.size(); }
-
-SegmentRange2D Polyline2D::ToSegments() const { return SegmentRange2D(KNOTS); }
-
-double Polyline2D::Length() const { return LENGTH; }
-
 bool Polyline2D::IsSimple() const {
-  if (has_intersections_impl(ToSegments())) {
+  if (detail::has_intersections_impl(ToSegments())) {
     return false;
   }
 
@@ -254,8 +245,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line) const {
   for (auto const& seg : ToSegments()) {
     auto inter = line.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-      intersections.push_back(std::get<Point2D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -276,8 +267,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray) const {
   for (auto const& seg : ToSegments()) {
     auto inter = ray.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-      intersections.push_back(std::get<Point2D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -298,8 +289,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment) con
   for (auto const& seg : ToSegments()) {
     auto inter = segment.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-      intersections.push_back(std::get<Point2D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -321,8 +312,8 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other) const {
     for (auto const& other_seg : other.ToSegments()) {
       auto inter = seg.Intersection(other_seg);
 
-      if (inter.has_value() && std::holds_alternative<Point2D>(*inter)) {
-        intersections.push_back(std::get<Point2D>(*inter));
+      if (inter.has_value()) {
+        intersections.push_back(*inter);
       }
     }
   }

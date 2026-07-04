@@ -34,7 +34,7 @@ genhtml coverage.info --output-directory coverage_html
 | `Plane` | `geompp_tests/src/test_plane.cpp` | ~94% |
 | `BBox2D` | `geompp_tests/src/test_bbox2d.cpp` | ~82% |
 | `BBox3D` | `geompp_tests/src/test_bbox3d.cpp` | **100%** |
-| `Polygon2D` | `geompp_tests/src/test_polygon2d.cpp` | ~91% |
+| `Polygon2D` | `geompp_tests/src/test_polygon2d.cpp` | ~96% (Intersection(Line/Ray/Seg) now implemented and tested) |
 | `Polygon3D` | `geompp_tests/src/test_polygon3d.cpp` | ~91% |
 
 ## ✅ Completed — previously partial, now extended

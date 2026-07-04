@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <compare>
 #include <iomanip>   // For setting precision in debug output
 #include <iostream>  // debug only
 #include <ranges>
@@ -19,10 +20,7 @@ std::partial_ordering compare(double a, double b, double epsilon) {
   if (std::abs(a - b) <= epsilon) {
     return std::partial_ordering::equivalent;
   }
-  if (a < b) {
-    return std::partial_ordering::less;
-  }
-  return std::partial_ordering::greater;
+  return a <=> b;  // starship operator gracefull handles the NaN case
 }
 
 bool is_in_range(double value, double min, double max, double epsilon) {
@@ -109,6 +107,48 @@ int count_decimal_places(double number) {
     return static_cast<int>(last_non_zero - decimal_pos);
   }
   return 0;
+}
+
+void remove_duplicates(std::vector<double>& sorted_vec, double epsilon) {
+  if (sorted_vec.empty()) {
+    return;
+  }
+  // Filter out consecutive elements that evaluate to 'equivalent'
+  auto [first, last] = std::ranges::unique(sorted_vec, [epsilon](double a, double b) {
+    return compare(a, b, epsilon) == std::partial_ordering::equivalent;
+  });
+
+  // Physically shrink the vector container
+  sorted_vec.erase(first, last);
+}
+
+void remove_all_duplicated_elements(std::vector<double>& sorted_vec, double epsilon) {
+  if (sorted_vec.empty()) {
+    return;
+  }
+
+  auto write_it = sorted_vec.begin();
+
+  for (auto read_it = sorted_vec.begin(); read_it != sorted_vec.end();) {
+    auto next_it = read_it;
+
+    // Advance next_it to find the end of the current matching block
+    while (next_it != sorted_vec.end() && std::abs(*next_it - *read_it) <= epsilon) {
+      ++next_it;
+    }
+
+    // If the block size is EXACTLY 1, this element is truly unique!
+    if (next_it - read_it == 1) {
+      *write_it = *read_it;  // Retain the element
+      ++write_it;
+    }
+
+    // Skip the entire duplicated block
+    read_it = next_it;
+  }
+
+  // Physically chop off the dead space at the back
+  sorted_vec.erase(write_it, sorted_vec.end());
 }
 
 }  // namespace geompp

@@ -5,17 +5,10 @@
 #include "polyline2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
-#include "vector2d.hpp"
 
-#include <cmath>
-#include <format>
-#include <fstream>
-#include <iostream>  // TODO: replace with logger lib
-#include <unordered_set>
+#include <vector>
 
 namespace geompp {
-
-BBox2D::BBox2D(Point2D const& min, Point2D const& max) : MIN(min), MAX(max) {}
 
 BBox2D::BBox2D(LineSegment2D const& s) {
   double max_x = compare(s.First().x(), s.Last().x()) >= 0 ? s.First().x() : s.Last().x();
@@ -85,8 +78,6 @@ BBox2D::BBox2D(Polygon2D const& s) {
 
 BBox2D::BBox2D(Triangle2D const& s) : BBox2D(s.ToPolygon()) {}
 
-BBox2D::BBox2D(BBox2D const& b) : MIN(b.MIN), MAX(b.MAX) {}
-
 BBox2D& BBox2D::operator=(BBox2D const& other) {
   if (this != &other) {
     MIN = other.MIN;
@@ -113,5 +104,35 @@ bool BBox2D::Contains(Point2D const& p) const {
 bool operator==(BBox2D const& lhs, BBox2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
 #pragma endregion
+
+template <PointContainer Points>
+BBox2D::BBox2D(Points const& points) {
+  if (std::ranges::empty(points)) {
+    throw std::runtime_error("cannot make bounding box of empty point cloud");
+  }
+  auto b = std::ranges::begin(points);
+  double max_x = (*b).x(), min_x = (*b).x();
+  double max_y = (*b).y(), min_y = (*b).y();
+  ++b;
+  for (auto e = std::ranges::end(points); b != e; ++b) {
+    double x = (*b).x(), y = (*b).y();
+    if (compare(x, max_x) > 0) {
+      max_x = x;
+    }
+    if (compare(y, max_y) > 0) {
+      max_y = y;
+    }
+    if (compare(x, min_x) < 0) {
+      min_x = x;
+    }
+    if (compare(y, min_y) < 0) {
+      min_y = y;
+    }
+  }
+  MIN = {min_x, min_y};
+  MAX = {max_x, max_y};
+}
+
+template BBox2D::BBox2D(std::vector<Point2D> const&);
 
 }  // namespace geompp

@@ -10,11 +10,12 @@
     <projectUrl>https://github.com/amastrobera/geompp</projectUrl>
     <readme>README.md</readme>
     <description>
-      C# bindings for geompp, a C++20 geometry library.
+      C# bindings for geompp, a C++20 2D/3D computational geometry library.
       Provides Point2D/3D, Vector2D/3D, Line2D/3D, Ray2D/3D, LineSegment2D/3D,
-      Polyline2D/3D, Triangle2D/3D, Polygon2D/3D, BBox2D/3D, Plane — with full
-      operator support, intersection queries, WKT serialization, and file I/O.
-      Built with C++/CLI for Windows x64. Targets both .NET 10 and .NET Framework 4.8.
+      Polyline2D/3D, Triangle2D/3D, Polygon2D/3D, BBox2D/3D, BBall2D/3D,
+      BRect2D, BPrism3D, Plane — with full operator support, intersection
+      queries, convex hull, bounding containers, WKT serialization, and file I/O.
+      Built with C++/CLI for Windows x64. Targets .NET 8, 9, 10 and .NET Framework 4.8.
     </description>
     <!--
       <releaseNotes> is overwritten by the CI (nuget-publish.yml) before packing:
@@ -22,13 +23,16 @@
       The text below is only a local fallback for manual nuget pack runs.
     -->
     <releaseNotes>See CHANGELOG.md at https://github.com/amastrobera/geompp/blob/master/CHANGELOG.md</releaseNotes>
-    <tags>geometry 3d 2d computational-geometry gis math csharp dotnet</tags>
+    <tags>geometry 2d 3d spatial computational-geometry gis math polygon polyline convex-hull bounding-box point-cloud cpp interop csharp dotnet</tags>
     <repository type="git" url="https://github.com/amastrobera/geompp" />
     <!--
       C++/CLI mixed-mode assemblies are Windows-only.
-      Consumers must target net10.0-windows7.0 (or later) OR net48 accordingly.
+      Consumers must target one of: net8.0-windows7.0, net9.0-windows7.0,
+      net10.0-windows7.0, or net48.
     -->
     <dependencies>
+      <group targetFramework="net8.0-windows7.0" />
+      <group targetFramework="net9.0-windows7.0" />
       <group targetFramework="net10.0-windows7.0" />
       <group targetFramework="net48" />
     </dependencies>
@@ -36,11 +40,15 @@
 
   <files>
     <!--
-      Build both projects in Release|x64 before running:
+      Build all projects in Release|x64 before running:
         nuget pack GeomPP.nuspec
-      GeomPP.vcxproj       → x64\Release\GeomPP.dll        (.NET 8)
+      GeomPP_Net8.vcxproj  → x64\Release_Net8\GeomPP.dll   (.NET 8)
+      GeomPP_Net9.vcxproj  → x64\Release_Net9\GeomPP.dll   (.NET 9)
+      GeomPP.vcxproj       → x64\Release\GeomPP.dll         (.NET 10)
       GeomPP_Net48.vcxproj → x64\Release_Net48\GeomPP.dll  (.NET Framework 4.8)
     -->
+    <file src="x64\Release_Net8\GeomPP.dll"  target="lib\net8.0-windows7.0\GeomPP.dll" />
+    <file src="x64\Release_Net9\GeomPP.dll"  target="lib\net9.0-windows7.0\GeomPP.dll" />
     <file src="x64\Release\GeomPP.dll"       target="lib\net10.0-windows7.0\GeomPP.dll" />
     <file src="x64\Release_Net48\GeomPP.dll" target="lib\net48\GeomPP.dll" />
     <!-- Bundled so NuGet.org renders the <readme> element on the package page -->

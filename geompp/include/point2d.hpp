@@ -1,6 +1,7 @@
 #pragma once
 
 #include "constants.hpp"
+#include "vector2d.hpp"
 
 #include <ostream>
 #include <string>
@@ -8,18 +9,16 @@
 
 namespace geompp {
 
-class Vector2D;
-
 class Point2D {
  public:
   Point2D(double x, double y);
-  Point2D(Point2D const&);
+  Point2D(Point2D const&) = default;
   Point2D(Vector2D const&);
   Point2D(Point2D&&) = default;
   ~Point2D() = default;
 
-  inline double x() const { return X; }
-  inline double y() const { return Y; }
+  double x() const;
+  double y() const;
 
   Vector2D ToVector() const;
   bool AlmostEquals(Point2D const& other, double epsilon = DOUBLE_EPSILON) const;
@@ -32,7 +31,7 @@ class Point2D {
 
   Point2D& operator=(Point2D const& other);
 
-  static inline Point2D Zero() { return Point2D(0, 0); }
+  static Point2D Zero();
 
  private:
   double X, Y;
@@ -107,6 +106,16 @@ bool are_ccw(std::vector<Point2D> const& points);
 bool are_cw(std::vector<Point2D> const& points);
 
 Point2D centroid(std::vector<Point2D> const& points);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point2D::Point2D(double x, double y) : X(x), Y(y) {}
+inline Point2D::Point2D(Vector2D const& v) : X(v.x()), Y(v.y()) {}
+inline double Point2D::x() const { return X; }
+inline double Point2D::y() const { return Y; }
+inline Point2D Point2D::Zero() { return Point2D(0, 0); }
 
 #pragma endregion
 

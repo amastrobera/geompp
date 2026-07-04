@@ -41,8 +41,6 @@ Triangle2D Triangle2D::Make(Point2D const& p0, Point2D const& p1, Point2D const&
   return {p0, p1, p2};
 }
 
-Triangle2D::Triangle2D(Point2D const& p0, Point2D const& p1, Point2D const& p2) : P0(p0), P1(p1), P2(p2) {}
-
 Triangle2D& Triangle2D::operator=(Triangle2D const& other) {
   if (this != &other) {
     P0 = other.P0;
@@ -133,10 +131,8 @@ Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto points_view = std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
                                                 LineSegment2D::Make(P2, P0)} |
                      std::views::transform([&](LineSegment2D const& seg) { return seg.Intersection(line); }) |
-                     std::views::filter([](LineSegment2D::ReturnSet const& res) {
-                       return res.has_value() && std::holds_alternative<Point2D>(*res);
-                     }) |
-                     std::views::transform([](LineSegment2D::ReturnSet const& res) { return std::get<Point2D>(*res); });
+                     std::views::filter([](std::optional<Point2D> const& res) { return res.has_value(); }) |
+                     std::views::transform([](std::optional<Point2D> const& res) { return *res; });
 
   std::vector<Point2D> intersections(points_view.begin(), points_view.end());
 

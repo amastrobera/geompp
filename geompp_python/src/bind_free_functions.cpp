@@ -2,8 +2,15 @@
 
 #include "line_segment2d.hpp"  // has_intersections / find_intersections
 #include "point2d.hpp"         // convex_hull
+#include "calc_utils3d.hpp"    // principal_axes / principal_normal / principal_direction
 
 void bind_free_functions(py::module_& m) {
+    py::class_<geompp::CoordinateFrame>(m, "CoordinateFrame",
+        "Orthonormal coordinate frame from PCA: X=primary axis, Y=secondary axis, Z=best-fit plane normal.")
+        .def_readonly("x", &geompp::CoordinateFrame::X, "Primary axis — direction of largest variance.")
+        .def_readonly("y", &geompp::CoordinateFrame::Y, "Secondary axis — direction of second largest variance.")
+        .def_readonly("z", &geompp::CoordinateFrame::Z, "Normal — direction of least variance (best-fit plane normal).");
+
     m.def("are_collinear",
           [](const geompp::Point2D& p1, const geompp::Point2D& p2, const geompp::Point2D& p3) {
               return geompp::are_collinear(p1, p2, p3);
@@ -131,6 +138,22 @@ void bind_free_functions(py::module_& m) {
               return geompp::convex_hull(pts, normal);
           },
           "points"_a, "normal"_a = py::none(),
-          "Andrew's monotone chain: convex hull of coplanar 3D points, returned in CCW order. "
-          "Normal is auto-detected if omitted.");
+          "Andrew's monotone chain: convex hull of 3D points, returned in CCW order. "
+          "Points do not need to be coplanar — when normal is omitted, the best-fit plane "
+          "is estimated via PCA (Jacobi eigendecomposition).");
+
+    m.def("principal_axes",
+          [](const std::vector<geompp::Point3D>& pts) { return geompp::principal_axes(pts); },
+          "points"_a,
+          "PCA on a 3D point cloud: returns a CoordinateFrame (X=primary, Y=secondary, Z=normal). Requires >=3 non-collinear points.");
+
+    m.def("principal_normal",
+          [](const std::vector<geompp::Point3D>& pts) { return geompp::principal_normal(pts); },
+          "points"_a,
+          "Best-fit plane normal of a 3D point cloud (PCA eigenvector with smallest eigenvalue).");
+
+    m.def("principal_direction",
+          [](const std::vector<geompp::Point3D>& pts) { return geompp::principal_direction(pts); },
+          "points"_a,
+          "Dominant direction of a 3D point cloud (PCA eigenvector with largest eigenvalue).");
 }

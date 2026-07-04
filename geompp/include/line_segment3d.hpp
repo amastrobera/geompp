@@ -20,8 +20,8 @@ class LineSegment3D {
   LineSegment3D(LineSegment3D&&) = default;
   ~LineSegment3D() = default;
 
-  inline Point3D const& First() const { return P0; }
-  inline Point3D const& Last() const { return P1; }
+  Point3D const& First() const;
+  Point3D const& Last() const;
 
   bool AlmostEquals(LineSegment3D const& other, double epsilon = DOUBLE_EPSILON) const;
   Line3D ToLine() const;
@@ -99,8 +99,6 @@ class LineSegment3D {
   /// @return true if @p point is collinear with the segment and falls within [First, Last].
   bool Contains(Point3D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point3D>>;
-
   /// @brief Tests whether this segment intersects a line.
   /// @param line The line.
   /// @return true if the line crosses the segment's interior or an endpoint.
@@ -119,17 +117,17 @@ class LineSegment3D {
   /// @brief Intersection point of this segment with a line.
   /// @param line The line.
   /// @return The intersection point if it lies on the segment (sc in [0, 1]), or std::nullopt otherwise.
-  ReturnSet Intersection(Line3D const& line) const;
+  std::optional<Point3D> Intersection(Line3D const& line) const;
 
   /// @brief Intersection point of this segment with a ray.
   /// @param ray The ray.
   /// @return The intersection point if it lies on both the segment and the ray, or std::nullopt otherwise.
-  ReturnSet Intersection(Ray3D const& ray) const;
+  std::optional<Point3D> Intersection(Ray3D const& ray) const;
 
   /// @brief Intersection point of two segments.
   /// @param other The other segment.
   /// @return The intersection point if it lies on both segments, or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment3D const& other) const;
+  std::optional<Point3D> Intersection(LineSegment3D const& other) const;
 
 #pragma endregion
 
@@ -144,6 +142,14 @@ class LineSegment3D {
 bool operator==(LineSegment3D const& lhs, LineSegment3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, LineSegment3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D const& LineSegment3D::First() const { return P0; }
+inline Point3D const& LineSegment3D::Last() const { return P1; }
+inline LineSegment3D::LineSegment3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(p1) {}
 
 #pragma endregion
 

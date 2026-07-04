@@ -31,10 +31,12 @@ public:
     double   Perimeter();
     double   DistanceTo(Point2D^ point);
     bool     Contains(Point2D^ point);
-    bool     IsOnBoundary(Point2D^ point);
+    bool     IsOnPerimeter(Point2D^ point);
     bool     IsSimple();  // no self-intersections, but holes are allowed
-    Polygon2D^           ConvexHull();
-    array<Point2D^>^     ToPoints();
+    bool     IsConvex();
+    Polygon2D^                ConvexHull();
+    array<Polygon2D^>^        Simplify();
+    array<Point2D^>^          ToPoints();
 
     System::String^ ToWkt();
     static Polygon2D^ FromWkt(System::String^ wkt);
@@ -46,10 +48,13 @@ public:
     bool Intersects(Ray2D^ ray);
     bool Intersects(LineSegment2D^ segment);
 
-    // Intersection — optional<variant<Point2D>> → Point2D^ (nullptr = no intersection)
-    Point2D^ Intersection(Line2D^ line);
-    Point2D^ Intersection(Ray2D^ ray);
-    Point2D^ Intersection(LineSegment2D^ segment);
+    // Intersection — optional<variant<Point2D, vector<LineSegment2D>>>
+    //   null                  → no intersection
+    //   Point2D^              → single tangent point
+    //   array<LineSegment2D^> → one or more chord segments
+    System::Object^ Intersection(Line2D^ line);
+    System::Object^ Intersection(Ray2D^ ray);
+    System::Object^ Intersection(LineSegment2D^ segment);
 
     // Operator
     static bool operator==(Polygon2D^ lhs, Polygon2D^ rhs);

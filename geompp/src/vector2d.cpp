@@ -10,8 +10,6 @@
 
 namespace geompp {
 
-Vector2D::Vector2D(double x, double y) : X(x), Y(y) {}
-
 Vector2D& Vector2D::operator=(Vector2D const& other) {
   if (this != &other) {
     X = other.X;

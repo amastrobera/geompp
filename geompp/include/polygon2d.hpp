@@ -1,21 +1,19 @@
 #pragma once
 
 #include "constants.hpp"
+#include "line_segment2d.hpp"
 #include "point2d.hpp"
 #include "segment_iterator2d.hpp"
-#include "vector2d.hpp"
 
 #include <optional>
 #include <ostream>
 #include <string>
-#include <tuple>
 #include <variant>
 
 namespace geompp {
 
 class Line2D;
 class Ray2D;
-class LineSegment2D;
 class Polyline2D;
 class Triangle2D;
 
@@ -36,7 +34,11 @@ class Polygon2D {
   double Area() const;
   double Perimeter() const;
   bool IsSimple() const;  // no self-intersections, but holes are allowed
+  bool IsConvex() const;  // no holes and all turns in the same direction — cached at construction
   Polygon2D ConvexHull();
+  /// @brief Decomposes a self-intersecting polygon into one or more simple polygons.
+  /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
+  std::vector<Polygon2D> Simplify() const;
   std::vector<Point2D> ToPoints();
 
   /// @brief Distance from a point to this polygon's closed region.
@@ -61,9 +63,7 @@ class Polygon2D {
   /// @brief Tests whether a point lies on the polygon's boundary.
   /// @param point The point to test.
   /// @return true if @p point is on any of the polygon's edges or vertices.
-  bool IsOnBoundary(Point2D const& point) const;
-
-  using ReturnSet = std::optional<std::variant<Point2D>>;
+  bool IsOnPerimeter(Point2D const& point) const;
 
   /// @brief Tests whether this polygon intersects a line.
   /// @param line The line.
@@ -83,17 +83,17 @@ class Polygon2D {
   /// @brief Intersection of this polygon with a line.
   /// @param line The line.
   /// @return The crossing point, or std::nullopt if the line misses the polygon.
-  ReturnSet Intersection(Line2D const& line) const;
+  std::optional<std::vector<LineSegment2D>> Intersection(Line2D const& line) const;
 
   /// @brief Intersection of this polygon with a ray.
   /// @param ray The ray.
   /// @return The crossing point if within the ray's domain, or std::nullopt otherwise.
-  ReturnSet Intersection(Ray2D const& ray) const;
+  std::optional<std::vector<LineSegment2D>> Intersection(Ray2D const& ray) const;
 
   /// @brief Intersection of this polygon with a segment.
   /// @param other The segment.
   /// @return The crossing point if it lies on the segment, or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment2D const& other) const;
+  std::optional<std::vector<LineSegment2D>> Intersection(LineSegment2D const& other) const;
 
 #pragma endregion
 
@@ -101,9 +101,11 @@ class Polygon2D {
   std::vector<Point2D> VERTICES;
   std::vector<std::vector<Point2D>> HOLES;
   double PERIMETER;
+  bool IS_CONVEX;
 
-  Polygon2D(std::vector<Point2D> const& points, double perimeter);
-  Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes);
+  Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex);
+  Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes,
+            bool is_convex);
 };
 
 #pragma region Operator Overloading
@@ -111,6 +113,18 @@ class Polygon2D {
 bool operator==(Polygon2D const& lhs, Polygon2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Polygon2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline std::size_t Polygon2D::Size() const { return VERTICES.size(); }
+inline bool Polygon2D::IsConvex() const { return IS_CONVEX; }
+inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex)
+    : VERTICES(points), HOLES{}, PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,
+                            std::vector<std::vector<Point2D>> const& holes, bool is_convex)
+    : VERTICES(points), HOLES(holes), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 
 #pragma endregion
 

@@ -95,23 +95,37 @@ bool Polygon3D::Contains(Point3D^ point) {
     return _native->Contains(*point->_native);
 }
 
-bool Polygon3D::IsOnBoundary(Point3D^ point) {
-    return _native->IsOnBoundary(*point->_native);
+bool Polygon3D::IsOnPerimeter(Point3D^ point) {
+    return _native->IsOnPerimeter(*point->_native);
 }
 
 bool Polygon3D::IsSimple() {
     return _native->IsSimple();
 }
 
+bool Polygon3D::IsConvex() {
+    return _native->IsConvex();
+}
+
 Polygon3D^ Polygon3D::ConvexHull() {
     return gcnew Polygon3D(new geompp::Polygon3D(_native->ConvexHull()));
+}
+
+array<Polygon3D^>^ Polygon3D::Simplify() {
+    auto native = _native->Simplify();
+    auto arr = gcnew array<Polygon3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Polygon3D(new geompp::Polygon3D(native[i]));
+    }
+    return arr;
 }
 
 array<Point3D^>^ Polygon3D::ToPoints() {
     auto native = _native->ToPoints();
     auto arr = gcnew array<Point3D^>(static_cast<int>(native.size()));
-    for (int i = 0; i < static_cast<int>(native.size()); ++i)
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Point3D(new geompp::Point3D(native[i]));
+    }
     return arr;
 }
 
@@ -151,20 +165,26 @@ bool Polygon3D::Intersects(LineSegment3D^ segment) {
 
 Point3D^ Polygon3D::Intersection(Line3D^ line) {
     auto result = _native->Intersection(*line->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Polygon3D::Intersection(Ray3D^ ray) {
     auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Polygon3D::Intersection(LineSegment3D^ segment) {
     auto result = _native->Intersection(*segment->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

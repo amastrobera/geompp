@@ -446,4 +446,50 @@ TEST_F(Point3DTest, ConvexHull_AsymmetricStar_HullIsPentagon) {
   }
 }
 
+// --------------------------------------------------------------------------------------------------
+// convex_hull — non-coplanar points (PCA-based normal estimation)
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(Point3DTest, ConvexHull_NonCoplanar_SmallZJitter_StillFindsHull) {
+  // Square in XY with small Z perturbation — PCA should recover a near-XY normal
+  std::vector<g::Point3D> pts{
+      g::Point3D(0, 0, 0.1), g::Point3D(4, 0, -0.1),
+      g::Point3D(4, 4, 0.05), g::Point3D(0, 4, -0.05),
+      g::Point3D(2, 2, 0.02),  // interior point
+  };
+  auto hull = g::convex_hull(pts);
+  ASSERT_EQ(hull.size(), 4u) << "interior point should be excluded";
+}
+
+TEST_F(Point3DTest, ConvexHull_NonCoplanar_TiltedPlane_ReturnsFourCorners) {
+  // Square on a tilted plane (x + y + z = const)
+  std::vector<g::Point3D> pts{
+      g::Point3D(3, 0, 0), g::Point3D(0, 3, 0),
+      g::Point3D(0, 0, 3), g::Point3D(1, 1, 1),  // interior of the hull
+  };
+  auto hull = g::convex_hull(pts);
+  ASSERT_EQ(hull.size(), 3u) << "three corners of the triangle, interior point excluded";
+}
+
+TEST_F(Point3DTest, ConvexHull_NonCoplanar_AllHullPointsPresent) {
+  // Pentagon on a tilted plane with one interior point
+  std::vector<g::Point3D> tips{
+      g::Point3D(0, 5, 1), g::Point3D(4, 2, 0.5),
+      g::Point3D(3, -3, 0), g::Point3D(-2, -4, 0.5),
+      g::Point3D(-3, 1, 1),
+  };
+  g::Point3D interior(0, 0, 0.6);
+  std::vector<g::Point3D> pts = tips;
+  pts.push_back(interior);
+  auto hull = g::convex_hull(pts);
+  ASSERT_EQ(hull.size(), 5u);
+  for (auto const& tip : tips) {
+    bool found = false;
+    for (auto const& h : hull) {
+      if (h.AlmostEquals(tip)) { found = true; break; }
+    }
+    EXPECT_TRUE(found) << "tip " << tip.ToWkt() << " should be on the hull";
+  }
+}
+
 }  // namespace geompp_tests

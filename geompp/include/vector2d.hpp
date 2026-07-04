@@ -16,8 +16,8 @@ class Vector2D {
   Vector2D(Vector2D&&) = default;
   ~Vector2D() = default;
 
-  double inline const x() const { return X; }
-  double inline const y() const { return Y; }
+  double x() const;
+  double y() const;
 
   Point2D ToPoint() const;
 
@@ -37,8 +37,8 @@ class Vector2D {
 
   Vector2D operator-() const;
 
-  static inline Vector2D BasisX() { return Vector2D(1, 0); }
-  static inline Vector2D BasisY() { return Vector2D(0, 1); }
+  static Vector2D BasisX();
+  static Vector2D BasisY();
 
  private:
   double X, Y;
@@ -62,6 +62,16 @@ Vector2D operator/(Vector2D const& lhs, Vector2D const& vec) = delete;
 Vector2D operator/(Vector2D const& lhs, double a);
 
 std::ostream& operator<<(std::ostream& os, Vector2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Vector2D::Vector2D(double x, double y) : X(x), Y(y) {}
+inline double Vector2D::x() const { return X; }
+inline double Vector2D::y() const { return Y; }
+inline Vector2D Vector2D::BasisX() { return Vector2D(1, 0); }
+inline Vector2D Vector2D::BasisY() { return Vector2D(0, 1); }
 
 #pragma endregion
 

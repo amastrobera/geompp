@@ -16,95 +16,17 @@ Pre-built wheels are available for:
 
 | Platform | Python versions |
 |---|---|
-| Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 |
-| Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 |
+| Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
+| Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
 
 If your platform or Python version is not in the table above, pip will compile
 from source — you will need CMake ≥ 3.15 and a C++20-capable compiler.
 
-## Quick start
 
-```python
-import geompp as g
+## How to use it
 
-# Points & vectors
-p = g.Point2D(1.0, 2.0)
-v = g.Vector2D(3.0, 0.0)
-q = p + v                       # Point2D(4, 2)
-diff = q - p                    # Vector2D(3, 0)
+You can look at the [test suite](./tests/) to see detailed usage. There also is a whole [set of code examples](./code_examples.md) in the next page.
 
-# Lines and intersection
-l1 = g.Line2D.make(g.Point2D(0,0), g.Point2D(1,0))
-l2 = g.Line2D.make(g.Point2D(0.5,-1), g.Point2D(0.5,1))
-hit = l1.intersection(l2)       # Point2D(0.5, 0) or None
-
-# 3D
-p3 = g.Point3D(1, 2, 3)
-plane = g.Plane.xy()
-proj = plane.project_onto(p3)   # Point3D(1, 2, 0)
-
-# Plane intersections (Line / Ray / Segment / Plane / Triangle)
-ray = g.Ray3D.make(g.Point3D(5, 3, 4), g.Vector3D(0, 0, -1))
-hit = plane.intersection(ray)              # Point3D(5, 3, 0)
-axis_y = plane.intersection(g.Plane.yz())  # Line3D along the Y-axis
-
-# Parallel / coplanar tests
-plane.is_parallel(ray)                     # False (ray crosses the plane)
-plane.is_coplanar(g.Line3D.make(g.Point3D(0,0,0), g.Vector3D(1, 1, 0)))  # True
-
-# Implicit Vector → Point construction
-p_from_v = g.Point3D(g.Vector3D(1, 2, 3))  # = Point3D(1, 2, 3)
-
-# Triangle3D intersection with Line / Ray / Segment / Plane / Triangle
-tri = g.Triangle3D.make(g.Point3D(0,0,0), g.Point3D(4,0,0), g.Point3D(0,4,0))
-hit_line  = tri.intersection(
-    g.Line3D.make(g.Point3D(1, 1, -1), g.Point3D(1, 1, 1)))                # Point3D(1, 1, 0)
-hit_ray   = tri.intersection(
-    g.Ray3D.make(g.Point3D(1, 1, 4), g.Vector3D(0, 0, -1)))                # Point3D(1, 1, 0)
-hit_seg   = tri.intersection(
-    g.LineSegment3D.make(g.Point3D(1, 1, -2), g.Point3D(1, 1, 3)))         # Point3D(1, 1, 0)
-y1        = g.Plane.from_origin_and_normal(g.Point3D(0,1,0), g.Vector3D(0,1,0))
-hit_plane = tri.intersection(y1)                                            # LineSegment3D (0,1,0)→(3,1,0)
-other     = g.Triangle3D.make(g.Point3D(1,1,-1), g.Point3D(1,1,1), g.Point3D(3,1,0))
-hit_tri   = tri.intersection(other)                                         # LineSegment3D (1,1,0)→(3,1,0)
-
-# Precision
-g.set_decimal_precision(g.DP_SIX)
-
-# File parser
-parser = g.WktParser.open("geometry.lsv")
-while parser.has_next():
-    item = parser.next()
-    if item is not None:
-        print(g.WktParser.to_wkt(item))
-```
-
-## Checking coplanarity, orientation, and closest world plane
-
-```python
-import geompp as g
-
-pts_flat = [g.Point3D(0,0,0), g.Point3D(1,0,0), g.Point3D(0,1,0), g.Point3D(1,1,0)]
-pts_3d   = [g.Point3D(0,0,0), g.Point3D(1,0,0), g.Point3D(0,1,0), g.Point3D(0,0,1)]
-
-print(g.are_coplanar(pts_flat))  # True  — all on the XY plane
-print(g.are_coplanar(pts_3d))    # False — spans 3D space
-
-# Find which world axis plane is closest to the point cloud
-plane = g.closest_world_plane_to(pts_flat)
-print(plane.normal)              # Vector3D(0, 0, 1)  → XY plane
-
-# Check / require CCW winding
-ring = [g.Point3D(0,0,0), g.Point3D(1,0,0), g.Point3D(1,1,0), g.Point3D(0,1,0)]
-print(g.are_ccw(ring))           # True
-print(g.are_cw(ring))            # False
-
-# Polygon3D requires CCW outer ring and CW holes
-outer = [g.Point3D(0,0,0), g.Point3D(4,0,0), g.Point3D(4,4,0), g.Point3D(0,4,0)]
-hole  = [g.Point3D(1,3,0), g.Point3D(3,3,0), g.Point3D(3,1,0), g.Point3D(1,1,0)]
-poly  = g.Polygon3D.make(outer, [hole])
-print(poly.size())               # 4
-```
 
 ## Classes
 
@@ -119,8 +41,12 @@ print(poly.size())               # 4
 | Triangle2D | Triangle3D |
 | Polygon2D | Polygon3D |
 | BBox2D | BBox3D |
+| BBall2D | BBall3D |
+| BRect2D | |
+| | BPrism3D |
 | GeometryCollection2D | GeometryCollection3D |
 | | Plane |
+| View2D | |
 
 ## Free functions
 
@@ -139,75 +65,72 @@ print(poly.size())               # 4
 | `find_intersections(segments)` | Bentley–Ottmann: returns `list[Point2D]` — every crossing point, sorted left-to-right |
 | `convex_hull(points)` | Andrew's monotone chain: convex hull of a `list[Point2D]`, returned in CCW order |
 | `convex_hull(points, normal=None)` | Convex hull of a coplanar `list[Point3D]`; optional `Vector3D` normal (auto-detected if omitted) |
+| `principal_axes(points)` | PCA on a `list[Point3D]`: returns `CoordinateFrame` (`.x` primary, `.y` secondary, `.z` best-fit normal) |
+| `principal_normal(points)` | Best-fit plane normal of a `list[Point3D]` (PCA eigenvector with smallest eigenvalue) |
+| `principal_direction(points)` | Dominant direction of a `list[Point3D]` (PCA eigenvector with largest eigenvalue) |
 
-## Convex hull
+## Planar operations
+
+`View2D` projects 3D points into 2D coordinates via `.x(point)` / `.y(point)`. It is particularly
+useful for streaming large containers of `Point3D` without allocating an intermediate list of
+`Point2D` — each call reads one or two scalar coordinates directly.
 
 ```python
-import geompp as g
+from geompp import View2D, ProjectionType, Plane, Point3D, Vector3D
 
-g.set_decimal_precision(g.DP_THREE)
+# axis-aligned views (fastest path)
+v_xy = View2D.xy()   # x→x, y→y (drops z)
+v_yz = View2D.yz()   # y→x, z→y (drops x)
+v_zx = View2D.zx()   # z→x, x→y (drops y)
 
-# An asymmetric 5-pointed star: 5 outer tips + 5 inner concave vertices.
-# The convex hull should be exactly the 5 outer tips.
-star = [
-    # outer tips
-    g.Point2D( 0,  5), g.Point2D( 4,  2),
-    g.Point2D( 3, -3), g.Point2D(-2, -4), g.Point2D(-3,  1),
-    # inner concave vertices (will be excluded from the hull)
-    g.Point2D( 2,  1), g.Point2D( 2, -1),
-    g.Point2D( 0, -1), g.Point2D(-1, -1), g.Point2D(-1,  2),
+# custom view onto any plane
+plane = Plane.from_origin_and_normal(Point3D(0, 0, 5), Vector3D(0, 0, 1))
+v_custom = View2D.on_plane(plane)
+
+pts3d = [Point3D(1, 2, 5), Point3D(3, 4, 5), Point3D(5, 6, 5)]
+
+# stream 3D points to 2D without building a Point2D list
+xs = [v_xy.x(p) for p in pts3d]  # [1.0, 3.0, 5.0]
+ys = [v_xy.y(p) for p in pts3d]  # [2.0, 4.0, 6.0]
+
+print(v_xy.type)  # ProjectionType.XY
+```
+
+## Bounding containers
+
+`BRect2D` — minimum oriented bounding rectangle (rotating calipers; requires ≥ 3 non-collinear points):
+
+```python
+import geompp
+
+pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 3),
+       geompp.Point2D(2, 4), geompp.Point2D(0, 3)]
+rect = geompp.BRect2D(pts)
+print(rect.center)                       # Point2D(2.0, 1.75)
+print(rect.axis_u, rect.axis_v)          # unit vectors along the OBB edges
+print(rect.width, rect.height)
+print(rect.area)
+corners = rect.corners()                 # list of 4 Point2D
+print(rect.contains(geompp.Point2D(2, 1)))  # True
+```
+
+`BPrism3D` — minimum oriented bounding prism (PCA + rotating calipers; requires ≥ 3 non-collinear points):
+
+```python
+import geompp
+
+pts = [
+    geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+    geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0),
+    geompp.Point3D(0, 0, 2), geompp.Point3D(4, 0, 2),
+    geompp.Point3D(4, 3, 2), geompp.Point3D(0, 3, 2),
 ]
-
-hull = g.convex_hull(star)
-print(f"hull has {len(hull)} vertices:")
-for p in hull:
-    print(" ", p.to_wkt())
-# hull has 5 vertices:
-#   POINT (3 -3)
-#   POINT (4 2)
-#   POINT (0 5)
-#   POINT (-3 1)
-#   POINT (-2 -4)
+prism = geompp.BPrism3D(pts)
+print(prism.center)                      # roughly Point3D(2, 1.5, 1)
+print(prism.axis_u, prism.axis_v, prism.axis_w)  # orthonormal frame
+print(prism.width, prism.height, prism.depth)     # 4.0, 3.0, 2.0
+print(prism.volume)                      # ~24.0
+corners = prism.corners()                # list of 8 Point3D
+print(prism.contains(geompp.Point3D(2, 1.5, 1)))  # True
+print(prism.almost_equals(geompp.BPrism3D(pts)))   # True
 ```
-
-### Convex hull of a polygon
-
-`Polygon2D` and `Polygon3D` expose a `convex_hull()` method:
-
-```python
-import geompp as g
-
-# 3D star polygon (10 vertices, coplanar, CCW)
-star = g.Polygon3D.make([
-    g.Point3D( 0,  5, 0), g.Point3D( 2,  1, 0),
-    g.Point3D( 4,  2, 0), g.Point3D( 2, -1, 0),
-    g.Point3D( 3, -3, 0), g.Point3D( 0, -1, 0),
-    g.Point3D(-2, -4, 0), g.Point3D(-1, -1, 0),
-    g.Point3D(-3,  1, 0), g.Point3D(-1,  2, 0),
-])
-
-hull = star.convex_hull()   # Polygon3D with 5 vertices
-print(f"hull has {hull.size()} vertices")
-# hull has 5 vertices
-```
-
-### Convex hull of a simple polyline
-
-`Polyline2D.convex_hull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `is_simple()` first.
-
-```python
-import geompp as g
-
-# Simple concave path: outer corners with an inner dip at (2,1)
-path = g.Polyline2D.make([
-    g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(4, 4),
-    g.Point2D(2, 1), g.Point2D(0, 4),
-])
-
-if path.is_simple():
-    hull = path.convex_hull()   # Polygon2D with 4 vertices
-    print(f"hull has {hull.size()} vertices")
-# hull has 4 vertices
-```
-
-

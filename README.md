@@ -11,7 +11,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/geompp.svg)](https://pypi.org/project/geompp)
 
   A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
-  thoroughly tested, and usable from C++, C# (.Net 10 or .Net Framework 4.8), and Python 3.
+  thoroughly tested, and usable from C++, C# (.Net 8/9/10 or .Net Framework 4.8), and Python 3.
 
   This library is a spiritual successor to [GeomSharp](https://github.com/amastrobera/geom_sharp),
   rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
@@ -40,6 +40,9 @@
   | `Triangle`     | Three non-collinear points forming a closed face         |
   | `Polygon`      | A closed polygon defined by an ordered list of vertices  |
   | `BBox`         | Axis-aligned bounding box                                |
+  | `BBall`        | Minimum bounding sphere (Ritter's algorithm)             |
+  | `BRect2D`      | Minimum oriented bounding rectangle (rotating calipers) |
+  | `BPrism3D`     | Minimum oriented bounding prism (PCA + rotating calipers) |
   | `Plane`        | A flat surface in 3D defined by a point and a normal     |
 
   ### Operations
@@ -57,6 +60,69 @@
   direction in 3D)
   - **Simplicity / self-intersection** — `Polygon2D::IsSimple()` and the free functions `has_intersections(segments)` (Shamos–Hoey, boolean) / `find_intersections(segments)` (Bentley–Ottmann, returns every crossing point)
   - **Convex hull** — `convex_hull(points)` (`point2d.hpp`) — Andrew's monotone chain, returns hull vertices in CCW order
+  - **Planar operations** — `View2D` maps 3D points to 2D scalars via `x()` / `y()` getters. Particularly efficient when streaming large containers of 3D points into 2D algorithms: calling `view.x(p)` and `view.y(p)` per element avoids allocating an intermediate `Point2D` container.
+
+    ```cpp
+    #include "view2d.hpp"
+    using namespace geompp;
+
+    // axis-aligned views (fastest path — just a coordinate read)
+    auto v_xy = View2D::XY();   // x→x, y→y (drops z)
+    auto v_yz = View2D::YZ();   // y→x, z→y (drops x)
+    auto v_zx = View2D::ZX();   // z→x, x→y (drops y)
+
+    // custom view onto any plane
+    auto plane = Plane::FromOriginAndNormal({0,0,5}, {0,0,1});
+    auto v_custom = View2D::OnPlane(plane);
+
+    std::vector<Point3D> pts3d = {{1,2,5}, {3,4,5}, {5,6,5}};
+
+    // stream 3D points to 2D without building a Point2D container
+    for (auto const& p : pts3d) {
+        double u = v_xy.x(p);  // 1, 3, 5
+        double w = v_xy.y(p);  // 2, 4, 6
+    }
+    ```
+
+  - **Bounding containers** — tight-fitting containers around point clouds.
+
+    `BRect2D` computes the minimum-area oriented bounding rectangle via rotating calipers (requires ≥ 3 non-collinear points):
+
+    ```cpp
+    #include "brect2d.hpp"
+    using namespace geompp;
+
+    std::vector<Point2D> pts = {{0,0}, {4,0}, {4,3}, {2,4}, {0,3}};
+    BRect2D rect(pts);
+    std::cout << rect.center().ToWkt() << "\n";       // (2.0, 1.75)
+    std::cout << rect.width() << " × " << rect.height() << "\n";
+    std::cout << "area: " << rect.area() << "\n";
+    std::cout << "axis_u: " << rect.axis_u().ToWkt() << "\n";
+    auto corners = rect.Corners();                    // 4 Point2D corners
+    std::cout << rect.Contains({2, 1}) << "\n";       // true
+    ```
+
+    `BPrism3D` computes the minimum-volume oriented bounding prism via PCA + rotating calipers (requires ≥ 3 non-collinear points):
+
+    ```cpp
+    #include "bprism3d.hpp"
+    using namespace geompp;
+
+    std::vector<Point3D> pts = {
+      {0,0,0}, {4,0,0}, {4,3,0}, {0,3,0},
+      {0,0,2}, {4,0,2}, {4,3,2}, {0,3,2},
+    };
+    BPrism3D prism(pts);
+    std::cout << prism.center().ToWkt() << "\n";       // roughly (2, 1.5, 1)
+    std::cout << "U: " << prism.axis_u().ToWkt() << "\n";
+    std::cout << "V: " << prism.axis_v().ToWkt() << "\n";
+    std::cout << "W: " << prism.axis_w().ToWkt() << "\n";
+    std::cout << prism.width() << " × " << prism.height()
+              << " × " << prism.depth() << "\n";       // 4 × 3 × 2
+    std::cout << "volume: " << prism.volume() << "\n"; // 24.0
+    auto corners = prism.Corners();                    // 8 Point3D corners
+    std::cout << prism.Contains({2, 1.5, 1}) << "\n"; // true
+    ```
 
   Return types are `std::optional<std::variant<...>>` so callers can match on the exact geometry
   produced by an intersection without casting.
@@ -77,218 +143,7 @@
 
   Here is an example of code. You can also look at the [test directory](./geompp_tests/) or [sample code](./geompp_sample/sample.cpp) to see more.
 
-  #### Create geometries programmatically
-  ```cpp
-  // This will be the precision used by all functions, in all threads, for this
-  // run of the program, and it can be modified in later code anytime.
-  g::DECIMAL_PRECISION = g::DP_THREE;
-
-  // two line segments intersecting at (0,0,1)
-  auto s1 = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(-1, 0, 2));
-  auto s2 = g::LineSegment3D::Make(g::Point3D(0, 1, 0), g::Point3D(0, -1, 2));
-
-  GEOMPP_LOG(INFO) << "s1 = " << s1.ToWkt();
-  GEOMPP_LOG(INFO) << "s2 = " << s2.ToWkt();
-
-  if (s1.Intersects(s2)) { 
-    auto result = s1.Intersection(s2);
-    if (result.has_value()) {
-      auto p = std::get<g::Point3D>(*result);
-      GEOMPP_LOG(INFO) << "intersection found: " << p.ToWkt();
-
-      p.ToFile("intersection.wkt");
-      GEOMPP_LOG(INFO) << "intersection written to intersection.wkt";
-    }
-  } else {
-    GEOMPP_LOG(INFO) << "no intersection found";
-  }
-  ```
-
-  will print out 
-
-  ```bash
-  I20260403] s1 = LINESTRING (1 0 0, -1 0 2)
-  I20260403] s2 = LINESTRING (0 1 0, 0 -1 2)
-  I20260403] intersection found: POINT (0 0 1)
-  I20260403] intersection written to intersection.wkt
-  ```
-
-
-  #### Import geometries from a file
-  ```cpp
-  std::string const lsv_path = "sample_geometries.lsv";
-  //   POINT (1 2 3)
-  //   POINT (4 5 6)
-  //   LINESTRING (0 0 0, 1 1 1)
-  //   LINESTRING (2 0 0, 2 3 4)
-  //   LINE (0 0 0, 1 0 0)
-  //   RAY (0 0 0, 0 1 0)
-
-  g::DECIMAL_PRECISION = g::DP_THREE;
-
-  auto parser = g::WktParser::Open(lsv_path);
-  if (!parser.HasNext()) {
-    GEOMPP_LOG(WARNING) << "no geometries found in file " << lsv_path;
-    return;
-  }
-
-  while (parser.HasNext()) {
-    auto entry = parser.Next();
-
-    if (!entry.has_value()) {
-      GEOMPP_LOG(WARNING) << "skipped unrecognised line";
-      continue;
-    }
-
-    GEOMPP_LOG(INFO) << g::WktParser::ToWkt(entry.value());
-  }
-  ```
-
-  will print out exactly the list of geometries above.
-
-
-  #### Check coplanarity, winding order, and build a polygon with holes
-  ```cpp
-  g::DECIMAL_PRECISION = g::DP_THREE;
-
-  // Four points on the XY plane vs. a set that spans 3D space
-  std::vector<g::Point3D> flat = {{0,0,0}, {1,0,0}, {0,1,0}, {1,1,0}};
-  std::vector<g::Point3D> skew = {{0,0,0}, {1,0,0}, {0,1,0}, {0,0,1}};
-
-  GEOMPP_LOG(INFO) << "flat coplanar: " << g::are_coplanar(flat);  // 1
-  GEOMPP_LOG(INFO) << "skew coplanar: " << g::are_coplanar(skew);  // 0
-
-  // Which world-axis plane is closest to the cloud?
-  auto plane = g::closest_world_plane_to(flat);
-  GEOMPP_LOG(INFO) << "closest plane normal: " << plane.normal().ToWkt();  // (0, 0, 1)
-
-  // Winding check
-  std::vector<g::Point3D> ring = {{0,0,0}, {1,0,0}, {1,1,0}, {0,1,0}};
-  GEOMPP_LOG(INFO) << "ring CCW: " << g::are_ccw(ring);  // 1
-
-  // Polygon3D with a rectangular hole (outer CCW, hole CW)
-  std::vector<g::Point3D> outer = {{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
-  std::vector<g::Point3D> hole  = {{1,3,0}, {3,3,0}, {3,1,0}, {1,1,0}};
-  auto poly = g::Polygon3D::Make(outer, {hole});
-  GEOMPP_LOG(INFO) << poly.ToWkt();
-  ```
-
-  will print out
-
-  ```bash
-  I20260403] flat coplanar: 1
-  I20260403] skew coplanar: 0
-  I20260403] closest plane normal: VECTOR (0 0 1)
-  I20260403] ring CCW: 1
-  I20260403] POLYGON ((0 0 0, 4 0 0, 4 4 0, 0 4 0, 0 0 0), (1 3 0, 3 3 0, 3 1 0, 1 1 0, 1 3 0))
-  ```
-
-
-  #### Compute the convex hull of a point cloud
-  ```cpp
-  #include "point2d.hpp"
-
-  namespace g = geompp;
-
-  g::DECIMAL_PRECISION = g::DP_THREE;
-
-  // An asymmetric 5-pointed star: 5 outer tips + 5 inner concave vertices.
-  // The convex hull should be exactly the 5 outer tips.
-  std::vector<g::Point2D> star = {
-      // outer tips
-      g::Point2D( 0,  5), g::Point2D( 4,  2),
-      g::Point2D( 3, -3), g::Point2D(-2, -4), g::Point2D(-3,  1),
-      // inner concave vertices (will be excluded from the hull)
-      g::Point2D( 2,  1), g::Point2D( 2, -1),
-      g::Point2D( 0, -1), g::Point2D(-1, -1), g::Point2D(-1,  2),
-  };
-
-  auto hull = g::convex_hull(star);  // Andrew's monotone chain
-
-  GEOMPP_LOG(INFO) << "hull has " << hull.size() << " vertices:";
-  for (auto const& p : hull) {
-      GEOMPP_LOG(INFO) << "  " << p.ToWkt();
-  }
-  ```
-
-  will print out
-
-  ```bash
-  hull has 5 vertices:
-    POINT (3 -3)
-    POINT (4 2)
-    POINT (0 5)
-    POINT (-3 1)
-    POINT (-2 -4)
-  ```
-
-  (CCW order, starting from the lexicographically smallest point)
-
-
-  #### Convex hull of a polygon
-
-  `Polygon2D` and `Polygon3D` expose a `ConvexHull()` method that wraps the free function:
-
-  ```cpp
-  #include "polygon3d.hpp"
-
-  namespace g = geompp;
-
-  // 3D star polygon (10 vertices, coplanar, CCW)
-  auto star = g::Polygon3D::Make({
-      g::Point3D( 0,  5, 0), g::Point3D( 2,  1, 0),
-      g::Point3D( 4,  2, 0), g::Point3D( 2, -1, 0),
-      g::Point3D( 3, -3, 0), g::Point3D( 0, -1, 0),
-      g::Point3D(-2, -4, 0), g::Point3D(-1, -1, 0),
-      g::Point3D(-3,  1, 0), g::Point3D(-1,  2, 0),
-  });
-
-  auto hull = star.ConvexHull();   // Polygon3D — 5-vertex pentagon
-
-  GEOMPP_LOG(INFO) << "hull has " << hull.Size() << " vertices:";
-  for (int i = 0; i < (int)hull.Size(); ++i) {
-      GEOMPP_LOG(INFO) << "  " << hull[i].ToWkt();
-  }
-  ```
-
-  will print out
-
-  ```bash
-  hull has 5 vertices:
-    POINT (3 -3 0)
-    POINT (4 2 0)
-    POINT (0 5 0)
-    POINT (-3 1 0)
-    POINT (-2 -4 0)
-  ```
-
-
-  #### Convex hull of a simple polyline
-
-  `Polyline2D::ConvexHull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `IsSimple()` first.
-
-  ```cpp
-  #include "polyline2d.hpp"
-
-  namespace g = geompp;
-
-  // Simple concave path: outer corners with an inner dip at (2,1)
-  auto path = g::Polyline2D::Make({
-      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4),
-      g::Point2D(2, 1), g::Point2D(0, 4),
-  });
-
-  if (path.IsSimple()) {
-      auto hull = path.ConvexHull();  // Polygon2D — 4-vertex rectangle
-      GEOMPP_LOG(INFO) << "hull has " << hull.Size() << " vertices";
-  }
-  ```
-
-  will print out
-
-  ```bash
-  hull has 4 vertices
-  ```
+  There also is a whole [set of code examples](./code_examples.md) in the next page. 
 
 
   ## geom_viewer — interactive geometry visualizer (WIP)
@@ -318,9 +173,8 @@
   | Status | Area |
   |--------|------|
   | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); `Triangle2D/3D::Location()` (barycentric coords); `Polygon2D/3D::Contains()` (winding number); `Triangle3D::Contains()` (barycentric, no projection); `Triangle3D::Intersection(×Line/Ray/Seg/Plane/△)` and the symmetric `Plane::Intersection(Triangle3D)`; `Line3D/Ray3D/LineSegment3D::Distance(...)` and `DistanceTo(...)` between every pair of 3D linear primitives + `LineSegment3D::Flip()`; `Polygon2D::IsSimple()` via `has_intersections` (Shamos–Hoey) and `find_intersections` (Bentley–Ottmann) on the new `calc_utils2d` sweep-line module (`EventQueue2D`, `SweepLineComparator`, `SweepLine2D`) plus 2D helpers `is_left` / `is_right` / `intersect(seg, seg)`; `convex_hull(vector<Point2D>)` (Andrew's monotone chain) |
-  | **In progress** | Test coverage push (target ≥ 70% per class); remaining stubs: `Polygon2D/3D::DistanceTo`, `Polygon2D/3D::Intersection(×Line/Ray/Seg)`, `Triangle2D::Intersection(△)`, `Triangle2D/3D::DistanceTo` |
-  | Next | `Polygon2D/3D::FromWkt()` roundtrip fix; Docker (Windows); geom_viewer camera/input/delete |
-  | Backlog | Polygon ops, overlap/adjacency, polygon clipping |
+  | Next | TBC |
+  | Backlog | overlap/adjacency, polygon clipping, definition of "non-planar polygon" or mesh, triangulation/polygonization |
 
 
   I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).
@@ -328,10 +182,10 @@
   | Metric | Count | Notes |
   |--------|-------|-------|
   | Public methods | ~399 | Excl. ctors/dtors/operators |
-  | C++ tested | ~343 | ~86% |
-  | Python tested | ~195 | ~49% |
-  | C# tested | ~200 | ~50% |
-  | Stubs (not yet impl.) | 13 | Polygon intersection/distance; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
+  | C++ tested | ~355 | ~89% |
+  | Python tested | ~210 | ~53% |
+  | C# tested | ~215 | ~54% |
+  | Stubs (not yet impl.) | 10 | Polygon2D/3D::DistanceTo; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
 
   More on [test coverage](./test_coverage_report.md).
 
@@ -425,10 +279,16 @@
   ```powershell
   # from the main directory, geompp
 
-  # if you want to build for .Net 10
+  # .NET 8 (LTS)
+  msbuild geompp_csharp\GeomPP_Net8.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
+
+  # .NET 9 (STS)
+  msbuild geompp_csharp\GeomPP_Net9.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
+
+  # .NET 10 (LTS)
   msbuild geompp_csharp\GeomPP.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
-  # if you want to build for .Net Framework 4.8
+  # .NET Framework 4.8
   msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
   # run smoke tests, after build from the main directory geompp

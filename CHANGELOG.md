@@ -11,6 +11,115 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.11.0] - 2026-06-24
+
+> C++ library — tagged `v0.11.0` · C# / NuGet — tagged `csharp-v0.11.0` · Python / PyPI — tagged `python-v0.11.0`
+
+> Polygon2D line/ray/segment intersection and simplification; four bounding-shape classes (BRect2D, BPrism3D, BBall2D, BBall3D); convexity predicates for Polygon2D/3D and Polyline3D; planar Polyline3D operations (IsPlanar, IsSimple, ConvexHull, ToPolygon); PCA-based principal axes; Link-Time Optimization in Release builds; Python wheels extended to 3.8–3.14.
+
+### Added
+
+**C++ core**
+- `Polygon2D::Intersection(Line2D)` / `Intersection(Ray2D)` / `Intersection(LineSegment2D)` — computes the chord(s) where a line, ray, or segment crosses a 2D polygon. Returns `std::optional<std::vector<LineSegment2D>>`: `std::nullopt` on miss, or one or more chord segments. Convex polygons use the fast Cyrus-Beck parametric clip (outward-normal convention, D < 0 entering); non-convex polygons use the Jordan-curve parity approach. Results are clipped to the ray's or segment's domain. Implemented via `detail::compute_intersection_intervals_2d`.
+- `Polygon2D::Intersects(Line2D)` / `Intersects(Ray2D)` / `Intersects(LineSegment2D)` — boolean wrappers delegating to `Intersection`.
+- `Polygon2D::Simplify()` / `Polygon3D::Simplify()` — decomposes a self-intersecting polygon into a `vector` of simple polygons via Bentley–Ottmann intersection detection followed by planar-graph half-edge face tracing. Returns `{*this}` when already simple. Handles all three dominant-axis projections (X, Y, Z) including the Y-axis chirality flip case.
+- `Polygon2D::IsConvex()` — returns false if the polygon has holes or any concave turn; true otherwise.
+- `Polygon3D::IsConvex()` — same, using the stored plane normal for the 3D left-turn test.
+- `Polyline3D::IsPlanar()` — true if all knots are coplanar (degenerate cases: <3 points or all collinear also return true).
+- `Polyline3D::IsSimple()` — no self-intersections; uses Shamos–Hoey for planar polylines, Bentley–Ottmann + 3D verification for non-planar.
+- `Polyline3D::IsConvex()` — throws `std::logic_error` if not planar; checks all consecutive triples make a left turn relative to the plane normal.
+- `Polyline3D::ConvexHull()` — throws if not planar; Melkman's deque algorithm; returns `Polyline3D` (open hull path, not a closed polygon).
+- `Polyline3D::ToPolygon()` — throws if not planar; closes the open path into a `Polygon3D`.
+- `CoordinateFrame` struct (`calc_utils3d.hpp`) — `Vector3D X` (primary/largest variance), `Y` (secondary), `Z` (normal/least variance).
+- `principal_axes(vector<Point3D>)` — PCA via Jacobi eigendecomposition on the 3×3 covariance matrix; returns `CoordinateFrame`; stable for any point distribution including non-planar clouds and helices.
+- `principal_normal(vector<Point3D>)` — best-fit plane normal; delegates to `principal_axes().Z`.
+- `principal_direction(vector<Point3D>)` — dominant spread direction; delegates to `principal_axes().X`.
+- `BRect2D` (`brect2d.hpp`) — minimum oriented bounding rectangle via Andrew's monotone-chain convex hull followed by rotating calipers (Freeman & Shapira 1975 / Toussaint 1983). Stores `center`, `axis_u`, `axis_v` (unit vectors), `half_len_u`, `half_len_v`. Methods: `Corners()` (4 `Point2D`), `Contains(Point2D)`, `area()`, `width()`, `height()`, `AlmostEquals()`. Throws `std::invalid_argument` for fewer than 3 points or a collinear/coincident cloud.
+- `BPrism3D` (`bprism3d.hpp`) — oriented bounding prism via PCA + rotating calipers. Stores `center`, `axis_u`, `axis_v`, `axis_w` (unit vectors), `half_len_u`, `half_len_v`, `half_len_w`. Methods: `Corners()` (8 `Point3D`), `Contains(Point3D)`, `volume()`, `width()`, `height()`, `depth()`, `AlmostEquals()`. Coplanar inputs produce `half_len_w == DOUBLE_EPSILON`. Throws for fewer than 3 points or a collinear/coincident cloud.
+- `BBall2D` (`bball2d.hpp`) — minimum bounding ball in 2D; Ritter's two-pass O(N) algorithm. Stores `center` (`Point2D`) and `radius`. Degenerate inputs: 1 point → zero-radius ball; 2 points → midpoint center, half-distance radius. Throws for empty input.
+- `BBall3D` (`bball3d.hpp`) — same Ritter algorithm in 3D. Throws for empty input.
+
+**Python / PyPI**
+- `Polygon2D.intersection(line|ray|segment)` — returns `None` on miss or `list[LineSegment2D]` for chord(s).
+- `Polygon2D.intersects(line|ray|segment)` — boolean check.
+- `Polygon2D.simplify()` / `Polygon3D.simplify()` — returns `list[Polygon2D]` or `list[Polygon3D]`.
+- `Polygon2D.is_convex()`, `Polygon3D.is_convex()`.
+- `Polyline3D.is_planar()`, `is_simple()`, `is_convex()`, `convex_hull()` → `Polyline3D`, `to_polygon()` → `Polygon3D`.
+- `CoordinateFrame` class with `x`, `y`, `z` attributes (all `Vector3D`).
+- `principal_axes(points)` → `CoordinateFrame`, `principal_normal(points)` → `Vector3D`, `principal_direction(points)` → `Vector3D`.
+- `BBall2D(center, radius)` / `BBall2D(points)` — `center`, `radius`, `contains(p)`, `almost_equals(other)`.
+- `BBall3D(center, radius)` / `BBall3D(points)` — same in 3D.
+- `BRect2D(points)` — `center`, `axis_u`, `axis_v`, `half_len_u`, `half_len_v`, `width()`, `height()`, `area()`, `corners()`, `contains(p)`, `almost_equals(other)`.
+- `BPrism3D(points)` — `center`, `axis_u`, `axis_v`, `axis_w`, `half_len_u`, `half_len_v`, `half_len_w`, `width()`, `height()`, `depth()`, `volume()`, `corners()`, `contains(p)`, `almost_equals(other)`.
+
+**C# / NuGet**
+- `Polygon2D.Intersection(Line2D|Ray2D|LineSegment2D)` — returns `null` on miss or `LineSegment2D[]` for chord(s). Use `is LineSegment2D[] segs` pattern matching.
+- `Polygon2D.Intersects(Line2D|Ray2D|LineSegment2D)` — boolean wrappers.
+- `Polygon2D.Simplify()` / `Polygon3D.Simplify()` — returns `Polygon2D[]` or `Polygon3D[]`.
+- `Polygon2D.IsConvex()`, `Polygon3D.IsConvex()`.
+- `Polyline3D.IsPlanar()`, `IsSimple()`, `IsConvex()`, `ConvexHull()` → `Polyline3D^`, `ToPolygon()` → `Polygon3D^`.
+- `CoordinateFrame` ref class with `X`, `Y`, `Z` properties (`Vector3D^`).
+- `GeomUtil.PrincipalAxes()` → `CoordinateFrame^`, `PrincipalNormal()` → `Vector3D^`, `PrincipalDirection()` → `Vector3D^`.
+- `BBall2D(Point2D^, double)` / `BBall2D(array<Point2D^>^)` — `Center`, `Radius`, `Contains(Point2D^)`, `AlmostEquals(BBall2D^)`.
+- `BBall3D(Point3D^, double)` / `BBall3D(array<Point3D^>^)` — same in 3D.
+- `BRect2D(array<Point2D^>^)` — `Center`, `AxisU`, `AxisV`, `HalfLenU`, `HalfLenV`, `Width()`, `Height()`, `Area()`, `Corners()`, `Contains(Point2D^)`, `AlmostEquals(BRect2D^)`.
+- `BPrism3D(array<Point3D^>^)` — `Center`, `AxisU`, `AxisV`, `AxisW`, `HalfLenU`, `HalfLenV`, `HalfLenW`, `Width()`, `Height()`, `Depth()`, `Volume()`, `Corners()`, `Contains(Point3D^)`, `AlmostEquals(BPrism3D^)`.
+- `.NET 8` build target (`GeomPP_Net8.vcxproj`) and `.NET 9` build target (`GeomPP_Net9.vcxproj`). The NuGet package ships four C++/CLI DLLs: `net8.0-windows7.0`, `net9.0-windows7.0`, `net10.0-windows7.0`, and `net48`.
+
+### Performance
+
+**C++ core**
+- **Link-Time Optimization (LTO)** enabled for Release builds on the `geompp` static library and `_geompp` Python extension (`/GL` + `/LTCG` on MSVC; `-flto` on GCC/Clang). Uses `CheckIPOSupported` with a graceful `STATUS` fallback when LTO is unavailable.
+- **Extern template for all bounding-shape constructors**: `vector<PointN>` template constructors of `BBox2D`, `BBox3D`, `BBall2D`, `BBall3D`, `BRect2D`, and `BPrism3D` moved from header to `.cpp` (same pattern as `convex_hull_monotone_chain` and `min_bounding_rect`), reducing per-TU instantiation cost and binary size.
+- **`View2D` 3D-to-2D projection**: `View2D::x(Point3D)` / `y(Point3D)` project without allocating an intermediate `Point2D`. Axis-aligned views (`XY`, `YZ`, `ZX`) read a single coordinate at zero arithmetic cost; `Custom` computes `(p − ORIGIN).Dot(AXIS_U/V)` in-place.
+- `simplify_rings_impl`: adjacency-list duplicate check changed from O(degree) `std::find` per edge to a single `std::sort` + `std::unique` pass after insertion.
+- `simplify_rings_impl`: half-edge walk neighbor lookup changed from O(degree) linear scan to O(log degree) `std::upper_bound` on a precomputed angle array.
+- `Polygon2D/3D::Simplify()`: hole-assignment polygon construction reduced from O(nc²) repeated `Polygon2D::Make` calls to O(nc) pre-built polygons with reuse.
+
+**Python / PyPI**
+- Wheel targets extended to **3.8–3.14** (was 3.8–3.12). Wheels for CPython 3.13 and 3.14 published on PyPI for Linux x86_64 and Windows AMD64.
+
+### Fixed
+
+**C++ core**
+- `Plane(origin, normal)` private constructor now normalizes the normal. Previously the raw non-unit vector was stored, causing `SignedDistanceTo` and other distance operations to return scaled results. `From3Points` and `FromOriginAndAxes` were not affected.
+- `Polygon2D/3D::Simplify()`: hole-assignment test point changed from midpoint of first edge (can land on a boundary) to centroid of the ring (always interior for convex decomposition faces).
+- `Polygon2D/3D::Simplify()`: silent `catch(...)` blocks replaced with `catch(std::runtime_error const&)` and `GEOMPP_LOG(WARNING)` so degenerate-ring failures are visible.
+- `simplify_rings_impl`: half-edge walk `delta <= 0.0` comparison replaced with `compare(delta, 0.0, 1e-9) <= 0` to prevent floating-point noise from selecting the reverse edge.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_polygon2d.cpp`: `Intersection_Line_*`, `Intersection_Ray_*`, `Intersection_Segment_*`, `Intersects_*`; `IsConvex_Square_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_Triangle_True`; Simplify suite.
+- `test_polygon3d.cpp`: `IsConvex_Square_XYPlane_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_YZPlane_True`; Simplify suite.
+- `test_polyline3d.cpp`: `IsPlanar_XYPlane_True`, `IsPlanar_NonPlanar_False`, `IsPlanar_Collinear_True`, `IsSimple_PlanarNoSelfIntersect_True`, `IsSimple_PlanarSelfIntersecting_False`, `IsConvex_PlanarConvex_True`, `IsConvex_PlanarConcave_False`, `IsConvex_NotPlanar_Throws`, `ConvexHull_PlanarPolyline_ReturnsPolyline`, `ConvexHull_NotPlanar_Throws`, `ConvexHull_ThenToPolygon_ValidPolygon`, `ToPolygon_PlanarPolyline_Valid`, `ToPolygon_NotPlanar_Throws`.
+- `test_calc_utils3d.cpp`: `PrincipalAxes_PlanarXYCloud_ZIsNormal`, `PrincipalAxes_ElongatedAlongX_XIsLongest`, `PrincipalAxes_AxesAreOrthogonal`, `PrincipalAxes_AxesAreUnitVectors`, `PrincipalNormal_PlanarCloud_MatchesBasisZ`, `PrincipalDirection_ElongatedAlongX_MatchesBasisX`, `PrincipalAxes_TooFewPoints_Throws`.
+- `test_bball2d.cpp`: `ConstructorCenterRadius`, `ConstructorFromSinglePoint`, `ConstructorFromTwoPoints`, `ConstructorFromPointsAllContained`, `ConstructorEmptyThrows`, `CopyConstructor`, `Assignment`, `AlmostEquals`, `Contains`.
+- `test_bball3d.cpp`: same suite plus `ConstructorFromTwoPointsAlongZ`.
+- `test_brect2d.cpp`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_ZeroExtent`, `ConstructorTwoPoints_DegenerateLine`, `ConstructorAxisAlignedSquare`, `ConstructorAxisAlignedRectangle`, `ConstructorNonConvex_SmallArea`, `ConstructorAllPointsContained`, `Accessors_AxisesAreUnitVectors`, `Accessors_AxesOrthogonal`, `Accessors_WidthHeightArea`, `Corners_FourDistinctPoints`, `Contains_Center_True`, `Contains_Interior_True`, `Contains_Boundary_True`, `Contains_Outside_False`, `AlmostEquals_SameRect`, `AlmostEquals_DifferentRect`, `CopyConstructor`, `Assignment`.
+- `test_bprism3d.cpp`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_Throws`, `ConstructorTwoPoints_Throws`, `ConstructorAxisAlignedBox`, `ConstructorFlatCloud_WIsEpsilon`, `ConstructorNonConvex_AllPointsContained`, `Accessors_AxesAreUnitVectors`, `Accessors_AxesOrthogonal`, `Accessors_WidthHeightDepthVolume`, `Corners_EightDistinctPoints`, `Contains_Center_True`, `Contains_Interior_True`, `Contains_Outside_False`, `Contains_Boundary_True`, `AlmostEquals_Same`, `AlmostEquals_Different`, `CopyConstructor`, `Assignment`.
+
+**Python (`geompp_python/tests`)**
+- `TestPolygon2DIntersection`: intersection and intersects suites for line, ray, and segment.
+- `TestPolygon2DSimplify`, `TestPolygon3DSimplify`: Simplify suites.
+- `TestPolygon2DIsConvex`: `test_square_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`.
+- `TestPolygon3DIsConvex`: `test_square_xy_plane_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`.
+- `TestPolyline3DPlanarConvex`: `test_is_planar_xy`, `test_is_planar_nonplanar`, `test_is_simple_planar`, `test_is_convex_planar`, `test_is_convex_not_planar_throws`, `test_convex_hull_returns_polyline`, `test_convex_hull_to_polygon`, `test_to_polygon_not_planar_throws`.
+- `TestPrincipalAxes`: `test_coordinate_frame_attributes`, `test_z_is_normal_for_flat_xy_cloud`, `test_axes_are_orthogonal`, `test_axes_are_unit_vectors`, `test_principal_normal_matches_z`, `test_principal_direction_matches_x`, `test_too_few_points_throws`.
+- `TestBBall2D` / `TestBBall3D`: constructor, contains, almost_equals suites.
+- `TestBRect2D` / `TestBPrism3D`: constructor, accessors, corners, contains, almost_equals suites.
+
+**C# (`geompp_csharp/tests`)**
+- `Polygon2D`: Intersection/Intersects suites for Line2D, Ray2D, LineSegment2D; Simplify suite; `IsConvex_Square_True`, `IsConvex_Concave_False`, `IsConvex_WithHole_False`.
+- `Polygon3D`: `IsConvex_Square_True`, `IsConvex_Concave_False`; Simplify suite.
+- `Polyline3D`: `IsPlanar_XY_True`, `IsPlanar_NonPlanar_False`, `IsSimple_True`, `IsConvex_Planar_True`, `IsConvex_NotPlanar_Throws`, `ConvexHull_ReturnsPolyline`, `ConvexHull_ThenToPolygon`, `ToPolygon_Valid`, `ToPolygon_NotPlanar_Throws`.
+- `GeomUtil`: `PrincipalAxes_NotNull`, `PrincipalAxes_Z_IsNormal`, `PrincipalNormal_NotNull`, `PrincipalDirection_NotNull`, `PrincipalDirection_AlongX`.
+- `BBall2D` / `BBall3D`: `ConstructorCenterRadius`, `ConstructorFromSinglePoint`, `ConstructorFromTwoPoints`, `ConstructorFromPointsAllContained`, `Contains_Inside_True`, `Contains_Outside_False`, `AlmostEquals_Same`, `AlmostEquals_Different`.
+- `BRect2D`: `ConstructorEmpty_Throws`, `ConstructorFromPoints_AllContained`, `Accessors_AxesUnitAndOrthogonal`, `Contains_Center_True`, `Contains_Outside_False`, `AlmostEquals_Same`.
+- `BPrism3D`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_Throws`, `ConstructorTwoPoints_Throws`, `ConstructorAxisAlignedBox`, `Accessors_AxesUnitAndOrthogonal`, `Contains_Center_True`, `Contains_Outside_False`, `AlmostEquals_Same`.
+
+---
+
 ## [0.10.0] - 2026-06-20
 
 > C++ library — tagged `v0.10.0` · C# / NuGet — tagged `csharp-v0.10.0` · Python / PyPI — tagged `python-v0.10.0`
@@ -262,33 +371,33 @@ Each release covers all three packages at the same version:
 **C++ core**
 - `Triangle2D::Location(Point2D const&)` → `std::optional<std::tuple<double, double>>` — returns barycentric coordinates `(s, t)` where `P = P0 + s·(P1−P0) + t·(P2−P0)`, if the point is inside or on the boundary; `nullopt` if outside. Inverse of `Interpolate`. Implemented via 2D perpendicular dot products (`u.Perp()` / `v.Perp()`).
 - `Triangle3D::Location(Point3D const&)` → `std::optional<std::tuple<double, double>>` — same semantics; returns `nullopt` also when the point is off the triangle's plane. Implemented via 3D cross-product isolating each barycentric coordinate without any 2D projection.
-- `Polygon2D::IsOnBoundary(Point2D const&) const` — returns `true` if the point lies exactly on an edge (outer ring or any hole boundary); uses `LineSegment2D::Contains` per edge, which tolerates floating-point rounding up to `DECIMAL_PRECISION` digits.
-- `Polygon3D::IsOnBoundary(Point3D const&) const` — same semantics; rejects off-plane points immediately, then projects to 2D and delegates to `Polygon2D::IsOnBoundary`.
+- `Polygon2D::IsOnPerimeter(Point2D const&) const` — returns `true` if the point lies exactly on an edge (outer ring or any hole boundary); uses `LineSegment2D::Contains` per edge, which tolerates floating-point rounding up to `DECIMAL_PRECISION` digits.
+- `Polygon3D::IsOnPerimeter(Point3D const&) const` — same semantics; rejects off-plane points immediately, then projects to 2D and delegates to `Polygon2D::IsOnPerimeter`.
 
 **Python / PyPI**
 - `Triangle2D.location(point)` → `tuple[float, float] | None` — Python binding for the new `Location` method.
 - `Triangle3D.location(point)` → `tuple[float, float] | None` — Python binding for the new `Location` method.
-- `Polygon2D.is_on_boundary(point)` → `bool` — Python binding for the new method.
-- `Polygon3D.is_on_boundary(point)` → `bool` — Python binding for the new method.
+- `Polygon2D.is_on_perimeter(point)` → `bool` — Python binding for the new method.
+- `Polygon3D.is_on_perimeter(point)` → `bool` — Python binding for the new method.
 
 **C# / NuGet**
 - `Triangle2D.Location(Point2D^ point)` → `Tuple<double, double>^` (or `null` if outside) — C# binding for the new `Location` method.
 - `Triangle3D.Location(Point3D^ point)` → `Tuple<double, double>^` (or `null` if off-plane or outside) — C# binding for the new `Location` method.
-- `Polygon2D.IsOnBoundary(Point2D^ point)` → `bool` — C# binding for the new method.
-- `Polygon3D.IsOnBoundary(Point3D^ point)` → `bool` — C# binding for the new method.
+- `Polygon2D.IsOnPerimeter(Point2D^ point)` → `bool` — C# binding for the new method.
+- `Polygon3D.IsOnPerimeter(Point3D^ point)` → `bool` — C# binding for the new method.
 
 ### Changed
 
 **C++ core**
 - `Triangle2D::Contains(Point2D const&)` — rewritten to delegate entirely to `Location(point).has_value()`. Behavior is unchanged; implementation is now consistent and symmetric with `Interpolate`.
 - `Triangle3D::Contains(Point3D const&)` — was an unimplemented stub (`throw std::runtime_error("not implemented")`); now fully implemented. Rejects off-plane points via `BBox3D` and plane check, then delegates to `Location(point).has_value()`. No 2D projection is performed.
-- `Polygon2D::Contains(Point2D const&)` — was an unimplemented stub; now implemented using a winding-number algorithm with boundary-inclusive semantics: calls `IsOnBoundary` first, then falls back to winding number for strictly interior points.
+- `Polygon2D::Contains(Point2D const&)` — was an unimplemented stub; now implemented using a winding-number algorithm with boundary-inclusive semantics: calls `IsOnPerimeter` first, then falls back to winding number for strictly interior points.
 - `Polygon3D::Contains(Point3D const&)` — was an unimplemented stub; now implemented. Returns `false` immediately for off-plane points; projects to 2D and applies the winding-number algorithm for in-plane points.
 
 ### Fixed
 
 **C++ core**
-- `Polygon2D::Contains(Point2D const&)` — fixed inverted boundary logic: `IsOnBoundary` is called first and short-circuits to `true`; previously the order was reversed, causing interior points to return `false`.
+- `Polygon2D::Contains(Point2D const&)` — fixed inverted boundary logic: `IsOnPerimeter` is called first and short-circuits to `true`; previously the order was reversed, causing interior points to return `false`.
 - `Polygon2D::FromWkt` / `Polygon3D::FromWkt` — were throwing for valid WKT strings in C++ tests (leftover `EXPECT_ANY_THROW` from when the function was a stub); tests updated to expect successful parse and verify vertex count and first point.
 - `Triangle3DTest::Contains_OnBoundary` — off-plane assertion changed from `z=0.001` to `z=0.01`; with `DECIMAL_PRECISION=3` the epsilon is exactly `0.001`, so the old value was within tolerance and the point was classified as on-plane.
 
@@ -298,7 +407,7 @@ Each release covers all three packages at the same version:
 - `test_triangle2d.cpp`: `Location` test rewritten — `check_inside` / `check_outside` lambdas that assert `Location` value AND `Contains` status together; round-trip A (`Interpolate(Location(p)) == p`) and round-trip B (`Location(Interpolate(s,t)) == (s,t)`).
 - `test_triangle3d.cpp`: `Location` test added — same `check_inside` / `check_outside` / round-trip structure; off-plane point asserts both `Location == nullopt` and `Contains == false`.
 - `test_triangle3d.cpp`: `Contains_OnBoundary` — off-plane assertion fixed to `z=0.01`.
-- `test_polygon2d.cpp`: `Contains` test completed — interior, near-corner, exterior, and polygon-with-hole cases. `Contains_OnBoundary` — vertices, edge midpoints, and hole boundary. `IsOnBoundary_True` / `IsOnBoundary_False` — explicit standalone tests. `Wkt` and `FromFile` updated to verify successful round-trip.
+- `test_polygon2d.cpp`: `Contains` test completed — interior, near-corner, exterior, and polygon-with-hole cases. `Contains_OnBoundary` — vertices, edge midpoints, and hole boundary. `IsOnPerimeter_True` / `IsOnPerimeter_False` — explicit standalone tests. `Wkt` and `FromFile` updated to verify successful round-trip.
 - `test_polygon3d.cpp`: same coverage as 2D plus off-plane and YZ-plane cases.
 
 **Python (`geompp_python/tests`)**
@@ -306,14 +415,14 @@ Each release covers all three packages at the same version:
 - `TestTriangle3D.test_location`: added — same structure, including off-plane case.
 - `TestPolygon2D.test_contains`: completed — interior, near-corner, exterior, polygon-with-hole, and boundary cases.
 - `TestPolygon3D.test_contains`: completed — same plus off-plane assertion.
-- `TestPolygon2D.test_is_on_boundary`: vertices, edge midpoints, interior/exterior false cases, hole boundary true and false cases.
-- `TestPolygon3D.test_is_on_boundary`: same in 3D plus off-plane false case.
+- `TestPolygon2D.test_is_on_perimeter`: vertices, edge midpoints, interior/exterior false cases, hole boundary true and false cases.
+- `TestPolygon3D.test_is_on_perimeter`: same in 3D plus off-plane false case.
 
 **C# (`geompp_csharp/tests`)**
 - `Triangle2D` — `Location_Vertices_ReturnExpectedCoords_2D`, `Location_Centroid_OneThirdEach_2D`, `Location_NullImpliesNotContained_2D`, `Location_RoundTrip_A_And_B_2D`: each asserts `Location` value AND paired `Contains` call; round-trips A and B included.
 - `Triangle3D` — `Location_Vertices_ReturnExpectedCoords`, `Location_Centroid_OneThirdEach`, `Location_NullImpliesNotContained`, `Location_RoundTrip_A_And_B`: same relationship-focused structure.
-- `Polygon2D` — `Contains_Interior_True`, `Contains_Exterior_False`, `Contains_WithHole`, `Contains_OnBoundary_True`, `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False` added.
-- `Polygon3D` — `Contains_Interior_True`, `Contains_OffPlane_False`, `Contains_WithHole`, `Contains_OnBoundary_True`, `IsOnBoundary_OnEdge_True`, `IsOnBoundary_Interior_False` added.
+- `Polygon2D` — `Contains_Interior_True`, `Contains_Exterior_False`, `Contains_WithHole`, `Contains_OnBoundary_True`, `IsOnPerimeter_OnEdge_True`, `IsOnPerimeter_Interior_False` added.
+- `Polygon3D` — `Contains_Interior_True`, `Contains_OffPlane_False`, `Contains_WithHole`, `Contains_OnBoundary_True`, `IsOnPerimeter_OnEdge_True`, `IsOnPerimeter_Interior_False` added.
 - `Triangle3D` — `Contains_Interior_True`, `Contains_OffPlane_False` added (delegating to `Location`).
 
 ---

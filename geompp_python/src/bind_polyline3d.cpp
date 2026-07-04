@@ -16,13 +16,22 @@ void bind_polyline3d(py::module_& m) {
         .def("location",     &geompp::Polyline3D::Location,    "point"_a)
         .def("interpolate", &geompp::Polyline3D::Interpolate, "pct"_a)
         .def("contains",    &geompp::Polyline3D::Contains,    "point"_a)
+        .def("is_planar",   &geompp::Polyline3D::IsPlanar)
+        .def("is_simple",   &geompp::Polyline3D::IsSimple)
+        .def("is_convex",   &geompp::Polyline3D::IsConvex)
+        .def("convex_hull", &geompp::Polyline3D::ConvexHull)
+        .def("to_polygon",  &geompp::Polyline3D::ToPolygon)
         BIND_ALMOST_EQUALS(Polyline3D)
         BIND_SERIALIZATION(Polyline3D)
         .def("__len__",     &geompp::Polyline3D::Size)
         .def("__getitem__", [](const geompp::Polyline3D& p, int i) -> geompp::Point3D {
             int n = p.Size();
-            if (i < 0) i += n;
-            if (i < 0 || i >= n) throw py::index_error("index out of range");
+            if (i < 0) {
+                i += n;
+            }
+            if (i < 0 || i >= n) {
+                throw py::index_error("index out of range");
+            }
             return p[static_cast<std::size_t>(i)];
         }, "i"_a)
         .def("intersects",

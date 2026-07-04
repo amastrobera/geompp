@@ -1,32 +1,33 @@
 #pragma once
 
+#include "concepts.hpp"
 #include "constants.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
+#include "view2d.hpp"
 
-#include <algorithm>
 #include <compare>
-#include <concepts>
-#include <functional>
 #include <optional>
 #include <queue>
+#include <utility>
 #include <vector>
 
 namespace geompp {
 
-class Point2D;
+// Forward declarations for types only needed by reference in EventQueue2D constructors.
+// Placed here (not inside detail) so name lookup from within detail finds geompp::Polygon2D
+// and geompp::SegmentRange2D, not shadow types.
 class Polygon2D;
 class SegmentRange2D;
 
-std::partial_ordering compare_event_point(Point2D a, Point2D b);  // for ordering events in the sweep line algorithm
+namespace detail {
 
-// any container that exposes a count and indexed access to LineSegment2D-like elements
-template <typename Segments>
-concept SegmentList = requires(Segments const& s, std::size_t i) {
-  { s.size() } -> std::convertible_to<std::size_t>;
-  { s[i].First() } -> std::convertible_to<Point2D>;  // First()/Last() return Point2D const&
-  { s[i].Last() } -> std::convertible_to<Point2D>;
-};
+// Note: Point2D is NOT declared here. Unqualified lookup walks up to namespace geompp
+// and finds geompp::Point2D (which is fully defined via "point2d.hpp" above).
+// Do NOT add 'class Point2D;' or 'using Point2D = ...' here — MSVC mangles alias
+// names differently from the canonical type in explicit template instantiations.
+
+std::partial_ordering compare_event_point(Point2D a, Point2D b);  // for ordering events in the sweep line algorithm
 
 enum class EventType2D {
   UNKN = -1,
@@ -167,9 +168,16 @@ struct IntersectionEvent2D {
 template <SegmentList Segments>
 std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segments);
 
-std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
-                                                std::function<double(size_t)> get_y,
-                                                std::function<bool(size_t, size_t, size_t)> is_left);
+/// @brief the Andrew's Monotone Chain algorithm to make a convex hull (generic, index-based)
+/// @param points random-access range of Point2D or Point3D
+/// @param view   projects each point to 2D x/y coordinates
+/// @returns list of indices into `points` that form the convex hull in CCW order
+template <PointContainer Points>
+std::vector<std::size_t> convex_hull_monotone_chain(Points const& points, View2D const& view);
+
+extern template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point2D> const&, View2D const&);
+
+extern template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point3D> const&, View2D const&);
 
 /// @brief the Andrew's Monotone Chain algorithm to make a convex hull
 /// @param points cloud of points
@@ -177,4 +185,117 @@ std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(s
 /// @throws algorithm based throw logic
 std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points);
 
+struct MinBoundingRectResult {
+  double u_axis_x, u_axis_y;  // unit edge direction (in View2D space)
+  double v_axis_x, v_axis_y;  // CCW perpendicular (in View2D space)
+  double half_len_u, half_len_v;
+  double center_u, center_v;  // center as offset from an arbitrary origin (in u,v local coords)
+  // The center in the 2D projection is: origin + center_u * u_axis + center_v * v_axis
+  // where origin is the first hull point (p0 of the best edge).
+  // For the caller to recover the 2D center:
+  //   center_2d_x = origin_x + center_u * u_axis_x + center_v * v_axis_x
+  //   center_2d_y = origin_y + center_u * u_axis_y + center_v * v_axis_y
+  double origin_x, origin_y;  // origin point (first point of best edge) in View2D x,y space
+};
+
+/// @brief Winding-number contribution of a single ring (vertices) around point p.
+/// @returns winding number increment/decrement for the ring
+int winding_number(std::vector<Point2D> const& vertices, Point2D const& p);
+
+/// @brief Core convexity check: all consecutive cross products have the same sign.
+/// Does NOT check holes — callers are responsible for that guard.
+template <PointContainer Points>
+bool is_convex_with_view(Points const& vertices, View2D const& view);
+
+extern template bool is_convex_with_view(std::vector<Point2D> const&, View2D const&);
+extern template bool is_convex_with_view(std::vector<Point3D> const&, View2D const&);
+
+/// @brief Returns true if a 2D polygon (CCW outer ring + optional holes) is convex.
+/// A polygon with holes is never convex.
+bool is_convex(std::vector<Point2D> const& vertices, std::vector<std::vector<Point2D>> const& holes);
+
+/// @brief Decomposes polygon rings into simple closed rings via half-edge face tracing.
+/// Projects each point through @p view, builds 2D segments internally, finds all crossings
+/// (Bentley-Ottmann), splits at those points, and returns one ring per bounded face.
+/// Caller classifies outers vs holes via signed_area.
+/// @param outer  Outer ring vertices (Point2D or Point3D).
+/// @param holes  Inner ring vertices (same type as outer).
+/// @param view   Projects each point to 2D x/y coordinates.
+/// @returns Closed rings in 2D (vertex sequence; closing vertex not repeated). Must be >= 3 total edges.
+template <PointContainer Points>
+std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::vector<Points> const& holes,
+                                                      View2D const& view);
+
+extern template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point2D> const&,
+                                                                      std::vector<std::vector<Point2D>> const&,
+                                                                      View2D const&);
+
+/// @brief Rotating calipers (Freeman & Shapira 1975 / Toussaint 1983) on a convex hull.
+/// Projects points through `view` into 2D, computes the minimum-area bounding rectangle.
+/// Requires at least 3 non-degenerate points with a valid convex hull.
+/// @param hull_indices indices of convex hull points in CCW order (from convex_hull_monotone_chain)
+/// @param points the original point container
+/// @param view 2D projection used for x/y extraction
+/// @returns MinBoundingRectResult with axes, half-lengths, and center in View2D 2D space
+template <PointContainer Points>
+MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices, Points const& points,
+                                        View2D const& view);
+
+extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point2D> const&,
+                                                        View2D const&);
+extern template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point3D> const&,
+                                                        View2D const&);
+
+/// @brief Computes the parametric intervals [t0, t1] on a line where it intersects a polygon.
+/// @param outer_coplanar_ccw  Outer ring vertices in CCW winding order, all coplanar. Asserted in debug mode.
+/// @param holes_coplanar_cw   Hole ring vertices in CW winding order, all coplanar. Asserted in debug mode.
+/// @param is_convex_input     Caller's assertion that the polygon is convex (enables the fast convex path).
+///                            Asserted in debug mode against the actual vertex data.
+template <PointContainer Points, Point P>
+std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    Points const& outer_coplanar_ccw, std::vector<Points> const& holes_coplanar_cw, bool is_convex_input,
+    P const& line_p0, P const& line_p1, View2D const& view);
+
+/// @brief Concrete Point2D wrapper for compute_parametric_intersection_intervals.
+/// The template definition lives in calc_utils2d.cpp only; this non-template
+/// declaration lets other TUs call it without triggering implicit instantiation
+/// (which would fail because the template body is not in the header).
+std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
+    std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view);
+
+/// @brief Point-on-edge perimeter test projected through a View2D.
+/// Works for both 2D (View2D::XY()) and 3D (dominant-axis view) rings.
+/// @param outer  Outer ring vertices (Point2D or Point3D).
+/// @param holes  Inner ring vertices (same type as outer).
+/// @param view   Projects each vertex to 2D x/y coordinates.
+/// @param px     Test point x in view space.
+/// @param py     Test point y in view space.
+template <PointContainer Points>
+bool is_on_perimeter_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                               double py);
+
+extern template bool is_on_perimeter_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                               View2D const&, double, double);
+extern template bool is_on_perimeter_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                               View2D const&, double, double);
+
+/// @brief Winding-number point-in-polygon test projected through a View2D.
+/// Works for both 2D (View2D::XY()) and 3D (dominant-axis view) rings.
+/// Does NOT check the perimeter — callers handle that separately.
+/// @param outer  Outer ring vertices (Point2D or Point3D).
+/// @param holes  Inner ring vertices (same type as outer).
+/// @param view   Projects each vertex to 2D x/y coordinates.
+/// @param px     Test point x in view space.
+/// @param py     Test point y in view space.
+template <PointContainer Points>
+bool polygon_contains_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                                double py);
+
+extern template bool polygon_contains_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                                View2D const&, double, double);
+extern template bool polygon_contains_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                                View2D const&, double, double);
+
+}  // namespace detail
 }  // namespace geompp

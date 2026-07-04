@@ -1,6 +1,6 @@
 # Test Coverage Report
 
-_Last updated: 2026-06-21_
+_Last updated: 2026-07-03_
 
 ## Overall
 
@@ -32,7 +32,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py); new `ConvexHull()` (Melkman) tested in all three |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
-| `Polygon2D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); new `IsSimple()` tested in all three (experimental — see note); new `ConvexHull()` tested in all three |
+| `Polygon2D` | ✓ all key | ✓ all key | ✓ most | `DistanceTo` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); `IsSimple()` and `ConvexHull()` tested in all three; `Intersection(×Line/Ray/Seg)` now implemented and tested in all three |
 | `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three |
 | `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, `Location`, all `Intersection` (Py) |
 | `Triangle3D` | ✓ most | ✓ most | ✓ most | `DistanceTo` ★ | new `Intersection(×Plane/△)` and the existing `Intersection(×Line/Ray/Seg)` are covered in all three languages |
@@ -47,7 +47,7 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 
 ---
 
-## Stub Methods (13 total)
+## Stub Methods (10 total)
 
 These methods are declared in the public API but `throw std::runtime_error("not implemented")`.
 Each has a `EXPECT_ANY_THROW` test confirming the throw.
@@ -55,9 +55,6 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 | Class | Method |
 |-------|--------|
 | `Polygon2D` | `DistanceTo(Point2D)` |
-| `Polygon2D` | `Intersection(Line2D)` |
-| `Polygon2D` | `Intersection(Ray2D)` |
-| `Polygon2D` | `Intersection(LineSegment2D)` |
 | `Polygon3D` | `DistanceTo(Point3D)` |
 | `Polygon3D` | `Intersection(Line3D)` |
 | `Polygon3D` | `Intersection(Ray3D)` |
@@ -74,7 +71,7 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 
 - **No class is at 0%** — all geometry classes have at least some test coverage.
 - **Python binding tests are the biggest gap**: `LineSegment3D`, `Polyline3D`, `BBox3D`, `Line3D`, `Ray3D` are thin or untested in Python.
-- **Stub cluster**: remaining unimplemented intersection/distance methods live in `Polygon2D/3D` (DistanceTo + Intersection × Line/Ray/Seg), `Triangle2D::Intersects(△)` and `Triangle2D::Intersection(△)`, and `Triangle2D/3D::DistanceTo`.
+- **Stub cluster**: remaining unimplemented methods: `Polygon2D/3D::DistanceTo`, `Triangle2D::Intersects(△)` and `Triangle2D::Intersection(△)`, and `Triangle2D/3D::DistanceTo`. `Polygon2D::Intersection(×Line/Ray/Seg)` is now fully implemented and tested.
 - **`Plane`, `Point2D`, `Point3D`, `Vector2D`, `Vector3D`** have excellent coverage across C++, Python, and (newly for Plane) C#.
 - **Operator overloads** (`operator<<`, `operator=`, arithmetic) are implicitly exercised by other tests even when not explicitly targeted.
 - **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`has_intersections_impl` / `find_intersections_impl`) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case). Public `has_intersections` / `find_intersections` wrappers (now in `line_segment2d.hpp`) tested via the existing suite.

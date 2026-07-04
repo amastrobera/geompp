@@ -30,6 +30,8 @@ FetchContent_MakeAvailable(glog)
 
 # Add the library
 add_library(${PROJECT_NAME}
+    include/concepts.hpp
+    include/coordinate_frame.hpp
     include/segment_iterator2d.hpp
     include/segment_iterator3d.hpp
     src/constants.cpp
@@ -46,6 +48,8 @@ add_library(${PROJECT_NAME}
     src/triangle2d.cpp
     src/polygon2d.cpp
     src/bbox2d.cpp
+    src/bball2d.cpp
+    src/brect2d.cpp
     src/calc_utils2d.cpp
 
     src/point3d.cpp
@@ -58,9 +62,12 @@ add_library(${PROJECT_NAME}
     src/triangle3d.cpp
     src/polygon3d.cpp
     src/bbox3d.cpp
+    src/bball3d.cpp
+    src/bprism3d.cpp
     src/geometry_collection2d.cpp
     src/geometry_collection3d.cpp
     src/calc_utils3d.cpp
+    src/view2d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
@@ -73,4 +80,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # Avoid PDB write collisions when building with /MP (parallel compilation)
 if (MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /FS)
+endif()
+
+# Link-Time Optimization (Release builds only — Debug LTO adds cost with no benefit)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT _ipo_supported OUTPUT _ipo_err)
+if(_ipo_supported)
+  set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+else()
+  message(STATUS "geompp: LTO not supported: ${_ipo_err}")
 endif()

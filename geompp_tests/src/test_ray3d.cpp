@@ -105,7 +105,7 @@ TEST_F(Ray3DTest, IntersectionWithLine3D) {
   EXPECT_TRUE(r.Intersects(l_cross));
   auto result = r.Intersection(l_cross);
   ASSERT_TRUE(result.has_value());
-  ASSERT_EQ(g::Point3D(3, 0, 0), std::get<g::Point3D>(*result));
+  ASSERT_EQ(g::Point3D(3, 0, 0), *result);
 
   // line is behind the ray's origin: no intersection
   auto l_behind = g::Line3D::Make(g::Point3D(-3, -1, 0), g::Point3D(-3, 1, 0));
@@ -288,7 +288,7 @@ TEST_F(Ray3DTest, IntersectionWithRay3D) {
   {
     auto inter = r1.Intersection(r2);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_EQ(g::Point3D(3, 0, 0), std::get<g::Point3D>(*inter));
+    ASSERT_EQ(g::Point3D(3, 0, 0), *inter);
   }
 
   // r3 from (-3,1,0) pointing -Y — lines would cross at (-3,0,0), behind r1

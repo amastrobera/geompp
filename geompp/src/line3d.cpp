@@ -31,9 +31,6 @@ Line3D Line3D::Make(Point3D const& p0, Vector3D const& dir) {
   return {p0, dir};
 }
 
-Line3D::Line3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
-
-Line3D::Line3D(Point3D const& orig, Vector3D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
 
 Line3D& Line3D::operator=(Line3D const& other) {
   if (this != &other) {
@@ -69,7 +66,7 @@ Point3D Line3D::ProjectOnto(Point3D const& point) const { return P0 + (point - P
 
 std::optional<LineSegment3D> Line3D::Distance(Line3D const& other) const {
   double sc, tc;
-  distance_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
+  detail::distance_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
 
   auto U = P1 - P0;
   auto V = other.P1 - other.P0;
@@ -136,10 +133,10 @@ bool Line3D::Intersects(Ray3D const& ray) const { return ray.Intersects(*this); 
 
 bool Line3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
-Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
+std::optional<Point3D>Line3D::Intersection(Line3D const& other) const {
   double sc, tc;
 
-  auto result = intersection_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
+  auto result = detail::intersection_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
   if (!result.has_value()) {
     return std::nullopt;
   }
@@ -147,9 +144,9 @@ Line3D::ReturnSet Line3D::Intersection(Line3D const& other) const {
   return result;  // they intersect in a single point
 }
 
-Line3D::ReturnSet Line3D::Intersection(Ray3D const& ray) const { return ray.Intersection(*this); }
+std::optional<Point3D>Line3D::Intersection(Ray3D const& ray) const { return ray.Intersection(*this); }
 
-Line3D::ReturnSet Line3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }
+std::optional<Point3D>Line3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 

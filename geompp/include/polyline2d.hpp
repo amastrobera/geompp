@@ -3,7 +3,6 @@
 #include "constants.hpp"
 #include "point2d.hpp"
 #include "segment_iterator2d.hpp"
-#include "vector2d.hpp"
 
 #include <optional>
 #include <ostream>
@@ -135,6 +134,15 @@ class Polyline2D {
 bool operator==(Polyline2D const& lhs, Polyline2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Polyline2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline int Polyline2D::Size() const { return KNOTS.size(); }
+inline SegmentRange2D Polyline2D::ToSegments() const { return SegmentRange2D(KNOTS); }
+inline double Polyline2D::Length() const { return LENGTH; }
+inline Polyline2D::Polyline2D(std::vector<Point2D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 #pragma endregion
 

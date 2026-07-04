@@ -27,10 +27,10 @@ class Plane {
   Plane(Plane&&) = default;
   ~Plane() = default;
 
-  Point3D inline const origin() const { return Origin; }
-  Vector3D inline const normal() const { return Normal; }
-  Vector3D inline const axis_u() const { return AxisU; }
-  Vector3D inline const axis_v() const { return AxisV; }
+  Point3D const origin() const;
+  Vector3D const normal() const;
+  Vector3D const axis_u() const;
+  Vector3D const axis_v() const;
 
   bool AlmostEquals(Plane const& other, double epsilon = DOUBLE_EPSILON) const;
   Plane& operator=(Plane const& other);
@@ -151,9 +151,9 @@ class Plane {
 
 #pragma endregion
 
-  static inline Plane XY() { return Plane(Point3D::Zero(), Vector3D::BasisZ()); }
-  static inline Plane YZ() { return Plane(Point3D::Zero(), Vector3D::BasisX()); }
-  static inline Plane ZX() { return Plane(Point3D::Zero(), Vector3D::BasisY()); }
+  static Plane XY();
+  static Plane YZ();
+  static Plane ZX();
 
  private:
   Point3D Origin;
@@ -168,6 +168,18 @@ class Plane {
 #pragma region Operator Overloading
 
 bool operator==(Plane const& lhs, Plane const& rhs);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D const Plane::origin() const { return Origin; }
+inline Vector3D const Plane::normal() const { return Normal; }
+inline Vector3D const Plane::axis_u() const { return AxisU; }
+inline Vector3D const Plane::axis_v() const { return AxisV; }
+inline Plane Plane::XY() { return Plane(Point3D::Zero(), Vector3D::BasisZ()); }
+inline Plane Plane::YZ() { return Plane(Point3D::Zero(), Vector3D::BasisX()); }
+inline Plane Plane::ZX() { return Plane(Point3D::Zero(), Vector3D::BasisY()); }
 
 #pragma endregion
 

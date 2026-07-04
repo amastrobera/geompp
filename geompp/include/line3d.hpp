@@ -41,19 +41,19 @@ class Line3D {
 
   /// @brief First point used to construct the line.
   /// @return Same point passed as @p p0 to Make.
-  inline Point3D const& First() const { return P0; }
+  Point3D const& First() const;
 
   /// @brief Second point used to construct the line.
   /// @return Same point passed as @p p1 to Make, or @p orig + @p dir for the (origin, direction) form.
-  inline Point3D const& Last() const { return P1; }
+  Point3D const& Last() const;
 
   /// @brief Origin point of the line. Equivalent to @ref First.
   /// @return Origin of the line as a Point3D.
-  inline Point3D const& Origin() const { return P0; }
+  Point3D const& Origin() const;
 
   /// @brief Unit direction vector of the line.
   /// @return Normalized vector from @ref First to @ref Last.
-  inline Vector3D const& Direction() const { return DIR; }
+  Vector3D const& Direction() const;
 
   /// @brief Tests whether two lines are the same infinite line (collinear, same/opposite direction).
   /// @param other Line to compare to.
@@ -134,8 +134,6 @@ class Line3D {
   /// @return true if @p point is collinear with this line within decimal precision.
   bool Contains(Point3D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point3D>>;
-
   /// @brief Tests whether this line intersects another line.
   /// @param other The other line.
   /// @return true if they meet at a single point (skew or parallel lines return false; collinear lines return true).
@@ -159,18 +157,18 @@ class Line3D {
   /// @brief Intersection point of two lines.
   /// @param other The other line.
   /// @return The intersection point wrapped in the variant, or std::nullopt for parallel/skew lines.
-  ReturnSet Intersection(Line3D const& other) const;
+  std::optional<Point3D> Intersection(Line3D const& other) const;
 
   /// @brief Intersection point of this line with a ray.
   /// @param ray The ray.
   /// @return The intersection point if it lies on the ray (sc >= 0), or std::nullopt otherwise.
-  ReturnSet Intersection(Ray3D const& ray) const;
+  std::optional<Point3D> Intersection(Ray3D const& ray) const;
 
   /// @brief Intersection point of this line with a segment.
   /// @param segment The segment.
   /// @return The intersection point if it lies on the segment (sc in [0, 1]), or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment3D const& segment) const;
-  // TODO make ReturnSet public, and write Intersection(triangle)
+  std::optional<Point3D> Intersection(LineSegment3D const& segment) const;
+  // TODO write Intersection(Triangle3D)
 
 #pragma endregion
 
@@ -187,6 +185,17 @@ class Line3D {
 bool operator==(Line3D const& lhs, Line3D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Line3D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D const& Line3D::First() const { return P0; }
+inline Point3D const& Line3D::Last() const { return P1; }
+inline Point3D const& Line3D::Origin() const { return P0; }
+inline Vector3D const& Line3D::Direction() const { return DIR; }
+inline Line3D::Line3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
+inline Line3D::Line3D(Point3D const& orig, Vector3D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
 
 #pragma endregion
 

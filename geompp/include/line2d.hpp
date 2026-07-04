@@ -23,10 +23,10 @@ class Line2D {
   Line2D(Line2D&&) = default;
   ~Line2D() = default;
 
-  inline Point2D const& First() const { return P0; }
-  inline Point2D const& Last() const { return P1; }
-  inline Point2D const& Origin() const { return P0; }
-  inline Vector2D const& Direction() const { return DIR; }
+  Point2D const& First() const;
+  Point2D const& Last() const;
+  Point2D const& Origin() const;
+  Vector2D const& Direction() const;
 
   bool AlmostEquals(Line2D const& other, double epsilon = DOUBLE_EPSILON) const;
 
@@ -58,8 +58,6 @@ class Line2D {
   /// @return true if @p point is collinear with the line within decimal precision.
   bool Contains(Point2D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point2D>>;
-
   /// @brief Tests whether this line intersects another line.
   /// @param other The other line.
   /// @return true if they meet at a point; false for parallel non-collinear lines.
@@ -85,23 +83,23 @@ class Line2D {
   /// @param sc Output: parameter along this line at the intersection.
   /// @param tc Output: parameter along @p other at the intersection.
   /// @return The intersection point, or std::nullopt for parallel lines.
-  ReturnSet Intersection(Line2D const& other, double& sc, double& tc) const;
+  std::optional<Point2D> Intersection(Line2D const& other, double& sc, double& tc) const;
 
   /// @brief Intersection point of two lines.
   /// @param other The other line.
   /// @return The intersection point, or std::nullopt for parallel lines.
-  ReturnSet Intersection(Line2D const& other) const;
+  std::optional<Point2D> Intersection(Line2D const& other) const;
 
   /// @brief Intersection point of this line with a ray.
   /// @param ray The ray.
   /// @return The intersection point if it lies on the ray, or std::nullopt otherwise.
-  ReturnSet Intersection(Ray2D const& ray) const;
+  std::optional<Point2D> Intersection(Ray2D const& ray) const;
 
   /// @brief Intersection point of this line with a segment.
   /// @param segment The segment.
   /// @return The intersection point if it lies on the segment, or std::nullopt otherwise.
-  ReturnSet Intersection(LineSegment2D const& segment) const;
-  // TODO make ReturnSet public, and write Intersection(triangle)
+  std::optional<Point2D> Intersection(LineSegment2D const& segment) const;
+  // TODO write Intersection(Triangle2D)
 
 #pragma endregion
 
@@ -118,6 +116,17 @@ class Line2D {
 bool operator==(Line2D const& lhs, Line2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Line2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point2D const& Line2D::First() const { return P0; }
+inline Point2D const& Line2D::Last() const { return P1; }
+inline Point2D const& Line2D::Origin() const { return P0; }
+inline Vector2D const& Line2D::Direction() const { return DIR; }
+inline Line2D::Line2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
+inline Line2D::Line2D(Point2D const& orig, Vector2D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
 
 #pragma endregion
 

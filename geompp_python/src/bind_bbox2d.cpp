@@ -8,6 +8,7 @@ void bind_bbox2d(py::module_& m) {
         .def(py::init<const geompp::Polyline2D&>(),    "polyline"_a)
         .def(py::init<const geompp::Polygon2D&>(),     "polygon"_a)
         .def(py::init<const geompp::Triangle2D&>(),    "triangle"_a)
+        .def(py::init<const std::vector<geompp::Point2D>&>(), "points"_a)
         .def(py::init<const geompp::BBox2D&>())
         .def_property_readonly("min", &geompp::BBox2D::min)
         .def_property_readonly("max", &geompp::BBox2D::max)

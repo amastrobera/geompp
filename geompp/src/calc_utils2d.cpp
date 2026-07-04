@@ -8,17 +8,24 @@
 
 #include "geompp_log.hpp"
 
+#include "point3d.hpp"
+#include "vector3d.hpp"
+
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
-#include <functional>
 #include <iterator>
 #include <limits>
+#include <map>
+#include <numbers>
 #include <numeric>
 #include <set>
 #include <stdexcept>
 #include <variant>
 
 namespace geompp {
+namespace detail {
 
 namespace {
 
@@ -393,19 +400,13 @@ std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segment
 
       if (elem.Above && !shares_endpoint(elem.Segment->Seg, elem.Above->Seg)) {
         if (auto inter_p = elem.Segment->Seg.Intersection(elem.Above->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Segment->Id,
-                                     elem.Above->Id});
-          }
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Segment->Id, elem.Above->Id});
         }
       }
 
       if (elem.Below && !shares_endpoint(elem.Below->Seg, elem.Segment->Seg)) {
         if (auto inter_p = elem.Below->Seg.Intersection(elem.Segment->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            event_queue.Push(Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), elem.Below->Id,
-                                     elem.Segment->Id});
-          }
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Below->Id, elem.Segment->Id});
         }
       }
 
@@ -423,12 +424,9 @@ std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segment
 
       if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
         if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_event =
-                Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), below_elem->Id, above_elem->Id};
-            if (!event_queue.Contains(inter_event)) {
-              event_queue.Push(inter_event);
-            }
+          auto inter_event = Event2D{EventType2D::INTERSECTION, inter_p.value(), below_elem->Id, above_elem->Id};
+          if (!event_queue.Contains(inter_event)) {
+            event_queue.Push(inter_event);
           }
         }
       }
@@ -508,24 +506,18 @@ std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segment
       // now : segB < seg2 < seg1 < segA
       if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
         if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg1.Segment->Id,
-                                    new_seg1.Above->Id};
-            if (!event_queue.Contains(inter_ev)) {
-              event_queue.Push(inter_ev);
-            }
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg1.Segment->Id, new_seg1.Above->Id};
+          if (!event_queue.Contains(inter_ev)) {
+            event_queue.Push(inter_ev);
           }
         }
       }
 
       if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
         if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
-          if (std::holds_alternative<Point2D>(inter_p.value())) {
-            auto inter_ev = Event2D{EventType2D::INTERSECTION, std::get<Point2D>(inter_p.value()), new_seg2.Below->Id,
-                                    new_seg2.Segment->Id};
-            if (!event_queue.Contains(inter_ev)) {
-              event_queue.Push(inter_ev);
-            }
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg2.Below->Id, new_seg2.Segment->Id};
+          if (!event_queue.Contains(inter_ev)) {
+            event_queue.Push(inter_ev);
           }
         }
       }
@@ -553,59 +545,627 @@ template bool has_intersections_impl(SegmentRange2D const&);
 template std::vector<IntersectionEvent2D> find_intersections_impl(std::vector<LineSegment2D> const&);
 template std::vector<IntersectionEvent2D> find_intersections_impl(SegmentRange2D const&);
 
-// 1. THE CORE GENERIC SOLVER (Writes the hull using index lookups and abstract lambdas)
-std::vector<size_t> convex_hull_generic_impl_2D(size_t n, std::function<double(size_t)> get_x,
-                                                std::function<double(size_t)> get_y,
-                                                std::function<bool(size_t, size_t, size_t)> is_left) {
-  if (n < 3) return {};
+template <PointContainer Points>
+std::vector<std::size_t> convex_hull_monotone_chain(Points const& points, View2D const& view) {
+  std::size_t n = std::ranges::size(points);
+  if (n < 3) {
+    return {};
+  }
 
-  std::vector<size_t> indices(n);
-  std::iota(indices.begin(), indices.end(), 0);
+  std::vector<std::size_t> indices(n);
+  std::iota(indices.begin(), indices.end(), std::size_t{0});
 
-  // Sort using the abstract X and Y projections
-  std::sort(indices.begin(), indices.end(), [&](size_t idx1, size_t idx2) {
-    double x1 = get_x(idx1), x2 = get_x(idx2);
-    if (x1 != x2) return x1 < x2;
-    return get_y(idx1) < get_y(idx2);
+  std::sort(indices.begin(), indices.end(), [&](std::size_t i, std::size_t j) {
+    double xi = view.x(points[i]), xj = view.x(points[j]);
+    if (xi != xj) {
+      return xi < xj;
+    }
+    return view.y(points[i]) < view.y(points[j]);
   });
 
-  std::vector<size_t> hull;
+  auto is_left = [&](std::size_t o, std::size_t a, std::size_t b) {
+    auto [ox, oy] = view.xy(points[o]);
+    auto [ax, ay] = view.xy(points[a]);
+    auto [bx, by] = view.xy(points[b]);
+    return compare((ax - ox) * (by - oy) - (ay - oy) * (bx - ox), 0) > 0;
+  };
+
+  std::vector<std::size_t> hull;
   hull.reserve(2 * n);
 
-  // Lower Hull
-  for (size_t i = 0; i < n; ++i) {
+  // Lower hull
+  for (std::size_t i = 0; i < n; ++i) {
     while (hull.size() >= 2 && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
       hull.pop_back();
     }
     hull.push_back(indices[i]);
   }
 
-  // Upper Hull
-  size_t lower_hull_size = hull.size();
-  for (ptrdiff_t i = static_cast<ptrdiff_t>(n) - 2; i >= 0; --i) {
+  // Upper hull
+  std::size_t lower_hull_size = hull.size();
+  for (std::ptrdiff_t i = static_cast<std::ptrdiff_t>(n) - 2; i >= 0; --i) {
     while (hull.size() > lower_hull_size && !is_left(hull[hull.size() - 2], hull.back(), indices[i])) {
       hull.pop_back();
     }
     hull.push_back(indices[i]);
   }
 
-  if (!hull.empty()) hull.pop_back();
+  if (!hull.empty()) {
+    hull.pop_back();
+  }
   return hull;
 }
 
-std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
-  // clang-format off
-    return convex_hull_generic_impl_2D(
-        points.size(),
-        [&points](size_t i) { return points[i].x(); },
-        [&points](size_t i) { return points[i].y(); },
-        [&points](size_t o, size_t a, size_t b) {
-            // Your standard 2D is_left logic here (copied from is_left(Point2D...))
-            return compare((points[a].x() - points[o].x()) * (points[b].y() - points[o].y()) -
-                           (points[a].y() - points[o].y()) * (points[b].x() - points[o].x()), 0) > 0;
-        }
-    );
-  // clang-format on
+// template specialization
+template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point2D> const&, View2D const&);
+
+template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point3D> const&, View2D const&);
+
+template <PointContainer Points>
+MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices, Points const& points,
+                                        View2D const& view) {
+  std::size_t m = hull_indices.size();
+
+  double best_area = std::numeric_limits<double>::max();
+  double best_ux = 1.0, best_uy = 0.0, best_vx = 0.0, best_vy = 1.0;
+  double best_umin = 0.0, best_umax = 0.0, best_vmin = 0.0, best_vmax = 0.0;
+  double best_ox = 0.0, best_oy = 0.0;
+
+  for (std::size_t i = 0; i < m; ++i) {
+    auto [p0x, p0y] = view.xy(points[hull_indices[i]]);
+    auto [p1x, p1y] = view.xy(points[hull_indices[(i + 1) % m]]);
+
+    double ex = p1x - p0x;
+    double ey = p1y - p0y;
+    double elen = std::sqrt(ex * ex + ey * ey);
+    if (compare(elen, 0.0) == 0) {
+      continue;
+    }
+
+    double ux = ex / elen;
+    double uy = ey / elen;
+    double vx = -uy;
+    double vy = ux;
+
+    double u_min = std::numeric_limits<double>::max();
+    double u_max = -std::numeric_limits<double>::max();
+    double v_min = std::numeric_limits<double>::max();
+    double v_max = -std::numeric_limits<double>::max();
+
+    for (std::size_t j = 0; j < m; ++j) {
+      auto [qx, qy] = view.xy(points[hull_indices[j]]);
+      double dx = qx - p0x;
+      double dy = qy - p0y;
+      double pu = dx * ux + dy * uy;
+      double pv = dx * vx + dy * vy;
+      if (pu < u_min) {
+        u_min = pu;
+      }
+      if (pu > u_max) {
+        u_max = pu;
+      }
+      if (pv < v_min) {
+        v_min = pv;
+      }
+      if (pv > v_max) {
+        v_max = pv;
+      }
+    }
+
+    double rect_area = (u_max - u_min) * (v_max - v_min);
+    if (compare(rect_area, best_area) < 0) {
+      best_area = rect_area;
+      best_ux = ux;
+      best_uy = uy;
+      best_vx = vx;
+      best_vy = vy;
+      best_umin = u_min;
+      best_umax = u_max;
+      best_vmin = v_min;
+      best_vmax = v_max;
+      best_ox = p0x;
+      best_oy = p0y;
+    }
+  }
+
+  double cu = (best_umin + best_umax) / 2.0;
+  double cv = (best_vmin + best_vmax) / 2.0;
+
+  return MinBoundingRectResult{
+      best_ux, best_uy, best_vx, best_vy, (best_umax - best_umin) / 2.0, (best_vmax - best_vmin) / 2.0,
+      cu,      cv,      best_ox, best_oy,
+  };
 }
 
+template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point2D> const&,
+                                                 View2D const&);
+template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point3D> const&,
+                                                 View2D const&);
+
+std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
+  return convex_hull_monotone_chain(points, View2D::XY());
+}
+
+template <PointContainer Points>
+std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::vector<Points> const& holes,
+                                                      View2D const& view) {
+  // --- Stage 1: project rings to 2D segments ---
+  std::vector<LineSegment2D> segs;
+  {
+    int n = static_cast<int>(std::ranges::size(outer));
+    segs.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      segs.emplace_back(LineSegment2D::Make(Point2D(view.x(outer[i]), view.y(outer[i])),
+                                            Point2D(view.x(outer[(i + 1) % n]), view.y(outer[(i + 1) % n]))));
+    }
+  }
+  for (auto const& hole : holes) {
+    int nh = static_cast<int>(std::ranges::size(hole));
+    for (int i = 0; i < nh; ++i) {
+      segs.emplace_back(LineSegment2D::Make(Point2D(view.x(hole[i]), view.y(hole[i])),
+                                            Point2D(view.x(hole[(i + 1) % nh]), view.y(hole[(i + 1) % nh]))));
+    }
+  }
+
+  if (segs.size() < 3) {
+    throw std::invalid_argument("simplify_rings_impl: need at least 3 segments");
+  }
+
+  // --- Stage 2: split every segment at its crossing points ---
+  auto crossings = find_intersections_impl(segs);
+
+  // map: segment index → crossing points on that segment
+  std::map<std::size_t, std::vector<Point2D>> seg_cp;
+  for (auto const& ev : crossings) {
+    for (auto id : ev.SegmentIds) {
+      seg_cp[id].push_back(ev.Point);
+    }
+  }
+
+  std::vector<LineSegment2D> split;
+  split.reserve(segs.size() + crossings.size() * 2);
+  for (std::size_t i = 0; i < segs.size(); ++i) {
+    auto it = seg_cp.find(i);
+    if (it == seg_cp.end()) {
+      split.push_back(segs[i]);
+      continue;
+    }
+    // sort crossing points by parameter t along this segment
+    std::vector<Point2D> cps = it->second;
+    std::sort(cps.begin(), cps.end(),
+              [&](Point2D const& a, Point2D const& b) { return segs[i].Location(a) < segs[i].Location(b); });
+    cps.erase(std::unique(cps.begin(), cps.end(), [](Point2D const& a, Point2D const& b) { return a.AlmostEquals(b); }),
+              cps.end());
+
+    Point2D prev = segs[i].First();
+    for (auto const& cp : cps) {
+      if (!prev.AlmostEquals(cp)) {
+        split.push_back(LineSegment2D::Make(prev, cp));
+      }
+      prev = cp;
+    }
+    if (!prev.AlmostEquals(segs[i].Last())) {
+      split.push_back(LineSegment2D::Make(prev, segs[i].Last()));
+    }
+  }
+
+  // --- Stage 3: build planar graph, trace half-edge faces ---
+
+  // Assign stable integer IDs to unique vertices (using rounded keys)
+  double scale = std::pow(10.0, static_cast<double>(DECIMAL_PRECISION));
+  auto vkey = [scale](Point2D const& p) -> std::pair<long long, long long> {
+    return {llround(p.x() * scale), llround(p.y() * scale)};
+  };
+
+  std::map<std::pair<long long, long long>, int> vid_map;
+  std::vector<Point2D> verts;
+  auto get_vid = [&](Point2D const& p) -> int {
+    auto k = vkey(p);
+    auto it = vid_map.find(k);
+    if (it != vid_map.end()) {
+      return it->second;
+    }
+    int id = static_cast<int>(verts.size());
+    vid_map[k] = id;
+    verts.push_back(p);
+    return id;
+  };
+
+  // Undirected adjacency list — push all edges, deduplicate after sorting.
+  std::vector<std::vector<int>> adj;
+  for (auto const& seg : split) {
+    int a = get_vid(seg.First());
+    int b = get_vid(seg.Last());
+    if (static_cast<int>(adj.size()) <= std::max(a, b)) {
+      adj.resize(static_cast<std::size_t>(std::max(a, b)) + 1);
+    }
+    adj[a].push_back(b);
+    adj[b].push_back(a);
+  }
+  adj.resize(verts.size());
+
+  // Sort each neighbor list by polar angle CCW around the vertex, then deduplicate.
+  // Precompute angles alongside neighbor IDs for O(log degree) lookup in the half-edge walk.
+  int nv = static_cast<int>(verts.size());
+  std::vector<std::vector<double>> adj_angles(nv);
+  for (int v = 0; v < nv; ++v) {
+    std::sort(adj[v].begin(), adj[v].end(), [&](int a, int b) {
+      double ax = verts[a].x() - verts[v].x(), ay = verts[a].y() - verts[v].y();
+      double bx = verts[b].x() - verts[v].x(), by = verts[b].y() - verts[v].y();
+      return std::atan2(ay, ax) < std::atan2(by, bx);
+    });
+    adj[v].erase(std::unique(adj[v].begin(), adj[v].end()), adj[v].end());
+    adj_angles[v].resize(adj[v].size());
+    for (int k = 0; k < static_cast<int>(adj[v].size()); ++k) {
+      adj_angles[v][k] = std::atan2(verts[adj[v][k]].y() - verts[v].y(), verts[adj[v][k]].x() - verts[v].x());
+    }
+  }
+
+  // Walk half-edges: for directed (cur_from→cur_to), the next half-edge in the
+  // same face is (cur_to→w) where w is the first CCW neighbor from cur_to after
+  // the reversed-incoming direction (i.e., the direction back toward cur_from).
+  std::set<std::pair<int, int>> used;
+  std::vector<std::vector<Point2D>> rings;
+
+  for (int u = 0; u < nv; ++u) {
+    for (int v0 : adj[u]) {
+      if (used.count({u, v0})) {
+        continue;
+      }
+
+      std::vector<Point2D> ring;
+      int cur_from = u, cur_to = v0;
+
+      while (true) {
+        auto edge = std::make_pair(cur_from, cur_to);
+        if (used.count(edge)) {
+          break;
+        }
+        used.insert(edge);
+        ring.push_back(verts[cur_from]);
+
+        double rev_angle = std::atan2(verts[cur_from].y() - verts[cur_to].y(), verts[cur_from].x() - verts[cur_to].x());
+
+        auto const& angles = adj_angles[cur_to];
+        auto const& nbrs = adj[cur_to];
+        int deg = static_cast<int>(nbrs.size());
+        int next_to = -1;
+
+        if (deg > 0) {
+          auto it = std::upper_bound(angles.begin(), angles.end(), rev_angle);
+          if (it == angles.end()) {
+            next_to = nbrs[0];
+          } else {
+            next_to = nbrs[static_cast<int>(it - angles.begin())];
+          }
+        }
+
+        if (next_to == -1) {
+          break;
+        }
+        cur_from = cur_to;
+        cur_to = next_to;
+      }
+
+      if (ring.size() >= 3) {
+        rings.push_back(std::move(ring));
+      }
+    }
+  }
+
+  return rings;
+}
+
+template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point2D> const&,
+                                                               std::vector<std::vector<Point2D>> const&, View2D const&);
+
+template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point3D> const&,
+                                                               std::vector<std::vector<Point3D>> const&, View2D const&);
+
+int winding_number(std::vector<Point2D> const& vertices, Point2D const& p) {
+  int wn = 0;
+  int n = static_cast<int>(vertices.size());
+  for (int i1 = 0; i1 < n; ++i1) {
+    int i2 = (i1 + 1) % n;
+    auto const& v1 = vertices[i1];
+    auto const& v2 = vertices[i2];
+    if (compare(v1.y(), p.y()) <= 0) {   // edge starts below p
+      if (compare(v2.y(), p.y()) > 0) {  //   ends above p (upward crossing)
+        if (is_left(v1, v2, p)) {        //   p left of the edge
+          ++wn;
+        }
+      }
+    } else {                              // edge starts above p
+      if (compare(v2.y(), p.y()) <= 0) {  //   ends below p (downward crossing)
+        if (is_right(v1, v2, p)) {        //   p right of the edge
+          --wn;
+        }
+      }
+    }
+  }
+  return wn;
+}
+
+template <PointContainer Points>
+bool is_convex_with_view(Points const& vertices, View2D const& view) {
+  int n = static_cast<int>(vertices.size());
+  bool seen_positive = false;
+  bool seen_negative = false;
+  for (int i = 0; i < n; ++i) {
+    double x0 = view.x(vertices[i]), y0 = view.y(vertices[i]);
+    double x1 = view.x(vertices[(i + 1) % n]), y1 = view.y(vertices[(i + 1) % n]);
+    double x2 = view.x(vertices[(i + 2) % n]), y2 = view.y(vertices[(i + 2) % n]);
+    double cross = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
+    auto ord = compare(cross, 0.0);
+    if (ord == 0) {
+      continue;
+    }
+    if (ord > 0) {
+      seen_positive = true;
+    } else {
+      seen_negative = true;
+    }
+    if (seen_positive && seen_negative) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template bool is_convex_with_view(std::vector<Point2D> const&, View2D const&);
+template bool is_convex_with_view(std::vector<Point3D> const&, View2D const&);
+
+bool is_convex(std::vector<Point2D> const& vertices, std::vector<std::vector<Point2D>> const& holes) {
+  if (!holes.empty() || vertices.size() < 3) {
+    return false;
+  }
+  return is_convex_with_view(vertices, View2D::XY());
+}
+
+template <PointContainer Points>
+bool is_on_perimeter_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                               double py) {
+  Point2D test_pt(px, py);
+  auto check_ring = [&](auto const& ring) -> bool {
+    int n = static_cast<int>(ring.size());
+    for (int i = 0; i < n; ++i) {
+      Point2D v1(view.x(ring[i]), view.y(ring[i]));
+      Point2D v2(view.x(ring[(i + 1) % n]), view.y(ring[(i + 1) % n]));
+      if (LineSegment2D::Make(v1, v2).Contains(test_pt)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  if (check_ring(outer)) {
+    return true;
+  }
+  for (auto const& hole : holes) {
+    if (check_ring(hole)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template bool is_on_perimeter_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                        View2D const&, double, double);
+template bool is_on_perimeter_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                        View2D const&, double, double);
+
+template <PointContainer Points>
+bool polygon_contains_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
+                                double py) {
+  auto ring_winding = [&](auto const& ring) -> int {
+    int wn = 0;
+    int n = static_cast<int>(ring.size());
+    for (int i = 0; i < n; ++i) {
+      double v1y = view.y(ring[i]);
+      double v2y = view.y(ring[(i + 1) % n]);
+      if (compare(v1y, py) <= 0) {
+        if (compare(v2y, py) > 0) {
+          double v1x = view.x(ring[i]), v2x = view.x(ring[(i + 1) % n]);
+          if (compare((v2x - v1x) * (py - v1y) - (v2y - v1y) * (px - v1x), 0.0) > 0) {
+            ++wn;
+          }
+        }
+      } else {
+        if (compare(v2y, py) <= 0) {
+          double v1x = view.x(ring[i]), v2x = view.x(ring[(i + 1) % n]);
+          if (compare((v2x - v1x) * (py - v1y) - (v2y - v1y) * (px - v1x), 0.0) < 0) {
+            --wn;
+          }
+        }
+      }
+    }
+    return wn;
+  };
+
+  int wn = ring_winding(outer);
+  if (wn == 0) {  // early terminate if outside
+    return false;
+  }
+
+  for (auto const& hole : holes) {
+    wn += ring_winding(hole);
+
+    if (wn == 0) {  // since valid holes cannot overlap each other
+                    // early terminate if inside one of the holes
+      return false;
+    }
+  }
+  return wn != 0;
+}
+
+template bool polygon_contains_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
+                                         View2D const&, double, double);
+template bool polygon_contains_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
+                                         View2D const&, double, double);
+
+template <PointContainer Points, Point P>
+std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
+    Points const& outer_coplanar_ccw, std::vector<Points> const& holes_coplanar_cw, bool is_convex_input,
+    P const& line_p0, P const& line_p1, View2D const& view) {
+  // Debug-mode invariant checks. Disabled in Release (NDEBUG defined).
+  assert(are_ccw(outer_coplanar_ccw));
+  if constexpr (std::is_same_v<typename Points::value_type, Point3D>) {
+    assert(are_coplanar(outer_coplanar_ccw));
+  }
+  assert(!is_convex_input || is_convex_with_view(outer_coplanar_ccw, view));
+  assert(!is_convex_input || holes_coplanar_cw.empty());
+  for (auto const& hole : holes_coplanar_cw) {
+    assert(are_cw(hole));
+    if constexpr (std::is_same_v<typename Points::value_type, Point3D>) {
+      assert(are_coplanar(hole));
+    }
+  }
+
+  // actual algorithm
+
+  // Project the line endpoints to 2D once; all geometry lives in this view's plane.
+  // edge e(i): v_0 = outer[i], v_1 = outer[(i+1)%n]  (CCW order)
+  //   ex = v1x - v0x,  ey = v1y - v0y
+  //   outward normal for CCW ring: n = (ey, -ex)
+  //   N = -n · (P0 - Vi)  =  -(ey, -ex) · (p0x - v0x,  p0y - v0y)
+  //                       = -(ey * (p0x - v0x) + (-ex) * (p0y - v0y))
+  //                       = -(p0x - v0x) * ey + (p0y - v0y)*ex
+  //   D = n · (P1 - P0)   =  dx*ey - dy*ex
+  double p0x = view.x(line_p0), p0y = view.y(line_p0);
+  double dx = view.x(line_p1) - p0x;
+  double dy = view.y(line_p1) - p0y;
+
+  auto edge_ND = [&](P const& v0, P const& v1) -> std::pair<double, double> {
+    double v0x = view.x(v0), v0y = view.y(v0);
+    double ex = view.x(v1) - v0x, ey = view.y(v1) - v0y;
+    double N = -(p0x - v0x) * ey + (p0y - v0y) * ex;
+    double D = dx * ey - dy * ex;
+    return {N, D};
+  };
+
+  std::vector<std::pair<double, double>> t_list;
+
+  if (is_convex_input) {  // quick exit on entering and leaving edges
+    double t_e = std::numeric_limits<double>::min();
+    bool is_t_e_set = false;
+    double t_l = std::numeric_limits<double>::max();
+    bool is_t_l_set = false;
+    std::size_t n = outer_coplanar_ccw.size();
+
+    for (std::size_t i = 0; i < n; ++i) {
+      auto const& v_0 = outer_coplanar_ccw[i];
+      auto const& v_1 = outer_coplanar_ccw[(i + 1) % n];
+      auto [N, D] = edge_ND(v_0, v_1);
+
+      auto D_compare_to_0 = compare(D, 0);
+      if (D_compare_to_0 == 0) {  // line is parallel to edge e(i)
+        if (compare(N, 0) < 0) {  // P0 is outside the edge e(i)
+          break;                  // early terminate (valid for convex: one miss = total miss)
+
+        } else {
+          continue;  // ignore edge e(i)
+        }
+      }
+
+      double t = N / D;
+      if (D_compare_to_0 < 0) {  // the line is ENTERING polygon through the edge e(i)
+        if (!is_t_e_set) {       // init
+          t_e = t;
+          is_t_e_set = true;
+
+        } else {
+          if (compare(t, t_e) > 0) {  // update our t_e to the greatest of the old and new value
+            t_e = t;
+          }
+        }
+
+        if (is_t_e_set && is_t_l_set &&  // if both are set
+            compare(t_e, t_l) > 0) {     // quick rejection if not t_e < t_l
+          break;
+        }
+
+      } else {              // the line is LEAVING polygon through the edge e(i), on D_compare_to_0 > 0
+        if (!is_t_l_set) {  // init
+          t_l = t;
+          is_t_l_set = true;
+
+        } else {
+          if (compare(t, t_l) < 0) {  // update our t_l to the smallest of the old and new value
+            t_l = t;
+          }
+        }
+
+        if (is_t_e_set && is_t_l_set &&  // if both are set
+            compare(t_e, t_l) > 0) {     // quick rejection if not t_e < t_l
+          break;
+        }
+      }
+    }
+
+    // only if we have both an ENTERING edge and a LEAVING edge we have an intersection,
+    // otherwise it's an overlap (OnPerimeter)
+    if (is_t_e_set && is_t_l_set && compare(t_e, t_l) < 0) {
+      t_list.emplace_back(t_e, t_l);
+    }
+
+  } else {  // Collect, Sort, Parity
+
+    // we don't need to care about separating t_e from t_l
+    // the Jordan Curve Theorem guarantees that an infinite line crossing a closed shape will always alternate:
+    // Enter-> Leave-> Enter -> Leave, always paired up
+    // (try it graphically on a piece of paper: outer CCW and inner CW guarantee this)
+
+    // the list of ts will always have an even number
+    // (mathematically guaranteed if we close the for-loop of points)
+    // so we can expect to always have something like this once sorted (<t_e, t_l>, <t_e, t_l>, <t_e, t_l>, ...)
+
+    // special case: overlap with vertex: the values of (sorted) t_e and t_l are equal: we will remove them
+
+    std::vector<double> t_all;
+    std::size_t n = outer_coplanar_ccw.size();
+
+    for (std::size_t i = 0; i < n; ++i) {
+      auto const& v_0 = outer_coplanar_ccw[i];
+      auto const& v_1 = outer_coplanar_ccw[(i + 1) % n];  // guarantees the loop of points to be closed
+      auto [N, D] = edge_ND(v_0, v_1);
+
+      auto D_compare_to_0 = compare(D, 0);
+      if (D_compare_to_0 == 0) {  // line is parallel to edge e(i)
+        continue;  // skip — parallel to one edge does not mean the line misses the whole concave polygon
+      }
+
+      double t = N / D;
+      t_all.push_back(t);
+    }
+
+    // sort the list
+    if (!t_all.empty()) {
+      // sort ASC, using the std::partial_ordering and the optimized ranges algorithm
+      std::ranges::sort(t_all);
+      // remove consecutive duplicates
+      remove_all_duplicated_elements(t_all);
+
+      if (!t_all.empty()) {
+        std::size_t m = t_all.size();
+        if (m % 2 != 0) {  // impossible (mathematically) to get an odd number
+          throw std::runtime_error("found an odd number of t_all intervals in sorted vector");
+        }
+
+        for (std::size_t i = 0; i < m - 1; i += 2) {
+          t_list.emplace_back(t_all[i], t_all[i + 1]);
+        }
+      }
+    }
+  }
+
+  return t_list;
+}
+
+std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
+    std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view) {
+  return compute_parametric_intersection_intervals(outer_coplanar_ccw, holes_coplanar_cw, is_convex_input, line_p0,
+                                                   line_p1, view);
+}
+
+}  // namespace detail
 }  // namespace geompp

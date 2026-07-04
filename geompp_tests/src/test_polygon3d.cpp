@@ -1,9 +1,12 @@
 #include "polygon3d.hpp"
 
+#include "line3d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
 #include "point3d.hpp"
+#include "ray3d.hpp"
 #include "utils.hpp"
+#include "vector3d.hpp"
 
 #include "geompp_log.hpp"
 
@@ -346,8 +349,9 @@ TEST_F(Polygon3DTest, GetPlane_AllVerticesOnPlane) {
       g::Point3D(0, 0, 0), g::Point3D(4, 0, 0),
       g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
   auto pl = p.GetPlane();
-  for (int i = 0; i < p.Size(); ++i)
+  for (int i = 0; i < p.Size(); ++i) {
     EXPECT_TRUE(pl.Contains(p[i]));
+  }
 }
 
 TEST_F(Polygon3DTest, GetPlane_WithHoles) {
@@ -423,49 +427,49 @@ TEST_F(Polygon3DTest, Contains_OnBoundary) {
   EXPECT_TRUE(poly.Contains(g::Point3D(2, 1, 0)));  // hole bottom edge
 }
 
-TEST_F(Polygon3DTest, IsOnBoundary_True) {
+TEST_F(Polygon3DTest, IsOnPerimeter_True) {
   auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
 
   // all four vertices
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0,   0,   0)));
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(1,   0,   0)));
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(1,   1,   0)));
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0,   1,   0)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(0,   0,   0)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(1,   0,   0)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(1,   1,   0)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(0,   1,   0)));
 
   // edge midpoints
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0.5, 0,   0)));  // bottom
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(1,   0.5, 0)));  // right
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0.5, 1,   0)));  // top
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point3D(0,   0.5, 0)));  // left
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(0.5, 0,   0)));  // bottom
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(1,   0.5, 0)));  // right
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(0.5, 1,   0)));  // top
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point3D(0,   0.5, 0)));  // left
 
   // non-XY plane: YZ square at x=0
   auto yz = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(0,1,0), g::Point3D(0,1,1), g::Point3D(0,0,1)});
-  EXPECT_TRUE(yz.IsOnBoundary(g::Point3D(0, 0.5, 0)));  // bottom edge midpoint
-  EXPECT_TRUE(yz.IsOnBoundary(g::Point3D(0, 0,   0)));  // vertex
+  EXPECT_TRUE(yz.IsOnPerimeter(g::Point3D(0, 0.5, 0)));  // bottom edge midpoint
+  EXPECT_TRUE(yz.IsOnPerimeter(g::Point3D(0, 0,   0)));  // vertex
 
   // hole boundary
   auto outer = std::vector<g::Point3D>{{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
   auto hole  = std::vector<g::Point3D>{{1,1,0}, {1,3,0}, {3,3,0}, {3,1,0}};
   auto poly  = g::Polygon3D::Make(outer, {hole});
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(2, 0, 0)));  // outer bottom
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(4, 2, 0)));  // outer right
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(2, 1, 0)));  // hole bottom
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point3D(1, 2, 0)));  // hole left
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point3D(2, 0, 0)));  // outer bottom
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point3D(4, 2, 0)));  // outer right
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point3D(2, 1, 0)));  // hole bottom
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point3D(1, 2, 0)));  // hole left
 }
 
-TEST_F(Polygon3DTest, IsOnBoundary_False) {
+TEST_F(Polygon3DTest, IsOnPerimeter_False) {
   auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
 
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point3D(0.5, 0.5, 0)));   // interior
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point3D(-0.1, 0.5, 0)));  // outside left
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point3D(0.5,  0.5, 0.01)));  // off-plane
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point3D(0.5, 0.5, 0)));   // interior
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point3D(-0.1, 0.5, 0)));  // outside left
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point3D(0.5,  0.5, 0.01)));  // off-plane
 
   // interior of polygon with hole is not boundary
   auto outer = std::vector<g::Point3D>{{0,0,0}, {4,0,0}, {4,4,0}, {0,4,0}};
   auto hole  = std::vector<g::Point3D>{{1,1,0}, {1,3,0}, {3,3,0}, {3,1,0}};
   auto poly  = g::Polygon3D::Make(outer, {hole});
-  EXPECT_FALSE(poly.IsOnBoundary(g::Point3D(0.5, 0.5, 0)));  // interior strip
-  EXPECT_FALSE(poly.IsOnBoundary(g::Point3D(2,   2,   0)));  // inside hole
+  EXPECT_FALSE(poly.IsOnPerimeter(g::Point3D(0.5, 0.5, 0)));  // interior strip
+  EXPECT_FALSE(poly.IsOnPerimeter(g::Point3D(2,   2,   0)));  // inside hole
 }
 
 TEST_F(Polygon3DTest, ToSegments) {
@@ -502,6 +506,224 @@ TEST_F(Polygon3DTest, IsSimple_SelfIntersectingIsNotSimple) {
   auto p = g::Polygon3D::Make(
       {g::Point3D(0,0,0), g::Point3D(4,0,0), g::Point3D(1,3,0), g::Point3D(3,3,0)});
   EXPECT_FALSE(p.IsSimple());
+}
+
+// ---- IsConvex ---------------------------------------------------------------
+
+TEST_F(Polygon3DTest, IsConvex_Square_XYPlane_True) {
+  // A unit square in the XY plane is convex (CCW when viewed from +Z)
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon3DTest, IsConvex_YZPlane_True) {
+  // A unit square in the YZ plane is convex (CCW when viewed from +X)
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(0, 1, 0), g::Point3D(0, 1, 1), g::Point3D(0, 0, 1)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon3DTest, IsConvex_ConcavePolygon_False) {
+  // Arrow/dent shape in XY plane — concave at (2,2,0)
+  auto p = g::Polygon3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+      g::Point3D(2, 2, 0), g::Point3D(0, 4, 0)});
+  EXPECT_FALSE(p.IsConvex());
+}
+
+TEST_F(Polygon3DTest, IsConvex_WithHole_False) {
+  // Any polygon with a hole is non-convex by definition
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
+  auto p = g::Polygon3D::Make(outer, {hole});
+  EXPECT_FALSE(p.IsConvex());
+}
+
+// ---- Simplify ---------------------------------------------------------------
+
+TEST_F(Polygon3DTest, Simplify_AlreadySimple_ReturnsSelf) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto result = p.Simplify();
+  ASSERT_EQ(1u, result.size());
+  EXPECT_TRUE(p.AlmostEquals(result[0]));
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieInXYPlane_YieldsTwoSimpleTriangles) {
+  // Same bowtie as Polygon2D test, lifted into XY plane (z=0): dominant axis = Z.
+  // A(0,0,0), B(4,0,0), C(1,3,0), D(3,3,0) — B→C and D→A cross at X(2,2,0).
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  double a0 = result[0].Area(), a1 = result[1].Area();
+  bool areas_match = (std::abs(a0 - 4.0) < 0.01 && std::abs(a1 - 1.0) < 0.01) ||
+                     (std::abs(a0 - 1.0) < 0.01 && std::abs(a1 - 4.0) < 0.01);
+  EXPECT_TRUE(areas_match) << "areas: " << a0 << ", " << a1;
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieInYZPlane_YieldsTwoSimpleTriangles) {
+  // Bowtie in the YZ plane (x=0): dominant axis = X.
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(0, 1, 3), g::Point3D(0, 3, 3)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  for (auto const& poly : result) {
+    for (int i = 0; i < static_cast<int>(poly.Size()); ++i) {
+      EXPECT_NEAR(0.0, poly[i].x(), 1e-9) << "vertex x should be 0 (YZ plane)";
+    }
+  }
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieInXZPlane_YieldsTwoSimpleTriangles) {
+  // Bowtie in the XZ plane (y=0): dominant axis = Y, projection flips chirality.
+  // CCW when viewed from +Y: reversed vertex order.
+  auto p = g::Polygon3D::Make({g::Point3D(3, 0, 3), g::Point3D(1, 0, 3), g::Point3D(4, 0, 0), g::Point3D(0, 0, 0)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  for (auto const& poly : result) {
+    for (int i = 0; i < static_cast<int>(poly.Size()); ++i) {
+      EXPECT_NEAR(0.0, poly[i].y(), 1e-9) << "vertex y should be 0 (XZ plane)";
+    }
+  }
+}
+
+TEST_F(Polygon3DTest, Simplify_BowtieAreasSum) {
+  // Total area of the two sub-triangles should equal the sum of the parts (4 + 1 = 5).
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+  double total = result[0].Area() + result[1].Area();
+  EXPECT_NEAR(5.0, total, 0.01);
+}
+
+TEST_F(Polygon3DTest, Simplify_ResultsAreCoplanar) {
+  // All result polygons from a 3D Simplify must lie on the same plane as the original.
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  auto plane = p.GetPlane();
+  for (auto const& poly : p.Simplify()) {
+    for (int i = 0; i < static_cast<int>(poly.Size()); ++i) {
+      EXPECT_NEAR(0.0, plane.DistanceTo(poly[i]), 1e-9) << "vertex not on original plane";
+    }
+  }
+}
+
+// ---- Intersection (Line3D / Ray3D / LineSegment3D) --------------------------
+
+TEST_F(Polygon3DTest, Intersection_Line_HitsCenter) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto line = g::Line3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1));
+  auto result = sq.Intersection(line);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_TRUE(result->AlmostEquals(g::Point3D(0.5, 0.5, 0)));
+}
+
+TEST_F(Polygon3DTest, Intersection_Line_MissesOutside) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto line = g::Line3D::Make(g::Point3D(2, 0.5, -1), g::Point3D(2, 0.5, 1));
+  EXPECT_FALSE(sq.Intersection(line).has_value());
+}
+
+TEST_F(Polygon3DTest, Intersection_Line_ParallelToPlane_Miss) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto line = g::Line3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 1));  // parallel at z=1
+  EXPECT_FALSE(sq.Intersection(line).has_value());
+}
+
+TEST_F(Polygon3DTest, Intersects_Line_True) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_TRUE(sq.Intersects(g::Line3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1))));
+}
+
+TEST_F(Polygon3DTest, Intersects_Line_False) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_FALSE(sq.Intersects(g::Line3D::Make(g::Point3D(2, 0.5, -1), g::Point3D(2, 0.5, 1))));
+}
+
+TEST_F(Polygon3DTest, Intersection_Ray_HitsCenter) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto ray = g::Ray3D::Make(g::Point3D(0.5, 0.5, 1), g::Vector3D(0, 0, -1));
+  auto result = sq.Intersection(ray);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_TRUE(result->AlmostEquals(g::Point3D(0.5, 0.5, 0)));
+}
+
+TEST_F(Polygon3DTest, Intersection_Ray_PointingAway) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto ray = g::Ray3D::Make(g::Point3D(0.5, 0.5, 1), g::Vector3D(0, 0, 1));
+  EXPECT_FALSE(sq.Intersection(ray).has_value());
+}
+
+TEST_F(Polygon3DTest, Intersection_Ray_MissesOutside) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto ray = g::Ray3D::Make(g::Point3D(2, 0.5, 1), g::Vector3D(0, 0, -1));
+  EXPECT_FALSE(sq.Intersection(ray).has_value());
+}
+
+TEST_F(Polygon3DTest, Intersects_Ray_True) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_TRUE(sq.Intersects(g::Ray3D::Make(g::Point3D(0.5, 0.5, 1), g::Vector3D(0, 0, -1))));
+}
+
+TEST_F(Polygon3DTest, Intersects_Ray_False) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_FALSE(sq.Intersects(g::Ray3D::Make(g::Point3D(0.5, 0.5, 1), g::Vector3D(0, 0, 1))));
+}
+
+TEST_F(Polygon3DTest, Intersection_Segment_Pierces) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto seg = g::LineSegment3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1));
+  auto result = sq.Intersection(seg);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_TRUE(result->AlmostEquals(g::Point3D(0.5, 0.5, 0)));
+}
+
+TEST_F(Polygon3DTest, Intersection_Segment_TooShort) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto seg = g::LineSegment3D::Make(g::Point3D(0.5, 0.5, 0.5), g::Point3D(0.5, 0.5, 1));
+  EXPECT_FALSE(sq.Intersection(seg).has_value());
+}
+
+TEST_F(Polygon3DTest, Intersection_Segment_MissesOutside) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  auto seg = g::LineSegment3D::Make(g::Point3D(2, 0.5, -1), g::Point3D(2, 0.5, 1));
+  EXPECT_FALSE(sq.Intersection(seg).has_value());
+}
+
+TEST_F(Polygon3DTest, Intersects_Segment_True) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_TRUE(sq.Intersects(g::LineSegment3D::Make(g::Point3D(0.5, 0.5, -1), g::Point3D(0.5, 0.5, 1))));
+}
+
+TEST_F(Polygon3DTest, Intersects_Segment_False) {
+  auto sq = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
+  EXPECT_FALSE(sq.Intersects(g::LineSegment3D::Make(g::Point3D(0.5, 0.5, 0.5), g::Point3D(0.5, 0.5, 1))));
+}
+
+TEST_F(Polygon3DTest, Intersection_Line_NonXYPlane) {
+  // YZ square at x=0; normal = +X. Line along X passes through center (0, 0.5, 0.5).
+  auto yz = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(0,1,0), g::Point3D(0,1,1), g::Point3D(0,0,1)});
+  auto line = g::Line3D::Make(g::Point3D(-1, 0.5, 0.5), g::Point3D(1, 0.5, 0.5));
+  auto result = yz.Intersection(line);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_TRUE(result->AlmostEquals(g::Point3D(0, 0.5, 0.5)));
 }
 
 }  // namespace geompp_tests

@@ -1,10 +1,19 @@
 #include "polyline3d.hpp"
 
+#include "calc_utils2d.hpp"
+#include "calc_utils3d.hpp"
+#include "line2d.hpp"
 #include "line3d.hpp"
+#include "line_segment2d.hpp"
 #include "line_segment3d.hpp"
+#include "plane.hpp"
+#include "point2d.hpp"
 #include "point3d.hpp"
+#include "polygon3d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
+#include "vector2d.hpp"
+#include "vector3d.hpp"
 
 #include "geompp_log.hpp"
 
@@ -13,13 +22,10 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
-#include <type_traits>
 
 namespace geompp {
 
 #pragma region Constructors
-
-Polyline3D::Polyline3D(std::vector<Point3D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
 
 Polyline3D Polyline3D::Make(std::vector<Point3D> const& points) {
   auto unique_points = remove_collinear(points);
@@ -43,8 +49,6 @@ Polyline3D& Polyline3D::operator=(Polyline3D const& other) {
   }
   return *this;
 }
-
-SegmentRange3D Polyline3D::ToSegments() const { return SegmentRange3D(KNOTS); }
 
 bool Polyline3D::AlmostEquals(Polyline3D const& other, double epsilon) const {
   if (compare(LENGTH, other.LENGTH, epsilon) != 0) {
@@ -176,8 +180,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Line3D const& line) const {
   for (auto const& seg : ToSegments()) {
     auto inter = line.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-      intersections.push_back(std::get<Point3D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -198,8 +202,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Ray3D const& ray) const {
   for (auto const& seg : ToSegments()) {
     auto inter = ray.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-      intersections.push_back(std::get<Point3D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -220,8 +224,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(LineSegment3D const& segment) con
   for (auto const& seg : ToSegments()) {
     auto inter = segment.Intersection(seg);
 
-    if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-      intersections.push_back(std::get<Point3D>(*inter));
+    if (inter.has_value()) {
+      intersections.push_back(*inter);
     }
   }
 
@@ -243,8 +247,8 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other) const {
     for (auto const& other_seg : other.ToSegments()) {
       auto inter = seg.Intersection(other_seg);
 
-      if (inter.has_value() && std::holds_alternative<Point3D>(*inter)) {
-        intersections.push_back(std::get<Point3D>(*inter));
+      if (inter.has_value()) {
+        intersections.push_back(*inter);
       }
     }
   }
@@ -258,6 +262,110 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other) const {
   }
 
   return intersections;
+}
+
+bool Polyline3D::IsPlanar() const {
+  return are_coplanar(KNOTS);
+}
+
+bool Polyline3D::IsSimple() const {
+  if (!IsPlanar()) {
+    throw std::logic_error("Polyline3D::IsSimple — polyline is not planar");
+  }
+
+  // project onto the best-fit plane and check for 2D self-intersections
+  auto no_col = remove_collinear(KNOTS);
+  Vector3D calc_normal = (no_col[1] - no_col[0]).Cross(no_col[2] - no_col[0]);
+  Axis dax = calc_normal.DominantAxis();
+
+  auto to2d = [dax](Point3D const& p) -> Point2D {
+    if (dax == Axis::X) { return Point2D(p.y(), p.z()); }
+    if (dax == Axis::Y) { return Point2D(p.z(), p.x()); }
+    return Point2D(p.x(), p.y());
+  };
+
+  int n = static_cast<int>(KNOTS.size());
+  std::vector<LineSegment2D> segs;
+  segs.reserve(n - 1);
+  for (int i = 0; i < n - 1; ++i) {
+    segs.push_back(LineSegment2D::Make(to2d(KNOTS[i]), to2d(KNOTS[i + 1])));
+  }
+
+  return !detail::has_intersections_impl(segs);
+}
+
+bool Polyline3D::IsConvex() const {
+  if (!IsPlanar()) {
+    throw std::logic_error("Polyline3D::IsConvex — polyline is not planar");
+  }
+
+  int n = static_cast<int>(KNOTS.size());
+  if (n < 3) {
+    return false;
+  }
+
+  // project onto 2D using the dominant normal axis, then check all cross products have the same sign
+  auto no_col = remove_collinear(KNOTS);
+  if (no_col.size() < 3) {
+    return false;
+  }
+  Vector3D calc_normal = (no_col[1] - no_col[0]).Cross(no_col[2] - no_col[0]);
+  Axis dax = calc_normal.DominantAxis();
+
+  auto to2d = [dax](Point3D const& p) -> Point2D {
+    if (dax == Axis::X) { return Point2D(p.y(), p.z()); }
+    if (dax == Axis::Y) { return Point2D(p.z(), p.x()); }
+    return Point2D(p.x(), p.y());
+  };
+
+  bool seen_positive = false;
+  bool seen_negative = false;
+  for (int i = 0; i < n; ++i) {
+    Point2D v0 = to2d(KNOTS[i]);
+    Point2D v1 = to2d(KNOTS[(i + 1) % n]);
+    Point2D v2 = to2d(KNOTS[(i + 2) % n]);
+    Vector2D e1 = v1 - v0;
+    Vector2D e2 = v2 - v1;
+    double cross = e1.Cross(e2);
+    auto ord = compare(cross, 0.0);
+    if (ord == std::partial_ordering::equivalent) {
+      continue;  // collinear edge — neutral
+    }
+    if (ord > 0) {
+      seen_positive = true;
+    } else {
+      seen_negative = true;
+    }
+    if (seen_positive && seen_negative) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Polyline3D Polyline3D::ConvexHull() const {
+  if (static_cast<int>(KNOTS.size()) < 3) {
+    throw std::runtime_error("Polyline3D::ConvexHull — fewer than 3 points");
+  }
+
+  if (!IsPlanar()) {
+    throw std::logic_error("Polyline3D::ConvexHull — polyline is not planar");
+  }
+
+  auto hull_pts = convex_hull(KNOTS);
+  return Make(hull_pts);
+}
+
+Polygon3D Polyline3D::ToPolygon() const {
+  if (static_cast<int>(KNOTS.size()) < 3) {
+    throw std::runtime_error("Polyline3D::ToPolygon — fewer than 3 vertices");
+  }
+
+  if (!IsPlanar()) {
+    throw std::logic_error("Polyline3D::ToPolygon — polyline is not planar");
+  }
+
+  return Polygon3D::Make(KNOTS);
 }
 
 #pragma endregion

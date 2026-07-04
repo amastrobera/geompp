@@ -30,10 +30,6 @@ Line2D Line2D::Make(Point2D const& p0, Vector2D const& dir) {
   return {p0, dir};
 }
 
-Line2D::Line2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1), DIR((p1 - p0).Normalize()) {}
-
-Line2D::Line2D(Point2D const& orig, Vector2D const& dir) : P0(orig), DIR(dir.Normalize()), P1(orig + dir) {}
-
 Line2D& Line2D::operator=(Line2D const& other) {
   if (this != &other) {
     P0 = other.P0;
@@ -92,7 +88,7 @@ bool Line2D::Intersects(Ray2D const& ray) const { return ray.Intersects(*this); 
 
 bool Line2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
-Line2D::ReturnSet Line2D::Intersection(Line2D const& other, double& sc, double& tc) const {
+std::optional<Point2D>Line2D::Intersection(Line2D const& other, double& sc, double& tc) const {
   try {
     // 2D intersection algorithm based on the perp-product
     //   Given
@@ -132,14 +128,14 @@ Line2D::ReturnSet Line2D::Intersection(Line2D const& other, double& sc, double& 
   return std::nullopt;
 }
 
-Line2D::ReturnSet Line2D::Intersection(Line2D const& other) const {
+std::optional<Point2D>Line2D::Intersection(Line2D const& other) const {
   double sc, tc;
   return Intersection(other, sc, tc);
 }
 
-Line2D::ReturnSet Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }
+std::optional<Point2D>Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }
 
-Line2D::ReturnSet Line2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
+std::optional<Point2D>Line2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 

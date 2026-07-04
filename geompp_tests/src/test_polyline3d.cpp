@@ -3,6 +3,7 @@
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
 #include "point3d.hpp"
+#include "polygon3d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
@@ -115,7 +116,9 @@ TEST_F(Polyline3DTest, DistanceTo) {
   auto poly = g::Polyline3D::Make(pts);
 
   // on knots → 0
-  for (auto const& p : pts) ASSERT_EQ(0, g::round(poly.DistanceTo(p)));
+  for (auto const& p : pts) {
+    ASSERT_EQ(0, g::round(poly.DistanceTo(p)));
+  }
 
   // midpoints → 0
   for (std::size_t i = 0; i < pts.size() - 1; ++i) {
@@ -319,6 +322,107 @@ TEST_F(Polyline3DTest, TestFromFile) {
 
   auto p = g::Polyline3D::FromFile(path);
   GEOMPP_LOG(INFO) << "from file = " << p.ToWkt();
+}
+
+// ---- IsPlanar ---------------------------------------------------------------
+
+TEST_F(Polyline3DTest, IsPlanar_XYPlane_True) {
+  // All four knots lie in the z=0 plane
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0), g::Point3D(0, 2, 0)});
+  EXPECT_TRUE(poly.IsPlanar());
+}
+
+TEST_F(Polyline3DTest, IsPlanar_NonPlanar_False) {
+  // Helix-like path — 4th point is out of the plane defined by the first three
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 1, 2)});
+  EXPECT_FALSE(poly.IsPlanar());
+}
+
+TEST_F(Polyline3DTest, IsPlanar_Collinear_True) {
+  // Collinear points are a degenerate (but valid) planar case
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(3, 0, 0)});
+  EXPECT_TRUE(poly.IsPlanar());
+}
+
+// ---- IsSimple ---------------------------------------------------------------
+
+TEST_F(Polyline3DTest, IsSimple_PlanarNoSelfIntersect_True) {
+  // A simple L-shape in XY — no crossings
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0), g::Point3D(0, 2, 0)});
+  EXPECT_TRUE(poly.IsSimple());
+}
+
+TEST_F(Polyline3DTest, IsSimple_PlanarSelfIntersecting_False) {
+  // Figure-8: (0,0)→(2,2)→(2,0)→(0,2) — the diagonal segments cross at (1,1)
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 2, 0), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0)});
+  EXPECT_FALSE(poly.IsSimple());
+}
+
+TEST_F(Polyline3DTest, IsSimple_NonPlanar_Throws) {
+  // IsSimple throws for non-planar polylines (only planar case is supported)
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 1, 2)});
+  EXPECT_THROW(poly.IsSimple(), std::logic_error);
+}
+
+// ---- IsConvex ---------------------------------------------------------------
+
+TEST_F(Polyline3DTest, IsConvex_PlanarConvex_True) {
+  // Square outline (open) in XY — all turns are left turns
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0), g::Point3D(0, 2, 0)});
+  EXPECT_TRUE(poly.IsConvex());
+}
+
+TEST_F(Polyline3DTest, IsConvex_PlanarConcave_False) {
+  // Arrow/dent shape in XY — has a right turn at (2,2,0)
+  auto poly = g::Polyline3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+      g::Point3D(2, 2, 0), g::Point3D(0, 4, 0)});
+  EXPECT_FALSE(poly.IsConvex());
+}
+
+TEST_F(Polyline3DTest, IsConvex_NotPlanar_Throws) {
+  // Non-planar polylines cannot be tested for convexity
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 1, 2)});
+  EXPECT_THROW(poly.IsConvex(), std::logic_error);
+}
+
+// ---- ConvexHull -------------------------------------------------------------
+
+TEST_F(Polyline3DTest, ConvexHull_PlanarPolyline_ReturnsPolyline) {
+  // A planar convex square — its hull is itself (or a rotation of it)
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0), g::Point3D(0, 2, 0)});
+  auto hull = poly.ConvexHull();
+  EXPECT_GE(hull.Size(), 3);
+}
+
+TEST_F(Polyline3DTest, ConvexHull_NotPlanar_Throws) {
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 1, 2)});
+  EXPECT_THROW(poly.ConvexHull(), std::logic_error);
+}
+
+TEST_F(Polyline3DTest, ConvexHull_ThenToPolygon_ValidPolygon) {
+  // Hull of a concave planar polyline, then close it into a polygon
+  auto poly = g::Polyline3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+      g::Point3D(2, 2, 0), g::Point3D(0, 4, 0)});
+  auto hull = poly.ConvexHull();
+  EXPECT_GE(hull.Size(), 3);
+  auto polygon = hull.ToPolygon();
+  EXPECT_GE(polygon.Size(), 3);
+}
+
+// ---- ToPolygon --------------------------------------------------------------
+
+TEST_F(Polyline3DTest, ToPolygon_PlanarPolyline_Valid) {
+  // A planar square polyline closes into a valid Polygon3D
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0), g::Point3D(0, 2, 0)});
+  auto polygon = poly.ToPolygon();
+  EXPECT_EQ(4, polygon.Size());
+}
+
+TEST_F(Polyline3DTest, ToPolygon_NotPlanar_Throws) {
+  auto poly = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 1), g::Point3D(0, 1, 2)});
+  EXPECT_THROW(poly.ToPolygon(), std::logic_error);
 }
 
 }  // namespace geompp_tests

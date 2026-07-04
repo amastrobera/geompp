@@ -79,8 +79,7 @@ TEST_F(Ray2DTest, Intersection) {
   {
     auto inter = r1.Intersection(r2);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D::Zero(), *inter);
   }
 
   ASSERT_FALSE(r1.Intersects(r3));
@@ -92,16 +91,14 @@ TEST_F(Ray2DTest, Intersection) {
   {
     auto inter = r2.Intersection(r3);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(-0.5, -0.5), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(-0.5, -0.5), *inter);
   }
 
   ASSERT_TRUE(r2.Intersects(r4));
   {
     auto inter = r2.Intersection(r4);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(1, 1), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(1, 1), *inter);
   }
 }
 
@@ -117,24 +114,21 @@ TEST_F(Ray2DTest, IntersectionWLine) {
   {
     auto inter = r1.Intersection(x);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D::Zero(), *inter);
   }
 
   ASSERT_TRUE(r1.Intersects(y));
   {
     auto inter = r1.Intersection(y);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D::Zero(), *inter);
   }
 
   ASSERT_TRUE(r2.Intersects(x));
   {
     auto inter = r2.Intersection(x);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(2, 0), std::get<g::Point2D>(*inter));
+    EXPECT_EQ(g::Point2D(2, 0), *inter);
   }
 
   ASSERT_FALSE(r2.Intersects(y));

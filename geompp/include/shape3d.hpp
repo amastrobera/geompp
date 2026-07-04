@@ -1,7 +1,5 @@
 #pragma once
 
-#include "constants.hpp"
-
 #include <variant>
 
 namespace geompp {

@@ -24,8 +24,8 @@ public:
     virtual System::String^ ToString() override;
 
 internal:
-    IntersectionEvent2D(geompp::IntersectionEvent2D* native);
-    geompp::IntersectionEvent2D* _native;
+    IntersectionEvent2D(geompp::detail::IntersectionEvent2D* native);
+    geompp::detail::IntersectionEvent2D* _native;
 };
 
 }  // namespace GeomPP

@@ -90,23 +90,37 @@ bool Polygon2D::Contains(Point2D^ point) {
     return _native->Contains(*point->_native);
 }
 
-bool Polygon2D::IsOnBoundary(Point2D^ point) {
-    return _native->IsOnBoundary(*point->_native);
+bool Polygon2D::IsOnPerimeter(Point2D^ point) {
+    return _native->IsOnPerimeter(*point->_native);
 }
 
 bool Polygon2D::IsSimple() {
     return _native->IsSimple();
 }
 
+bool Polygon2D::IsConvex() {
+    return _native->IsConvex();
+}
+
 Polygon2D^ Polygon2D::ConvexHull() {
     return gcnew Polygon2D(new geompp::Polygon2D(_native->ConvexHull()));
+}
+
+array<Polygon2D^>^ Polygon2D::Simplify() {
+    auto native = _native->Simplify();
+    auto arr = gcnew array<Polygon2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Polygon2D(new geompp::Polygon2D(native[i]));
+    }
+    return arr;
 }
 
 array<Point2D^>^ Polygon2D::ToPoints() {
     auto native = _native->ToPoints();
     auto arr = gcnew array<Point2D^>(static_cast<int>(native.size()));
-    for (int i = 0; i < static_cast<int>(native.size()); ++i)
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Point2D(new geompp::Point2D(native[i]));
+    }
     return arr;
 }
 
@@ -144,22 +158,28 @@ bool Polygon2D::Intersects(LineSegment2D^ segment) {
 
 // ── Intersection ──────────────────────────────────────────────────────────────
 
-Point2D^ Polygon2D::Intersection(Line2D^ line) {
-    auto result = _native->Intersection(*line->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+static array<LineSegment2D^>^ segs_to_managed(std::optional<std::vector<geompp::LineSegment2D>> const& result) {
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    auto const& native_segs = result.value();
+    auto arr = gcnew array<LineSegment2D^>(static_cast<int>(native_segs.size()));
+    for (int i = 0; i < static_cast<int>(native_segs.size()); ++i) {
+        arr[i] = gcnew LineSegment2D(new geompp::LineSegment2D(native_segs[i]));
+    }
+    return arr;
 }
 
-Point2D^ Polygon2D::Intersection(Ray2D^ ray) {
-    auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+System::Object^ Polygon2D::Intersection(Line2D^ line) {
+    return segs_to_managed(_native->Intersection(*line->_native));
 }
 
-Point2D^ Polygon2D::Intersection(LineSegment2D^ segment) {
-    auto result = _native->Intersection(*segment->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(result.value())));
+System::Object^ Polygon2D::Intersection(Ray2D^ ray) {
+    return segs_to_managed(_native->Intersection(*ray->_native));
+}
+
+System::Object^ Polygon2D::Intersection(LineSegment2D^ segment) {
+    return segs_to_managed(_native->Intersection(*segment->_native));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

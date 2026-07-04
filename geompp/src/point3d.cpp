@@ -13,12 +13,6 @@
 
 namespace geompp {
 
-Point3D::Point3D(double x, double y, double z) : X(x), Y(y), Z(z) {}
-
-Point3D::Point3D(Point3D const& p) : X(p.X), Y(p.Y), Z(p.Z) {}
-
-Point3D::Point3D(Vector3D const& v) : X(v.x()), Y(v.y()), Z(v.z()) {}
-
 bool Point3D::AlmostEquals(Point3D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
 }
@@ -180,7 +174,8 @@ std::vector<Point3D> convex_hull(std::vector<Point3D> const& points, std::option
     return points;
   }
 
-  auto cv_indices = convex_hull_indices(points, normal);
+  // dispatch: if a normal is provided, assume coplanar; otherwise use PCA to approximate the plane
+  auto cv_indices = normal.has_value() ? detail::convex_hull_indices(points, normal.value()) : detail::convex_hull_indices(points);
 
   std::vector<Point3D> cv;
   cv.reserve(cv_indices.size());

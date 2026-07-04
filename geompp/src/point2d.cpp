@@ -13,12 +13,6 @@
 
 namespace geompp {
 
-Point2D::Point2D(double x, double y) : X(x), Y(y) {}
-
-Point2D::Point2D(Point2D const& p) : X(p.X), Y(p.Y) {}
-
-Point2D::Point2D(Vector2D const& v) : X(v.x()), Y(v.y()) {}
-
 bool Point2D::AlmostEquals(Point2D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0;
 }
@@ -387,7 +381,7 @@ std::vector<Point2D> convex_hull(std::vector<Point2D> const& points) {
     return points;
   }
 
-  auto cv_indices = convex_hull_indices(points);
+  auto cv_indices = detail::convex_hull_indices(points);
 
   std::vector<Point2D> cv;
   cv.reserve(cv_indices.size());

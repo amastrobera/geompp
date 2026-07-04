@@ -1,0 +1,5 @@
+C:\Users\angel\development\geompp\geompp_csharp\x64\Debug_Net9\Ijwhost.dll
+C:\Users\angel\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.deps.json
+C:\Users\angel\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.runtimeconfig.json
+C:\Users\angel\development\geompp\geompp_csharp\GeomPP_Net9\x64\Debug\GeomPP_Net9.sourcelink.json
+C:\Users\angel\development\geompp\geompp_csharp\GeomPP_Net9\x64\Debug\GeomPP_Net9.genruntimeconfig.cache

@@ -25,7 +25,7 @@ class Triangle2D {
   Triangle2D(Triangle2D&&) = default;
   ~Triangle2D() = default;
 
-  inline std::tuple<Point2D, Point2D, Point2D> const Vertices() const { return {P0, P1, P2}; }
+  std::tuple<Point2D, Point2D, Point2D> const Vertices() const;
 
   bool AlmostEquals(Triangle2D const& other, double epsilon = DOUBLE_EPSILON) const;
   Point2D Centroid() const;
@@ -128,6 +128,13 @@ class Triangle2D {
 bool operator==(Triangle2D const& lhs, Triangle2D const& rhs);
 
 std::ostream& operator<<(std::ostream& os, Triangle2D const& g);
+
+#pragma endregion
+
+#pragma region Inlined Functions
+
+inline std::tuple<Point2D, Point2D, Point2D> const Triangle2D::Vertices() const { return {P0, P1, P2}; }
+inline Triangle2D::Triangle2D(Point2D const& p0, Point2D const& p1, Point2D const& p2) : P0(p0), P1(p1), P2(p2) {}
 
 #pragma endregion
 

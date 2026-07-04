@@ -1,6 +1,5 @@
 #include "ray2d.hpp"
 
-#include "constants.hpp"
 #include "geompp_log.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
@@ -20,8 +19,6 @@ Ray2D Ray2D::Make(Point2D const& p0, Vector2D const& dir) {
   }
   return {p0, dir};
 }
-
-Ray2D::Ray2D(Point2D const& orig, Vector2D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
 Ray2D& Ray2D::operator=(Ray2D const& other) {
   if (this != &other) {
@@ -78,7 +75,7 @@ bool Ray2D::Intersects(Ray2D const& other) const { return Intersection(other).ha
 
 bool Ray2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
-Ray2D::ReturnSet Ray2D::Intersection(Line2D const& line) const {
+std::optional<Point2D>Ray2D::Intersection(Line2D const& line) const {
   double sc, tc;
   auto Pc = ToLine().Intersection(line, sc, tc);
 
@@ -90,7 +87,7 @@ Ray2D::ReturnSet Ray2D::Intersection(Line2D const& line) const {
   return Pc;
 }
 
-Ray2D::ReturnSet Ray2D::Intersection(Ray2D const& other) const {
+std::optional<Point2D>Ray2D::Intersection(Ray2D const& other) const {
   double sc, tc;
   auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
 
@@ -102,7 +99,7 @@ Ray2D::ReturnSet Ray2D::Intersection(Ray2D const& other) const {
   return Pc;
 }
 
-Ray2D::ReturnSet Ray2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
+std::optional<Point2D>Ray2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
 
 #pragma endregion
 

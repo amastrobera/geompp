@@ -11,6 +11,7 @@ ref class Point3D;
 ref class Line3D;
 ref class Ray3D;
 ref class LineSegment3D;
+ref class Polygon3D;
 
 public ref class Polyline3D {
 public:
@@ -28,6 +29,11 @@ public:
 
     array<LineSegment3D^>^ ToSegments();
     double   Length();
+    bool     IsPlanar();
+    bool     IsSimple();
+    bool     IsConvex();
+    Polyline3D^ ConvexHull();
+    Polygon3D^  ToPolygon();
     double   DistanceTo(Point3D^ point);
     double   Location(Point3D^ point);
     Point3D^ Interpolate(double pct);

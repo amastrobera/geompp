@@ -98,13 +98,17 @@ System::Tuple<Vector3D^, Vector3D^>^ Triangle3D::ToAxis() {
 
 Point3D^ Triangle3D::Interpolate(double s, double t) {
     auto result = _native->Interpolate(s, t);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 System::Tuple<double, double>^ Triangle3D::Location(Point3D^ point) {
     auto result = _native->Location(*point->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto [s, t] = result.value();
     return gcnew System::Tuple<double, double>(s, t);
 }
@@ -157,76 +161,106 @@ bool Triangle3D::Intersects(Triangle3D^ other) {
 
 System::Object^ Triangle3D::Intersection(Line3D^ line) {
     auto result = _native->Intersection(*line->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val))
+    if (std::holds_alternative<geompp::Point3D>(val)) {
         return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
-    if (std::holds_alternative<geompp::LineSegment3D>(val))
+    }
+    if (std::holds_alternative<geompp::LineSegment3D>(val)) {
         return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
-    if (std::holds_alternative<geompp::Triangle3D>(val))
+    }
+    if (std::holds_alternative<geompp::Triangle3D>(val)) {
         return gcnew Triangle3D(new geompp::Triangle3D(std::get<geompp::Triangle3D>(val)));
-    if (std::holds_alternative<geompp::Polygon3D>(val))
+    }
+    if (std::holds_alternative<geompp::Polygon3D>(val)) {
         return gcnew Polygon3D(new geompp::Polygon3D(std::get<geompp::Polygon3D>(val)));
+    }
     return nullptr;
 }
 
 System::Object^ Triangle3D::Intersection(Ray3D^ ray) {
     auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val))
+    if (std::holds_alternative<geompp::Point3D>(val)) {
         return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
-    if (std::holds_alternative<geompp::LineSegment3D>(val))
+    }
+    if (std::holds_alternative<geompp::LineSegment3D>(val)) {
         return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
-    if (std::holds_alternative<geompp::Triangle3D>(val))
+    }
+    if (std::holds_alternative<geompp::Triangle3D>(val)) {
         return gcnew Triangle3D(new geompp::Triangle3D(std::get<geompp::Triangle3D>(val)));
-    if (std::holds_alternative<geompp::Polygon3D>(val))
+    }
+    if (std::holds_alternative<geompp::Polygon3D>(val)) {
         return gcnew Polygon3D(new geompp::Polygon3D(std::get<geompp::Polygon3D>(val)));
+    }
     return nullptr;
 }
 
 System::Object^ Triangle3D::Intersection(LineSegment3D^ other) {
     auto result = _native->Intersection(*other->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val))
+    if (std::holds_alternative<geompp::Point3D>(val)) {
         return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
-    if (std::holds_alternative<geompp::LineSegment3D>(val))
+    }
+    if (std::holds_alternative<geompp::LineSegment3D>(val)) {
         return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
-    if (std::holds_alternative<geompp::Triangle3D>(val))
+    }
+    if (std::holds_alternative<geompp::Triangle3D>(val)) {
         return gcnew Triangle3D(new geompp::Triangle3D(std::get<geompp::Triangle3D>(val)));
-    if (std::holds_alternative<geompp::Polygon3D>(val))
+    }
+    if (std::holds_alternative<geompp::Polygon3D>(val)) {
         return gcnew Polygon3D(new geompp::Polygon3D(std::get<geompp::Polygon3D>(val)));
+    }
     return nullptr;
 }
 
 System::Object^ Triangle3D::Intersection(Plane^ plane) {
     auto result = _native->Intersection(*plane->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val))
+    if (std::holds_alternative<geompp::Point3D>(val)) {
         return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
-    if (std::holds_alternative<geompp::LineSegment3D>(val))
+    }
+    if (std::holds_alternative<geompp::LineSegment3D>(val)) {
         return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
-    if (std::holds_alternative<geompp::Triangle3D>(val))
+    }
+    if (std::holds_alternative<geompp::Triangle3D>(val)) {
         return gcnew Triangle3D(new geompp::Triangle3D(std::get<geompp::Triangle3D>(val)));
-    if (std::holds_alternative<geompp::Polygon3D>(val))
+    }
+    if (std::holds_alternative<geompp::Polygon3D>(val)) {
         return gcnew Polygon3D(new geompp::Polygon3D(std::get<geompp::Polygon3D>(val)));
+    }
     return nullptr;
 }
 
 System::Object^ Triangle3D::Intersection(Triangle3D^ other) {
     auto result = _native->Intersection(*other->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val))
+    if (std::holds_alternative<geompp::Point3D>(val)) {
         return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
-    if (std::holds_alternative<geompp::LineSegment3D>(val))
+    }
+    if (std::holds_alternative<geompp::LineSegment3D>(val)) {
         return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(val)));
-    if (std::holds_alternative<geompp::Triangle3D>(val))
+    }
+    if (std::holds_alternative<geompp::Triangle3D>(val)) {
         return gcnew Triangle3D(new geompp::Triangle3D(std::get<geompp::Triangle3D>(val)));
-    if (std::holds_alternative<geompp::Polygon3D>(val))
+    }
+    if (std::holds_alternative<geompp::Polygon3D>(val)) {
         return gcnew Polygon3D(new geompp::Polygon3D(std::get<geompp::Polygon3D>(val)));
+    }
     return nullptr;
 }
 

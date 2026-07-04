@@ -1,7 +1,10 @@
 #include "polygon2d.hpp"
 
+#include "line2d.hpp"
 #include "point2d.hpp"
+#include "ray2d.hpp"
 #include "utils.hpp"
+#include "vector2d.hpp"
 
 #include "geompp_log.hpp"
 
@@ -310,46 +313,46 @@ TEST_F(Polygon2DTest, Contains_OnBoundary) {
   EXPECT_TRUE(poly.Contains(g::Point2D(1,   2)));  // hole left edge
 }
 
-TEST_F(Polygon2DTest, IsOnBoundary_True) {
+TEST_F(Polygon2DTest, IsOnPerimeter_True) {
   auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
 
   // all four vertices
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0,   0)));
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(1,   0)));
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(1,   1)));
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0,   1)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(0,   0)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(1,   0)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(1,   1)));
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(0,   1)));
 
   // edge midpoints
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0.5, 0)));    // bottom
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(1,   0.5)));  // right
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0.5, 1)));    // top
-  EXPECT_TRUE(sq.IsOnBoundary(g::Point2D(0,   0.5)));  // left
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(0.5, 0)));    // bottom
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(1,   0.5)));  // right
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(0.5, 1)));    // top
+  EXPECT_TRUE(sq.IsOnPerimeter(g::Point2D(0,   0.5)));  // left
 
   // hole boundary: both outer and hole edges count
   auto outer = std::vector<g::Point2D>{{0,0}, {4,0}, {4,4}, {0,4}};
   auto hole  = std::vector<g::Point2D>{{1,1}, {1,3}, {3,3}, {3,1}};
   auto poly  = g::Polygon2D::Make(outer, {hole});
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(2, 0)));  // outer bottom
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(4, 2)));  // outer right
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(2, 1)));  // hole bottom
-  EXPECT_TRUE(poly.IsOnBoundary(g::Point2D(1, 2)));  // hole left
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point2D(2, 0)));  // outer bottom
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point2D(4, 2)));  // outer right
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point2D(2, 1)));  // hole bottom
+  EXPECT_TRUE(poly.IsOnPerimeter(g::Point2D(1, 2)));  // hole left
 }
 
-TEST_F(Polygon2DTest, IsOnBoundary_False) {
+TEST_F(Polygon2DTest, IsOnPerimeter_False) {
   auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
 
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(0.5, 0.5)));   // interior
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(-0.1, 0.5)));  // outside left
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(1.1,  0.5)));  // outside right
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(0.5, -0.1)));  // outside below
-  EXPECT_FALSE(sq.IsOnBoundary(g::Point2D(0.5,  1.1)));  // outside above
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point2D(0.5, 0.5)));   // interior
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point2D(-0.1, 0.5)));  // outside left
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point2D(1.1,  0.5)));  // outside right
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point2D(0.5, -0.1)));  // outside below
+  EXPECT_FALSE(sq.IsOnPerimeter(g::Point2D(0.5,  1.1)));  // outside above
 
   // interior of polygon with hole is not boundary
   auto outer = std::vector<g::Point2D>{{0,0}, {4,0}, {4,4}, {0,4}};
   auto hole  = std::vector<g::Point2D>{{1,1}, {1,3}, {3,3}, {3,1}};
   auto poly  = g::Polygon2D::Make(outer, {hole});
-  EXPECT_FALSE(poly.IsOnBoundary(g::Point2D(0.5, 0.5)));  // interior strip
-  EXPECT_FALSE(poly.IsOnBoundary(g::Point2D(2,   2)));    // inside hole
+  EXPECT_FALSE(poly.IsOnPerimeter(g::Point2D(0.5, 0.5)));  // interior strip
+  EXPECT_FALSE(poly.IsOnPerimeter(g::Point2D(2,   2)));    // inside hole
 }
 
 TEST_F(Polygon2DTest, ToSegments) {
@@ -393,6 +396,199 @@ TEST_F(Polygon2DTest, IsSimple_SelfIntersectingIsNotSimple) {
   // CCW (positive signed area) but the (4,0)->(1,3) and (3,3)->(0,0) edges cross at (2,2)
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
   EXPECT_FALSE(p.IsSimple());
+}
+
+// ---- IsConvex ---------------------------------------------------------------
+
+TEST_F(Polygon2DTest, IsConvex_Square_True) {
+  // A unit square is convex
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon2DTest, IsConvex_Triangle_True) {
+  // A triangle is always convex
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)});
+  EXPECT_TRUE(p.IsConvex());
+}
+
+TEST_F(Polygon2DTest, IsConvex_ConcavePolygon_False) {
+  // L-shaped / arrow polygon — has a dent at (2,2), making it concave
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 2), g::Point2D(0, 4)});
+  EXPECT_FALSE(p.IsConvex());
+}
+
+TEST_F(Polygon2DTest, IsConvex_WithHole_False) {
+  // Any polygon with holes is non-convex by definition
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 3), g::Point2D(0, 3)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 2), g::Point2D(2, 2), g::Point2D(2, 1)};  // CW
+  auto p = g::Polygon2D::Make(outer, {hole});
+  EXPECT_FALSE(p.IsConvex());
+}
+
+// ---- Simplify ---------------------------------------------------------------
+
+TEST_F(Polygon2DTest, Simplify_AlreadySimple_ReturnsSelf) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto result = p.Simplify();
+  ASSERT_EQ(1u, result.size());
+  EXPECT_TRUE(p.AlmostEquals(result[0]));
+}
+
+TEST_F(Polygon2DTest, Simplify_BowtieYieldsTwoSimpleTriangles) {
+  // A(0,0), B(4,0), C(1,3), D(3,3): edges B→C and D→A cross at X(2,2).
+  // Simplify() should split this into the lower triangle (area=4) and upper triangle (area=1).
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+  ASSERT_FALSE(p.IsSimple());
+
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+
+  // Both results must be simple
+  EXPECT_TRUE(result[0].IsSimple());
+  EXPECT_TRUE(result[1].IsSimple());
+
+  // Areas: 4.0 and 1.0 (order may vary)
+  double a0 = result[0].Area(), a1 = result[1].Area();
+  bool areas_match = (std::abs(a0 - 4.0) < 0.01 && std::abs(a1 - 1.0) < 0.01) ||
+                     (std::abs(a0 - 1.0) < 0.01 && std::abs(a1 - 4.0) < 0.01);
+  EXPECT_TRUE(areas_match) << "areas: " << a0 << ", " << a1;
+}
+
+TEST_F(Polygon2DTest, Simplify_BowtieTrianglesAreSimple) {
+  // Both triangles returned by Simplify() on the bowtie should individually satisfy IsSimple()
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+  for (auto const& poly : p.Simplify()) {
+    EXPECT_TRUE(poly.IsSimple()) << "A result polygon is not simple: " << poly.ToWkt();
+  }
+}
+
+TEST_F(Polygon2DTest, Simplify_BowtieAreasMatch) {
+  // The two triangles from the bowtie should have areas 4.0 and 1.0 (sum = original's simple area parts)
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+  double total = result[0].Area() + result[1].Area();
+  EXPECT_NEAR(5.0, total, 0.01);
+}
+
+TEST_F(Polygon2DTest, Simplify_WideBowtie_AllResultsAreSimple) {
+  // A wider bowtie: (0,0)→(10,0)→(2,6)→(8,6) — crossing at (5,3).
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(2, 6), g::Point2D(8, 6)});
+  ASSERT_FALSE(p.IsSimple());
+  auto result = p.Simplify();
+  ASSERT_EQ(2u, result.size());
+  for (auto const& poly : result) {
+    EXPECT_TRUE(poly.IsSimple()) << "not simple: " << poly.ToWkt();
+  }
+  double total = result[0].Area() + result[1].Area();
+  EXPECT_NEAR(25.5, total, 0.1);
+}
+
+// ---- Intersection (Line2D) --------------------------------------------------
+
+TEST_F(Polygon2DTest, Intersection_Line_PassesThrough_ReturnsSegment) {
+  // Unit square; horizontal line y=0.5 passes through, chord from (0,0.5) to (1,0.5).
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto line = g::Line2D::Make(g::Point2D(0, 0.5), g::Point2D(1, 0.5));
+  auto result = sq.Intersection(line);
+  ASSERT_TRUE(result.has_value());
+  auto const& segs = result.value();
+  ASSERT_EQ(1u, segs.size());
+  EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0, 0.5)));
+  EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(1, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(1, 0.5)));
+}
+
+TEST_F(Polygon2DTest, Intersection_Line_Misses_ReturnsNullopt) {
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto line = g::Line2D::Make(g::Point2D(5, 0), g::Point2D(5, 1));  // x=5, entirely right of square
+  EXPECT_FALSE(sq.Intersection(line).has_value());
+}
+
+TEST_F(Polygon2DTest, Intersects_Line_True_And_False) {
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  EXPECT_TRUE(sq.Intersects(g::Line2D::Make(g::Point2D(0.5, -1), g::Point2D(0.5, 2))));
+  EXPECT_FALSE(sq.Intersects(g::Line2D::Make(g::Point2D(5, 0), g::Point2D(5, 1))));
+}
+
+// ---- Intersection (Ray2D) ---------------------------------------------------
+
+TEST_F(Polygon2DTest, Intersection_Ray_Hits_ReturnsSegment) {
+  // Ray from (-1, 0.5) pointing right: clips to chord (0,0.5)→(1,0.5).
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto ray = g::Ray2D::Make(g::Point2D(-1, 0.5), g::Vector2D(1, 0));
+  auto result = sq.Intersection(ray);
+  ASSERT_TRUE(result.has_value());
+  auto const& segs = result.value();
+  ASSERT_EQ(1u, segs.size());
+}
+
+TEST_F(Polygon2DTest, Intersection_Ray_PointingAway_ReturnsNullopt) {
+  // Ray origin to the right of square, pointing further right — misses.
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto ray = g::Ray2D::Make(g::Point2D(5, 0.5), g::Vector2D(1, 0));
+  EXPECT_FALSE(sq.Intersection(ray).has_value());
+}
+
+TEST_F(Polygon2DTest, Intersection_Ray_OriginInside_ReturnsClippedSegment) {
+  // Ray origin inside the square at (0.5,0.5), direction right → chord from origin to (1,0.5).
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto ray = g::Ray2D::Make(g::Point2D(0.5, 0.5), g::Vector2D(1, 0));
+  auto result = sq.Intersection(ray);
+  ASSERT_TRUE(result.has_value());
+  auto const& segs = result.value();
+  ASSERT_EQ(1u, segs.size());
+  // One endpoint is the ray origin (0.5,0.5), the other is the exit (1,0.5)
+  bool has_origin = segs[0].First().AlmostEquals(g::Point2D(0.5, 0.5)) ||
+                    segs[0].Last().AlmostEquals(g::Point2D(0.5, 0.5));
+  EXPECT_TRUE(has_origin);
+}
+
+TEST_F(Polygon2DTest, Intersects_Ray_True_And_False) {
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  EXPECT_TRUE(sq.Intersects(g::Ray2D::Make(g::Point2D(-1, 0.5), g::Vector2D(1, 0))));
+  EXPECT_FALSE(sq.Intersects(g::Ray2D::Make(g::Point2D(5, 0.5), g::Vector2D(1, 0))));
+}
+
+// ---- Intersection (LineSegment2D) -------------------------------------------
+
+TEST_F(Polygon2DTest, Intersection_Segment_Pierces_ReturnsSegment) {
+  // Segment from (-0.5, 0.5) to (1.5, 0.5) pierces the unit square.
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto seg = g::LineSegment2D::Make(g::Point2D(-0.5, 0.5), g::Point2D(1.5, 0.5));
+  auto result = sq.Intersection(seg);
+  ASSERT_TRUE(result.has_value());
+  auto const& segs = result.value();
+  ASSERT_EQ(1u, segs.size());
+  EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0, 0.5)));
+  EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(1, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(1, 0.5)));
+}
+
+TEST_F(Polygon2DTest, Intersection_Segment_TooShort_ReturnsNullopt) {
+  // Segment entirely to the left of the square.
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto seg = g::LineSegment2D::Make(g::Point2D(-2, 0.5), g::Point2D(-0.5, 0.5));
+  EXPECT_FALSE(sq.Intersection(seg).has_value());
+}
+
+TEST_F(Polygon2DTest, Intersection_Segment_EntirelyInside_ReturnsEntireSegment) {
+  // Segment fully inside the unit square — both endpoints contained.
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  auto seg = g::LineSegment2D::Make(g::Point2D(0.2, 0.5), g::Point2D(0.8, 0.5));
+  auto result = sq.Intersection(seg);
+  ASSERT_TRUE(result.has_value());
+  auto const& segs = result.value();
+  ASSERT_EQ(1u, segs.size());
+  EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0.2, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0.2, 0.5)));
+  EXPECT_TRUE(segs[0].First().AlmostEquals(g::Point2D(0.8, 0.5)) || segs[0].Last().AlmostEquals(g::Point2D(0.8, 0.5)));
+}
+
+TEST_F(Polygon2DTest, Intersects_Segment_True_And_False) {
+  auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
+  EXPECT_TRUE(sq.Intersects(g::LineSegment2D::Make(g::Point2D(-0.5, 0.5), g::Point2D(1.5, 0.5))));
+  EXPECT_FALSE(sq.Intersects(g::LineSegment2D::Make(g::Point2D(-2, 0.5), g::Point2D(-0.5, 0.5))));
 }
 
 }  // namespace geompp_tests

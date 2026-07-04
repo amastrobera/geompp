@@ -9,7 +9,11 @@ description = "Python bindings for geompp — a C++ 2D/3D geometry library"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.8"
-keywords = ["geometry", "2d", "3d", "math", "computational-geometry", "cad"]
+keywords = [
+    "geometry", "2d", "3d", "spatial", "math", "computational-geometry",
+    "polygon", "polyline", "point-cloud", "convex-hull", "bounding-box",
+    "cpp", "c++", "cad", "gis",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: C++",
@@ -17,6 +21,8 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
 ]
@@ -41,12 +47,13 @@ cmake.build-type = "Release"
 # The Python package directory to include in the wheel
 wheel.packages = ["geompp"]
 
-# Include geompp C++ sources in the source distribution
-sdist.include = [
-    "../geompp/include/**",
-    "../geompp/src/**",
-    "../geompp/CMakeLists.txt",
-]
+# NOTE: The geompp C++ core lives in a sibling directory (../geompp/) in the
+# monorepo. scikit-build-core's sdist.include cannot reach paths above the
+# project root, so the core sources are NOT bundled in the sdist. Instead,
+# CMakeLists.txt detects their absence at configure time and fetches them from
+# GitHub via FetchContent (see the "sdist standalone" section in CMakeLists.txt).
+# To build from the sdist without network access, clone the full monorepo and
+# run `pip install ./geompp_python` instead.
 
 [tool.scikit-build.cmake.define]
 # Silence glog's own tests/examples during build
@@ -56,7 +63,8 @@ BUILD_TESTING = "OFF"
 
 # ─── cibuildwheel (optional, for CI wheel building) ──────────────────────────
 [tool.cibuildwheel]
-build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
+# TODO end of 2026: drop cp38-* and cp39-* (both EOL) to shorten CI
+build = "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
 skip  = "*-win32 *_i686 *-musllinux*"
 
 [tool.cibuildwheel.windows]

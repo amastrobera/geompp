@@ -1,13 +1,17 @@
 #pragma once
 
+#include "concepts.hpp"
 #include "constants.hpp"
 #include "line_segment3d.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
 #include "polyline3d.hpp"
 #include "triangle3d.hpp"
+#include "utils.hpp"
 
 #include <ostream>
+#include <ranges>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -21,18 +25,23 @@ class Triangle3D;
 
 class BBox3D {
  public:
+  /// @brief XYZ Axis Aligned 3D bounding box. Built in O(N) from the min/max x, y, z coordinate of a cloud of points.
+  /// It is ideal and quick for rejecting containment or intersection operations
   BBox3D(Point3D const& min, Point3D const& max);
   BBox3D(LineSegment3D const& s);
   BBox3D(Polyline3D const& s);
   BBox3D(Polygon3D const& s);
   BBox3D(Triangle3D const& s);
+  /// @brief Builds the tight axis-aligned box from any random-access sized range of Point3D-compatible elements.
+  template <PointContainer Points>
+  BBox3D(Points const& points);
 
-  BBox3D(BBox3D const&);
+  BBox3D(BBox3D const&) = default;
   BBox3D(BBox3D&&) = default;
   ~BBox3D() = default;
 
-  inline Point3D min() const { return MIN; }
-  inline Point3D max() const { return MAX; }
+  Point3D min() const;
+  Point3D max() const;
 
   bool AlmostEquals(BBox3D const& other, double epsilon = DOUBLE_EPSILON) const;
   BBox3D& operator=(BBox3D const& other);
@@ -55,5 +64,15 @@ class BBox3D {
 bool operator==(BBox3D const& lhs, BBox3D const& rhs);
 
 #pragma endregion
+
+#pragma region Inlined Functions
+
+inline Point3D BBox3D::min() const { return MIN; }
+inline Point3D BBox3D::max() const { return MAX; }
+inline BBox3D::BBox3D(Point3D const& min, Point3D const& max) : MIN(min), MAX(max) {}
+
+#pragma endregion
+
+extern template BBox3D::BBox3D(std::vector<Point3D> const&);
 
 }  // namespace geompp

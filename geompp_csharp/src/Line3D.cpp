@@ -74,19 +74,25 @@ Point3D^ Line3D::ProjectOnto(Point3D^ point) {
 
 LineSegment3D^ Line3D::Distance(Line3D^ other) {
     auto result = _native->Distance(*other->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
 }
 
 LineSegment3D^ Line3D::Distance(Ray3D^ ray) {
     auto result = _native->Distance(*ray->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
 }
 
 LineSegment3D^ Line3D::Distance(LineSegment3D^ segment) {
     auto result = _native->Distance(*segment->_native);
-    if (!result.has_value()) return nullptr;
+    if (!result.has_value()) {
+        return nullptr;
+    }
     return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
 }
 
@@ -140,20 +146,26 @@ bool Line3D::Intersects(LineSegment3D^ segment) {
 
 Point3D^ Line3D::Intersection(Line3D^ other) {
     auto result = _native->Intersection(*other->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Line3D::Intersection(Ray3D^ ray) {
     auto result = _native->Intersection(*ray->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 Point3D^ Line3D::Intersection(LineSegment3D^ segment) {
     auto result = _native->Intersection(*segment->_native);
-    if (!result.has_value()) return nullptr;
-    return gcnew Point3D(new geompp::Point3D(std::get<geompp::Point3D>(result.value())));
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

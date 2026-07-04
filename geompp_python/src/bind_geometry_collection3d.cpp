@@ -38,9 +38,12 @@ void bind_geometry_collection3d(py::module_& m) {
         .def("__len__", &geompp::GeometryCollection3D::Size)
         .def("__getitem__",
              [](const geompp::GeometryCollection3D& gc, int i) -> py::object {
-                 if (i < 0) i += static_cast<int>(gc.Size());
-                 if (i < 0 || i >= static_cast<int>(gc.Size()))
+                 if (i < 0) {
+                     i += static_cast<int>(gc.Size());
+                 }
+                 if (i < 0 || i >= static_cast<int>(gc.Size())) {
                      throw py::index_error("index out of range");
+                 }
                  return std::visit([](const auto& v) -> py::object { return py::cast(v); },
                                    gc.Get(static_cast<std::size_t>(i)));
              },

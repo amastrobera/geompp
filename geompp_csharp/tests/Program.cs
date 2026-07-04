@@ -1184,6 +1184,35 @@ Test("ConvexHull3D_StarOuterTipsAllOnHull", () => {
   }
 });
 
+Test("ConvexHull3D_NonCoplanar_SmallZJitter_StillFindsHull", () => {
+  var pts = new List<Point3D> {
+    new(0, 0, 0.1), new(4, 0, -0.1), new(4, 4, 0.05), new(0, 4, -0.05),
+    new(2, 2, 0.02) };
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(pts));
+  Eq(4, hull.Count);
+});
+
+Test("ConvexHull3D_NonCoplanar_TiltedPlane_ReturnsTriangle", () => {
+  var pts = new List<Point3D> {
+    new(3, 0, 0), new(0, 3, 0), new(0, 0, 3), new(1, 1, 1) };
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(pts));
+  Eq(3, hull.Count);
+});
+
+Test("ConvexHull3D_NonCoplanar_AllHullPointsPresent", () => {
+  var tips = new List<Point3D> {
+    new(0, 5, 1), new(4, 2, 0.5), new(3, -3, 0), new(-2, -4, 0.5), new(-3, 1, 1) };
+  var pts = new List<Point3D>(tips) { new(0, 0, 0.6) };
+  var hull = new List<Point3D>(GeomUtil.ConvexHull(pts));
+  Eq(5, hull.Count);
+  foreach (var tip in tips) {
+    IsTrue(hull.Exists(h => System.Math.Abs(h.X - tip.X) < 1e-6
+                         && System.Math.Abs(h.Y - tip.Y) < 1e-6
+                         && System.Math.Abs(h.Z - tip.Z) < 1e-6),
+           $"tip ({tip.X},{tip.Y},{tip.Z}) should be on the hull");
+  }
+});
+
 // ── Polygon2D ─────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPolygon2D");
 
@@ -1260,35 +1289,35 @@ Test("Contains_OnBoundary_True", () => {
   IsTrue(poly.Contains(new Point2D(1, 2)), "hole left edge");
 });
 
-Test("IsOnBoundary_OnEdge_True", () => {
+Test("IsOnPerimeter_OnEdge_True", () => {
   var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
-  IsTrue(sq.IsOnBoundary(new Point2D(0,   0)),   "vertex (0,0)");
-  IsTrue(sq.IsOnBoundary(new Point2D(1,   0)),   "vertex (1,0)");
-  IsTrue(sq.IsOnBoundary(new Point2D(1,   1)),   "vertex (1,1)");
-  IsTrue(sq.IsOnBoundary(new Point2D(0,   1)),   "vertex (0,1)");
-  IsTrue(sq.IsOnBoundary(new Point2D(0.5, 0)),   "bottom edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point2D(1,   0.5)), "right edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point2D(0.5, 1)),   "top edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point2D(0,   0.5)), "left edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0,   0)),   "vertex (0,0)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(1,   0)),   "vertex (1,0)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(1,   1)),   "vertex (1,1)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0,   1)),   "vertex (0,1)");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0.5, 0)),   "bottom edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(1,   0.5)), "right edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0.5, 1)),   "top edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point2D(0,   0.5)), "left edge midpoint");
   var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
   var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
   var poly  = Polygon2D.Make(outer, new[] { hole });
-  IsTrue(poly.IsOnBoundary(new Point2D(2, 0)), "outer bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point2D(4, 2)), "outer right edge");
-  IsTrue(poly.IsOnBoundary(new Point2D(2, 1)), "hole bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point2D(1, 2)), "hole left edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(2, 0)), "outer bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(4, 2)), "outer right edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(2, 1)), "hole bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point2D(1, 2)), "hole left edge");
 });
 
-Test("IsOnBoundary_Interior_False", () => {
+Test("IsOnPerimeter_Interior_False", () => {
   var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
-  IsFalse(sq.IsOnBoundary(new Point2D(0.5, 0.5)),  "interior");
-  IsFalse(sq.IsOnBoundary(new Point2D(-0.1, 0.5)), "outside left");
-  IsFalse(sq.IsOnBoundary(new Point2D(1.1,  0.5)), "outside right");
+  IsFalse(sq.IsOnPerimeter(new Point2D(0.5, 0.5)),  "interior");
+  IsFalse(sq.IsOnPerimeter(new Point2D(-0.1, 0.5)), "outside left");
+  IsFalse(sq.IsOnPerimeter(new Point2D(1.1,  0.5)), "outside right");
   var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
   var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
   var poly  = Polygon2D.Make(outer, new[] { hole });
-  IsFalse(poly.IsOnBoundary(new Point2D(0.5, 0.5)), "interior strip");
-  IsFalse(poly.IsOnBoundary(new Point2D(2,   2)),   "inside hole");
+  IsFalse(poly.IsOnPerimeter(new Point2D(0.5, 0.5)), "interior strip");
+  IsFalse(poly.IsOnPerimeter(new Point2D(2,   2)),   "inside hole");
 });
 
 // NOTE: IsSimple() correctness rides on the (currently provisional) sweep-line comparator; these encode the
@@ -1322,6 +1351,91 @@ Test("ToPoints_RoundTrip", () => {
   for (int i = 0; i < pts.Length; ++i) {
     IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after ToPoints round-trip");
   }
+});
+
+Console.WriteLine("\nPolygon2D::Intersection");
+
+// Polygon2D intersects Line2D → chord segment
+Test("Intersection_Line_PassesThrough_ReturnsChord", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var line = Line2D.Make(new Point2D(0, 0.5), new Point2D(1, 0.5));
+  var r = sq.Intersection(line);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[], "expected array<LineSegment2D>");
+  var segs = (LineSegment2D[])r!;
+  Eq(1, segs.Length);
+});
+
+Test("Intersection_Line_Misses_ReturnsNull", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var line = Line2D.Make(new Point2D(5, 0), new Point2D(5, 1));
+  IsNull(sq.Intersection(line));
+});
+
+Test("Intersects_Line_True_And_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Intersects(Line2D.Make(new Point2D(0.5, -1), new Point2D(0.5, 2))));
+  IsFalse(sq.Intersects(Line2D.Make(new Point2D(5, 0), new Point2D(5, 1))));
+});
+
+// Polygon2D intersects Ray2D
+Test("Intersection_Ray_Hits_ReturnsChord", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var ray = Ray2D.Make(new Point2D(-1, 0.5), new Vector2D(1, 0));
+  var r = sq.Intersection(ray);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[], "expected array<LineSegment2D>");
+  var segs = (LineSegment2D[])r!;
+  Eq(1, segs.Length);
+});
+
+Test("Intersection_Ray_PointingAway_ReturnsNull", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsNull(sq.Intersection(Ray2D.Make(new Point2D(5, 0.5), new Vector2D(1, 0))));
+});
+
+Test("Intersection_Ray_OriginInside_ReturnsClipped", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var ray = Ray2D.Make(new Point2D(0.5, 0.5), new Vector2D(1, 0));
+  var r = sq.Intersection(ray);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[]);
+});
+
+Test("Intersects_Ray_True_And_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Intersects(Ray2D.Make(new Point2D(-1, 0.5), new Vector2D(1, 0))));
+  IsFalse(sq.Intersects(Ray2D.Make(new Point2D(5, 0.5), new Vector2D(1, 0))));
+});
+
+// Polygon2D intersects LineSegment2D
+Test("Intersection_Segment_Pierces_ReturnsChord", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var seg = LineSegment2D.Make(new Point2D(-0.5, 0.5), new Point2D(1.5, 0.5));
+  var r = sq.Intersection(seg);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[]);
+  var segs = (LineSegment2D[])r!;
+  Eq(1, segs.Length);
+});
+
+Test("Intersection_Segment_TooShort_ReturnsNull", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsNull(sq.Intersection(LineSegment2D.Make(new Point2D(-2, 0.5), new Point2D(-0.5, 0.5))));
+});
+
+Test("Intersection_Segment_EntirelyInside", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var seg = LineSegment2D.Make(new Point2D(0.2, 0.5), new Point2D(0.8, 0.5));
+  var r = sq.Intersection(seg);
+  NotNull(r);
+  IsTrue(r is LineSegment2D[]);
+});
+
+Test("Intersects_Segment_True_And_False", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.Intersects(LineSegment2D.Make(new Point2D(-0.5, 0.5), new Point2D(1.5, 0.5))));
+  IsFalse(sq.Intersects(LineSegment2D.Make(new Point2D(-2, 0.5), new Point2D(-0.5, 0.5))));
 });
 
 // ── Polygon3D ─────────────────────────────────────────────────────────────────
@@ -1417,35 +1531,35 @@ Test("Contains_OnBoundary_True", () => {
   IsTrue(poly.Contains(new Point3D(2, 1, 0)), "hole bottom edge");
 });
 
-Test("IsOnBoundary_OnEdge_True", () => {
+Test("IsOnPerimeter_OnEdge_True", () => {
   var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
-  IsTrue(sq.IsOnBoundary(new Point3D(0,   0,   0)), "vertex (0,0,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(1,   0,   0)), "vertex (1,0,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(1,   1,   0)), "vertex (1,1,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(0,   1,   0)), "vertex (0,1,0)");
-  IsTrue(sq.IsOnBoundary(new Point3D(0.5, 0,   0)), "bottom edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point3D(1,   0.5, 0)), "right edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point3D(0.5, 1,   0)), "top edge midpoint");
-  IsTrue(sq.IsOnBoundary(new Point3D(0,   0.5, 0)), "left edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0,   0,   0)), "vertex (0,0,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(1,   0,   0)), "vertex (1,0,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(1,   1,   0)), "vertex (1,1,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0,   1,   0)), "vertex (0,1,0)");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0.5, 0,   0)), "bottom edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(1,   0.5, 0)), "right edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0.5, 1,   0)), "top edge midpoint");
+  IsTrue(sq.IsOnPerimeter(new Point3D(0,   0.5, 0)), "left edge midpoint");
   var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
   var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
   var poly  = Polygon3D.Make(outer, new[] { hole });
-  IsTrue(poly.IsOnBoundary(new Point3D(2, 0, 0)), "outer bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point3D(4, 2, 0)), "outer right edge");
-  IsTrue(poly.IsOnBoundary(new Point3D(2, 1, 0)), "hole bottom edge");
-  IsTrue(poly.IsOnBoundary(new Point3D(1, 2, 0)), "hole left edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(2, 0, 0)), "outer bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(4, 2, 0)), "outer right edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(2, 1, 0)), "hole bottom edge");
+  IsTrue(poly.IsOnPerimeter(new Point3D(1, 2, 0)), "hole left edge");
 });
 
-Test("IsOnBoundary_Interior_False", () => {
+Test("IsOnPerimeter_Interior_False", () => {
   var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
-  IsFalse(sq.IsOnBoundary(new Point3D(0.5, 0.5, 0)),    "interior");
-  IsFalse(sq.IsOnBoundary(new Point3D(-0.1, 0.5, 0)),   "outside left");
-  IsFalse(sq.IsOnBoundary(new Point3D(0.5,  0.5, 0.01)), "off-plane");
+  IsFalse(sq.IsOnPerimeter(new Point3D(0.5, 0.5, 0)),    "interior");
+  IsFalse(sq.IsOnPerimeter(new Point3D(-0.1, 0.5, 0)),   "outside left");
+  IsFalse(sq.IsOnPerimeter(new Point3D(0.5,  0.5, 0.01)), "off-plane");
   var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
   var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
   var poly  = Polygon3D.Make(outer, new[] { hole });
-  IsFalse(poly.IsOnBoundary(new Point3D(0.5, 0.5, 0)), "interior strip");
-  IsFalse(poly.IsOnBoundary(new Point3D(2,   2,   0)), "inside hole");
+  IsFalse(poly.IsOnPerimeter(new Point3D(0.5, 0.5, 0)), "interior strip");
+  IsFalse(poly.IsOnPerimeter(new Point3D(2,   2,   0)), "inside hole");
 });
 
 // NOTE: IsSimple() correctness rides on the (currently provisional) sweep-line comparator; these encode the
@@ -3328,6 +3442,613 @@ Test("Add_Triangle3D_SizeIncreases", () => {
   var gc = new GeometryCollection3D();
   gc.Add(Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0)));
   Eq(1, gc.Size(), 0);
+});
+
+Console.WriteLine("\nPolygon2D::IsConvex");
+{
+    var square = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(1,0), new Point2D(1,1), new Point2D(0,1)
+    });
+    var concave = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(4,0), new Point2D(4,4),
+        new Point2D(2,2), new Point2D(0,4)
+    });
+    var outer = new[] { new Point2D(0,0), new Point2D(4,0), new Point2D(4,4), new Point2D(0,4) };
+    var hole  = new[] { new Point2D(1,1), new Point2D(1,2), new Point2D(2,2), new Point2D(2,1) };
+    var holed = Polygon2D.Make(outer, new[] { hole });
+
+    Test("IsConvex_Square_True",    () => IsTrue(square.IsConvex()));
+    Test("IsConvex_Concave_False",  () => IsTrue(!concave.IsConvex()));
+    Test("IsConvex_WithHole_False", () => IsTrue(!holed.IsConvex()));
+}
+
+Console.WriteLine("\nPolygon3D::IsConvex");
+{
+    var square3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(1,1,0), new Point3D(0,1,0)
+    });
+    var concave3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(4,4,0),
+        new Point3D(2,2,0), new Point3D(0,4,0)
+    });
+    Test("IsConvex_Square_True",   () => IsTrue(square3d.IsConvex()));
+    Test("IsConvex_Concave_False", () => IsTrue(!concave3d.IsConvex()));
+}
+
+Console.WriteLine("\nPolygon2D::Simplify");
+{
+    var simple = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(2,0), new Point2D(2,2), new Point2D(0,2)
+    });
+    var bowtie = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(4,0), new Point2D(1,3), new Point2D(3,3)
+    });
+
+    Test("Simplify_AlreadySimple_ReturnsOne", () => {
+        var r = simple.Simplify();
+        IsTrue(r.Length == 1, $"expected 1, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ReturnsTwoPolygons", () => {
+        var r = bowtie.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ResultsAreSimple", () => {
+        foreach (var p in bowtie.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+    Test("Simplify_Bowtie_AreasSum", () => {
+        var r = bowtie.Simplify();
+        double total = 0;
+        foreach (var p in r) { total += p.Area(); }
+        IsTrue(Math.Abs(total - 5.0) < 0.01, $"expected ~5.0, got {total}");
+    });
+
+    var wideBowtie = Polygon2D.Make(new[] {
+        new Point2D(0,0), new Point2D(10,0), new Point2D(2,6), new Point2D(8,6)
+    });
+    Test("Simplify_WideBowtie_ReturnsTwoPolygons", () => {
+        var r = wideBowtie.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_WideBowtie_ResultsAreSimple", () => {
+        foreach (var p in wideBowtie.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+}
+
+Console.WriteLine("\nPolygon3D::Simplify");
+{
+    var simple3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(2,2,0), new Point3D(0,2,0)
+    });
+    var bowtie3d = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(1,3,0), new Point3D(3,3,0)
+    });
+
+    Test("Simplify_AlreadySimple_ReturnsOne", () => {
+        var r = simple3d.Simplify();
+        IsTrue(r.Length == 1, $"expected 1, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ReturnsTwoPolygons", () => {
+        var r = bowtie3d.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_Bowtie_ResultsAreSimple", () => {
+        foreach (var p in bowtie3d.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+
+    // XZ plane bowtie: dominant axis = Y, projection flips chirality
+    var bowtieXZ = Polygon3D.Make(new[] {
+        new Point3D(3,0,3), new Point3D(1,0,3), new Point3D(4,0,0), new Point3D(0,0,0)
+    });
+    Test("Simplify_BowtieXZ_ReturnsTwoPolygons", () => {
+        var r = bowtieXZ.Simplify();
+        IsTrue(r.Length == 2, $"expected 2, got {r.Length}");
+    });
+    Test("Simplify_BowtieXZ_ResultsAreSimple", () => {
+        foreach (var p in bowtieXZ.Simplify())
+            IsTrue(p.IsSimple(), "result polygon not simple");
+    });
+    Test("Simplify_Bowtie_AreasSum", () => {
+        var r = bowtie3d.Simplify();
+        double total = 0;
+        foreach (var p in r) { total += p.Area(); }
+        IsTrue(Math.Abs(total - 5.0) < 0.01, $"expected ~5.0, got {total}");
+    });
+    Test("Simplify_ResultsAreCoplanar", () => {
+        foreach (var p in bowtie3d.Simplify()) {
+            for (int i = 0; i < p.Size(); i++) {
+                IsTrue(Math.Abs(p[i].Z) < 1e-9, $"vertex z should be 0, got {p[i].Z}");
+            }
+        }
+    });
+}
+
+Console.WriteLine("\nPolygon3D::Intersection");
+{
+    var sq = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(1,1,0), new Point3D(0,1,0)
+    });
+    var lineHit      = Line3D.Make(new Point3D(0.5, 0.5, -1), new Point3D(0.5, 0.5,  1));
+    var lineMiss     = Line3D.Make(new Point3D(2,   0.5, -1), new Point3D(2,   0.5,  1));
+    var lineParallel = Line3D.Make(new Point3D(0,   0,    1), new Point3D(1,   1,    1));
+    var rayHit       = Ray3D.Make(new Point3D(0.5, 0.5,  1), new Vector3D(0, 0, -1));
+    var rayAway      = Ray3D.Make(new Point3D(0.5, 0.5,  1), new Vector3D(0, 0,  1));
+    var rayMiss      = Ray3D.Make(new Point3D(2,   0.5,  1), new Vector3D(0, 0, -1));
+    var segHit       = LineSegment3D.Make(new Point3D(0.5, 0.5, -1), new Point3D(0.5, 0.5,  1));
+    var segShort     = LineSegment3D.Make(new Point3D(0.5, 0.5,  0.5), new Point3D(0.5, 0.5, 1));
+    var segMiss      = LineSegment3D.Make(new Point3D(2,   0.5, -1), new Point3D(2,   0.5,  1));
+
+    Test("Intersects_Line_Hit",          () => IsTrue(sq.Intersects(lineHit)));
+    Test("Intersects_Line_Miss",         () => IsTrue(!sq.Intersects(lineMiss)));
+    Test("Intersects_Line_Parallel",     () => IsTrue(!sq.Intersects(lineParallel)));
+    Test("Intersection_Line_Hit_Point",  () => {
+        var r = sq.Intersection(lineHit);
+        NotNull(r);
+        Eq(0.5, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.0, r.Z, 3);
+    });
+    Test("Intersection_Line_Miss_Null",  () => IsNull(sq.Intersection(lineMiss)));
+
+    Test("Intersects_Ray_Hit",           () => IsTrue(sq.Intersects(rayHit)));
+    Test("Intersects_Ray_Away",          () => IsTrue(!sq.Intersects(rayAway)));
+    Test("Intersects_Ray_Miss",          () => IsTrue(!sq.Intersects(rayMiss)));
+    Test("Intersection_Ray_Hit_Point",   () => {
+        var r = sq.Intersection(rayHit);
+        NotNull(r);
+        Eq(0.5, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.0, r.Z, 3);
+    });
+    Test("Intersection_Ray_Away_Null",   () => IsNull(sq.Intersection(rayAway)));
+
+    Test("Intersects_Segment_Hit",       () => IsTrue(sq.Intersects(segHit)));
+    Test("Intersects_Segment_Short",     () => IsTrue(!sq.Intersects(segShort)));
+    Test("Intersects_Segment_Miss",      () => IsTrue(!sq.Intersects(segMiss)));
+    Test("Intersection_Segment_Hit_Point", () => {
+        var r = sq.Intersection(segHit);
+        NotNull(r);
+        Eq(0.5, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.0, r.Z, 3);
+    });
+    Test("Intersection_Segment_Short_Null", () => IsNull(sq.Intersection(segShort)));
+
+    // Non-XY plane: YZ square at x=0; normal = +X
+    var yz = Polygon3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(0,1,0), new Point3D(0,1,1), new Point3D(0,0,1)
+    });
+    var lineThruYZ = Line3D.Make(new Point3D(-1, 0.5, 0.5), new Point3D(1, 0.5, 0.5));
+    Test("Intersection_Line_YZPlane_Point", () => {
+        var r = yz.Intersection(lineThruYZ);
+        NotNull(r);
+        Eq(0.0, r!.X, 3); Eq(0.5, r.Y, 3); Eq(0.5, r.Z, 3);
+    });
+}
+
+Console.WriteLine("\nPolyline3D::IsPlanar/IsSimple/IsConvex/ConvexHull/ToPolygon");
+{
+    var planar = Polyline3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(2,2,0), new Point3D(0,2,0)
+    });
+    var nonPlanar = Polyline3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(1,1,1), new Point3D(0,1,2)
+    });
+    var star = Polyline3D.Make(new[] {
+        new Point3D(0,0,0), new Point3D(2,0,0), new Point3D(1,1,0),
+        new Point3D(2,2,0), new Point3D(0,2,0)
+    });
+
+    Test("IsPlanar_XY_True",         () => IsTrue(planar.IsPlanar()));
+    Test("IsPlanar_NonPlanar_False",  () => IsTrue(!nonPlanar.IsPlanar()));
+    Test("IsSimple_True",             () => IsTrue(planar.IsSimple()));
+    Test("IsConvex_Planar_True",      () => IsTrue(planar.IsConvex()));
+    Test("IsConvex_NotPlanar_Throws", () => {
+        try { nonPlanar.IsConvex(); IsTrue(false, "expected throw"); }
+        catch (Exception) { }
+    });
+    Test("ConvexHull_ReturnsPolyline", () => NotNull(star.ConvexHull()));
+    Test("ConvexHull_ThenToPolygon",   () => NotNull(star.ConvexHull().ToPolygon()));
+    Test("ToPolygon_Valid",            () => NotNull(planar.ToPolygon()));
+    Test("ToPolygon_NotPlanar_Throws", () => {
+        try { nonPlanar.ToPolygon(); IsTrue(false, "expected throw"); }
+        catch (Exception) { }
+    });
+}
+
+Console.WriteLine("\nGeomUtil::PrincipalAxes/Normal/Direction");
+{
+    var cloud = new System.Collections.Generic.List<Point3D> {
+        new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(2,0,0), new Point3D(3,0,0),
+        new Point3D(0,0.1,0), new Point3D(1,0.1,0), new Point3D(2,0.1,0), new Point3D(3,0.1,0)
+    };
+
+    Test("PrincipalAxes_NotNull",         () => NotNull(GeomUtil.PrincipalAxes(cloud)));
+    Test("PrincipalAxes_X_NotNull",       () => NotNull(GeomUtil.PrincipalAxes(cloud).X));
+    Test("PrincipalAxes_Z_IsNormal",      () => {
+        var frame = GeomUtil.PrincipalAxes(cloud);
+        // Z should be ~(0,0,1) or (0,0,-1)
+        Eq(1.0, Math.Abs(frame.Z.Z), 2);
+    });
+    Test("PrincipalNormal_NotNull",       () => NotNull(GeomUtil.PrincipalNormal(cloud)));
+    Test("PrincipalDirection_NotNull",    () => NotNull(GeomUtil.PrincipalDirection(cloud)));
+    Test("PrincipalDirection_AlongX",     () => {
+        var dir = GeomUtil.PrincipalDirection(cloud);
+        Eq(1.0, Math.Abs(dir.X), 2);
+    });
+}
+
+// ── BBall2D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBBall2D");
+
+Test("Constructor_CenterRadius", () => {
+  var b = new BBall2D(new Point2D(1.0, 2.0), 5.0);
+  IsTrue(b.Center().AlmostEquals(new Point2D(1.0, 2.0)));
+  Eq(5.0, b.Radius());
+});
+
+Test("Constructor_FromSinglePoint_RadiusZero", () => {
+  var b = new BBall2D(new Point2D[] { new Point2D(3.0, 4.0) });
+  IsTrue(b.Center().AlmostEquals(new Point2D(3.0, 4.0)));
+  Eq(0.0, b.Radius());
+});
+
+Test("Constructor_FromTwoPoints_MidpointCenter", () => {
+  var b = new BBall2D(new Point2D[] { new Point2D(0, 0), new Point2D(4, 0) });
+  IsTrue(b.Center().AlmostEquals(new Point2D(2.0, 0.0)));
+  Eq(2.0, b.Radius());
+});
+
+Test("Constructor_FromPoints_AllContained", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(2, 3), new Point2D(-1, 1.5)
+  };
+  var b = new BBall2D(pts);
+  foreach (var p in pts)
+    IsTrue(b.Contains(p), $"ball should contain {p}");
+});
+
+Test("Contains_Center_True", () => {
+  var b = new BBall2D(new Point2D(0, 0), 5.0);
+  IsTrue(b.Contains(new Point2D(0, 0)));
+});
+
+Test("Contains_Boundary_True", () => {
+  var b = new BBall2D(new Point2D(0, 0), 5.0);
+  IsTrue(b.Contains(new Point2D(3, 4)));   // 3-4-5
+  IsTrue(b.Contains(new Point2D(5, 0)));
+});
+
+Test("Contains_Outside_False", () => {
+  var b = new BBall2D(new Point2D(0, 0), 5.0);
+  IsFalse(b.Contains(new Point2D(4, 4)));  // dist ≈ 5.657
+  IsFalse(b.Contains(new Point2D(6, 0)));
+});
+
+Test("AlmostEquals_SameBall", () => {
+  var b1 = new BBall2D(new Point2D(1, 2), 3.0);
+  var b2 = new BBall2D(new Point2D(1, 2), 3.0);
+  IsTrue(b1.AlmostEquals(b2));
+  IsTrue(b1 == b2);
+});
+
+Test("AlmostEquals_DifferentBall", () => {
+  var b1 = new BBall2D(new Point2D(1, 2), 3.0);
+  var b2 = new BBall2D(new Point2D(0, 0), 1.0);
+  IsFalse(b1.AlmostEquals(b2));
+});
+
+// ── BBall3D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBBall3D");
+
+Test("Constructor_CenterRadius", () => {
+  var b = new BBall3D(new Point3D(1, 2, 3), 5.0);
+  IsTrue(b.Center().AlmostEquals(new Point3D(1, 2, 3)));
+  Eq(5.0, b.Radius());
+});
+
+Test("Constructor_FromSinglePoint_RadiusZero", () => {
+  var b = new BBall3D(new Point3D[] { new Point3D(1, 2, 3) });
+  IsTrue(b.Center().AlmostEquals(new Point3D(1, 2, 3)));
+  Eq(0.0, b.Radius());
+});
+
+Test("Constructor_FromTwoPoints_MidpointCenter", () => {
+  var b = new BBall3D(new Point3D[] { new Point3D(0, 0, 0), new Point3D(4, 0, 0) });
+  IsTrue(b.Center().AlmostEquals(new Point3D(2, 0, 0)));
+  Eq(2.0, b.Radius());
+});
+
+Test("Constructor_FromPoints_AllContained", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(0, 3, 0), new Point3D(0, 0, 2)
+  };
+  var b = new BBall3D(pts);
+  foreach (var p in pts)
+    IsTrue(b.Contains(p), $"ball should contain {p}");
+});
+
+Test("Contains_Center_True", () => {
+  var b = new BBall3D(new Point3D(0, 0, 0), 5.0);
+  IsTrue(b.Contains(new Point3D(0, 0, 0)));
+});
+
+Test("Contains_Boundary_True", () => {
+  var b = new BBall3D(new Point3D(0, 0, 0), 5.0);
+  IsTrue(b.Contains(new Point3D(3, 4, 0)));   // 3-4-5 in XY
+  IsTrue(b.Contains(new Point3D(0, 0, 5)));
+});
+
+Test("Contains_Outside_False", () => {
+  var b = new BBall3D(new Point3D(0, 0, 0), 5.0);
+  IsFalse(b.Contains(new Point3D(4, 4, 0)));  // dist ≈ 5.657
+  IsFalse(b.Contains(new Point3D(0, 0, 6)));
+});
+
+Test("AlmostEquals_SameBall", () => {
+  var b1 = new BBall3D(new Point3D(1, 2, 3), 4.0);
+  var b2 = new BBall3D(new Point3D(1, 2, 3), 4.0);
+  IsTrue(b1.AlmostEquals(b2));
+  IsTrue(b1 == b2);
+});
+
+Test("AlmostEquals_DifferentBall", () => {
+  var b1 = new BBall3D(new Point3D(1, 2, 3), 4.0);
+  var b2 = new BBall3D(new Point3D(0, 0, 0), 1.0);
+  IsFalse(b1.AlmostEquals(b2));
+});
+
+// ── BRect2D ───────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBRect2D");
+
+Test("Constructor_AxisAlignedRectangle_Center", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  };
+  var r = new BRect2D(pts);
+  IsTrue(r.Center().AlmostEquals(new Point2D(2.0, 1.0)));
+  Eq(4.0, r.Width());
+  Eq(2.0, r.Height());
+  Eq(8.0, r.Area());
+});
+
+Test("Constructor_Empty_Throws", () => {
+  bool threw = false;
+  try { new BRect2D(new Point2D[] {}); } catch { threw = true; }
+  IsTrue(threw, "BRect2D from empty list should throw");
+});
+
+Test("Constructor_SinglePoint_Throws", () => {
+  bool threw = false;
+  try { new BRect2D(new Point2D[] { new Point2D(3, 4) }); } catch { threw = true; }
+  IsTrue(threw, "BRect2D from 1 point should throw");
+});
+
+Test("Constructor_TwoPoints_Throws", () => {
+  bool threw = false;
+  try { new BRect2D(new Point2D[] { new Point2D(0, 0), new Point2D(4, 0) }); } catch { threw = true; }
+  IsTrue(threw, "BRect2D from 2 points should throw");
+});
+
+Test("Constructor_AllInputPointsContained", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(3, 0), new Point2D(3, 2),
+    new Point2D(0, 2), new Point2D(1, 0.5), new Point2D(2, 1.5)
+  };
+  var r = new BRect2D(pts);
+  foreach (var p in pts)
+    IsTrue(r.Contains(p), $"OBB must contain {p}");
+});
+
+Test("Axes_AreUnitVectors", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(2, 0), new Point2D(2, 1), new Point2D(0, 1)
+  };
+  var r = new BRect2D(pts);
+  Eq(1.0, r.AxisU().Length());
+  Eq(1.0, r.AxisV().Length());
+});
+
+Test("Axes_AreOrthogonal", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(3, 0), new Point2D(3, 2), new Point2D(0, 2)
+  };
+  var r = new BRect2D(pts);
+  Eq(0.0, r.AxisU().Dot(r.AxisV()));
+});
+
+Test("Corners_FourPointsAllContained", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  };
+  var r = new BRect2D(pts);
+  var corners = r.Corners();
+  IsTrue(corners.Length == 4, "must return 4 corners");
+  foreach (var c in corners)
+    IsTrue(r.Contains(c), "each corner must be inside the rectangle");
+});
+
+Test("Contains_Center_True", () => {
+  var r = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  IsTrue(r.Contains(new Point2D(2, 1)));
+});
+
+Test("Contains_Boundary_True", () => {
+  var r = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  IsTrue(r.Contains(new Point2D(0, 0)));    // corner
+  IsTrue(r.Contains(new Point2D(4, 1)));    // edge midpoint
+});
+
+Test("Contains_Outside_False", () => {
+  var r = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  IsFalse(r.Contains(new Point2D(5, 1)));
+  IsFalse(r.Contains(new Point2D(2, 3)));
+});
+
+Test("AlmostEquals_SameRect", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  };
+  var r1 = new BRect2D(pts);
+  var r2 = new BRect2D(pts);
+  IsTrue(r1.AlmostEquals(r2));
+  IsTrue(r1 == r2);
+});
+
+Test("AlmostEquals_DifferentRect_False", () => {
+  var r1 = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  });
+  var r2 = new BRect2D(new Point2D[] {
+    new Point2D(0, 0), new Point2D(6, 0), new Point2D(6, 2), new Point2D(0, 2)
+  });
+  IsFalse(r1.AlmostEquals(r2));
+});
+
+// ── BPrism3D ──────────────────────────────────────────────────────────────────
+Console.WriteLine("\nBPrism3D");
+
+Test("Constructor_AxisAlignedBox", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  IsTrue(Math.Abs(p.Volume() - 24.0) < 0.5, "volume should be ~24");
+  foreach (var pt in pts)
+    IsTrue(p.Contains(pt), $"prism must contain {pt}");
+});
+
+Test("Constructor_Empty_Throws", () => {
+  bool threw = false;
+  try { new BPrism3D(new Point3D[] {}); } catch { threw = true; }
+  IsTrue(threw, "BPrism3D from empty list should throw");
+});
+
+Test("Constructor_SinglePoint_Throws", () => {
+  bool threw = false;
+  try { new BPrism3D(new Point3D[] { new Point3D(3, 4, 5) }); } catch { threw = true; }
+  IsTrue(threw, "BPrism3D from 1 point should throw");
+});
+
+Test("Constructor_TwoPoints_Throws", () => {
+  bool threw = false;
+  try { new BPrism3D(new Point3D[] { new Point3D(0, 0, 0), new Point3D(4, 0, 0) }); } catch { threw = true; }
+  IsTrue(threw, "BPrism3D from 2 points should throw");
+});
+
+Test("Constructor_FlatCloud_WIsEpsilon", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+  };
+  var p = new BPrism3D(pts);
+  IsTrue(p.HalfLenW() > 0, "flat cloud w half-length must be > 0");
+});
+
+Test("Constructor_NonConvex_AllPointsContained", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(3, 0, 0),
+    new Point3D(3, 2, 0), new Point3D(0, 2, 0),
+    new Point3D(1, 0.5, 1), new Point3D(2, 1.5, 0.5),
+  };
+  var p = new BPrism3D(pts);
+  foreach (var pt in pts)
+    IsTrue(p.Contains(pt), $"prism must contain {pt}");
+});
+
+Test("Axes_AreUnitVectors", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  Eq(1.0, p.AxisU().Length());
+  Eq(1.0, p.AxisV().Length());
+  Eq(1.0, p.AxisW().Length());
+});
+
+Test("Axes_AreOrthogonal", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  Eq(0.0, p.AxisU().Dot(p.AxisV()));
+  Eq(0.0, p.AxisU().Dot(p.AxisW()));
+  Eq(0.0, p.AxisV().Dot(p.AxisW()));
+});
+
+Test("Corners_EightPointsAllContained", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  var corners = p.Corners();
+  IsTrue(corners.Length == 8, "must return 8 corners");
+  foreach (var c in corners)
+    IsTrue(p.Contains(c), "each corner must be inside the prism");
+});
+
+Test("Contains_Center_True", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  IsTrue(p.Contains(p.Center()));
+});
+
+Test("Contains_Outside_False", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p = new BPrism3D(pts);
+  IsFalse(p.Contains(new Point3D(10, 10, 10)));
+});
+
+Test("AlmostEquals_SamePrism", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var p1 = new BPrism3D(pts);
+  var p2 = new BPrism3D(pts);
+  IsTrue(p1.AlmostEquals(p2));
+  IsTrue(p1 == p2);
+});
+
+Test("AlmostEquals_DifferentPrism_False", () => {
+  var pts1 = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+  };
+  var pts2 = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(6, 0, 0),
+    new Point3D(6, 3, 0), new Point3D(0, 3, 0),
+  };
+  var p1 = new BPrism3D(pts1);
+  var p2 = new BPrism3D(pts2);
+  IsFalse(p1.AlmostEquals(p2));
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

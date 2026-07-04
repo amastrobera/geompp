@@ -60,9 +60,7 @@ TEST_F(Line2DTest, Intersection) {
   auto inter = l1.Intersection(l2);
 
   ASSERT_TRUE(inter.has_value());
-  ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-
-  EXPECT_EQ(g::Point2D::Zero(), std::get<g::Point2D>(*inter));
+  EXPECT_EQ(g::Point2D::Zero(), *inter);
 }
 
 TEST_F(Line2DTest, Wkt) {

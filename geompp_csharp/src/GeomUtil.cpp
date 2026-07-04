@@ -1,8 +1,14 @@
+#pragma managed(push, off)
+#include <calc_utils3d.hpp>
+#pragma managed(pop)
+
 #include "GeomUtil.hpp"
 #include "Point2D.hpp"
 #include "Point3D.hpp"
 #include "Plane.hpp"
 #include "LineSegment2D.hpp"
+#include "CoordinateFrame.hpp"
+#include "Vector3D.hpp"
 
 namespace GeomPP {
 
@@ -67,8 +73,9 @@ System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::FindIntersections
     System::Collections::Generic::List<LineSegment2D^>^ segments) {
     auto native = geompp::find_intersections(ToNativeSegments(segments));
     auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
-    for (auto const& p : native)
+    for (auto const& p : native) {
         list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
     return list;
 }
 
@@ -76,8 +83,9 @@ System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::ConvexHull(
     System::Collections::Generic::List<Point2D^>^ points) {
     auto native = geompp::convex_hull(ToNativePoints2D(points));
     auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
-    for (auto const& p : native)
+    for (auto const& p : native) {
         list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
     return list;
 }
 
@@ -85,9 +93,26 @@ System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::ConvexHull(
     System::Collections::Generic::List<Point3D^>^ points) {
     auto native = geompp::convex_hull(ToNative(points));
     auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
-    for (auto const& p : native)
+    for (auto const& p : native) {
         list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
     return list;
+}
+
+CoordinateFrame^ GeomUtil::PrincipalAxes(System::Collections::Generic::List<Point3D^>^ points) {
+    auto native = geompp::principal_axes(ToNative(points));
+    return gcnew CoordinateFrame(
+        new geompp::Vector3D(native.X),
+        new geompp::Vector3D(native.Y),
+        new geompp::Vector3D(native.Z));
+}
+
+Vector3D^ GeomUtil::PrincipalNormal(System::Collections::Generic::List<Point3D^>^ points) {
+    return gcnew Vector3D(new geompp::Vector3D(geompp::principal_normal(ToNative(points))));
+}
+
+Vector3D^ GeomUtil::PrincipalDirection(System::Collections::Generic::List<Point3D^>^ points) {
+    return gcnew Vector3D(new geompp::Vector3D(geompp::principal_direction(ToNative(points))));
 }
 
 }  // namespace GeomPP

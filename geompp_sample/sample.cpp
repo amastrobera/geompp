@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 #include "constants.hpp"
 #include "geompp_log.hpp"
+#include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "line_segment3d.hpp"
 #include "plane.hpp"
@@ -8,6 +9,8 @@
 #include "point3d.hpp"
 #include "polygon2d.hpp"
 #include "polygon3d.hpp"
+#include "ray2d.hpp"
+#include "vector2d.hpp"
 #include "vector3d.hpp"
 #include "wkt_parser.hpp"
 
@@ -38,7 +41,7 @@ void example_1() {
   if (s1.Intersects(s2)) {
     auto result = s1.Intersection(s2);
     if (result.has_value()) {
-      auto p = std::get<g::Point3D>(*result);
+      auto p = *result;
       GEOMPP_LOG(INFO) << "intersection found: " << p.ToWkt();
 
       p.ToFile("intersection.wkt");
@@ -182,6 +185,99 @@ void example_4() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Example 5 — split a complex (self-intersecting) polygon into simple polygons
+// ─────────────────────────────────────────────────────────────────────────────
+void example_5() {
+  std::cout << "\n=== Example 5: Polygon2D/3D::Simplify — split a complex polygon ===\n";
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // A complex polygon is one whose edges cross each other.
+  // "Bowtie" shape: A(0,0), B(4,0), C(1,3), D(3,3) — edges B→C and D→A cross at X(2,2).
+  auto bowtie = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)});
+
+  GEOMPP_LOG(INFO) << "bowtie is simple: " << bowtie.IsSimple();  // 0
+
+  // Simplify() decomposes it into simple (non-self-intersecting) polygons.
+  auto parts = bowtie.Simplify();
+  GEOMPP_LOG(INFO) << parts.size() << " simple polygon(s):";
+  for (auto const& p : parts) {
+    GEOMPP_LOG(INFO) << "  " << p.ToWkt() << "  area=" << p.Area()
+                     << "  simple=" << p.IsSimple();
+  }
+  // expected output:
+  //   bowtie is simple: 0
+  //   2 simple polygon(s):
+  //     POLYGON ((0 0, 4 0, 2 2, 0 0))  area=4  simple=1
+  //     POLYGON ((2 2, 1 3, 3 3, 2 2))  area=1  simple=1
+
+  // Same works in 3D — the polygon is projected onto its dominant plane internally.
+  auto bowtie3d = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0)});
+  auto parts3d = bowtie3d.Simplify();
+  GEOMPP_LOG(INFO) << parts3d.size() << " simple 3D polygon(s)";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Example 6 — Polygon2D intersection with Line, Ray, and LineSegment
+// ─────────────────────────────────────────────────────────────────────────────
+void example_6() {
+  std::cout << "\n=== Example 6: Polygon2D::Intersection (Line / Ray / Segment) ===\n";
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Unit square (CCW)
+  auto sq = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+
+  // ── Line2D through the square at y = 0.5 ──────────────────────────────────
+  auto line = g::Line2D::Make(g::Point2D(-1, 0.5), g::Point2D(2, 0.5));
+
+  if (sq.Intersects(line)) {
+    auto result = sq.Intersection(line);
+    if (result.has_value()) {
+      auto const& segs = result.value();
+      GEOMPP_LOG(INFO) << segs.size() << " chord segment(s):";
+      for (auto const& s : segs) {
+        GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+      }
+    }
+  }
+  // expected: 1 chord segment: LINESTRING (0 0.5, 1 0.5)
+
+  // ── Ray2D from inside the square ──────────────────────────────────────────
+  auto ray = g::Ray2D::Make(g::Point2D(0.5, 0.5), g::Vector2D(1, 0));
+
+  if (sq.Intersects(ray)) {
+    auto result = sq.Intersection(ray);
+    if (result.has_value()) {
+      auto const& segs = result.value();
+      GEOMPP_LOG(INFO) << segs.size() << " chord segment(s) from ray:";
+      for (auto const& s : segs) {
+        GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+      }
+    }
+  }
+  // expected: 1 chord from (0.5,0.5) to (1,0.5)
+
+  // ── LineSegment2D that pierces the square ─────────────────────────────────
+  auto seg = g::LineSegment2D::Make(g::Point2D(-0.5, 0.5), g::Point2D(1.5, 0.5));
+
+  if (sq.Intersects(seg)) {
+    auto result = sq.Intersection(seg);
+    if (result.has_value()) {
+      auto const& segs = result.value();
+      GEOMPP_LOG(INFO) << segs.size() << " chord segment(s) from segment:";
+      for (auto const& s : segs) {
+        GEOMPP_LOG(INFO) << "  " << s.ToWkt();
+      }
+    }
+  }
+  // expected: 1 chord segment: LINESTRING (0 0.5, 1 0.5)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 int main() {
   example_1();
 
@@ -190,6 +286,10 @@ int main() {
   example_3();
 
   example_4();
+
+  example_5();
+
+  example_6();
 
   return 0;
 }

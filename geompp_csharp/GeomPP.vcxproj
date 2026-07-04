@@ -18,7 +18,7 @@
     <RootNamespace>GeomPP</RootNamespace>
     <Keyword>ManagedCProj</Keyword>
     <!--
-      Targets .NET 8 (LTS). Change to net6.0-windows if needed.
+      Targets .NET 10 (LTS). See GeomPP_Net8.vcxproj / GeomPP_Net9.vcxproj for older TFMs.
       Requires Visual Studio 2022 with ".NET desktop development" workload installed.
     -->
     <TargetFramework>net10.0-windows7.0</TargetFramework>
@@ -123,12 +123,18 @@
     <ClCompile Include="src\Triangle3D.cpp" />
     <ClCompile Include="src\BBox2D.cpp" />
     <ClCompile Include="src\BBox3D.cpp" />
+    <ClCompile Include="src\BBall2D.cpp" />
+    <ClCompile Include="src\BBall3D.cpp" />
+    <ClCompile Include="src\BRect2D.cpp" />
+    <ClCompile Include="src\BPrism3D.cpp" />
     <ClCompile Include="src\Plane.cpp" />
+    <ClCompile Include="src\View2D.cpp" />
     <ClCompile Include="src\WktParser.cpp" />
     <ClCompile Include="src\GeometryCollection2D.cpp" />
     <ClCompile Include="src\GeometryCollection3D.cpp" />
     <ClCompile Include="src\GeomUtil.cpp" />
     <ClCompile Include="src\IntersectionEvent2D.cpp" />
+    <ClCompile Include="src\CoordinateFrame.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -151,12 +157,18 @@
     <ClInclude Include="src\Triangle3D.hpp" />
     <ClInclude Include="src\BBox2D.hpp" />
     <ClInclude Include="src\BBox3D.hpp" />
+    <ClInclude Include="src\BBall2D.hpp" />
+    <ClInclude Include="src\BBall3D.hpp" />
+    <ClInclude Include="src\BRect2D.hpp" />
+    <ClInclude Include="src\BPrism3D.hpp" />
     <ClInclude Include="src\Plane.hpp" />
+    <ClInclude Include="src\View2D.hpp" />
     <ClInclude Include="src\WktParser.hpp" />
     <ClInclude Include="src\GeometryCollection2D.hpp" />
     <ClInclude Include="src\GeometryCollection3D.hpp" />
     <ClInclude Include="src\GeomUtil.hpp" />
     <ClInclude Include="src\IntersectionEvent2D.hpp" />
+    <ClInclude Include="src\CoordinateFrame.hpp" />
   </ItemGroup>
 
   <!-- ── geompp native core (compiled without /clr so that GEOMPP_NO_THREAD_LOCAL ── -->
@@ -168,6 +180,22 @@
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\bbox3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\bball2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\bball3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\brect2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\bprism3d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
@@ -268,6 +296,10 @@
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\geometry_collection3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\view2d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
