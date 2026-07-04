@@ -110,13 +110,46 @@ mid = POINT (2 0)
 
 ### 3. Intersections
 
-Intersection methods return the resulting geometry or `None`. `find_intersections(segments)`
-(Bentley–Ottmann) reports all crossing points across an arbitrary set of 2D segments, sorted left-to-right.
+Every 2D primitive (`Line2D`, `Ray2D`, `LineSegment2D`, `Triangle2D`, `Polygon2D`) can intersect any
+other 2D primitive, and the same holds in 3D across `Line3D`, `Ray3D`, `LineSegment3D`, `Triangle3D`,
+and `Plane`. Results are the geometry object or `None`; polygon intersections return a
+`list[LineSegment2D]` because a line can produce multiple chords through a concave shape.
+`find_intersections(segments)` (Bentley–Ottmann) reports all crossing points across an arbitrary set
+of 2D segments, sorted left-to-right.
 
 ```python
 import geompp as g
 
-# Ray3D vs Triangle3D
+# LineSegment2D → Polygon2D: segment is clipped to the polygon interior
+square = g.Polygon2D.make([
+    g.Point2D(0, 0), g.Point2D(4, 0),
+    g.Point2D(4, 4), g.Point2D(0, 4),
+])
+seg = g.LineSegment2D.make(g.Point2D(-1, 2), g.Point2D(5, 2))
+seg_chords = square.intersection(seg)
+for c in (seg_chords or []):
+    print(c.to_wkt())   # LINESTRING (0 2, 4 2)
+
+# Ray2D → Polygon2D: ray entering from outside, clipped at the exit boundary
+ray2d = g.Ray2D.make(g.Point2D(-1, 2), g.Vector2D(1, 0))
+ray_chords = square.intersection(ray2d)
+for c in (ray_chords or []):
+    print(c.to_wkt())   # LINESTRING (0 2, 4 2)
+
+# Line2D → concave Polygon2D: vertical line through a C-shape produces two chords
+cshape = g.Polygon2D.make([
+    g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(4, 1),
+    g.Point2D(1, 1), g.Point2D(1, 3), g.Point2D(4, 3),
+    g.Point2D(4, 4), g.Point2D(0, 4),
+])
+line2d     = g.Line2D.make(g.Point2D(2, 0), g.Point2D(2, 1))
+lin_chords = cshape.intersection(line2d)
+for c in (lin_chords or []):
+    print(c.to_wkt())
+# LINESTRING (2 0, 2 1)
+# LINESTRING (2 3, 2 4)
+
+# Ray3D → Triangle3D
 tri = g.Triangle3D.make(
     g.Point3D(0, 0, 0), g.Point3D(4, 0, 0), g.Point3D(0, 4, 0))
 ray = g.Ray3D.make(g.Point3D(1, 1, 3), g.Vector3D(0, 0, -1))
@@ -141,6 +174,10 @@ for p in g.find_intersections(segs):
 
 Output:
 ```
+LINESTRING (0 2, 4 2)
+LINESTRING (0 2, 4 2)
+LINESTRING (2 0, 2 1)
+LINESTRING (2 3, 2 4)
 POINT (1 1 0)
 POINT (2 1)
 POINT (1 2)

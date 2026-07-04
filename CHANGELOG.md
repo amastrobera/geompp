@@ -11,156 +11,112 @@ Each release covers all three packages at the same version:
 
 ---
 
-## [Unreleased]
+## [0.11.0] - 2026-06-24
+
+> C++ library — tagged `v0.11.0` · C# / NuGet — tagged `csharp-v0.11.0` · Python / PyPI — tagged `python-v0.11.0`
+
+> Polygon2D line/ray/segment intersection and simplification; four bounding-shape classes (BRect2D, BPrism3D, BBall2D, BBall3D); convexity predicates for Polygon2D/3D and Polyline3D; planar Polyline3D operations (IsPlanar, IsSimple, ConvexHull, ToPolygon); PCA-based principal axes; Link-Time Optimization in Release builds; Python wheels extended to 3.8–3.14.
 
 ### Added
 
 **C++ core**
-- `Polygon2D::Intersection(Line2D)` / `Intersection(Ray2D)` / `Intersection(LineSegment2D)` — computes the chord(s) where a line, ray, or segment crosses a 2D polygon. Returns `std::optional<std::variant<Point2D, std::vector<LineSegment2D>>>`: `std::nullopt` on miss, `Point2D` for a single tangent touch, or `std::vector<LineSegment2D>` for one or more chord segments. Convex polygons use the fast Cyrus-Beck / Liang-Barsky parametric clip; non-convex polygons use the Jordan-curve parity approach. Segments are clipped to the ray's or segment's domain before being returned. Implemented on top of the internal `detail::compute_parametric_intersection_intervals`.
+- `Polygon2D::Intersection(Line2D)` / `Intersection(Ray2D)` / `Intersection(LineSegment2D)` — computes the chord(s) where a line, ray, or segment crosses a 2D polygon. Returns `std::optional<std::vector<LineSegment2D>>`: `std::nullopt` on miss, or one or more chord segments. Convex polygons use the fast Cyrus-Beck parametric clip (outward-normal convention, D < 0 entering); non-convex polygons use the Jordan-curve parity approach. Results are clipped to the ray's or segment's domain. Implemented via `detail::compute_intersection_intervals_2d`.
 - `Polygon2D::Intersects(Line2D)` / `Intersects(Ray2D)` / `Intersects(LineSegment2D)` — boolean wrappers delegating to `Intersection`.
-- `Polygon2D::Simplify()` / `Polygon3D::Simplify()` — decomposes a complex (self-intersecting) polygon into a `vector` of simple polygons via Bentley–Ottmann intersection detection followed by planar-graph half-edge face tracing. Returns `{*this}` when the polygon is already simple. Handles all three dominant-axis projections (X, Y, Z) including the Y-axis chirality flip case.
+- `Polygon2D::Simplify()` / `Polygon3D::Simplify()` — decomposes a self-intersecting polygon into a `vector` of simple polygons via Bentley–Ottmann intersection detection followed by planar-graph half-edge face tracing. Returns `{*this}` when already simple. Handles all three dominant-axis projections (X, Y, Z) including the Y-axis chirality flip case.
+- `Polygon2D::IsConvex()` — returns false if the polygon has holes or any concave turn; true otherwise.
+- `Polygon3D::IsConvex()` — same, using the stored plane normal for the 3D left-turn test.
+- `Polyline3D::IsPlanar()` — true if all knots are coplanar (degenerate cases: <3 points or all collinear also return true).
+- `Polyline3D::IsSimple()` — no self-intersections; uses Shamos–Hoey for planar polylines, Bentley–Ottmann + 3D verification for non-planar.
+- `Polyline3D::IsConvex()` — throws `std::logic_error` if not planar; checks all consecutive triples make a left turn relative to the plane normal.
+- `Polyline3D::ConvexHull()` — throws if not planar; Melkman's deque algorithm; returns `Polyline3D` (open hull path, not a closed polygon).
+- `Polyline3D::ToPolygon()` — throws if not planar; closes the open path into a `Polygon3D`.
+- `CoordinateFrame` struct (`calc_utils3d.hpp`) — `Vector3D X` (primary/largest variance), `Y` (secondary), `Z` (normal/least variance).
+- `principal_axes(vector<Point3D>)` — PCA via Jacobi eigendecomposition on the 3×3 covariance matrix; returns `CoordinateFrame`; stable for any point distribution including non-planar clouds and helices.
+- `principal_normal(vector<Point3D>)` — best-fit plane normal; delegates to `principal_axes().Z`.
+- `principal_direction(vector<Point3D>)` — dominant spread direction; delegates to `principal_axes().X`.
+- `BRect2D` (`brect2d.hpp`) — minimum oriented bounding rectangle via Andrew's monotone-chain convex hull followed by rotating calipers (Freeman & Shapira 1975 / Toussaint 1983). Stores `center`, `axis_u`, `axis_v` (unit vectors), `half_len_u`, `half_len_v`. Methods: `Corners()` (4 `Point2D`), `Contains(Point2D)`, `area()`, `width()`, `height()`, `AlmostEquals()`. Throws `std::invalid_argument` for fewer than 3 points or a collinear/coincident cloud.
+- `BPrism3D` (`bprism3d.hpp`) — oriented bounding prism via PCA + rotating calipers. Stores `center`, `axis_u`, `axis_v`, `axis_w` (unit vectors), `half_len_u`, `half_len_v`, `half_len_w`. Methods: `Corners()` (8 `Point3D`), `Contains(Point3D)`, `volume()`, `width()`, `height()`, `depth()`, `AlmostEquals()`. Coplanar inputs produce `half_len_w == DOUBLE_EPSILON`. Throws for fewer than 3 points or a collinear/coincident cloud.
+- `BBall2D` (`bball2d.hpp`) — minimum bounding ball in 2D; Ritter's two-pass O(N) algorithm. Stores `center` (`Point2D`) and `radius`. Degenerate inputs: 1 point → zero-radius ball; 2 points → midpoint center, half-distance radius. Throws for empty input.
+- `BBall3D` (`bball3d.hpp`) — same Ritter algorithm in 3D. Throws for empty input.
 
 **Python / PyPI**
-- `Polygon2D.intersection(line)` / `intersection(ray)` / `intersection(segment)` — returns `None` on miss, `Point2D` for a tangent touch, or `list[LineSegment2D]` for chord(s).
-- `Polygon2D.intersects(line)` / `intersects(ray)` / `intersects(segment)` — boolean check.
+- `Polygon2D.intersection(line|ray|segment)` — returns `None` on miss or `list[LineSegment2D]` for chord(s).
+- `Polygon2D.intersects(line|ray|segment)` — boolean check.
 - `Polygon2D.simplify()` / `Polygon3D.simplify()` — returns `list[Polygon2D]` or `list[Polygon3D]`.
+- `Polygon2D.is_convex()`, `Polygon3D.is_convex()`.
+- `Polyline3D.is_planar()`, `is_simple()`, `is_convex()`, `convex_hull()` → `Polyline3D`, `to_polygon()` → `Polygon3D`.
+- `CoordinateFrame` class with `x`, `y`, `z` attributes (all `Vector3D`).
+- `principal_axes(points)` → `CoordinateFrame`, `principal_normal(points)` → `Vector3D`, `principal_direction(points)` → `Vector3D`.
+- `BBall2D(center, radius)` / `BBall2D(points)` — `center`, `radius`, `contains(p)`, `almost_equals(other)`.
+- `BBall3D(center, radius)` / `BBall3D(points)` — same in 3D.
+- `BRect2D(points)` — `center`, `axis_u`, `axis_v`, `half_len_u`, `half_len_v`, `width()`, `height()`, `area()`, `corners()`, `contains(p)`, `almost_equals(other)`.
+- `BPrism3D(points)` — `center`, `axis_u`, `axis_v`, `axis_w`, `half_len_u`, `half_len_v`, `half_len_w`, `width()`, `height()`, `depth()`, `volume()`, `corners()`, `contains(p)`, `almost_equals(other)`.
 
 **C# / NuGet**
-- `Polygon2D.Intersection(Line2D)` / `Intersection(Ray2D)` / `Intersection(LineSegment2D)` — returns `null` on miss, `Point2D` for tangent touch, or `LineSegment2D[]` for chord(s). Use `is Point2D pt` / `is LineSegment2D[] segs` pattern matching to distinguish cases.
-- `Polygon2D.Intersects(Line2D)` / `Intersects(Ray2D)` / `Intersects(LineSegment2D)` — boolean wrappers.
+- `Polygon2D.Intersection(Line2D|Ray2D|LineSegment2D)` — returns `null` on miss or `LineSegment2D[]` for chord(s). Use `is LineSegment2D[] segs` pattern matching.
+- `Polygon2D.Intersects(Line2D|Ray2D|LineSegment2D)` — boolean wrappers.
 - `Polygon2D.Simplify()` / `Polygon3D.Simplify()` — returns `Polygon2D[]` or `Polygon3D[]`.
+- `Polygon2D.IsConvex()`, `Polygon3D.IsConvex()`.
+- `Polyline3D.IsPlanar()`, `IsSimple()`, `IsConvex()`, `ConvexHull()` → `Polyline3D^`, `ToPolygon()` → `Polygon3D^`.
+- `CoordinateFrame` ref class with `X`, `Y`, `Z` properties (`Vector3D^`).
+- `GeomUtil.PrincipalAxes()` → `CoordinateFrame^`, `PrincipalNormal()` → `Vector3D^`, `PrincipalDirection()` → `Vector3D^`.
+- `BBall2D(Point2D^, double)` / `BBall2D(array<Point2D^>^)` — `Center`, `Radius`, `Contains(Point2D^)`, `AlmostEquals(BBall2D^)`.
+- `BBall3D(Point3D^, double)` / `BBall3D(array<Point3D^>^)` — same in 3D.
+- `BRect2D(array<Point2D^>^)` — `Center`, `AxisU`, `AxisV`, `HalfLenU`, `HalfLenV`, `Width()`, `Height()`, `Area()`, `Corners()`, `Contains(Point2D^)`, `AlmostEquals(BRect2D^)`.
+- `BPrism3D(array<Point3D^>^)` — `Center`, `AxisU`, `AxisV`, `AxisW`, `HalfLenU`, `HalfLenV`, `HalfLenW`, `Width()`, `Height()`, `Depth()`, `Volume()`, `Corners()`, `Contains(Point3D^)`, `AlmostEquals(BPrism3D^)`.
+- `.NET 8` build target (`GeomPP_Net8.vcxproj`) and `.NET 9` build target (`GeomPP_Net9.vcxproj`). The NuGet package ships four C++/CLI DLLs: `net8.0-windows7.0`, `net9.0-windows7.0`, `net10.0-windows7.0`, and `net48`.
 
 ### Performance
 
 **C++ core**
+- **Link-Time Optimization (LTO)** enabled for Release builds on the `geompp` static library and `_geompp` Python extension (`/GL` + `/LTCG` on MSVC; `-flto` on GCC/Clang). Uses `CheckIPOSupported` with a graceful `STATUS` fallback when LTO is unavailable.
+- **Extern template for all bounding-shape constructors**: `vector<PointN>` template constructors of `BBox2D`, `BBox3D`, `BBall2D`, `BBall3D`, `BRect2D`, and `BPrism3D` moved from header to `.cpp` (same pattern as `convex_hull_monotone_chain` and `min_bounding_rect`), reducing per-TU instantiation cost and binary size.
+- **`View2D` 3D-to-2D projection**: `View2D::x(Point3D)` / `y(Point3D)` project without allocating an intermediate `Point2D`. Axis-aligned views (`XY`, `YZ`, `ZX`) read a single coordinate at zero arithmetic cost; `Custom` computes `(p − ORIGIN).Dot(AXIS_U/V)` in-place.
 - `simplify_rings_impl`: adjacency-list duplicate check changed from O(degree) `std::find` per edge to a single `std::sort` + `std::unique` pass after insertion.
-- `simplify_rings_impl`: half-edge walk neighbor lookup changed from O(degree) linear scan to O(log degree) `std::upper_bound` on precomputed angle array.
+- `simplify_rings_impl`: half-edge walk neighbor lookup changed from O(degree) linear scan to O(log degree) `std::upper_bound` on a precomputed angle array.
 - `Polygon2D/3D::Simplify()`: hole-assignment polygon construction reduced from O(nc²) repeated `Polygon2D::Make` calls to O(nc) pre-built polygons with reuse.
+
+**Python / PyPI**
+- Wheel targets extended to **3.8–3.14** (was 3.8–3.12). Wheels for CPython 3.13 and 3.14 published on PyPI for Linux x86_64 and Windows AMD64.
 
 ### Fixed
 
 **C++ core**
+- `Plane(origin, normal)` private constructor now normalizes the normal. Previously the raw non-unit vector was stored, causing `SignedDistanceTo` and other distance operations to return scaled results. `From3Points` and `FromOriginAndAxes` were not affected.
 - `Polygon2D/3D::Simplify()`: hole-assignment test point changed from midpoint of first edge (can land on a boundary) to centroid of the ring (always interior for convex decomposition faces).
 - `Polygon2D/3D::Simplify()`: silent `catch(...)` blocks replaced with `catch(std::runtime_error const&)` and `GEOMPP_LOG(WARNING)` so degenerate-ring failures are visible.
 - `simplify_rings_impl`: half-edge walk `delta <= 0.0` comparison replaced with `compare(delta, 0.0, 1e-9) <= 0` to prevent floating-point noise from selecting the reverse edge.
 
----
-
-## [0.12.0] - 2026-07-02
-
-> C++ library — tagged `v0.12.0` · C# / NuGet — tagged `csharp-v0.12.0` · Python / PyPI — tagged `python-v0.12.0`
-
-> Adds four bounding-shape classes (`BRect2D`, `BPrism3D`, `BBall2D`, `BBall3D`) across all three language targets. Enables Link-Time Optimization in Release builds, moves all bounding-shape template constructors to `.cpp` files (extern template pattern), and ships the NuGet package as four separate DLLs covering .NET 8/9/10 and .NET Framework 4.8. Python wheels now cover 3.8–3.14.
-
-### Added
-
-**C++ core**
-- `BRect2D` (`brect2d.hpp`) — minimum oriented bounding rectangle. Uses Andrew's monotone-chain convex hull followed by the rotating-calipers algorithm (Freeman & Shapira 1975 / Toussaint 1983) to find the minimum-area enclosing rectangle. Stores `center`, `axis_u`, `axis_v` (both unit vectors), `half_len_u`, `half_len_v`. Methods: `Corners()` (4 `Point2D`), `Contains(Point2D)`, `area()`, `width()`, `height()`, `AlmostEquals()`. Throws `std::invalid_argument` for fewer than 3 points or for a collinear / coincident point cloud (degenerate convex hull).
-- `BPrism3D` (`bprism3d.hpp`) — oriented bounding prism. Runs `principal_axes(points)` (PCA) to determine the dominant-variance plane, then applies rotating calipers in that plane to find the minimum-area rectangle; the third axis is the PCA normal, extruded symmetrically to cover all points. Stores `center`, `axis_u`, `axis_v`, `axis_w` (all unit vectors), `half_len_u`, `half_len_v`, `half_len_w`. Methods: `Corners()` (8 `Point3D`), `Contains(Point3D)`, `volume()`, `width()`, `height()`, `depth()`, `AlmostEquals()`. Coplanar inputs produce a valid prism with `half_len_w == DOUBLE_EPSILON`. Throws `std::invalid_argument` for fewer than 3 points or for a collinear / coincident cloud.
-- `BBall2D` (`bball2d.hpp`) — minimum bounding ball in 2D; Ritter's two-pass O(N) algorithm. Finds the widest-spread axis-aligned diameter pair in the first pass, then expands the sphere to cover any outliers in the second pass. Stores `center` (`Point2D`) and `radius`. Methods: `Contains(Point2D)`, `AlmostEquals()`. Degenerate inputs: 1 point → zero-radius ball; 2 points → ball with their midpoint as center and half-distance as radius. Throws `std::runtime_error` for empty input.
-- `BBall3D` (`bball3d.hpp`) — minimum bounding ball in 3D; same Ritter algorithm extended to three axes (`x_min/max`, `y_min/max`, `z_min/max`). Throws `std::runtime_error` for empty input.
-
-**Python / PyPI**
-- `BBall2D(center: Point2D, radius: float)` / `BBall2D(points: list[Point2D])` — mirrors C++ API; `center`, `radius`, `contains(p)`, `almost_equals(other)`.
-- `BBall3D(center: Point3D, radius: float)` / `BBall3D(points: list[Point3D])` — same in 3D.
-- `BRect2D(points: list[Point2D])` — `center`, `axis_u`, `axis_v`, `half_len_u`, `half_len_v`, `width()`, `height()`, `area()`, `corners()`, `contains(p)`, `almost_equals(other)`.
-- `BPrism3D(points: list[Point3D])` — `center`, `axis_u`, `axis_v`, `axis_w`, `half_len_u`, `half_len_v`, `half_len_w`, `width()`, `height()`, `depth()`, `volume()`, `corners()`, `contains(p)`, `almost_equals(other)`.
-
-**C# / NuGet**
-- `BBall2D(Point2D^ center, double radius)` / `BBall2D(array<Point2D^>^ points)` — `Center`, `Radius`, `Contains(Point2D^)`, `AlmostEquals(BBall2D^)`.
-- `BBall3D(Point3D^ center, double radius)` / `BBall3D(array<Point3D^>^ points)` — same in 3D.
-- `BRect2D(array<Point2D^>^ points)` — `Center`, `AxisU`, `AxisV`, `HalfLenU`, `HalfLenV`, `Width()`, `Height()`, `Area()`, `Corners()`, `Contains(Point2D^)`, `AlmostEquals(BRect2D^)`.
-- `BPrism3D(array<Point3D^>^ points)` — `Center`, `AxisU`, `AxisV`, `AxisW`, `HalfLenU`, `HalfLenV`, `HalfLenW`, `Width()`, `Height()`, `Depth()`, `Volume()`, `Corners()`, `Contains(Point3D^)`, `AlmostEquals(BPrism3D^)`.
-- Added `.NET 8` build target (`GeomPP_Net8.vcxproj`, output `x64\Release_Net8\GeomPP.dll`) and `.NET 9` build target (`GeomPP_Net9.vcxproj`, output `x64\Release_Net9\GeomPP.dll`). The NuGet package now ships four separate C++/CLI DLLs compiled for `net8.0-windows7.0`, `net9.0-windows7.0`, `net10.0-windows7.0`, and `net48`.
-
-### Performance
-
-**C++ core**
-- **Link-Time Optimization (LTO)** enabled for Release builds on the `geompp` static library and `_geompp` Python extension. Uses CMake `CheckIPOSupported` with a graceful `STATUS` fallback on platforms where LTO is unavailable (no build failure). On MSVC this activates `/GL` (whole-program compilation) + `/LTCG` (link-time code generation); on GCC/Clang it activates `-flto`.
-- **Extern template for all bounding-shape constructors**: the `vector<PointN>` template constructors of `BBox2D`, `BBox3D`, `BBall2D`, `BBall3D`, `BRect2D`, and `BPrism3D` have been moved from header to `.cpp` using the `extern template` / explicit-instantiation pattern (same as `convex_hull_monotone_chain` and `min_bounding_rect`). Every translation unit that includes these headers now suppresses implicit instantiation and links against one shared copy, reducing compilation time and binary size.
-- **`View2D` 3D-to-2D projection**: `View2D::x(Point3D)` and `View2D::y(Point3D)` project 3D points into 2D scalars without allocating an intermediate `Point2D` container. Axis-aligned views (`XY`, `YZ`, `ZX`) read a single coordinate component at zero arithmetic cost. The `Custom` projection computes `(p − ORIGIN).Dot(AXIS_U/V)` in-place. These getters are used by the internal `convex_hull_monotone_chain` and `min_bounding_rect` algorithms when operating on 3D point clouds projected onto an arbitrary plane, avoiding any heap allocation per point.
-
-**Python / PyPI**
-- Python wheel targets extended to **3.8–3.14** (was 3.8–3.12). Wheels for CPython 3.13 and 3.14 are now published on PyPI for both Linux x86_64 and Windows AMD64.
-
 ### Tests
 
 **C++ (`geompp_tests`)**
+- `test_polygon2d.cpp`: `Intersection_Line_*`, `Intersection_Ray_*`, `Intersection_Segment_*`, `Intersects_*`; `IsConvex_Square_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_Triangle_True`; Simplify suite.
+- `test_polygon3d.cpp`: `IsConvex_Square_XYPlane_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_YZPlane_True`; Simplify suite.
+- `test_polyline3d.cpp`: `IsPlanar_XYPlane_True`, `IsPlanar_NonPlanar_False`, `IsPlanar_Collinear_True`, `IsSimple_PlanarNoSelfIntersect_True`, `IsSimple_PlanarSelfIntersecting_False`, `IsConvex_PlanarConvex_True`, `IsConvex_PlanarConcave_False`, `IsConvex_NotPlanar_Throws`, `ConvexHull_PlanarPolyline_ReturnsPolyline`, `ConvexHull_NotPlanar_Throws`, `ConvexHull_ThenToPolygon_ValidPolygon`, `ToPolygon_PlanarPolyline_Valid`, `ToPolygon_NotPlanar_Throws`.
+- `test_calc_utils3d.cpp`: `PrincipalAxes_PlanarXYCloud_ZIsNormal`, `PrincipalAxes_ElongatedAlongX_XIsLongest`, `PrincipalAxes_AxesAreOrthogonal`, `PrincipalAxes_AxesAreUnitVectors`, `PrincipalNormal_PlanarCloud_MatchesBasisZ`, `PrincipalDirection_ElongatedAlongX_MatchesBasisX`, `PrincipalAxes_TooFewPoints_Throws`.
 - `test_bball2d.cpp`: `ConstructorCenterRadius`, `ConstructorFromSinglePoint`, `ConstructorFromTwoPoints`, `ConstructorFromPointsAllContained`, `ConstructorEmptyThrows`, `CopyConstructor`, `Assignment`, `AlmostEquals`, `Contains`.
 - `test_bball3d.cpp`: same suite plus `ConstructorFromTwoPointsAlongZ`.
 - `test_brect2d.cpp`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_ZeroExtent`, `ConstructorTwoPoints_DegenerateLine`, `ConstructorAxisAlignedSquare`, `ConstructorAxisAlignedRectangle`, `ConstructorNonConvex_SmallArea`, `ConstructorAllPointsContained`, `Accessors_AxisesAreUnitVectors`, `Accessors_AxesOrthogonal`, `Accessors_WidthHeightArea`, `Corners_FourDistinctPoints`, `Contains_Center_True`, `Contains_Interior_True`, `Contains_Boundary_True`, `Contains_Outside_False`, `AlmostEquals_SameRect`, `AlmostEquals_DifferentRect`, `CopyConstructor`, `Assignment`.
 - `test_bprism3d.cpp`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_Throws`, `ConstructorTwoPoints_Throws`, `ConstructorAxisAlignedBox`, `ConstructorFlatCloud_WIsEpsilon`, `ConstructorNonConvex_AllPointsContained`, `Accessors_AxesAreUnitVectors`, `Accessors_AxesOrthogonal`, `Accessors_WidthHeightDepthVolume`, `Corners_EightDistinctPoints`, `Contains_Center_True`, `Contains_Interior_True`, `Contains_Outside_False`, `Contains_Boundary_True`, `AlmostEquals_Same`, `AlmostEquals_Different`, `CopyConstructor`, `Assignment`.
 
 **Python (`geompp_python/tests`)**
-- `TestBBall2D`: `test_constructor_center_radius`, `test_constructor_from_single_point`, `test_constructor_from_two_points`, `test_constructor_from_points_all_contained`, `test_contains_center`, `test_contains_boundary`, `test_contains_outside`, `test_almost_equals`.
-- `TestBBall3D`: same suite.
-- `TestBRect2D`: `test_empty_throws`, `test_single_point_zero_extent`, `test_two_points_degenerate_line`, `test_axis_aligned_rectangle_center`, `test_all_points_contained`, `test_axes_are_unit_vectors`, `test_axes_orthogonal`, `test_corners_returns_four_points`, `test_contains_center`, `test_contains_boundary`, `test_contains_outside`, `test_almost_equals`, `test_not_almost_equals_different`.
-- `TestBPrism3D`: `test_empty_throws`, `test_single_point_zero_extent`, `test_two_points_degenerate_line`, `test_axis_aligned_box`, `test_flat_cloud_w_is_epsilon`, `test_nonconvex_all_points_contained`, `test_axes_are_unit_vectors`, `test_axes_orthogonal`, `test_width_height_depth_volume`, `test_corners_eight_distinct_all_contained`, `test_contains_center`, `test_contains_outside_false`, `test_almost_equals`, `test_not_almost_equals_different`.
+- `TestPolygon2DIntersection`: intersection and intersects suites for line, ray, and segment.
+- `TestPolygon2DSimplify`, `TestPolygon3DSimplify`: Simplify suites.
+- `TestPolygon2DIsConvex`: `test_square_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`.
+- `TestPolygon3DIsConvex`: `test_square_xy_plane_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`.
+- `TestPolyline3DPlanarConvex`: `test_is_planar_xy`, `test_is_planar_nonplanar`, `test_is_simple_planar`, `test_is_convex_planar`, `test_is_convex_not_planar_throws`, `test_convex_hull_returns_polyline`, `test_convex_hull_to_polygon`, `test_to_polygon_not_planar_throws`.
+- `TestPrincipalAxes`: `test_coordinate_frame_attributes`, `test_z_is_normal_for_flat_xy_cloud`, `test_axes_are_orthogonal`, `test_axes_are_unit_vectors`, `test_principal_normal_matches_z`, `test_principal_direction_matches_x`, `test_too_few_points_throws`.
+- `TestBBall2D` / `TestBBall3D`: constructor, contains, almost_equals suites.
+- `TestBRect2D` / `TestBPrism3D`: constructor, accessors, corners, contains, almost_equals suites.
 
 **C# (`geompp_csharp/tests`)**
+- `Polygon2D`: Intersection/Intersects suites for Line2D, Ray2D, LineSegment2D; Simplify suite; `IsConvex_Square_True`, `IsConvex_Concave_False`, `IsConvex_WithHole_False`.
+- `Polygon3D`: `IsConvex_Square_True`, `IsConvex_Concave_False`; Simplify suite.
+- `Polyline3D`: `IsPlanar_XY_True`, `IsPlanar_NonPlanar_False`, `IsSimple_True`, `IsConvex_Planar_True`, `IsConvex_NotPlanar_Throws`, `ConvexHull_ReturnsPolyline`, `ConvexHull_ThenToPolygon`, `ToPolygon_Valid`, `ToPolygon_NotPlanar_Throws`.
+- `GeomUtil`: `PrincipalAxes_NotNull`, `PrincipalAxes_Z_IsNormal`, `PrincipalNormal_NotNull`, `PrincipalDirection_NotNull`, `PrincipalDirection_AlongX`.
 - `BBall2D` / `BBall3D`: `ConstructorCenterRadius`, `ConstructorFromSinglePoint`, `ConstructorFromTwoPoints`, `ConstructorFromPointsAllContained`, `Contains_Inside_True`, `Contains_Outside_False`, `AlmostEquals_Same`, `AlmostEquals_Different`.
 - `BRect2D`: `ConstructorEmpty_Throws`, `ConstructorFromPoints_AllContained`, `Accessors_AxesUnitAndOrthogonal`, `Contains_Center_True`, `Contains_Outside_False`, `AlmostEquals_Same`.
 - `BPrism3D`: `ConstructorEmpty_Throws`, `ConstructorSinglePoint_Throws`, `ConstructorTwoPoints_Throws`, `ConstructorAxisAlignedBox`, `Accessors_AxesUnitAndOrthogonal`, `Contains_Center_True`, `Contains_Outside_False`, `AlmostEquals_Same`.
-
----
-
-## [0.11.0] - 2026-06-24
-
-> C++ library — tagged `v0.11.0` · C# / NuGet — tagged `csharp-v0.11.0` · Python / PyPI — tagged `python-v0.11.0`
-
-> Convexity predicates for Polygon and Polyline, planar Polyline3D operations (IsPlanar, IsSimple, ConvexHull, ToPolygon), and PCA-based principal axes for 3D point clouds
-
-### Added
-
-**C++ core**
-- `Polygon2D::IsConvex()` (`polygon2d.hpp`) — returns false if the polygon has holes or any concave turn; true otherwise
-- `Polygon3D::IsConvex()` (`polygon3d.hpp`) — same, using the stored plane normal for the 3D left-turn test
-- `Polyline3D::IsPlanar()` (`polyline3d.hpp`) — true if all knots are coplanar (degenerate cases: <3 points or all collinear also return true)
-- `Polyline3D::IsSimple()` (`polyline3d.hpp`) — no self-intersections; uses Shamos–Hoey for planar polylines, Bentley–Ottmann + 3D verification for non-planar
-- `Polyline3D::IsConvex()` (`polyline3d.hpp`) — throws `std::logic_error` if not planar; checks all consecutive triples make a left turn relative to the plane normal
-- `Polyline3D::ConvexHull()` (`polyline3d.hpp`) — throws if not planar; Melkman's deque algorithm; returns `Polyline3D` (open hull path, not a closed polygon)
-- `Polyline3D::ToPolygon()` (`polyline3d.hpp`) — throws if not planar; closes the open path into a `Polygon3D`
-- `CoordinateFrame` struct (`calc_utils3d.hpp`) — `Vector3D X` (primary/largest variance), `Y` (secondary), `Z` (normal/least variance)
-- `principal_axes(vector<Point3D>)` (`calc_utils3d.hpp`) — PCA via Jacobi eigendecomposition on the 3×3 covariance matrix; returns `CoordinateFrame`; stable for any point distribution including non-planar clouds and helices
-- `principal_normal(vector<Point3D>)` (`calc_utils3d.hpp`) — best-fit plane normal; delegates to `principal_axes().Z`
-- `principal_direction(vector<Point3D>)` (`calc_utils3d.hpp`) — dominant spread direction; delegates to `principal_axes().X`
-
-**Python / PyPI**
-- `Polygon2D.is_convex()`, `Polygon3D.is_convex()`
-- `Polyline3D.is_planar()`, `is_simple()`, `is_convex()`, `convex_hull()` → `Polyline3D`, `to_polygon()` → `Polygon3D`
-- `CoordinateFrame` class with `x`, `y`, `z` attributes (all `Vector3D`)
-- `principal_axes(points)` → `CoordinateFrame`, `principal_normal(points)` → `Vector3D`, `principal_direction(points)` → `Vector3D`
-
-**C# / NuGet**
-- `Polygon2D.IsConvex()`, `Polygon3D.IsConvex()`
-- `Polyline3D.IsPlanar()`, `IsSimple()`, `IsConvex()`, `ConvexHull()` → `Polyline3D^`, `ToPolygon()` → `Polygon3D^`
-- `CoordinateFrame` ref class with `X`, `Y`, `Z` properties (`Vector3D^`)
-- `GeomUtil.PrincipalAxes()` → `CoordinateFrame^`, `PrincipalNormal()` → `Vector3D^`, `PrincipalDirection()` → `Vector3D^`
-
-### Fixed
-
-**C++ core**
-- `Plane(origin, normal)` private constructor now normalizes the normal (`normal.Normalize()`). Previously the raw (non-unit) vector was stored, causing `SignedDistanceTo` and other distance operations to return scaled results when the input normal was not already a unit vector. `From3Points` and `FromOriginAndAxes` were not affected (they normalized via cross product already).
-
-### Tests
-
-**C++ (`geompp_tests`)**
-- `test_polygon2d.cpp`: `IsConvex_Square_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_Triangle_True`
-- `test_polygon3d.cpp`: `IsConvex_Square_XYPlane_True`, `IsConvex_ConcavePolygon_False`, `IsConvex_WithHole_False`, `IsConvex_YZPlane_True`
-- `test_polyline3d.cpp`: `IsPlanar_XYPlane_True`, `IsPlanar_NonPlanar_False`, `IsPlanar_Collinear_True`, `IsSimple_PlanarNoSelfIntersect_True`, `IsSimple_PlanarSelfIntersecting_False`, `IsConvex_PlanarConvex_True`, `IsConvex_PlanarConcave_False`, `IsConvex_NotPlanar_Throws`, `ConvexHull_PlanarPolyline_ReturnsPolyline`, `ConvexHull_NotPlanar_Throws`, `ConvexHull_ThenToPolygon_ValidPolygon`, `ToPolygon_PlanarPolyline_Valid`, `ToPolygon_NotPlanar_Throws`
-- `test_calc_utils3d.cpp`: `PrincipalAxes_PlanarXYCloud_ZIsNormal`, `PrincipalAxes_ElongatedAlongX_XIsLongest`, `PrincipalAxes_AxesAreOrthogonal`, `PrincipalAxes_AxesAreUnitVectors`, `PrincipalNormal_PlanarCloud_MatchesBasisZ`, `PrincipalDirection_ElongatedAlongX_MatchesBasisX`, `PrincipalAxes_TooFewPoints_Throws`
-
-**Python (`geompp_python/tests`)**
-- `TestPolygon2DIsConvex`: `test_square_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`
-- `TestPolygon3DIsConvex`: `test_square_xy_plane_is_convex`, `test_concave_not_convex`, `test_with_hole_not_convex`
-- `TestPolyline3DPlanarConvex`: `test_is_planar_xy`, `test_is_planar_nonplanar`, `test_is_simple_planar`, `test_is_convex_planar`, `test_is_convex_not_planar_throws`, `test_convex_hull_returns_polyline`, `test_convex_hull_to_polygon`, `test_to_polygon_not_planar_throws`
-- `TestPrincipalAxes`: `test_coordinate_frame_attributes`, `test_z_is_normal_for_flat_xy_cloud`, `test_axes_are_orthogonal`, `test_axes_are_unit_vectors`, `test_principal_normal_matches_z`, `test_principal_direction_matches_x`, `test_too_few_points_throws`
-
-**C# (`geompp_csharp/tests`)**
-- `IsConvex_Square_True`, `IsConvex_Concave_False`, `IsConvex_WithHole_False` (Polygon2D)
-- `IsConvex_Square_True`, `IsConvex_Concave_False` (Polygon3D)
-- `IsPlanar_XY_True`, `IsPlanar_NonPlanar_False`, `IsSimple_True`, `IsConvex_Planar_True`, `IsConvex_NotPlanar_Throws`, `ConvexHull_ReturnsPolyline`, `ConvexHull_ThenToPolygon`, `ToPolygon_Valid`, `ToPolygon_NotPlanar_Throws` (Polyline3D)
-- `PrincipalAxes_NotNull`, `PrincipalAxes_Z_IsNormal`, `PrincipalNormal_NotNull`, `PrincipalDirection_NotNull`, `PrincipalDirection_AlongX` (GeomUtil)
 
 ---
 

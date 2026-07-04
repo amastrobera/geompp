@@ -131,14 +131,45 @@ mid = POINT (2 0)
 
 ### 3. Intersections
 
-Intersection methods return `object` (null when there is no intersection); use C# pattern matching to
-extract the result type. `GeomUtil.FindIntersections(segments)` (Bentley–Ottmann) reports all crossing
-points across an arbitrary set of 2D segments, sorted left-to-right.
+Every 2D primitive (`Line2D`, `Ray2D`, `LineSegment2D`, `Triangle2D`, `Polygon2D`) can intersect any
+other 2D primitive, and the same holds in 3D across `Line3D`, `Ray3D`, `LineSegment3D`, `Triangle3D`,
+and `Plane`. Methods return `object` (null on miss); use C# pattern matching to extract the result
+type. Polygon intersections return `LineSegment2D[]` because a line can produce multiple chords through
+a concave shape. `GeomUtil.FindIntersections(segments)` (Bentley–Ottmann) reports all crossing points
+across an arbitrary set of 2D segments, sorted left-to-right.
 
 ```csharp
 using G = GeomPP;
 
-// Ray3D vs Triangle3D
+// LineSegment2D → Polygon2D: segment is clipped to the polygon interior
+var square = G.Polygon2D.Make(new G.Point2D[] {
+    new(0, 0), new(4, 0), new(4, 4), new(0, 4),
+});
+var seg = G.LineSegment2D.Make(new G.Point2D(-1, 2), new G.Point2D(5, 2));
+if (square.Intersection(seg) is G.LineSegment2D[] segChords)
+    foreach (var c in segChords)
+        Console.WriteLine(c.ToWkt());   // LINESTRING (0 2, 4 2)
+
+// Ray2D → Polygon2D: ray entering from outside, clipped at the exit boundary
+var ray2d = G.Ray2D.Make(new G.Point2D(-1, 2), new G.Vector2D(1, 0));
+if (square.Intersection(ray2d) is G.LineSegment2D[] rayChords)
+    foreach (var c in rayChords)
+        Console.WriteLine(c.ToWkt());   // LINESTRING (0 2, 4 2)
+
+// Line2D → concave Polygon2D: vertical line through a C-shape produces two chords
+var cshape = G.Polygon2D.Make(new G.Point2D[] {
+    new(0, 0), new(4, 0), new(4, 1),
+    new(1, 1), new(1, 3), new(4, 3),
+    new(4, 4), new(0, 4),
+});
+var line2d = G.Line2D.Make(new G.Point2D(2, 0), new G.Point2D(2, 1));
+if (cshape.Intersection(line2d) is G.LineSegment2D[] linChords)
+    foreach (var c in linChords)
+        Console.WriteLine(c.ToWkt());
+// LINESTRING (2 0, 2 1)
+// LINESTRING (2 3, 2 4)
+
+// Ray3D → Triangle3D
 var tri = G.Triangle3D.Make(new G.Point3D(0, 0, 0), new G.Point3D(4, 0, 0), new G.Point3D(0, 4, 0));
 var ray = G.Ray3D.Make(new G.Point3D(1, 1, 3), new G.Vector3D(0, 0, -1));
 var hit = tri.Intersection(ray) as G.Point3D;
@@ -162,6 +193,10 @@ foreach (var p in G.GeomUtil.FindIntersections(segs))
 
 Output:
 ```
+LINESTRING (0 2, 4 2)
+LINESTRING (0 2, 4 2)
+LINESTRING (2 0, 2 1)
+LINESTRING (2 3, 2 4)
 POINT (1 1 0)
 POINT (2 1)
 POINT (1 2)

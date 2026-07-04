@@ -127,18 +127,56 @@
 
   ### 3. Intersections
 
-  Intersection methods return `std::optional<std::variant<...>>` — callers pattern-match on the exact
-  geometry without casting. `find_intersections(segments)` (Bentley–Ottmann) reports all crossing
-  points across an arbitrary set of 2D segments, sorted left-to-right.
+  Every 2D primitive (`Line2D`, `Ray2D`, `LineSegment2D`, `Triangle2D`, `Polygon2D`) can intersect any
+  other 2D primitive, and the same holds in 3D across `Line3D`, `Ray3D`, `LineSegment3D`, `Triangle3D`,
+  and `Plane`. Results are `std::optional<std::variant<...>>` for point-or-segment outcomes, or
+  `std::optional<std::vector<LineSegment2D>>` when polygon clipping can produce multiple chords.
+  `find_intersections(segments)` (Bentley–Ottmann) reports all crossing points across an arbitrary set
+  of 2D segments, sorted left-to-right.
 
   ```cpp
-  #include "triangle3d.hpp"
+  #include "polygon2d.hpp"
+  #include "line2d.hpp"
+  #include "ray2d.hpp"
   #include "line_segment2d.hpp"
+  #include "triangle3d.hpp"
   #include "calc_utils2d.hpp"
 
   namespace g = geompp;
 
-  // Ray3D vs Triangle3D
+  // LineSegment2D → Polygon2D: segment is clipped to the polygon interior
+  auto square = g::Polygon2D::Make({
+      g::Point2D(0, 0), g::Point2D(4, 0),
+      g::Point2D(4, 4), g::Point2D(0, 4),
+  });
+  auto seg = g::LineSegment2D::Make(g::Point2D(-1, 2), g::Point2D(5, 2));
+  auto seg_chords = square.Intersection(seg);
+  if (seg_chords)
+      for (auto const& c : *seg_chords)
+          GEOMPP_LOG(INFO) << c.ToWkt();  // LINESTRING (0 2, 4 2)
+
+  // Ray2D → Polygon2D: ray entering from outside, clipped at the exit boundary
+  auto ray2d = g::Ray2D::Make(g::Point2D(-1, 2), g::Vector2D(1, 0));
+  auto ray_chords = square.Intersection(ray2d);
+  if (ray_chords)
+      for (auto const& c : *ray_chords)
+          GEOMPP_LOG(INFO) << c.ToWkt();  // LINESTRING (0 2, 4 2)
+
+  // Line2D → concave Polygon2D: vertical line through a C-shape produces two chords
+  auto cshape = g::Polygon2D::Make({
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 1),
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(4, 3),
+      g::Point2D(4, 4), g::Point2D(0, 4),
+  });
+  auto line2d     = g::Line2D::Make(g::Point2D(2, 0), g::Point2D(2, 1));
+  auto lin_chords = cshape.Intersection(line2d);
+  if (lin_chords)
+      for (auto const& c : *lin_chords)
+          GEOMPP_LOG(INFO) << c.ToWkt();
+  // LINESTRING (2 0, 2 1)
+  // LINESTRING (2 3, 2 4)
+
+  // Ray3D → Triangle3D
   auto tri = g::Triangle3D::Make(
       g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
   auto ray = g::Ray3D::Make(g::Point3D(1, 1, 3), g::Vector3D(0, 0, -1));
@@ -165,6 +203,10 @@
   ```
 
   ```bash
+  LINESTRING (0 2, 4 2)
+  LINESTRING (0 2, 4 2)
+  LINESTRING (2 0, 2 1)
+  LINESTRING (2 3, 2 4)
   POINT (1 1 0)
   POINT (2 1)
   POINT (1 2)
