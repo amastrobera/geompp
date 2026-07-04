@@ -4,7 +4,7 @@
 
 namespace GeomPP {
 
-IntersectionEvent2D::IntersectionEvent2D(geompp::IntersectionEvent2D* native) : _native(native) {}
+IntersectionEvent2D::IntersectionEvent2D(geompp::detail::IntersectionEvent2D* native) : _native(native) {}
 
 IntersectionEvent2D::~IntersectionEvent2D() { this->!IntersectionEvent2D(); }
 

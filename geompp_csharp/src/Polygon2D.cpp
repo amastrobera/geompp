@@ -158,15 +158,11 @@ bool Polygon2D::Intersects(LineSegment2D^ segment) {
 
 // ── Intersection ──────────────────────────────────────────────────────────────
 
-static System::Object^ variant_to_managed(geompp::Polygon2D::ReturnSet const& result) {
+static array<LineSegment2D^>^ segs_to_managed(std::optional<std::vector<geompp::LineSegment2D>> const& result) {
     if (!result.has_value()) {
         return nullptr;
     }
-    auto const& var = result.value();
-    if (std::holds_alternative<geompp::Point2D>(var)) {
-        return gcnew Point2D(new geompp::Point2D(std::get<geompp::Point2D>(var)));
-    }
-    auto const& native_segs = std::get<std::vector<geompp::LineSegment2D>>(var);
+    auto const& native_segs = result.value();
     auto arr = gcnew array<LineSegment2D^>(static_cast<int>(native_segs.size()));
     for (int i = 0; i < static_cast<int>(native_segs.size()); ++i) {
         arr[i] = gcnew LineSegment2D(new geompp::LineSegment2D(native_segs[i]));
@@ -175,15 +171,15 @@ static System::Object^ variant_to_managed(geompp::Polygon2D::ReturnSet const& re
 }
 
 System::Object^ Polygon2D::Intersection(Line2D^ line) {
-    return variant_to_managed(_native->Intersection(*line->_native));
+    return segs_to_managed(_native->Intersection(*line->_native));
 }
 
 System::Object^ Polygon2D::Intersection(Ray2D^ ray) {
-    return variant_to_managed(_native->Intersection(*ray->_native));
+    return segs_to_managed(_native->Intersection(*ray->_native));
 }
 
 System::Object^ Polygon2D::Intersection(LineSegment2D^ segment) {
-    return variant_to_managed(_native->Intersection(*segment->_native));
+    return segs_to_managed(_native->Intersection(*segment->_native));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────
