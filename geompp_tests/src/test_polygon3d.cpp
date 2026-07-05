@@ -90,6 +90,11 @@ TEST_F(Polygon3DTest, Wkt) {
   EXPECT_EQ(4, q.Size());
   EXPECT_EQ(g::Point3D(0, 0, 0), q[0]);
   EXPECT_EQ(g::Point3D(1, 0, 0), q[1]);
+  // whitespace tolerance
+  auto qw = g::Polygon3D::FromWkt("POLYGON ((  0 0 0  ,  1 0 0  ,  1 1 0  ,  0 1 0  ,  0 0 0  ))");
+  EXPECT_EQ(4, qw.Size());
+  EXPECT_EQ(g::Point3D(0, 0, 0), qw[0]);
+  EXPECT_EQ(g::Point3D(1, 0, 0), qw[1]);
   // invalid input still throws
   EXPECT_ANY_THROW(g::Polygon3D::FromWkt("anything"));
 }

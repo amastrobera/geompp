@@ -238,6 +238,7 @@ TEST_F(Vector3DTest, Wkt) {
   EXPECT_EQ(g::Vector3D(256.1343, -684.6497, 99.0), g::Vector3D::FromWkt("VECTOR (256.1343 -684.6497 99.0)"));
   EXPECT_EQ(g::Vector3D(-7.5, -60.7, 0.0), g::Vector3D::FromWkt("  vector( -7.5    -60.7  0.0 )"));
   EXPECT_EQ(g::Vector3D(0.645, -1.6897, 3.0), g::Vector3D::FromWkt("VeCtOR   ( 0.645  -1.6897  3.0  )"));
+  EXPECT_EQ(g::Vector3D(0, 1, 2), g::Vector3D::FromWkt("VECTOR (  0  1  2  )"));
 
   // invalid: wrong geometry type
   EXPECT_ANY_THROW(g::Vector3D::FromWkt("angelo"));

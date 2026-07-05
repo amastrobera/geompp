@@ -394,6 +394,8 @@ TEST_F(Triangle2DTest, Wkt) {
             g::Triangle2D::FromWkt("  triangle( 0     0 , 1   1  , 0 2   )"));
   EXPECT_EQ(g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 1), g::Point2D(0, 2)),
             g::Triangle2D::FromWkt("triANGle   ( 0 0  , 1 1 , 0   2    )"));
+  EXPECT_EQ(g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 2)),
+            g::Triangle2D::FromWkt("TRIANGLE (  0 0  ,  1 1  ,  0 2  )"));
 
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::Triangle2D::FromWkt("triangl ( -7.5 -60.7, 0 0, 1 1)"));

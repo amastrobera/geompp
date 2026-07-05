@@ -236,7 +236,7 @@ LineSegment2D LineSegment2D::FromWkt(std::string const& wkt) {
     if (end_p2 == std::string::npos) {
       throw std::runtime_error("brakets");
     }
-    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2 - 1);
+    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1, end_p2);
 
     auto nums_p2 = geompp::tokenize_to_doubles(s_nums_p2);
     if (nums_p2.size() != 2) {

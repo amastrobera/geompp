@@ -241,6 +241,10 @@ TEST_F(LineSegment2DTest, Wkt) {
             g::LineSegment2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
   EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
             g::LineSegment2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0  )"));
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+            g::LineSegment2D::FromWkt("LINESTRING (0 0,1 1)"));
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+            g::LineSegment2D::FromWkt("LINESTRING (  0 0  ,  1  1  )"));
 
   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestrin ( -7.5 -60.7, 0 0)"));

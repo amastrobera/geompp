@@ -76,6 +76,10 @@ TEST_F(Line2DTest, Wkt) {
             g::Line2D::FromWkt("  LINE( -7.5    -60.7, 0   0)"));
   EXPECT_EQ(g::Line2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
             g::Line2D::FromWkt("LINE   ( 0.645  -1.689741  , 1 0  )"));
+  EXPECT_EQ(g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+            g::Line2D::FromWkt("LINE (0 0,1 1)"));
+  EXPECT_EQ(g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+            g::Line2D::FromWkt("LINE (  0 0  ,  1  1  )"));
 
   EXPECT_ANY_THROW(g::Line2D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::Line2D::FromWkt("lin ( -7.5 -60.7, 0 0)"));

@@ -635,3 +635,25 @@ foreach (var c in corners)
 `Corners()` returns the four corners in CCW order; each satisfies `Contains()`.
 `Contains()` is O(1) — it projects the query point onto `AxisU`/`AxisV` and checks
 both projections against the half-lengths.
+
+
+`BPrism3D` — minimum oriented bounding prism (PCA + rotating calipers; requires ≥ 3 non-collinear points):
+
+```csharp
+using G = GeomPP;
+
+var pts = new[] {
+    new G.Point3D(0, 0, 0), new G.Point3D(4, 0, 0),
+    new G.Point3D(4, 3, 0), new G.Point3D(0, 3, 0),
+    new G.Point3D(0, 0, 2), new G.Point3D(4, 0, 2),
+    new G.Point3D(4, 3, 2), new G.Point3D(0, 3, 2),
+};
+var prism = new G.BPrism3D(pts);
+Console.WriteLine(prism.Center());                  // roughly (2, 1.5, 1)
+Console.WriteLine($"U={prism.AxisU()} V={prism.AxisV()} W={prism.AxisW()}");
+Console.WriteLine($"{prism.Width()} × {prism.Height()} × {prism.Depth()}");
+Console.WriteLine($"volume={prism.Volume()}");      // ~24.0
+var corners = prism.Corners();                      // array of 8 Point3D
+Console.WriteLine(prism.Contains(prism.Center()));  // True
+Console.WriteLine(prism.AlmostEquals(new G.BPrism3D(pts))); // True
+```

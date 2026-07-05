@@ -441,4 +441,14 @@ TEST_F(Polyline2DTest, ConvexHull_ConcavePath_InnerPointExcluded) {
   }
 }
 
+TEST_F(Polyline2DTest, Wkt) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)});
+  ASSERT_EQ("LINESTRING (0 0, 1 0, 1 1)", pl.ToWkt());
+
+  auto pl2 = g::Polyline2D::FromWkt("LINESTRING (0 0, 1 0, 1 1)");
+  EXPECT_EQ(pl, pl2);
+  EXPECT_EQ(pl, g::Polyline2D::FromWkt("LINESTRING (  0 0  ,  1 0  ,  1 1  )"));
+}
+
 }  // namespace geompp_tests

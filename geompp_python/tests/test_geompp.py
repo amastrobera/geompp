@@ -111,6 +111,9 @@ class TestPoint2D:
         p2 = geompp.Point2D.from_wkt(wkt)
         assert p.almost_equals(p2)
 
+    def test_from_wkt_whitespace(self):
+        assert geompp.Point2D(0, 1).almost_equals(geompp.Point2D.from_wkt("POINT (  0  1  )"))
+
     def test_repr(self):
         assert "POINT" in repr(geompp.Point2D(1, 2))
 
@@ -175,6 +178,9 @@ class TestPoint3D:
         p = geompp.Point3D(1, 2, 3)
         p2 = geompp.Point3D.from_wkt(p.to_wkt())
         assert p.almost_equals(p2)
+
+    def test_from_wkt_whitespace(self):
+        assert geompp.Point3D(0, 1, 2).almost_equals(geompp.Point3D.from_wkt("POINT (  0  1  2  )"))
 
     def test_zero(self):
         z = geompp.Point3D.zero()
@@ -278,6 +284,9 @@ class TestVector2D:
         v2 = geompp.Vector2D.from_wkt(wkt)
         assert v.almost_equals(v2)
 
+    def test_from_wkt_whitespace(self):
+        assert geompp.Vector2D(0, 1).almost_equals(geompp.Vector2D.from_wkt("VECTOR (  0  1  )"))
+
     def test_to_file_from_file(self):
         v = geompp.Vector2D(1.5, 2.5)
         with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
@@ -344,6 +353,9 @@ class TestVector3D:
         wkt = v.to_wkt()
         v2 = geompp.Vector3D.from_wkt(wkt)
         assert v.almost_equals(v2)
+
+    def test_from_wkt_whitespace(self):
+        assert geompp.Vector3D(0, 1, 2).almost_equals(geompp.Vector3D.from_wkt("VECTOR (  0  1  2  )"))
 
     def test_to_file_from_file(self):
         v = geompp.Vector3D(1.0, 2.0, 3.0)
@@ -440,6 +452,11 @@ class TestLineSegment2D:
     def test_wkt_roundtrip(self, seg):
         seg2 = geompp.LineSegment2D.from_wkt(seg.to_wkt())
         assert seg.almost_equals(seg2)
+
+    def test_from_wkt_whitespace(self):
+        expected = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        assert expected.almost_equals(geompp.LineSegment2D.from_wkt("LINESTRING (0 0,1 1)"))
+        assert expected.almost_equals(geompp.LineSegment2D.from_wkt("LINESTRING (  0 0  ,  1  1  )"))
 
     def test_to_line(self, seg):
         l = seg.to_line()
@@ -646,6 +663,11 @@ class TestLineSegment3D:
         assert not s1.intersects(s2)
         assert s1.intersection(s2) is None
 
+    def test_from_wkt_whitespace(self):
+        expected = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        assert expected.almost_equals(geompp.LineSegment3D.from_wkt("LINESTRING (0 0 0,1 1 0)"))
+        assert expected.almost_equals(geompp.LineSegment3D.from_wkt("LINESTRING (  0 0 0  ,  1  1  0  )"))
+
 
 # ─── Line2D ──────────────────────────────────────────────────────────────────
 
@@ -699,6 +721,11 @@ class TestLine2D:
     def test_wkt_roundtrip(self, hline):
         l2 = geompp.Line2D.from_wkt(hline.to_wkt())
         assert hline.almost_equals(l2)
+
+    def test_from_wkt_whitespace(self):
+        l = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        assert l.almost_equals(geompp.Line2D.from_wkt("LINE (0 0,1 1)"))
+        assert l.almost_equals(geompp.Line2D.from_wkt("LINE (  0 0  ,  1  1  )"))
 
     def test_intersects_ray(self, hline):
         # ray pointing upward from below y=0, crossing hline at (3,0)
@@ -847,6 +874,11 @@ class TestLine3D:
         finally:
             os.unlink(path)
 
+    def test_from_wkt_whitespace(self):
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        assert l.almost_equals(geompp.Line3D.from_wkt("LINE (0 0 0,1 1 0)"))
+        assert l.almost_equals(geompp.Line3D.from_wkt("LINE (  0 0 0  ,  1  1  0  )"))
+
 
 # ─── Ray2D ───────────────────────────────────────────────────────────────────
 
@@ -896,6 +928,10 @@ class TestRay2D:
         wkt = ray.to_wkt()
         ray2 = geompp.Ray2D.from_wkt(wkt)
         assert ray.almost_equals(ray2)
+
+    def test_from_wkt_whitespace(self, ray):
+        assert ray.almost_equals(geompp.Ray2D.from_wkt("RAY (0 0,1 0)"))
+        assert ray.almost_equals(geompp.Ray2D.from_wkt("RAY (  0 0  ,  1  0  )"))
 
     def test_to_file_from_file(self, ray):
         with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
@@ -1019,6 +1055,11 @@ class TestRay3D:
         r = geompp.Ray3D.make(geompp.Point3D(1, 2, 3), geompp.Vector3D(1, 0, 0))
         r2 = geompp.Ray3D.from_wkt(r.to_wkt())
         assert r.almost_equals(r2)
+
+    def test_from_wkt_whitespace(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert r.almost_equals(geompp.Ray3D.from_wkt("RAY (0 0 0,1 0 0)"))
+        assert r.almost_equals(geompp.Ray3D.from_wkt("RAY (  0 0 0  ,  1  0  0  )"))
 
     def test_to_file_from_file(self):
         r = geompp.Ray3D.make(geompp.Point3D(1, 2, 3), geompp.Vector3D(1, 0, 0))
@@ -1293,6 +1334,14 @@ class TestPolygon2D:
             geompp.Point2D(1, 3), geompp.Point2D(3, 3),
         ])
         assert not p.is_simple()
+
+    def test_from_wkt_whitespace(self):
+        sq = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(1, 0),
+            geompp.Point2D(1, 1), geompp.Point2D(0, 1),
+        ])
+        assert sq.almost_equals(geompp.Polygon2D.from_wkt("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"))
+        assert sq.almost_equals(geompp.Polygon2D.from_wkt("POLYGON ((  0 0  ,  1 0  ,  1 1  ,  0 1  ,  0 0  ))"))
 
 
 # ─── Polygon2D Intersection ───────────────────────────────────────────────────
@@ -1714,6 +1763,14 @@ class TestPolygon3D:
         assert not poly.is_on_perimeter(geompp.Point3D(0.5, 0.5, 0))  # interior
         assert not poly.is_on_perimeter(geompp.Point3D(2,   2,   0))  # inside hole
 
+    def test_from_wkt_whitespace(self):
+        sq = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ])
+        assert sq.almost_equals(geompp.Polygon3D.from_wkt("POLYGON ((0 0 0, 1 0 0, 1 1 0, 0 1 0, 0 0 0))"))
+        assert sq.almost_equals(geompp.Polygon3D.from_wkt("POLYGON ((  0 0 0  ,  1 0 0  ,  1 1 0  ,  0 1 0  ,  0 0 0  ))"))
+
 
 # ─── Polygon3D::Intersection ──────────────────────────────────────────────────
 
@@ -1880,6 +1937,11 @@ class TestPolyline2D:
         p2 = geompp.Polyline2D.from_wkt(pline.to_wkt())
         assert pline.almost_equals(p2)
 
+    def test_from_wkt_whitespace(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1)])
+        assert pl.almost_equals(geompp.Polyline2D.from_wkt("LINESTRING (0 0, 1 0, 1 1)"))
+        assert pl.almost_equals(geompp.Polyline2D.from_wkt("LINESTRING (  0 0  ,  1 0  ,  1 1  )"))
+
     def test_location(self, pline):
         assert approx(pline.location(geompp.Point2D(0, 0)), 0.0)
         assert approx(pline.location(geompp.Point2D(3, 4)), 1.0)
@@ -2043,6 +2105,11 @@ class TestPolyline3D:
         wkt = pl.to_wkt()
         pl2 = geompp.Polyline3D.from_wkt(wkt)
         assert pl.almost_equals(pl2)
+
+    def test_from_wkt_whitespace(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0)])
+        assert pl.almost_equals(geompp.Polyline3D.from_wkt("LINESTRING (0 0 0, 1 0 0, 1 1 0)"))
+        assert pl.almost_equals(geompp.Polyline3D.from_wkt("LINESTRING (  0 0 0  ,  1 0 0  ,  1 1 0  )"))
 
     def test_to_file_from_file(self):
         pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(3, 4, 0)]
@@ -2259,6 +2326,11 @@ class TestTriangle2D:
         tri2 = geompp.Triangle2D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
 
+    def test_from_wkt_whitespace(self):
+        t = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1))
+        assert t.almost_equals(geompp.Triangle2D.from_wkt("TRIANGLE (0 0, 1 0, 0 1)"))
+        assert t.almost_equals(geompp.Triangle2D.from_wkt("TRIANGLE (  0 0  ,  1 0  ,  0 1  )"))
+
     def test_to_axis(self, tri):
         # tri fixture: P0=(0,0), P1=(4,0), P2=(0,3)
         # ToAxis() returns (P1-P0, P2-P0) — edge vectors, not normalized
@@ -2360,6 +2432,11 @@ class TestTriangle3D:
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle3D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
+
+    def test_from_wkt_whitespace(self):
+        t = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0))
+        assert t.almost_equals(geompp.Triangle3D.from_wkt("TRIANGLE (0 0 0, 1 0 0, 0 1 0)"))
+        assert t.almost_equals(geompp.Triangle3D.from_wkt("TRIANGLE (  0 0 0  ,  1 0 0  ,  0 1 0  )"))
 
     def test_to_polygon(self, tri):
         p = tri.to_polygon()

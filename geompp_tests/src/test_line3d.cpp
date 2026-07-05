@@ -128,6 +128,12 @@ TEST_F(Line3DTest, Wkt) {
   // round-trip
   auto l3 = g::Line3D::Make(g::Point3D(1, 2, 0), g::Point3D(4, 6, 0));
   EXPECT_EQ(l3, g::Line3D::FromWkt(l3.ToWkt()));
+  // no space after comma
+  EXPECT_EQ(g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0)),
+            g::Line3D::FromWkt("LINE (0 0 0,1 1 0)"));
+  // many spaces everywhere
+  EXPECT_EQ(g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0)),
+            g::Line3D::FromWkt("LINE (  0 0 0  ,  1  1  0  )"));
 
   // invalid: wrong geometry type
   EXPECT_ANY_THROW(g::Line3D::FromWkt("POINT (0 0 0, 1 1 0)"));

@@ -98,6 +98,10 @@ Test("CreateFromVector_RoundtripViaToVector", () => {
   IsTrue(p0.AlmostEquals(p1));
 });
 
+Test("FromWkt_Whitespace", () => {
+  IsTrue(new Point2D(0, 1).AlmostEquals(Point2D.FromWkt("POINT (  0  1  )")));
+});
+
 // ── Point3D ───────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPoint3D");
 
@@ -123,6 +127,10 @@ Test("CreateFromVector_RoundtripViaToVector", () => {
   var p0 = new Point3D(1.25, -2.75, 0.5);
   var p1 = new Point3D(p0.ToVector());
   IsTrue(p0.AlmostEquals(p1));
+});
+
+Test("FromWkt_Whitespace", () => {
+  IsTrue(new Point3D(0, 1, 2).AlmostEquals(Point3D.FromWkt("POINT (  0  1  2  )")));
 });
 
 // ── Vector3D ──────────────────────────────────────────────────────────────────
@@ -161,6 +169,10 @@ Test("BasisVectors_AreUnitLength", () => {
   Eq(1.0, Vector3D.BasisX().Length());
   Eq(1.0, Vector3D.BasisY().Length());
   Eq(1.0, Vector3D.BasisZ().Length());
+});
+
+Test("FromWkt_Whitespace", () => {
+  IsTrue(new Vector3D(0, 1, 2).AlmostEquals(Vector3D.FromWkt("VECTOR (  0  1  2  )")));
 });
 
 // ── Line2D ────────────────────────────────────────────────────────────────────
@@ -212,6 +224,12 @@ Test("ProjectOnto_PointAboveLine", () => {
                    .ProjectOnto(new Point2D(3, 5));
   Eq(3.0, proj.X);
   Eq(0.0, proj.Y);
+});
+
+Test("FromWkt_Whitespace", () => {
+  var expected = Line2D.Make(new Point2D(0, 0), new Point2D(1, 1));
+  IsTrue(expected.AlmostEquals(Line2D.FromWkt("LINE (0 0,1 1)")));
+  IsTrue(expected.AlmostEquals(Line2D.FromWkt("LINE (  0 0  ,  1  1  )")));
 });
 
 // ── Line3D ────────────────────────────────────────────────────────────────────
@@ -333,6 +351,12 @@ Test("Line3D_DistanceTo_LineSegment3D_Overlap_IsZero", () => {
   IsNull(x.Distance(seg));
 });
 
+Test("FromWkt_Whitespace", () => {
+  var expected = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0));
+  IsTrue(expected.AlmostEquals(Line3D.FromWkt("LINE (0 0 0,1 1 0)")));
+  IsTrue(expected.AlmostEquals(Line3D.FromWkt("LINE (  0 0 0  ,  1  1  0  )")));
+});
+
 // ── LineSegment2D ─────────────────────────────────────────────────────────────
 Console.WriteLine("\nLineSegment2D");
 
@@ -375,6 +399,12 @@ Test("Interpolate_Midpoint", () => {
   NotNull(mid);
   Eq(2.0, mid!.X);
   Eq(0.0, mid.Y);
+});
+
+Test("FromWkt_Whitespace", () => {
+  var expected = LineSegment2D.Make(new Point2D(0, 0), new Point2D(1, 1));
+  IsTrue(expected.AlmostEquals(LineSegment2D.FromWkt("LINESTRING (0 0,1 1)")));
+  IsTrue(expected.AlmostEquals(LineSegment2D.FromWkt("LINESTRING (  0 0  ,  1  1  )")));
 });
 
 // ── LineSegment3D ─────────────────────────────────────────────────────────────
@@ -471,6 +501,12 @@ Test("LineSegment3D_DistanceTo_LineSegment3D_Skew", () => {
   Eq(5.0, s1.DistanceTo(s2));
 });
 
+Test("FromWkt_Whitespace", () => {
+  var expected = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0));
+  IsTrue(expected.AlmostEquals(LineSegment3D.FromWkt("LINESTRING (0 0 0,1 1 0)")));
+  IsTrue(expected.AlmostEquals(LineSegment3D.FromWkt("LINESTRING (  0 0 0  ,  1  1  0  )")));
+});
+
 // ── Ray2D ─────────────────────────────────────────────────────────────────────
 Console.WriteLine("\nRay2D");
 
@@ -489,6 +525,12 @@ Test("DistanceTo_PointAboveRay", () => {
 Test("DistanceTo_PointBehindOrigin", () => {
   var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
   Eq(new Point2D(0, 0).DistanceTo(new Point2D(-5, 10)), r.DistanceTo(new Point2D(-5, 10)));
+});
+
+Test("FromWkt_Whitespace", () => {
+  var expected = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsTrue(expected.AlmostEquals(Ray2D.FromWkt("RAY (0 0,1 0)")));
+  IsTrue(expected.AlmostEquals(Ray2D.FromWkt("RAY (  0 0  ,  1  0  )")));
 });
 
 // ── Ray3D ─────────────────────────────────────────────────────────────────────
@@ -577,6 +619,12 @@ Test("Ray3D_DistanceTo_LineSegment3D_Overlap_IsZero", () => {
   IsNull(ray.Distance(seg));
 });
 
+Test("FromWkt_Whitespace", () => {
+  var expected = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(expected.AlmostEquals(Ray3D.FromWkt("RAY (0 0 0,1 0 0)")));
+  IsTrue(expected.AlmostEquals(Ray3D.FromWkt("RAY (  0 0 0  ,  1  0  0  )")));
+});
+
 // ── Polyline2D ────────────────────────────────────────────────────────────────
 Console.WriteLine("\nPolyline2D");
 
@@ -619,6 +667,12 @@ Test("Interpolate_EndPoint", () => {
   NotNull(p);
   Eq(4.0, p!.X);
   Eq(4.0, p.Y);
+});
+
+Test("FromWkt_Whitespace", () => {
+  var expected = Polyline2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1) });
+  IsTrue(expected.AlmostEquals(Polyline2D.FromWkt("LINESTRING (0 0, 1 0, 1 1)")));
+  IsTrue(expected.AlmostEquals(Polyline2D.FromWkt("LINESTRING (  0 0  ,  1 0  ,  1 1  )")));
 });
 
 // ── Polyline3D ────────────────────────────────────────────────────────────────
@@ -665,6 +719,12 @@ Test("Interpolate_EndPoint", () => {
   Eq(4.0, p!.X);
   Eq(4.0, p.Y);
   Eq(0.0, p.Z);
+});
+
+Test("FromWkt_Whitespace", () => {
+  var expected = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0) });
+  IsTrue(expected.AlmostEquals(Polyline3D.FromWkt("LINESTRING (0 0 0, 1 0 0, 1 1 0)")));
+  IsTrue(expected.AlmostEquals(Polyline3D.FromWkt("LINESTRING (  0 0 0  ,  1 0 0  ,  1 1 0  )")));
 });
 
 // ── Triangle2D (Contains, Interpolate) ────────────────────────────────────────
@@ -956,6 +1016,12 @@ Test("Contains_OnBoundary_True", () => {
   IsFalse(t.Contains(new Point3D(1, 0, 0.01)), "just off-plane");
 });
 
+Test("FromWkt_Whitespace", () => {
+  var expected = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  IsTrue(expected.AlmostEquals(Triangle3D.FromWkt("TRIANGLE (0 0 0, 1 0 0, 0 1 0)")));
+  IsTrue(expected.AlmostEquals(Triangle3D.FromWkt("TRIANGLE (  0 0 0  ,  1 0 0  ,  0 1 0  )")));
+});
+
 // ── Triangle2D ────────────────────────────────────────────────────────────────
 Console.WriteLine("\nTriangle2D");
 
@@ -1022,6 +1088,12 @@ Test("Location_RoundTrip_A_And_B_2D", () => {
   NotNull(st_q);
   Eq(s_in, st_q!.Item1);
   Eq(t_in, st_q.Item2);
+});
+
+Test("FromWkt_Whitespace", () => {
+  var expected = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1));
+  IsTrue(expected.AlmostEquals(Triangle2D.FromWkt("TRIANGLE (0 0, 1 0, 0 1)")));
+  IsTrue(expected.AlmostEquals(Triangle2D.FromWkt("TRIANGLE (  0 0  ,  1 0  ,  0 1  )")));
 });
 
 // ── GeomUtil / List<Point3D> extensions ───────────────────────────────────────
@@ -1353,6 +1425,12 @@ Test("ToPoints_RoundTrip", () => {
   }
 });
 
+Test("FromWkt_Whitespace", () => {
+  var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(sq.AlmostEquals(Polygon2D.FromWkt("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))")));
+  IsTrue(sq.AlmostEquals(Polygon2D.FromWkt("POLYGON ((  0 0  ,  1 0  ,  1 1  ,  0 1  ,  0 0  ))")));
+});
+
 Console.WriteLine("\nPolygon2D::Intersection");
 
 // Polygon2D intersects Line2D → chord segment
@@ -1600,6 +1678,12 @@ Test("ToPoints3D_RoundTrip", () => {
   }
 });
 
+Test("FromWkt_Whitespace", () => {
+  var sq = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(sq.AlmostEquals(Polygon3D.FromWkt("POLYGON ((0 0 0, 1 0 0, 1 1 0, 0 1 0, 0 0 0))")));
+  IsTrue(sq.AlmostEquals(Polygon3D.FromWkt("POLYGON ((  0 0 0  ,  1 0 0  ,  1 1 0  ,  0 1 0  ,  0 0 0  ))")));
+});
+
 // ── Vector2D ──────────────────────────────────────────────────────────────────
 Console.WriteLine("\nVector2D");
 
@@ -1700,6 +1784,10 @@ Test("VectorPlusPoint", () => {
 Test("WktRoundTrip", () => {
   var v = new Vector2D(1.5, 2.5);
   IsTrue(v.AlmostEquals(Vector2D.FromWkt(v.ToWkt())));
+});
+
+Test("FromWkt_Whitespace", () => {
+  IsTrue(new Vector2D(0, 1).AlmostEquals(Vector2D.FromWkt("VECTOR (  0  1  )")));
 });
 
 // ── WktParser ─────────────────────────────────────────────────────────────────

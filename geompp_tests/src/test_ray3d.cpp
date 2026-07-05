@@ -131,6 +131,12 @@ TEST_F(Ray3DTest, Wkt) {
   // round-trip
   auto r3 = g::Ray3D::Make(g::Point3D(1, 2, 0), g::Vector3D::BasisY());
   EXPECT_EQ(r3, g::Ray3D::FromWkt(r3.ToWkt()));
+  // no space after comma
+  EXPECT_EQ(g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D::BasisX()),
+            g::Ray3D::FromWkt("RAY (0 0 0,1 0 0)"));
+  // many spaces everywhere
+  EXPECT_EQ(g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D::BasisX()),
+            g::Ray3D::FromWkt("RAY (  0 0 0  ,  1  0  0  )"));
 
   // invalid: wrong geometry type
   EXPECT_ANY_THROW(g::Ray3D::FromWkt("LINE (0 0 0, 1 0 0)"));

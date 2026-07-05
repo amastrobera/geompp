@@ -148,6 +148,10 @@ TEST_F(Ray2DTest, Wkt) {
             g::Ray2D::FromWkt("  ray( -7.5    -60.7, 1   0)"));
   EXPECT_EQ(g::Ray2D::Make(g::Point2D(0.645, -1.689741), g::Vector2D::BasisX()),
             g::Ray2D::FromWkt("ray   ( 0.645  -1.689741  , 1 0  )"));
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D::BasisX()),
+            g::Ray2D::FromWkt("RAY (0 0,1 0)"));
+  EXPECT_EQ(g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D::BasisX()),
+            g::Ray2D::FromWkt("RAY (  0 0  ,  1  0  )"));
 
   EXPECT_ANY_THROW(g::Ray2D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::Ray2D::FromWkt("ra ( -7.5 -60.7, 0 0)"));

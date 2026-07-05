@@ -425,4 +425,14 @@ TEST_F(Polyline3DTest, ToPolygon_NotPlanar_Throws) {
   EXPECT_THROW(poly.ToPolygon(), std::logic_error);
 }
 
+TEST_F(Polyline3DTest, Wkt) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
+  ASSERT_EQ("LINESTRING (0 0 0, 1 0 0, 1 1 0)", pl.ToWkt());
+
+  auto pl2 = g::Polyline3D::FromWkt("LINESTRING (0 0 0, 1 0 0, 1 1 0)");
+  EXPECT_EQ(pl, pl2);
+  EXPECT_EQ(pl, g::Polyline3D::FromWkt("LINESTRING (  0 0 0  ,  1 0 0  ,  1 1 0  )"));
+}
+
 }  // namespace geompp_tests
