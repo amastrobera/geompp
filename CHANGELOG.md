@@ -11,6 +11,61 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.12.0] - 2026-07-05
+
+> C++ library — tagged `v0.12.0` · C# / NuGet — tagged `csharp-v0.12.0` · Python / PyPI — tagged `python-v0.12.0`
+
+> Overlap and Touch detection for all 1D primitives and Polyline (Line, Ray, LineSegment, Polyline2D/3D in 2D and 3D); FromWkt off-by-one fix.
+
+### Added
+
+**C++ core**
+- `Vector2D::IsParallel(Vector2D const& other)` — returns `true` when the 2D cross product (perp-product) is within precision of zero; consistent with `Vector3D::IsParallel`.
+- `Overlaps(X)` (bool) and `Overlap(X)` (returns the shared geometry) for all pairs among `Line2D`, `Ray2D`, `LineSegment2D` — and the exact mirror for `Line3D`, `Ray3D`, `LineSegment3D`.
+  - `Line::Overlap(Line)` → `std::optional<Line>` — entire line if collinear, nullopt otherwise.
+  - `Line::Overlap(Ray)` / `Ray::Overlap(Line)` → `std::optional<Ray>` — the full ray when collinear.
+  - `Line::Overlap(Segment)` / `Segment::Overlap(Line)` → `std::optional<Segment>` — the full segment when collinear.
+  - `Ray::Overlap(Ray)` → `std::optional<std::variant<Ray, Segment>>` — same-direction: the ray starting later; opposite-direction: the finite segment between origins; single-point touch: nullopt.
+  - `Ray::Overlap(Segment)` / `Segment::Overlap(Ray)` → `std::optional<Segment>` — clipped segment; nullopt when disjoint or only touching at origin.
+  - `Segment::Overlap(Segment)` → `std::optional<Segment>` — intersection of the two ranges; nullopt when disjoint or single-point touch.
+- All 18 `Overlaps()` boolean wrappers delegate to `Overlap().has_value()` (no circular delegation).
+- `Touches(X)` (bool) and `Touch(X)` (returns `std::optional<Point>`) for all pairs among `Line2D`, `Ray2D`, `LineSegment2D` — and the exact mirror for `Line3D`, `Ray3D`, `LineSegment3D`.
+  - Touch is defined as: two geometries share exactly one endpoint-contact point (not an interior crossing, not a shared segment).
+  - `Ray::Touch(Line)` — nullopt if collinear (Overlap), else origin if line contains origin.
+  - `Ray::Touch(Ray)` — collinear same-direction: nullopt; collinear anti-parallel same origin: that origin; anti-parallel overlapping: nullopt; non-parallel: origin of whichever ray the other contains.
+  - `Segment::Touch(Line)` — nullopt if collinear; P0 or P1 if line contains exactly one endpoint.
+  - `Segment::Touch(Ray)` — XOR: return the endpoint the ray contains exclusively; or ray origin if it falls on the interior of the segment (non-collinear).
+  - `Segment::Touch(Segment)` — non-parallel: XOR endpoint containment; parallel collinear: endpoint coincidence without overlap.
+  - `Line::Touches/Touch(Ray)` and `Line::Touches/Touch(Segment)` delegate to the Ray/Segment counterparts.
+- All 18 `Touches()` boolean wrappers delegate to `Touch().has_value()`.
+- `Polyline2D::Overlaps/Overlap(Line2D|Ray2D|LineSegment2D|Polyline2D)` — iterates segments, collects all overlapping sub-segments. Returns `std::optional<std::vector<LineSegment2D>>`.
+- `Polyline2D::Touches/Touch(Line2D|Ray2D|LineSegment2D|Polyline2D)` — iterates segments, collects all touch points. Returns `std::optional<std::vector<Point2D>>`.
+- `Line2D/Ray2D/LineSegment2D::Overlaps/Overlap/Touches/Touch(Polyline2D)` — each delegates to `polyline.method(*this)`.
+- Exact 3D mirrors: `Polyline3D`, `Line3D`, `Ray3D`, `LineSegment3D`.
+
+**Python bindings**
+- `Vector2D.is_parallel(other)` — bound from `Vector2D::IsParallel`.
+- `overlaps(other)` and `overlap(other)` exposed on `Line2D`, `Ray2D`, `LineSegment2D`, `Line3D`, `Ray3D`, `LineSegment3D`.
+- `overlap(Ray, Ray)` uses `opt_variant_to_py` — returns `Ray2D` or `LineSegment2D` (resp. 3D) depending on geometry.
+- `touches(other)` and `touch(other)` exposed on all six classes; `touch` always returns a `Point` or `None`.
+- `overlaps/overlap/touches/touch(polyline)` added to all six 2D and 3D primitive classes (delegates).
+- `overlaps/overlap/touches/touch` added to `Polyline2D` and `Polyline3D`; `overlap` returns a Python list of segments or `None`; `touch` returns a Python list of points or `None`.
+
+**C# bindings**
+- `Vector2D::IsParallel(Vector2D^ other)` — managed wrapper delegating to the native method.
+- `Overlaps(X^)` (bool) and `Overlap(X^)` (managed ref, null on miss) added to all six managed classes.
+- `Ray2D::Overlap(Ray2D^)` / `Ray3D::Overlap(Ray3D^)` return `System::Object^` (null, `Ray^`, or `LineSegment^`); use `is` pattern matching.
+- `Touches(X^)` (bool) and `Touch(X^)` (`Point^`, null on miss) added to all six managed classes.
+- `Overlaps/Overlap/Touches/Touch(Polyline2D^)` added to `Line2D`, `Ray2D`, `LineSegment2D` managed classes; `Overlap` returns `array<LineSegment2D^>^` (null on miss); `Touch` returns `array<Point2D^>^` (null on miss).
+- Same for the 3D managed classes with `Polyline3D^`.
+- `Overlaps/Overlap/Touches/Touch` (all 4 overloads each) added to `Polyline2D` and `Polyline3D` managed classes.
+
+### Fixed
+
+- `FromWkt` off-by-one substring error in all six 2D/3D line, ray, and segment source files: `substr(end_gtype+1+end_p1+1, end_p2-1)` → `substr(end_gtype+1+end_p1, end_p2)`. Previously caused WKT tokens to be parsed with the first character clipped and the last character included from the surrounding delimiter.
+
+---
+
 ## [0.11.0] - 2026-06-24
 
 > C++ library — tagged `v0.11.0` · C# / NuGet — tagged `csharp-v0.11.0` · Python / PyPI — tagged `python-v0.11.0`

@@ -34,6 +34,7 @@ class Vector2D {
   double Cross(Vector2D const& v) const;  // aka perp-product
   Vector2D Perp() const;
   Vector2D Normalize() const;
+  bool IsParallel(Vector2D const& other) const;
 
   Vector2D operator-() const;
 

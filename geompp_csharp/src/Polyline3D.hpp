@@ -58,6 +58,26 @@ public:
     System::Object^ Intersection(LineSegment3D^ segment);
     System::Object^ Intersection(Polyline3D^ other);
 
+    // Overlaps / Overlap — optional<vector<LineSegment3D>> → array<LineSegment3D^>^ or nullptr
+    bool Overlaps(Line3D^ line);
+    bool Overlaps(Ray3D^ ray);
+    bool Overlaps(LineSegment3D^ segment);
+    bool Overlaps(Polyline3D^ other);
+    array<LineSegment3D^>^ Overlap(Line3D^ line);
+    array<LineSegment3D^>^ Overlap(Ray3D^ ray);
+    array<LineSegment3D^>^ Overlap(LineSegment3D^ segment);
+    array<LineSegment3D^>^ Overlap(Polyline3D^ other);
+
+    // Touches / Touch — optional<vector<Point3D>> → array<Point3D^>^ or nullptr
+    bool Touches(Line3D^ line);
+    bool Touches(Ray3D^ ray);
+    bool Touches(LineSegment3D^ segment);
+    bool Touches(Polyline3D^ other);
+    array<Point3D^>^ Touch(Line3D^ line);
+    array<Point3D^>^ Touch(Ray3D^ ray);
+    array<Point3D^>^ Touch(LineSegment3D^ segment);
+    array<Point3D^>^ Touch(Polyline3D^ other);
+
     // Operator
     static bool operator==(Polyline3D^ lhs, Polyline3D^ rhs);
 

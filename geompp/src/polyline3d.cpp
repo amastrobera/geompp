@@ -161,7 +161,9 @@ std::ostream& operator<<(std::ostream& os, Polyline3D const& g) {
 
 bool Polyline3D::Contains(Point3D const& point) const {
   for (auto const& seg : ToSegments()) {
-    if (seg.Contains(point)) { return true; }
+    if (seg.Contains(point)) {
+      return true;
+    }
   }
   return false;
 }
@@ -174,8 +176,8 @@ bool Polyline3D::Intersects(Polyline3D const& other) const { return Intersection
 
 bool Polyline3D::Intersects(LineSegment3D const& other) const { return Intersection(other).has_value(); }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(Line3D const& line) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point3D>> Polyline3D::Intersection(Line3D const& line) const {
+  std::vector<Point3D> intersections;
 
   for (auto const& seg : ToSegments()) {
     auto inter = line.Intersection(seg);
@@ -189,15 +191,11 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Line3D const& line) const {
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
 }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(Ray3D const& ray) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point3D>> Polyline3D::Intersection(Ray3D const& ray) const {
+  std::vector<Point3D> intersections;
 
   for (auto const& seg : ToSegments()) {
     auto inter = ray.Intersection(seg);
@@ -211,15 +209,11 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Ray3D const& ray) const {
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
 }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(LineSegment3D const& segment) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point3D>> Polyline3D::Intersection(LineSegment3D const& segment) const {
+  std::vector<Point3D> intersections;
 
   for (auto const& seg : ToSegments()) {
     auto inter = segment.Intersection(seg);
@@ -233,15 +227,11 @@ Polyline3D::ReturnSet Polyline3D::Intersection(LineSegment3D const& segment) con
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
 }
 
-Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point3D>> Polyline3D::Intersection(Polyline3D const& other) const {
+  std::vector<Point3D> intersections;
 
   for (auto const& seg : ToSegments()) {
     for (auto const& other_seg : other.ToSegments()) {
@@ -257,16 +247,10 @@ Polyline3D::ReturnSet Polyline3D::Intersection(Polyline3D const& other) const {
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
 }
 
-bool Polyline3D::IsPlanar() const {
-  return are_coplanar(KNOTS);
-}
+bool Polyline3D::IsPlanar() const { return are_coplanar(KNOTS); }
 
 bool Polyline3D::IsSimple() const {
   if (!IsPlanar()) {
@@ -279,8 +263,12 @@ bool Polyline3D::IsSimple() const {
   Axis dax = calc_normal.DominantAxis();
 
   auto to2d = [dax](Point3D const& p) -> Point2D {
-    if (dax == Axis::X) { return Point2D(p.y(), p.z()); }
-    if (dax == Axis::Y) { return Point2D(p.z(), p.x()); }
+    if (dax == Axis::X) {
+      return Point2D(p.y(), p.z());
+    }
+    if (dax == Axis::Y) {
+      return Point2D(p.z(), p.x());
+    }
     return Point2D(p.x(), p.y());
   };
 
@@ -313,8 +301,12 @@ bool Polyline3D::IsConvex() const {
   Axis dax = calc_normal.DominantAxis();
 
   auto to2d = [dax](Point3D const& p) -> Point2D {
-    if (dax == Axis::X) { return Point2D(p.y(), p.z()); }
-    if (dax == Axis::Y) { return Point2D(p.z(), p.x()); }
+    if (dax == Axis::X) {
+      return Point2D(p.y(), p.z());
+    }
+    if (dax == Axis::Y) {
+      return Point2D(p.z(), p.x());
+    }
     return Point2D(p.x(), p.y());
   };
 
@@ -366,6 +358,132 @@ Polygon3D Polyline3D::ToPolygon() const {
   }
 
   return Polygon3D::Make(KNOTS);
+}
+
+bool Polyline3D::Overlaps(Line3D const& line) const { return Overlap(line).has_value(); }
+bool Polyline3D::Overlaps(Ray3D const& ray) const { return Overlap(ray).has_value(); }
+bool Polyline3D::Overlaps(LineSegment3D const& seg) const { return Overlap(seg).has_value(); }
+bool Polyline3D::Overlaps(Polyline3D const& other) const { return Overlap(other).has_value(); }
+
+std::optional<std::vector<LineSegment3D>> Polyline3D::Overlap(Line3D const& line) const {
+  std::vector<LineSegment3D> result;
+  for (auto const& seg : ToSegments()) {
+    auto ov = line.Overlap(seg);
+    if (ov.has_value()) {
+      result.push_back(*ov);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<LineSegment3D>> Polyline3D::Overlap(Ray3D const& ray) const {
+  std::vector<LineSegment3D> result;
+  for (auto const& seg : ToSegments()) {
+    auto ov = ray.Overlap(seg);
+    if (ov.has_value()) {
+      result.push_back(*ov);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<LineSegment3D>> Polyline3D::Overlap(LineSegment3D const& s) const {
+  std::vector<LineSegment3D> result;
+  for (auto const& seg : ToSegments()) {
+    auto ov = s.Overlap(seg);
+    if (ov.has_value()) {
+      result.push_back(*ov);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<LineSegment3D>> Polyline3D::Overlap(Polyline3D const& other) const {
+  std::vector<LineSegment3D> result;
+  for (auto const& seg : ToSegments()) {
+    for (auto const& other_seg : other.ToSegments()) {
+      auto ov = seg.Overlap(other_seg);
+      if (ov.has_value()) {
+        result.push_back(*ov);
+      }
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+bool Polyline3D::Touches(Line3D const& line) const { return Touch(line).has_value(); }
+bool Polyline3D::Touches(Ray3D const& ray) const { return Touch(ray).has_value(); }
+bool Polyline3D::Touches(LineSegment3D const& seg) const { return Touch(seg).has_value(); }
+bool Polyline3D::Touches(Polyline3D const& other) const { return Touch(other).has_value(); }
+
+std::optional<std::vector<Point3D>> Polyline3D::Touch(Line3D const& line) const {
+  std::vector<Point3D> result;
+  for (auto const& seg : ToSegments()) {
+    auto tp = line.Touch(seg);
+    if (tp.has_value()) {
+      result.push_back(*tp);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<Point3D>> Polyline3D::Touch(Ray3D const& ray) const {
+  std::vector<Point3D> result;
+  for (auto const& seg : ToSegments()) {
+    auto tp = ray.Touch(seg);
+    if (tp.has_value()) {
+      result.push_back(*tp);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<Point3D>> Polyline3D::Touch(LineSegment3D const& s) const {
+  std::vector<Point3D> result;
+  for (auto const& seg : ToSegments()) {
+    auto tp = s.Touch(seg);
+    if (tp.has_value()) {
+      result.push_back(*tp);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<Point3D>> Polyline3D::Touch(Polyline3D const& other) const {
+  std::vector<Point3D> result;
+  for (auto const& seg : ToSegments()) {
+    for (auto const& other_seg : other.ToSegments()) {
+      auto tp = seg.Touch(other_seg);
+      if (tp.has_value()) {
+        result.push_back(*tp);
+      }
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
 }
 
 #pragma endregion

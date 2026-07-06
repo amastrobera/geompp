@@ -143,6 +143,16 @@ class SweepLine2D {
                                              // by geometric y at SWEEP_X; lower_bound gives O(log n) search
 };
 
+/// @brief Intersection of two infinite lines defined by two points each, returning parametric values.
+/// @param p0, p1            Two points on the first line.
+/// @param other_p0, other_p1  Two points on the second line.
+/// @param sc  Output: parameter along the first line at the intersection.
+/// @param tc  Output: parameter along the second line at the intersection.
+/// @return The intersection point, or std::nullopt for parallel lines.
+std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1,
+                                         Point2D const& other_p0, Point2D const& other_p1,
+                                         double& sc, double& tc);
+
 /// @brief the Shamos-Hoey algorithm for checking polygon simplicity (no self-intersections)
 /// @param segments list of segments (can be generic list of segments or segments of the polygon)
 /// @returns true - if any intersection exists

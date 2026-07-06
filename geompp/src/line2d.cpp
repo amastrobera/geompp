@@ -1,6 +1,8 @@
 #include "line2d.hpp"
 
+#include "calc_utils2d.hpp"
 #include "line_segment2d.hpp"
+#include "polyline2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
@@ -88,54 +90,52 @@ bool Line2D::Intersects(Ray2D const& ray) const { return ray.Intersects(*this); 
 
 bool Line2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
-std::optional<Point2D>Line2D::Intersection(Line2D const& other, double& sc, double& tc) const {
-  try {
-    // 2D intersection algorithm based on the perp-product
-    //   Given
-    //    L(s) = P0 + s * u
-    //    L(t) = Q0 + t * v
-    //  let w0 = P0 - Q0, then we can set up the equations
-    //    (w0 + s*u) * perp-v = 0     => s = -(w0 * perp-v) / (u * perp-v)
-    //    (-w0 + t*v) * perp-u = 0    => t = (w0 * perp-u) / (v * perp-u)
-    auto u = P1 - P0;
-    auto v = other.P1 - other.P0;
-    auto vp = v.Perp();
-    auto up = u.Perp();
-    auto w0 = (P0 - other.P0);
-
-    // parallel lines
-    if (compare(u.Dot(vp), 0) == 0 || compare(v.Dot(up), 0) == 0) {
-      sc = tc = std::numeric_limits<double>::quiet_NaN();
-      return std::nullopt;  // Lines are parallel, no intersection
-    }
-
-    // perp-prod approach (yields the same closed form as Cramer's rule in 2D set of equations - since the determinant,
-    // the cross product and the perp-product are the same thing in 2D)
-    sc = -w0.Dot(vp) / u.Dot(vp);
-    tc = w0.Dot(up) / v.Dot(up);
-
-    // no need to check whether Pc(sc) and Qc(tc) are the same
-    // because in 2D the lines are either parallel or they intersect in a single point
-    // (there is no skew line)
-    auto Pc = P0 + (u * sc);
-
-    return Pc;
-
-  } catch (...) {
-    GEOMPP_LOG(WARNING) << "unexpected error while computing line intersection";
-  }
-  sc = tc = std::numeric_limits<double>::quiet_NaN();
-  return std::nullopt;
-}
-
-std::optional<Point2D>Line2D::Intersection(Line2D const& other) const {
+std::optional<Point2D> Line2D::Intersection(Line2D const& other) const {
   double sc, tc;
-  return Intersection(other, sc, tc);
+  return detail::line_intersection(P0, P1, other.P0, other.P1, sc, tc);
 }
 
-std::optional<Point2D>Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }
+std::optional<Point2D> Line2D::Intersection(Ray2D const& ray) const { return ray.Intersection(*this); }
 
-std::optional<Point2D>Line2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
+std::optional<Point2D> Line2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
+
+bool Line2D::Overlaps(Line2D const& line) const { return Overlap(line).has_value(); }
+bool Line2D::Overlaps(Ray2D const& ray) const { return ray.Overlaps(*this); }
+bool Line2D::Overlaps(LineSegment2D const& seg) const { return seg.Overlaps(*this); }
+bool Line2D::Overlaps(Polyline2D const& polyline) const { return polyline.Overlaps(*this); }
+
+std::optional<Line2D> Line2D::Overlap(Line2D const& line) const {
+  if (!AlmostEquals(line)) {
+    return std::nullopt;
+  }
+  return *this;
+}
+
+std::optional<Ray2D> Line2D::Overlap(Ray2D const& ray) const { return ray.Overlap(*this); }
+
+std::optional<LineSegment2D> Line2D::Overlap(LineSegment2D const& seg) const {
+  auto result = seg.Overlap(*this);  // returns a segment in the direction of the segment, not the line
+
+  // flip the segment in the direction of the Line if a segment exists
+  if (result.has_value() && compare(DIR.Dot(seg.Last() - seg.First()), 0) < 0) {
+    return result->Reversed();
+  }
+
+  return result;
+}
+
+std::optional<std::vector<LineSegment2D>> Line2D::Overlap(Polyline2D const& polyline) const {
+  return polyline.Overlap(*this);
+}
+
+bool Line2D::Touches(Ray2D const& ray) const { return ray.Touches(*this); }
+bool Line2D::Touches(LineSegment2D const& seg) const { return seg.Touches(*this); }
+bool Line2D::Touches(Polyline2D const& polyline) const { return polyline.Touches(*this); }
+
+std::optional<Point2D> Line2D::Touch(Ray2D const& ray) const { return ray.Touch(*this); }
+std::optional<Point2D> Line2D::Touch(LineSegment2D const& seg) const { return seg.Touch(*this); }
+
+std::optional<std::vector<Point2D>> Line2D::Touch(Polyline2D const& polyline) const { return polyline.Touch(*this); }
 
 #pragma endregion
 

@@ -13,6 +13,7 @@ namespace geompp {
 
 class Line2D;
 class LineSegment2D;
+class Polyline2D;
 
 class Ray2D {
  public:
@@ -67,35 +68,35 @@ class Ray2D {
   /// @return true if @p point is collinear with the ray's direction AND ahead of (or at) the origin.
   bool Contains(Point2D const& point) const;
 
-  /// @brief Tests whether this ray intersects a line.
-  /// @param line The line.
-  /// @return true if they meet at a point on the ray's domain.
   bool Intersects(Line2D const& line) const;
-
-  /// @brief Tests whether this ray intersects another ray.
-  /// @param other The other ray.
-  /// @return true if both rays' domains share the crossing point.
   bool Intersects(Ray2D const& other) const;
-
-  /// @brief Tests whether this ray intersects a segment.
-  /// @param segment The segment.
-  /// @return true if the ray hits the segment within both domains.
   bool Intersects(LineSegment2D const& segment) const;
+  bool Intersects(Polyline2D const& polyline) const;
 
-  /// @brief Intersection point of this ray with a line.
-  /// @param line The line.
-  /// @return The intersection point if it lies on the ray, or std::nullopt otherwise.
   std::optional<Point2D> Intersection(Line2D const& line) const;
-
-  /// @brief Intersection point of two rays.
-  /// @param other The other ray.
-  /// @return The intersection point if it lies on both rays' domains, or std::nullopt otherwise.
   std::optional<Point2D> Intersection(Ray2D const& other) const;
-
-  /// @brief Intersection point of this ray with a segment.
-  /// @param segment The segment.
-  /// @return The intersection point if it lies on both the ray and the segment, or std::nullopt otherwise.
   std::optional<Point2D> Intersection(LineSegment2D const& segment) const;
+  std::optional<std::vector<Point2D>> Intersection(Polyline2D const& polyline) const;
+
+  bool Overlaps(Line2D const& line) const;
+  bool Overlaps(Ray2D const& ray) const;
+  bool Overlaps(LineSegment2D const& seg) const;
+  bool Overlaps(Polyline2D const& polyline) const;
+
+  std::optional<Ray2D> Overlap(Line2D const& line) const;
+  std::optional<std::variant<Ray2D, LineSegment2D>> Overlap(Ray2D const& ray) const;
+  std::optional<LineSegment2D> Overlap(LineSegment2D const& seg) const;
+  std::optional<std::vector<LineSegment2D>> Overlap(Polyline2D const& polyline) const;
+
+  bool Touches(Line2D const& line) const;
+  bool Touches(Ray2D const& ray) const;
+  bool Touches(LineSegment2D const& seg) const;
+  bool Touches(Polyline2D const& polyline) const;
+
+  std::optional<Point2D> Touch(Line2D const& line) const;
+  std::optional<Point2D> Touch(Ray2D const& ray) const;
+  std::optional<Point2D> Touch(LineSegment2D const& seg) const;
+  std::optional<std::vector<Point2D>> Touch(Polyline2D const& polyline) const;
 
 #pragma endregion
 

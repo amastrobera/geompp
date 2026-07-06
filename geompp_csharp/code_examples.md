@@ -249,7 +249,144 @@ is simple: False
 
 ---
 
-### 4. Planar operations
+### 4. Overlaps
+
+`Overlaps(other)` returns `true` when two primitives share a 1D region.
+`Overlap(other)` returns the shared geometry object, or `null` on a miss.
+
+```csharp
+using G = GeomPP;
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+// Line ↔ Line: same line → overlap is the line
+var xAxis = G.Line2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0));
+var xSame = G.Line2D.Make(new G.Point2D(-2, 0), new G.Point2D(5, 0));
+var xOff  = G.Line2D.Make(new G.Point2D(0, 1), new G.Point2D(1, 1));
+Console.WriteLine(xAxis.Overlaps(xSame));       // True
+Console.WriteLine(xAxis.Overlaps(xOff));         // False
+Console.WriteLine(xAxis.Overlap(xSame));         // LINE (0 0, 1 0)
+
+// Line ↔ Ray: collinear → overlap is the ray
+var ray = G.Ray2D.Make(new G.Point2D(3, 0), new G.Vector2D(1, 0));
+Console.WriteLine(xAxis.Overlap(ray));           // RAY (3 0, 1 0)
+
+// Ray ↔ Ray: same direction → longer swallows shorter
+var r1 = G.Ray2D.Make(new G.Point2D(0, 0), new G.Vector2D(1, 0));
+var r2 = G.Ray2D.Make(new G.Point2D(3, 0), new G.Vector2D(1, 0));
+Console.WriteLine(r1.Overlap(r1) is G.Ray2D);   // True
+
+// Ray ↔ Ray: anti-parallel overlapping → segment
+var r3 = G.Ray2D.Make(new G.Point2D(5, 0), new G.Vector2D(-1, 0));
+Console.WriteLine(r1.Overlap(r3) is G.LineSegment2D);  // True
+
+// Segment ↔ Segment: partial overlap
+var a = G.LineSegment2D.Make(new G.Point2D(0, 0), new G.Point2D(5, 0));
+var b = G.LineSegment2D.Make(new G.Point2D(3, 0), new G.Point2D(7, 0));
+Console.WriteLine(a.Overlaps(b));                // True
+Console.WriteLine(a.Overlap(b));                 // LINESTRING (3 0, 5 0)
+
+// Touching endpoints: not an overlap
+var c = G.LineSegment2D.Make(new G.Point2D(5, 0), new G.Point2D(8, 0));
+Console.WriteLine(a.Overlaps(c));                // False
+Console.WriteLine(a.Overlap(c) == null);         // True
+```
+
+---
+
+### 5. Touches
+
+`Touches(other)` returns `true` when two primitives share exactly one endpoint-contact point
+(not a crossing, not a shared segment). `Touch(other)` returns that contact point or `null`.
+
+```csharp
+using G = GeomPP;
+G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+// Ray origin sits on a line → touch at origin
+var line = G.Line2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0));  // x-axis
+var ray  = G.Ray2D.Make(new G.Point2D(3, 0), new G.Vector2D(0, 1));  // vertical at x=3
+Console.WriteLine(line.Touches(ray));            // True
+Console.WriteLine(line.Touch(ray));              // POINT (3 0)
+
+// Collinear → overlap, not touch
+var rayCol = G.Ray2D.Make(new G.Point2D(1, 0), new G.Vector2D(1, 0));
+Console.WriteLine(line.Touches(rayCol));         // False
+
+// Anti-parallel rays sharing only their common origin → touch
+var r1 = G.Ray2D.Make(new G.Point2D(0, 0), new G.Vector2D( 1, 0));
+var r2 = G.Ray2D.Make(new G.Point2D(0, 0), new G.Vector2D(-1, 0));
+Console.WriteLine(r1.Touches(r2));              // True
+Console.WriteLine(r1.Touch(r2));                // POINT (0 0)
+
+// Anti-parallel rays that overlap → not a touch
+var r3 = G.Ray2D.Make(new G.Point2D(3, 0), new G.Vector2D(-1, 0));
+Console.WriteLine(r1.Touches(r3));              // False
+
+// Segment T-junction: endpoint of b lies on a
+var a = G.LineSegment2D.Make(new G.Point2D(0, 0), new G.Point2D(5, 0));
+var b = G.LineSegment2D.Make(new G.Point2D(3, 0), new G.Point2D(3, 3));
+Console.WriteLine(a.Touches(b));                // True
+Console.WriteLine(a.Touch(b));                  // POINT (3 0)
+
+// Collinear endpoint contact
+var c2 = G.LineSegment2D.Make(new G.Point2D(5, 0), new G.Point2D(8, 0));
+Console.WriteLine(a.Touches(c2));               // True
+Console.WriteLine(a.Touch(c2));                 // POINT (5 0)
+
+// Overlapping collinear → not a touch
+var d = G.LineSegment2D.Make(new G.Point2D(3, 0), new G.Point2D(7, 0));
+Console.WriteLine(a.Touches(d));                // False
+Console.WriteLine(a.Touch(d) == null);          // True
+```
+
+---
+
+### 6. Polyline Overlaps / Touches
+
+`Polyline2D` and `Polyline3D` iterate over their constituent segments to collect all
+overlapping sub-segments or all touch points. `Overlap()` returns `array<LineSegment2D^>^`
+(or `null`); `Touch()` returns `array<Point2D^>^` (or `null`).
+
+```csharp
+using GeomPP;
+
+// L-shaped polyline
+var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,3) });
+
+// x-axis line overlaps the horizontal leg
+var xAxis = Line2D.Make(new Point2D(0,0), new Vector2D(1,0));
+Console.WriteLine(pl.Overlaps(xAxis));              // True
+var segs = pl.Overlap(xAxis);
+if (segs != null) {
+    foreach (var s in segs) Console.WriteLine(s.ToWkt()); // LINESTRING (0 0, 4 0)
+}
+
+// T-junction: vertical arm touches a horizontal segment at (3,0)
+var stem = Polyline2D.Make(new Point2D[] { new(3,0), new(3,3) });
+var bar  = LineSegment2D.Make(new Point2D(0,0), new Point2D(5,0));
+Console.WriteLine(stem.Touches(bar));               // True
+var pts = stem.Touch(bar);
+if (pts != null) {
+    foreach (var p in pts) Console.WriteLine(p.ToWkt()); // POINT (3 0)
+}
+
+// Two polylines sharing an endpoint
+var pl1 = Polyline2D.Make(new Point2D[] { new(0,0), new(3,0) });
+var pl2 = Polyline2D.Make(new Point2D[] { new(3,0), new(3,3) });
+Console.WriteLine(pl1.Touches(pl2));                // True
+```
+
+```
+True
+LINESTRING (0 0, 4 0)
+True
+POINT (3 0)
+True
+```
+
+---
+
+### 7. Planar operations
 
 #### 4.1 Verify coplanarity, winding order, and polygon with holes
 
@@ -420,7 +557,7 @@ XY
 
 ---
 
-### 5. PCA on a 3D point cloud
+### 7. PCA on a 3D point cloud
 
 `GeomUtil.PrincipalAxes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and
 returns a `CoordinateFrame` — three orthonormal axes sorted by variance: `X` is the direction of most
@@ -455,7 +592,7 @@ Z (normal):    VECTOR (0 0 1)
 
 ---
 
-### 6. Bounding containers
+### 8. Bounding containers
 
 #### 6.1 Simple containers for quick rejection
 

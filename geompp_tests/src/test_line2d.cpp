@@ -1,5 +1,8 @@
 #include "line2d.hpp"
 
+#include "line_segment2d.hpp"
+#include "ray2d.hpp"
+
 #include "point2d.hpp"
 #include "vector2d.hpp"
 
@@ -205,6 +208,109 @@ TEST_F(Line2DTest, AlmostEquals) {
   auto l6 = g::Line2D::Make(g::Point2D(0, 1), g::Point2D(3, 1));
   ASSERT_FALSE(l1.AlmostEquals(l6));
   ASSERT_NE(l1, l6);
+}
+
+TEST_F(Line2DTest, OverlapWLine) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto x2 = g::Line2D::Make(g::Point2D(5, 0), g::Point2D(8, 0));  // same infinite line
+  auto y = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisY());
+  auto x_off = g::Line2D::Make(g::Point2D(0, 1), g::Vector2D::BasisX());  // parallel, offset
+
+  // same line → overlaps
+  EXPECT_TRUE(x.Overlaps(x2));
+  auto ov = x.Overlap(x2);
+  ASSERT_TRUE(ov.has_value());
+  EXPECT_TRUE(ov->AlmostEquals(x));
+
+  // crossing (not collinear) → no overlap
+  EXPECT_FALSE(x.Overlaps(y));
+  EXPECT_FALSE(x.Overlap(y).has_value());
+
+  // parallel but offset → no overlap
+  EXPECT_FALSE(x.Overlaps(x_off));
+  EXPECT_FALSE(x.Overlap(x_off).has_value());
+}
+
+TEST_F(Line2DTest, OverlapWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto rx = g::Ray2D::Make(g::Point2D(2, 0), g::Vector2D::BasisX());  // collinear ray
+  auto ry = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisY());  // perpendicular
+
+  EXPECT_TRUE(x.Overlaps(rx));
+  auto ov = x.Overlap(rx);
+  ASSERT_TRUE(ov.has_value());
+  EXPECT_TRUE(ov->AlmostEquals(rx));
+
+  EXPECT_FALSE(x.Overlaps(ry));
+  EXPECT_FALSE(x.Overlap(ry).has_value());
+}
+
+TEST_F(Line2DTest, OverlapWSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto seg = g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(3, 0));  // collinear
+  auto seg_off = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(3, 1));  // parallel, offset
+
+  EXPECT_TRUE(x.Overlaps(seg));
+  auto ov = x.Overlap(seg);
+  ASSERT_TRUE(ov.has_value());
+  EXPECT_EQ(seg, *ov);
+
+  EXPECT_FALSE(x.Overlaps(seg_off));
+  EXPECT_FALSE(x.Overlap(seg_off).has_value());
+}
+
+TEST_F(Line2DTest, TouchWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+
+  // ray origin lies on line, non-collinear → touch at origin
+  auto r_touch = g::Ray2D::Make(g::Point2D(3, 0), g::Vector2D::BasisY());
+  EXPECT_TRUE(x.Touches(r_touch));
+  auto t = x.Touch(r_touch);
+  ASSERT_TRUE(t.has_value());
+  EXPECT_EQ(g::Point2D(3, 0), *t);
+
+  // collinear ray → Overlap, not Touch
+  auto r_col = g::Ray2D::Make(g::Point2D(1, 0), g::Vector2D::BasisX());
+  EXPECT_FALSE(x.Touches(r_col));
+  EXPECT_FALSE(x.Touch(r_col).has_value());
+
+  // ray origin off the line → no touch
+  auto r_off = g::Ray2D::Make(g::Point2D(0, 1), g::Vector2D::BasisY());
+  EXPECT_FALSE(x.Touches(r_off));
+  EXPECT_FALSE(x.Touch(r_off).has_value());
+}
+
+TEST_F(Line2DTest, TouchWSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+
+  // First() endpoint lies on line → touch at First
+  auto seg_first = g::LineSegment2D::Make(g::Point2D(2, 0), g::Point2D(2, 3));
+  EXPECT_TRUE(x.Touches(seg_first));
+  auto t1 = x.Touch(seg_first);
+  ASSERT_TRUE(t1.has_value());
+  EXPECT_EQ(g::Point2D(2, 0), *t1);
+
+  // Last() endpoint lies on line → touch at Last
+  auto seg_last = g::LineSegment2D::Make(g::Point2D(2, 3), g::Point2D(2, 0));
+  EXPECT_TRUE(x.Touches(seg_last));
+  auto t2 = x.Touch(seg_last);
+  ASSERT_TRUE(t2.has_value());
+  EXPECT_EQ(g::Point2D(2, 0), *t2);
+
+  // collinear segment → Overlap, not Touch
+  auto seg_col = g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(4, 0));
+  EXPECT_FALSE(x.Touches(seg_col));
+  EXPECT_FALSE(x.Touch(seg_col).has_value());
+
+  // segment fully above line → no touch
+  auto seg_off = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(3, 2));
+  EXPECT_FALSE(x.Touches(seg_off));
+  EXPECT_FALSE(x.Touch(seg_off).has_value());
 }
 
 }  // namespace geompp_tests

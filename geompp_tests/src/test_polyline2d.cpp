@@ -120,26 +120,25 @@ TEST_F(Polyline2DTest, IntersectionWLine) {
   {
     auto inter = poly1.Intersection(x);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Polyline2D::MultiPoint>(*inter));
-    auto multi_point = std::get<g::Polyline2D::MultiPoint>(*inter);
-    ASSERT_EQ(g::Point2D(-1, 0), multi_point[0]);
-    ASSERT_EQ(g::Point2D(1, 0), multi_point[1]);
+    ASSERT_EQ(2u, inter->size());
+    ASSERT_EQ(g::Point2D(-1, 0), (*inter)[0]);
+    ASSERT_EQ(g::Point2D(1, 0), (*inter)[1]);
   }
 
   ASSERT_TRUE(poly1.Intersects(y));
   {
     auto inter = poly1.Intersection(y);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, -2), std::get<g::Point2D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point2D(0, -2), inter->front());
   }
 
   ASSERT_TRUE(poly2.Intersects(y));
   {
     auto inter = poly2.Intersection(y);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, 2), std::get<g::Point2D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point2D(0, 2), inter->front());
   }
   ASSERT_FALSE(poly2.Intersects(x));
 
@@ -147,8 +146,8 @@ TEST_F(Polyline2DTest, IntersectionWLine) {
   {
     auto inter = poly3.Intersection(x);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(-1, 0), std::get<g::Point2D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point2D(-1, 0), inter->front());
   }
   ASSERT_FALSE(poly3.Intersects(y));
 }
@@ -169,25 +168,22 @@ TEST_F(Polyline2DTest, IntersectionWRay) {
   {
     auto inter = poly1.Intersection(x_neg);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    auto p = std::get<g::Point2D>(*inter);
-    ASSERT_EQ(g::Point2D(-1, 0), p);
+    ASSERT_EQ(1u, inter->size());
+    ASSERT_EQ(g::Point2D(-1, 0), inter->front());
   }
   ASSERT_TRUE(poly1.Intersects(x_pos));
   {
     auto inter = poly1.Intersection(x_pos);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    auto p = std::get<g::Point2D>(*inter);
-    ASSERT_EQ(g::Point2D(1, 0), p);
+    ASSERT_EQ(1u, inter->size());
+    ASSERT_EQ(g::Point2D(1, 0), inter->front());
   }
   ASSERT_TRUE(poly1.Intersects(y_neg));
   {
     auto inter = poly1.Intersection(y_neg);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    auto p = std::get<g::Point2D>(*inter);
-    ASSERT_EQ(g::Point2D(0, -2), p);
+    ASSERT_EQ(1u, inter->size());
+    ASSERT_EQ(g::Point2D(0, -2), inter->front());
   }
   ASSERT_FALSE(poly1.Intersects(y_pos));
 
@@ -195,8 +191,8 @@ TEST_F(Polyline2DTest, IntersectionWRay) {
   {
     auto inter = poly2.Intersection(y_pos);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, 2), std::get<g::Point2D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point2D(0, 2), inter->front());
   }
   ASSERT_FALSE(poly2.Intersects(y_neg));
   ASSERT_FALSE(poly2.Intersects(x_pos));
@@ -206,8 +202,8 @@ TEST_F(Polyline2DTest, IntersectionWRay) {
   {
     auto inter = poly3.Intersection(x_neg);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(-1, 0), std::get<g::Point2D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point2D(-1, 0), inter->front());
   }
   ASSERT_FALSE(poly3.Intersects(x_pos));
   ASSERT_FALSE(poly3.Intersects(y_pos));
@@ -228,10 +224,9 @@ TEST_F(Polyline2DTest, IntersectionWSegment) {
   {
     auto inter = poly1.Intersection(s1);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Polyline2D::MultiPoint>(*inter));
-    auto mpoint = std::get<g::Polyline2D::MultiPoint>(*inter);
-    ASSERT_EQ(g::Point2D(-1, 0), mpoint[0]);
-    ASSERT_EQ(g::Point2D(1, 0), mpoint[1]);
+    ASSERT_EQ(2u, inter->size());
+    ASSERT_EQ(g::Point2D(-1, 0), (*inter)[0]);
+    ASSERT_EQ(g::Point2D(1, 0), (*inter)[1]);
   }
   ASSERT_FALSE(poly1.Intersects(s2));
   ASSERT_FALSE(poly1.Intersects(s2));
@@ -240,8 +235,8 @@ TEST_F(Polyline2DTest, IntersectionWSegment) {
   {
     auto inter = poly2.Intersection(s2);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(0, 2), std::get<g::Point2D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point2D(0, 2), inter->front());
   }
   ASSERT_FALSE(poly2.Intersects(s1));
   ASSERT_FALSE(poly2.Intersects(s3));
@@ -250,18 +245,17 @@ TEST_F(Polyline2DTest, IntersectionWSegment) {
   {
     auto inter = poly3.Intersection(s1);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point2D>(*inter));
-    EXPECT_EQ(g::Point2D(-1, 0), std::get<g::Point2D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point2D(-1, 0), inter->front());
   }
   ASSERT_FALSE(poly3.Intersects(s2));
   ASSERT_TRUE(poly3.Intersects(s3));
   {
     auto inter = poly3.Intersection(s3);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Polyline2D::MultiPoint>(*inter));
-    auto mpoint = std::get<g::Polyline2D::MultiPoint>(*inter);
-    ASSERT_EQ(g::Point2D(-1.5, -1.5), mpoint[0]);
-    ASSERT_EQ(g::Point2D(-1.5, -2.5), mpoint[1]);
+    ASSERT_EQ(2u, inter->size());
+    ASSERT_EQ(g::Point2D(-1.5, -1.5), (*inter)[0]);
+    ASSERT_EQ(g::Point2D(-1.5, -2.5), (*inter)[1]);
   }
 }
 
@@ -276,13 +270,11 @@ TEST_F(Polyline2DTest, Intersection) {
   {
     auto inter = poly1.Intersection(poly2);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Polyline2D::MultiPoint>(*inter));
-    auto mpoint = std::get<g::Polyline2D::MultiPoint>(*inter);
-    ASSERT_EQ(4, mpoint.size());
-    ASSERT_EQ(g::Point2D(-1, 1), mpoint[0]);
-    ASSERT_EQ(g::Point2D(-0.5, -2), mpoint[1]);
-    ASSERT_EQ(g::Point2D(0.5, -2), mpoint[2]);
-    ASSERT_EQ(g::Point2D(1, 1), mpoint[3]);
+    ASSERT_EQ(4u, inter->size());
+    ASSERT_EQ(g::Point2D(-1, 1), (*inter)[0]);
+    ASSERT_EQ(g::Point2D(-0.5, -2), (*inter)[1]);
+    ASSERT_EQ(g::Point2D(0.5, -2), (*inter)[2]);
+    ASSERT_EQ(g::Point2D(1, 1), (*inter)[3]);
   }
   ASSERT_FALSE(poly1.Intersects(poly3));
   ASSERT_FALSE(poly2.Intersects(poly3));
@@ -441,7 +433,7 @@ TEST_F(Polyline2DTest, ConvexHull_ConcavePath_InnerPointExcluded) {
   }
 }
 
-TEST_F(Polyline2DTest, Wkt) {
+TEST_F(Polyline2DTest, WktFromWkt) {
   geompp::DECIMAL_PRECISION = 4;
   auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)});
   ASSERT_EQ("LINESTRING (0 0, 1 0, 1 1)", pl.ToWkt());
@@ -449,6 +441,122 @@ TEST_F(Polyline2DTest, Wkt) {
   auto pl2 = g::Polyline2D::FromWkt("LINESTRING (0 0, 1 0, 1 1)");
   EXPECT_EQ(pl, pl2);
   EXPECT_EQ(pl, g::Polyline2D::FromWkt("LINESTRING (  0 0  ,  1 0  ,  1 1  )"));
+}
+
+// ── Overlap tests ─────────────────────────────────────────────────────────────
+
+TEST_F(Polyline2DTest, OverlapWLine_CollinearSegment_ReturnsSegment) {
+  // L-shaped polyline: horizontal (0,0)-(4,0) then vertical (4,0)-(4,3)
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 3)});
+  // x-axis line overlaps the first horizontal segment
+  auto line = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  EXPECT_TRUE(pl.Overlaps(line));
+  auto ov = pl.Overlap(line);
+  ASSERT_TRUE(ov.has_value());
+  ASSERT_EQ(1u, ov->size());
+  EXPECT_TRUE((*ov)[0].AlmostEquals(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(4, 0))));
+}
+
+TEST_F(Polyline2DTest, OverlapWLine_Perpendicular_NoOverlap) {
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 3)});
+  auto line = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(0, 1));
+  EXPECT_FALSE(pl.Overlaps(line));
+  EXPECT_FALSE(pl.Overlap(line).has_value());
+}
+
+TEST_F(Polyline2DTest, OverlapWRay_CollinearPartial_ReturnsSegment) {
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(6, 0)});
+  // Ray from (2,0) in +x direction overlaps the [2,6] portion
+  auto ray = g::Ray2D::Make(g::Point2D(2, 0), g::Vector2D(1, 0));
+  EXPECT_TRUE(pl.Overlaps(ray));
+  auto ov = pl.Overlap(ray);
+  ASSERT_TRUE(ov.has_value());
+  ASSERT_EQ(1u, ov->size());
+  EXPECT_TRUE((*ov)[0].AlmostEquals(g::LineSegment2D::Make(g::Point2D(2, 0), g::Point2D(6, 0))));
+}
+
+TEST_F(Polyline2DTest, OverlapWSegment_PartialOverlap_ReturnsSegment) {
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(5, 0)});
+  auto seg = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(7, 0));
+  EXPECT_TRUE(pl.Overlaps(seg));
+  auto ov = pl.Overlap(seg);
+  ASSERT_TRUE(ov.has_value());
+  ASSERT_EQ(1u, ov->size());
+  EXPECT_TRUE((*ov)[0].AlmostEquals(g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(5, 0))));
+}
+
+TEST_F(Polyline2DTest, OverlapWPolyline_SharedSegment_ReturnsThem) {
+  auto pl1 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 3)});
+  auto pl2 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(4, 0)});
+  EXPECT_TRUE(pl1.Overlaps(pl2));
+  auto ov = pl1.Overlap(pl2);
+  ASSERT_TRUE(ov.has_value());
+  ASSERT_EQ(1u, ov->size());
+}
+
+TEST_F(Polyline2DTest, OverlapWPolyline_NoSharedSegment_NullOpt) {
+  auto pl1 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(4, 0)});
+  auto pl2 = g::Polyline2D::Make({g::Point2D(0, 1), g::Point2D(4, 1)});
+  EXPECT_FALSE(pl1.Overlaps(pl2));
+  EXPECT_FALSE(pl1.Overlap(pl2).has_value());
+}
+
+// ── Touch tests ───────────────────────────────────────────────────────────────
+
+TEST_F(Polyline2DTest, TouchWLine_SegmentEndpointOnLine_ReturnsPoint) {
+  // Polyline has a vertical segment endpoint at (2,0) which lies on the x-axis line
+  auto pl = g::Polyline2D::Make({g::Point2D(2, 0), g::Point2D(2, 3)});
+  auto line = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  EXPECT_TRUE(pl.Touches(line));
+  auto tp = pl.Touch(line);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point2D(2, 0)));
+}
+
+TEST_F(Polyline2DTest, TouchWLine_CollinearSegment_NotTouch) {
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(4, 0)});
+  auto line = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  EXPECT_FALSE(pl.Touches(line));
+  EXPECT_FALSE(pl.Touch(line).has_value());
+}
+
+TEST_F(Polyline2DTest, TouchWRay_EndpointOnRay_ReturnsPoint) {
+  auto pl = g::Polyline2D::Make({g::Point2D(3, 0), g::Point2D(3, 2)});
+  auto ray = g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D(1, 0));
+  EXPECT_TRUE(pl.Touches(ray));
+  auto tp = pl.Touch(ray);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point2D(3, 0)));
+}
+
+TEST_F(Polyline2DTest, TouchWSegment_TJunction_ReturnsPoint) {
+  // Polyline L-shape; bottom of the vertical arm touches horizontal segment
+  auto pl = g::Polyline2D::Make({g::Point2D(3, 0), g::Point2D(3, 3)});
+  auto seg = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(5, 0));
+  EXPECT_TRUE(pl.Touches(seg));
+  auto tp = pl.Touch(seg);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point2D(3, 0)));
+}
+
+TEST_F(Polyline2DTest, TouchWPolyline_SharedEndpoint_ReturnsPoint) {
+  auto pl1 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(3, 0)});
+  auto pl2 = g::Polyline2D::Make({g::Point2D(3, 0), g::Point2D(3, 3)});
+  EXPECT_TRUE(pl1.Touches(pl2));
+  auto tp = pl1.Touch(pl2);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point2D(3, 0)));
+}
+
+TEST_F(Polyline2DTest, TouchWPolyline_Disjoint_NullOpt) {
+  auto pl1 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(2, 0)});
+  auto pl2 = g::Polyline2D::Make({g::Point2D(5, 0), g::Point2D(5, 3)});
+  EXPECT_FALSE(pl1.Touches(pl2));
+  EXPECT_FALSE(pl1.Touch(pl2).has_value());
 }
 
 }  // namespace geompp_tests

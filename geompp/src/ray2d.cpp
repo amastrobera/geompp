@@ -1,8 +1,10 @@
 #include "ray2d.hpp"
 
+#include "calc_utils2d.hpp"
 #include "geompp_log.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
+#include "polyline2d.hpp"
 #include "utils.hpp"
 
 #include <format>
@@ -75,9 +77,11 @@ bool Ray2D::Intersects(Ray2D const& other) const { return Intersection(other).ha
 
 bool Ray2D::Intersects(LineSegment2D const& segment) const { return segment.Intersects(*this); }
 
-std::optional<Point2D>Ray2D::Intersection(Line2D const& line) const {
+bool Ray2D::Intersects(Polyline2D const& polyline) const { return polyline.Intersects(*this); }
+
+std::optional<Point2D> Ray2D::Intersection(Line2D const& line) const {
   double sc, tc;
-  auto Pc = ToLine().Intersection(line, sc, tc);
+  auto Pc = detail::line_intersection(ORIGIN, ORIGIN + DIR, line.First(), line.Last(), sc, tc);
 
   // respecting constraints: sc should be positive
   if (!Pc.has_value() || !is_greater_or_equal(sc, 0)) {
@@ -87,9 +91,9 @@ std::optional<Point2D>Ray2D::Intersection(Line2D const& line) const {
   return Pc;
 }
 
-std::optional<Point2D>Ray2D::Intersection(Ray2D const& other) const {
+std::optional<Point2D> Ray2D::Intersection(Ray2D const& other) const {
   double sc, tc;
-  auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
+  auto Pc = detail::line_intersection(ORIGIN, ORIGIN + DIR, other.ORIGIN, other.ORIGIN + other.DIR, sc, tc);
 
   // respecting constraints: sc and tc should be positive
   if (!Pc.has_value() || !is_greater_or_equal(sc, 0) || !is_greater_or_equal(tc, 0)) {
@@ -99,7 +103,111 @@ std::optional<Point2D>Ray2D::Intersection(Ray2D const& other) const {
   return Pc;
 }
 
-std::optional<Point2D>Ray2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
+std::optional<Point2D> Ray2D::Intersection(LineSegment2D const& segment) const { return segment.Intersection(*this); }
+std::optional<std::vector<Point2D>> Ray2D::Intersection(Polyline2D const& polyline) const {
+  return polyline.Intersection(*this);
+}
+
+bool Ray2D::Overlaps(Line2D const& line) const { return Overlap(line).has_value(); }
+bool Ray2D::Overlaps(Ray2D const& ray) const { return Overlap(ray).has_value(); }
+bool Ray2D::Overlaps(LineSegment2D const& seg) const { return seg.Overlaps(*this); }
+bool Ray2D::Overlaps(Polyline2D const& polyline) const { return polyline.Overlaps(*this); }
+
+std::optional<Ray2D> Ray2D::Overlap(Line2D const& line) const {
+  if (!DIR.IsParallel(line.Direction()) || !line.Contains(ORIGIN)) {
+    return std::nullopt;
+  }
+  return *this;
+}
+
+std::optional<std::variant<Ray2D, LineSegment2D>> Ray2D::Overlap(Ray2D const& ray) const {
+  // are rays parallel? if not, they cannot overlap
+  if (!DIR.IsParallel(ray.DIR)) {
+    return std::nullopt;
+  }
+
+  // verify whether the rays contain each other's origin and deduce the common segment or ray
+  bool this_has_ray_origin = Contains(ray.ORIGIN);
+  bool ray_has_this_origin = ray.Contains(ORIGIN);
+
+  // case 1: the rays are disjoint
+  if (!this_has_ray_origin && !ray_has_this_origin) {
+    return std::nullopt;
+  }
+
+  // case 2: the ray is contained in this
+  if (this_has_ray_origin && !ray_has_this_origin) {
+    return ray;
+  }
+
+  // case 3: this is contained in ray
+  if (!this_has_ray_origin && ray_has_this_origin) {
+    return *this;
+  }
+
+  // case 4: both origins are on the other ray
+  if (ORIGIN.AlmostEquals(ray.ORIGIN)) {
+    // case 4.1: anti-parallel rays meeting at one point — touch, not overlap
+    if (compare(DIR.Dot(ray.DIR), 0) < 0) {
+      return std::nullopt;
+    }
+    // case 4.2: same-direction rays with same origin — identical rays, full overlap
+    return *this;
+  }
+
+  // case 4.3: anti-parallel rays that overlap — segment between the two origins
+  return LineSegment2D::Make(ORIGIN, ray.ORIGIN);
+}
+
+std::optional<LineSegment2D> Ray2D::Overlap(LineSegment2D const& seg) const {
+  auto result = seg.Overlap(*this);  // returns nothing or a segment in the direction of the LineSegment2D
+
+  // flip the segment in the direction of the Ray2D if a segment exists
+  if (result.has_value() && compare(DIR.Dot(seg.Last() - seg.First()), 0) < 0) {
+    return result->Reversed();
+  }
+
+  return result;
+}
+
+std::optional<std::vector<LineSegment2D>> Ray2D::Overlap(Polyline2D const& polyline) const {
+  return polyline.Overlap(*this);
+}
+
+bool Ray2D::Touches(Line2D const& line) const { return Touch(line).has_value(); }
+bool Ray2D::Touches(Ray2D const& ray) const { return Touch(ray).has_value(); }
+bool Ray2D::Touches(LineSegment2D const& seg) const { return seg.Touches(*this); }
+bool Ray2D::Touches(Polyline2D const& polyline) const { return polyline.Touches(*this); }
+
+std::optional<Point2D> Ray2D::Touch(Line2D const& line) const {
+  if (!DIR.IsParallel(line.Direction()) && line.Contains(ORIGIN)) {
+    return ORIGIN;
+  }
+  return std::nullopt;
+}
+
+std::optional<Point2D> Ray2D::Touch(Ray2D const& ray) const {
+  // not parallel -> either ray contains the other's origin, it's a touch, or not, it's a miss
+  if (!DIR.IsParallel(ray.DIR)) {
+    if (ray.Contains(ORIGIN)) {
+      return ORIGIN;
+    }
+    if (Contains(ray.ORIGIN)) {
+      return ray.ORIGIN;
+    }
+    return std::nullopt;
+  }
+
+  // parallel but opposite heading and the origin matches
+  if (DIR.AlmostEquals(-ray.DIR) && ORIGIN.AlmostEquals(ray.ORIGIN)) {
+    return ORIGIN;
+  }
+
+  return std::nullopt;
+}
+
+std::optional<Point2D> Ray2D::Touch(LineSegment2D const& seg) const { return seg.Touch(*this); }
+std::optional<std::vector<Point2D>> Ray2D::Touch(Polyline2D const& polyline) const { return polyline.Touch(*this); }
 
 #pragma endregion
 

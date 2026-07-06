@@ -1,10 +1,11 @@
-[← back](./README.md)
+<details open><summary><b>Code Examples</b></summary>
 
-## Examples
+<details open>
+<summary><b> &nbsp; 1. Creation and I/O operations</b></summary>
 
-  ### 1. Creation and I/O operations
+<details open>
+<summary><b> &nbsp; &nbsp; 1.1 Create geometries from classes</b></summary>
 
-  #### 1.1 Create geometries programmatically
   ```cpp
   // This will be the precision used by all functions, in all threads, for this
   // run of the program, and it can be modified in later code anytime.
@@ -40,8 +41,51 @@
   I20260403] intersection written to intersection.wkt
   ```
 
+</details>
 
-  #### 1.2 Import geometries from a file
+<details closed>
+<summary><b> &nbsp; &nbsp; 1.2 Create geometries from text</b></summary>
+
+  ```cpp
+  // This will be the precision used by all functions, in all threads, for this
+  // run of the program, and it can be modified in later code anytime.
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // two line segments intersecting at (0,0,1)
+  auto s1 = g::LineSegment3D::FromWkt("LINESTRING (1  0  0, -1 0 2)");
+  auto s2 = g::LineSegment3D::FromWkt("LINESTRING (0 1  0, 0 -1 2)");
+
+  GEOMPP_LOG(INFO) << "s1 = " << s1.ToWkt();
+  GEOMPP_LOG(INFO) << "s2 = " << s2.ToWkt();
+
+  if (s1.Intersects(s2)) { 
+    auto result = s1.Intersection(s2);
+    if (result.has_value()) {
+      auto p = std::get<g::Point3D>(*result);
+      GEOMPP_LOG(INFO) << "intersection found: " << p.ToWkt();
+
+      p.ToFile("intersection.wkt");
+      GEOMPP_LOG(INFO) << "intersection written to intersection.wkt";
+    }
+  } else {
+    GEOMPP_LOG(INFO) << "no intersection found";
+  }
+  ```
+
+  will print out 
+
+  ```bash
+  I20260403] s1 = LINESTRING (1 0 0, -1 0 2)
+  I20260403] s2 = LINESTRING (0 1 0, 0 -1 2)
+  I20260403] intersection found: POINT (0 0 1)
+  I20260403] intersection written to intersection.wkt
+  ```
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 1.3 Import geometries from a file</b></summary>
+
   ```cpp
   std::string const lsv_path = "sample_geometries.lsv";
   //   POINT (1 2 3)
@@ -73,10 +117,17 @@
 
   will print out exactly the list of geometries above.
 
+</details>
 
-  ### 2. Containment
+</details>
 
-  `Triangle3D::Contains(p)` and `Polygon2D/3D::Contains(p)` test whether a point lies inside a shape
+<details open>
+<summary><b> &nbsp; 2. Geometry Operations</b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 2.1 Containment </b></summary>
+
+`Triangle3D::Contains(p)` and `Polygon2D/3D::Contains(p)` test whether a point lies inside a shape
   using barycentric coordinates and the winding number, respectively.
   `LineSegment::Contains(p)` checks whether a point lies on the segment;
   `Location(p)` returns the parameter `t ∈ [0, 1]` for a point already on it, and `Interpolate(t)` reverses the mapping.
@@ -124,8 +175,11 @@
   mid = POINT (2 0)
   ```
 
+</details>
 
-  ### 3. Intersections
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 2.2 Intersection </b></summary>
 
   Every 2D primitive (`Line2D`, `Ray2D`, `LineSegment2D`, `Triangle2D`, `Polygon2D`) can intersect any
   other 2D primitive, and the same holds in 3D across `Line3D`, `Ray3D`, `LineSegment3D`, `Triangle3D`,
@@ -214,7 +268,9 @@
   POINT (3 2)
   ```
 
-  #### 3.1 Split a complex polygon
+
+<details closed>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.2.1 Split a complex polygon </b></summary>
 
   A **complex polygon** (also called a self-intersecting polygon) is a polygon whose edges cross
   each other. `Simplify()` decomposes it into a list of simple (non-self-intersecting) polygons
@@ -256,11 +312,162 @@
   2 simple 3D polygon(s)
   ```
 
+</details>
 
-  ### 4. Planar operations
+<details closed>
+<summary><b> &nbsp; &nbsp; 2.3 Overlap </b></summary>
 
-  #### 4.1 Coplanarity, winding order, and polygon with holes
+  `Overlaps(other)` returns `true` when two primitives share a 1D region (more than a single point).
+  `Overlap(other)` returns the shared geometry, or `std::nullopt` when they do not overlap or
+  only touch at a single point.  The return type mirrors the "smaller" of the two primitives:
+  a `Line × Line` overlap yields a `Line`; `Ray × Ray` with opposite directions yields a
+  `LineSegment`; `Segment × Line` / `Segment × Ray` / `Segment × Segment` always yield a `LineSegment`.
+  All six primitive types (`Line2D`, `Ray2D`, `LineSegment2D`, and their 3D counterparts) implement
+  `Overlaps` and `Overlap` against all three family members.
+
   ```cpp
+  #include "line2d.hpp"
+  #include "ray2d.hpp"
+  #include "line_segment2d.hpp"
+
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // ── Line × Line ────────────────────────────────────────────────────────────
+  auto x_axis = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+  auto x_same = g::Line2D::Make(g::Point2D(5, 0), g::Point2D(8, 0));   // same infinite line
+  auto x_off  = g::Line2D::Make(g::Point2D(0, 1), g::Vector2D::BasisX());  // parallel, offset
+
+  GEOMPP_LOG(INFO) << x_axis.Overlaps(x_same);  // 1
+  GEOMPP_LOG(INFO) << x_axis.Overlaps(x_off);   // 0 (no shared region)
+
+  auto ov_ll = x_axis.Overlap(x_same);           // std::optional<Line2D>
+  if (ov_ll)
+      GEOMPP_LOG(INFO) << ov_ll->ToWkt();         // LINE (0 0, 1 0)
+
+  // ── Ray × Ray (same direction) ─────────────────────────────────────────────
+  auto r1 = g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D::BasisX());
+  auto r2 = g::Ray2D::Make(g::Point2D(3, 0), g::Vector2D::BasisX());  // inside r1
+
+  auto ov_rr = r1.Overlap(r2);  // std::optional<std::variant<Ray2D, LineSegment2D>>
+  if (ov_rr && std::holds_alternative<g::Ray2D>(*ov_rr))
+      GEOMPP_LOG(INFO) << std::get<g::Ray2D>(*ov_rr).ToWkt();  // RAY (3 0, 1 0)
+
+  // ── Ray × Ray (anti-parallel) ──────────────────────────────────────────────
+  auto r3 = g::Ray2D::Make(g::Point2D(7, 0), g::Vector2D(-1, 0));  // heads toward r1
+
+  auto ov_anti = r1.Overlap(r3);
+  if (ov_anti && std::holds_alternative<g::LineSegment2D>(*ov_anti))
+      GEOMPP_LOG(INFO) << std::get<g::LineSegment2D>(*ov_anti).ToWkt();
+  // LINESTRING (0 0, 7 0)
+
+  // ── Segment × Segment ──────────────────────────────────────────────────────
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(5, 0));
+  auto b = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(8, 0));
+
+  GEOMPP_LOG(INFO) << a.Overlaps(b);  // 1
+  auto ov_ss = a.Overlap(b);          // std::optional<LineSegment2D>
+  if (ov_ss)
+      GEOMPP_LOG(INFO) << ov_ss->ToWkt();  // LINESTRING (3 0, 5 0)
+
+  // touch at a single endpoint → no overlap
+  auto c = g::LineSegment2D::Make(g::Point2D(5, 0), g::Point2D(9, 0));
+  GEOMPP_LOG(INFO) << a.Overlaps(c);   // 0
+  GEOMPP_LOG(INFO) << (a.Overlap(c) == std::nullopt);  // 1
+  ```
+
+  ```bash
+  1
+  0
+  LINE (0 0, 1 0)
+  RAY (3 0, 1 0)
+  LINESTRING (0 0, 7 0)
+  1
+  LINESTRING (3 0, 5 0)
+  0
+  1
+  ```
+
+</details>
+
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 2.4 Touch </b></summary>
+
+  `Touches(other)` returns `true` when two primitives share exactly one endpoint-contact point
+  (not an interior crossing, not a shared segment). `Touch(other)` returns that contact point,
+  or `std::nullopt` when there is no touch.
+
+  ```cpp
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Ray origin sits on a line → touch at origin
+  auto line = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));   // x-axis
+  auto ray  = g::Ray2D::Make(g::Point2D(3, 0), g::Vector2D(0, 1));   // vertical at x=3
+  GEOMPP_LOG(INFO) << line.Touches(ray);                              // 1
+  auto tp = line.Touch(ray);                                          // std::optional<Point2D>
+  GEOMPP_LOG(INFO) << tp->ToWkt();                                    // POINT (3 0)
+
+  // Collinear ray → overlap, not touch
+  auto ray_col = g::Ray2D::Make(g::Point2D(1, 0), g::Vector2D(1, 0));
+  GEOMPP_LOG(INFO) << line.Touches(ray_col);                          // 0
+
+  // Anti-parallel rays sharing only their common origin → touch
+  auto r1 = g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D( 1, 0));
+  auto r2 = g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D(-1, 0));
+  GEOMPP_LOG(INFO) << r1.Touches(r2);                                 // 1
+  GEOMPP_LOG(INFO) << r1.Touch(r2)->ToWkt();                          // POINT (0 0)
+
+  // Anti-parallel rays overlapping → Touch returns nullopt
+  auto r3 = g::Ray2D::Make(g::Point2D(3, 0), g::Vector2D(-1, 0));
+  GEOMPP_LOG(INFO) << r1.Touches(r3);                                 // 0
+
+  // Segment T-junction: endpoint of b lies on a (non-collinear)
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(5, 0));
+  auto b = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(3, 3));
+  GEOMPP_LOG(INFO) << a.Touches(b);                                   // 1
+  GEOMPP_LOG(INFO) << a.Touch(b)->ToWkt();                            // POINT (3 0)
+
+  // Collinear segments sharing exactly one endpoint → touch
+  auto c = g::LineSegment2D::Make(g::Point2D(5, 0), g::Point2D(8, 0));
+  GEOMPP_LOG(INFO) << a.Touches(c);                                   // 1
+  GEOMPP_LOG(INFO) << a.Touch(c)->ToWkt();                            // POINT (5 0)
+
+  // Overlapping collinear segments → Touch returns nullopt
+  auto d = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(7, 0));
+  GEOMPP_LOG(INFO) << a.Touches(d);                                   // 0
+  GEOMPP_LOG(INFO) << (a.Touch(d) == std::nullopt);                   // 1
+  ```
+
+  ```bash
+  1
+  POINT (3 0)
+  0
+  1
+  POINT (0 0)
+  0
+  1
+  POINT (3 0)
+  1
+  POINT (5 0)
+  0
+  1
+  ```
+
+
+</details>
+
+</details>
+
+
+<details open>
+<summary><b> &nbsp; 3. Planes </b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 3.1 Coplanarity, winding order, and polygon with holes </b></summary>
+
+```cpp
   g::DECIMAL_PRECISION = g::DP_THREE;
 
   // Four points on the XY plane vs. a set that spans 3D space
@@ -295,8 +502,10 @@
   I20260403] POLYGON ((0 0 0, 4 0 0, 4 4 0, 0 4 0, 0 0 0), (1 3 0, 3 3 0, 3 1 0, 1 1 0, 1 3 0))
   ```
 
+</details>
 
-  #### 4.2 Projecting points onto a plane
+<details closed>
+<summary><b> &nbsp; &nbsp; 3.2 Projecting points onto a plane </b></summary>
 
   `Plane::ProjectOnto(p)` returns the perpendicular projection in 3D world coordinates.
   `Plane::ProjectInto(p)` maps the same projected point into the plane's local 2D frame.
@@ -330,7 +539,11 @@
   ```
 
 
-  #### 4.3 Planar vs non-planar Polyline3D
+</details>
+
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 3.3 Planar vs non-planar Polyline3D </b></summary>
 
   `Polyline3D::IsPlanar()` checks whether all knots lie in a common plane. Only planar polylines support
   `IsSimple()`, `IsConvex()`, `ConvexHull()`, and `ToPolygon()` — call `IsPlanar()` first.
@@ -382,8 +595,10 @@
   dominant direction: VECTOR (...)
   ```
 
+</details>
 
-  #### 4.4 View2D — streaming 3D points to 2D
+<details closed>
+<summary><b> &nbsp; &nbsp; 3.4 View2D — streaming 3D points to 2D </b></summary>
 
   `View2D` maps 3D points to 2D scalars via `x()` / `y()` getters without allocating an intermediate
   `Point2D` container. Axis-aligned views (`XY`, `YZ`, `ZX`) are the fastest path — just a direct
@@ -420,8 +635,13 @@
   (5, 6)
   ```
 
+</details>
 
-  ### 5. PCA on a 3D point cloud
+</details>
+
+
+<details closed>
+<summary><b> &nbsp; 4. PCA on a 3D point cloud </b></summary>
 
   `principal_axes(points)` runs PCA (Jacobi eigen decomposition on the 3×3 covariance matrix) and returns
   a `CoordinateFrame` — three orthonormal axes sorted by variance: `X` is the direction of most spread,
@@ -457,10 +677,14 @@
   Z (normal):     VECTOR (0 0 1)
   ```
 
+</details>
 
-  ### 6. Bounding containers
 
-  #### 6.1 Simple containers for quick rejection 
+<details open>
+<summary><b> &nbsp; 5. Bounding containers </b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 5.1 Simple containers for quick rejection </b></summary>
 
   `BBox3D` gives the tight axis-aligned box; `BBall3D` (Ritter 1990) gives an approximate
   minimum enclosing sphere — both accept any cloud of points.
@@ -510,9 +734,13 @@
   ball contains (3 1 1): 1
   ```
 
-  #### 6.2 Convex hull
+</details>
 
-  ##### 6.2.1 Convex hull of a point cloud
+<details open>
+<summary><b> &nbsp; &nbsp; 5.2 Convex hull </b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; &nbsp; 5.2.1 Convex hull of a point cloud </b></summary>
 
   `convex_hull(points)` (Andrew's monotone chain) wraps any point cloud into its tightest convex polygon:
 
@@ -571,8 +799,10 @@
 
   (CCW order, starting from the lexicographically smallest point)
 
+</details>
 
-  ##### 6.2.2 Convex hull of a polygon
+<details closed>
+<summary><b> &nbsp; &nbsp; &nbsp; 5.2.2 Convex hull of a polygon </b></summary>
 
   `Polygon2D` and `Polygon3D` expose a `ConvexHull()` method that wraps the free function:
 
@@ -611,8 +841,11 @@
     POINT (-2 -4 0)
   ```
 
+</details>
 
-  ##### 6.2.3 Convex hull of a simple polyline
+
+<details closed>
+<summary><b> &nbsp; &nbsp; &nbsp; 5.2.3 Convex hull of a simple polyline </b></summary>
 
   `Polyline2D::ConvexHull()` uses Melkman's O(n) algorithm. The polyline must be simple — call `IsSimple()` first.
 
@@ -637,8 +870,12 @@
   hull has 4 vertices
   ```
 
+</details>
 
-  #### 6.3 Oriented Minimum Bounding Rectangle
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 5.3 Oriented Minimum Bounding Rectangle </b></summary>
 
   `BRect2D` computes the **tightest** axis-aligned-to-input rectangle that encloses a point cloud.
   It is defined by a center point, two orthogonal unit axes (`axis_u`, `axis_v`), and two half-lengths
@@ -647,8 +884,7 @@
   **Algorithm**: Freeman & Shapira (1975) / Toussaint (1983) rotating calipers.
   1. Compute the convex hull of the input cloud (Andrew's monotone chain, O(n log n)).
   2. For each hull edge, project all hull vertices onto the edge direction and its perpendicular.
-  3. The rectangle aligned with that edge has width = max − min along the edge and height = max − min
-     along the perpendicular.
+  3. The rectangle aligned with that edge has width = max − min along the edge and height = max − min along the perpendicular.
   4. Track the edge orientation that minimises area; the center is the midpoint of the extents.
 
   This guarantees a minimum-area rectangle with one side flush with a hull edge.
@@ -687,3 +923,14 @@
 
   The `Contains()` test projects the query point onto the local axes and checks both projections
   against the half-lengths — O(1) per query.
+
+
+</details>
+
+</details>
+
+
+
+</details>
+
+</details>

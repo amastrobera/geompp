@@ -179,18 +179,17 @@ TEST_F(Polyline3DTest, IntersectionWLine) {
   {
     auto inter = poly1.Intersection(x);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Polyline3D::MultiPoint>(*inter));
-    auto pts = std::get<g::Polyline3D::MultiPoint>(*inter);
-    ASSERT_EQ(g::Point3D(-1, 0, 0), pts[0]);
-    ASSERT_EQ(g::Point3D(1, 0, 0), pts[1]);
+    ASSERT_EQ(2u, inter->size());
+    ASSERT_EQ(g::Point3D(-1, 0, 0), (*inter)[0]);
+    ASSERT_EQ(g::Point3D(1, 0, 0), (*inter)[1]);
   }
 
   ASSERT_TRUE(poly1.Intersects(y));
   {
     auto inter = poly1.Intersection(y);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D(0, -2, 0), std::get<g::Point3D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point3D(0, -2, 0), inter->front());
   }
 
   ASSERT_FALSE(poly2.Intersects(x));
@@ -212,16 +211,16 @@ TEST_F(Polyline3DTest, IntersectionWRay) {
   {
     auto inter = poly1.Intersection(x_neg);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D(-1, 0, 0), std::get<g::Point3D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point3D(-1, 0, 0), inter->front());
   }
 
   ASSERT_TRUE(poly1.Intersects(x_pos));
   {
     auto inter = poly1.Intersection(x_pos);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D(1, 0, 0), std::get<g::Point3D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point3D(1, 0, 0), inter->front());
   }
 
   ASSERT_TRUE(poly1.Intersects(y_neg));
@@ -240,10 +239,9 @@ TEST_F(Polyline3DTest, IntersectionWSegment) {
   {
     auto inter = poly1.Intersection(s1);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Polyline3D::MultiPoint>(*inter));
-    auto pts = std::get<g::Polyline3D::MultiPoint>(*inter);
-    ASSERT_EQ(g::Point3D(-1, 0, 0), pts[0]);
-    ASSERT_EQ(g::Point3D(1, 0, 0), pts[1]);
+    ASSERT_EQ(2u, inter->size());
+    ASSERT_EQ(g::Point3D(-1, 0, 0), (*inter)[0]);
+    ASSERT_EQ(g::Point3D(1, 0, 0), (*inter)[1]);
   }
 
   ASSERT_FALSE(poly1.Intersects(s2));
@@ -252,8 +250,8 @@ TEST_F(Polyline3DTest, IntersectionWSegment) {
   {
     auto inter = poly2.Intersection(s2);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Point3D>(*inter));
-    EXPECT_EQ(g::Point3D(0, 2, 0), std::get<g::Point3D>(*inter));
+    ASSERT_EQ(1u, inter->size());
+    EXPECT_EQ(g::Point3D(0, 2, 0), inter->front());
   }
 }
 
@@ -267,13 +265,11 @@ TEST_F(Polyline3DTest, Intersection) {
   {
     auto inter = poly1.Intersection(poly2);
     ASSERT_TRUE(inter.has_value());
-    ASSERT_TRUE(std::holds_alternative<g::Polyline3D::MultiPoint>(*inter));
-    auto pts = std::get<g::Polyline3D::MultiPoint>(*inter);
-    ASSERT_EQ(4, pts.size());
-    EXPECT_EQ(g::Point3D(-1, 1, 0), pts[0]);
-    EXPECT_EQ(g::Point3D(-0.5, -2, 0), pts[1]);
-    EXPECT_EQ(g::Point3D(0.5, -2, 0), pts[2]);
-    EXPECT_EQ(g::Point3D(1, 1, 0), pts[3]);
+    ASSERT_EQ(4u, inter->size());
+    EXPECT_EQ(g::Point3D(-1, 1, 0), (*inter)[0]);
+    EXPECT_EQ(g::Point3D(-0.5, -2, 0), (*inter)[1]);
+    EXPECT_EQ(g::Point3D(0.5, -2, 0), (*inter)[2]);
+    EXPECT_EQ(g::Point3D(1, 1, 0), (*inter)[3]);
   }
 
   ASSERT_FALSE(poly1.Intersects(poly3));
@@ -425,7 +421,7 @@ TEST_F(Polyline3DTest, ToPolygon_NotPlanar_Throws) {
   EXPECT_THROW(poly.ToPolygon(), std::logic_error);
 }
 
-TEST_F(Polyline3DTest, Wkt) {
+TEST_F(Polyline3DTest, WktFromWkt) {
   geompp::DECIMAL_PRECISION = 4;
   auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
   ASSERT_EQ("LINESTRING (0 0 0, 1 0 0, 1 1 0)", pl.ToWkt());
@@ -433,6 +429,94 @@ TEST_F(Polyline3DTest, Wkt) {
   auto pl2 = g::Polyline3D::FromWkt("LINESTRING (0 0 0, 1 0 0, 1 1 0)");
   EXPECT_EQ(pl, pl2);
   EXPECT_EQ(pl, g::Polyline3D::FromWkt("LINESTRING (  0 0 0  ,  1 0 0  ,  1 1 0  )"));
+}
+
+// ── Overlap 3D tests ──────────────────────────────────────────────────────────
+
+TEST_F(Polyline3DTest, OverlapWLine3D_CollinearSegment_ReturnsSegment) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 0, 3)});
+  auto line = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
+  EXPECT_TRUE(pl.Overlaps(line));
+  auto ov = pl.Overlap(line);
+  ASSERT_TRUE(ov.has_value());
+  ASSERT_EQ(1u, ov->size());
+  EXPECT_TRUE((*ov)[0].AlmostEquals(g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0))));
+}
+
+TEST_F(Polyline3DTest, OverlapWRay3D_PartialOverlap_ReturnsSegment) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(6, 0, 0)});
+  auto ray = g::Ray3D::Make(g::Point3D(2, 0, 0), g::Vector3D(1, 0, 0));
+  EXPECT_TRUE(pl.Overlaps(ray));
+  auto ov = pl.Overlap(ray);
+  ASSERT_TRUE(ov.has_value());
+  ASSERT_EQ(1u, ov->size());
+  EXPECT_TRUE((*ov)[0].AlmostEquals(g::LineSegment3D::Make(g::Point3D(2, 0, 0), g::Point3D(6, 0, 0))));
+}
+
+TEST_F(Polyline3DTest, OverlapWSegment3D_Partial_ReturnsSegment) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(5, 0, 0)});
+  auto seg = g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D(7, 0, 0));
+  EXPECT_TRUE(pl.Overlaps(seg));
+  auto ov = pl.Overlap(seg);
+  ASSERT_TRUE(ov.has_value());
+  ASSERT_EQ(1u, ov->size());
+  EXPECT_TRUE((*ov)[0].AlmostEquals(g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D(5, 0, 0))));
+}
+
+TEST_F(Polyline3DTest, OverlapWPolyline3D_NoOverlap_NullOpt) {
+  auto pl1 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0)});
+  auto pl2 = g::Polyline3D::Make({g::Point3D(0, 1, 0), g::Point3D(4, 1, 0)});
+  EXPECT_FALSE(pl1.Overlaps(pl2));
+  EXPECT_FALSE(pl1.Overlap(pl2).has_value());
+}
+
+// ── Touch 3D tests ────────────────────────────────────────────────────────────
+
+TEST_F(Polyline3DTest, TouchWLine3D_EndpointOnLine_ReturnsPoint) {
+  auto pl = g::Polyline3D::Make({g::Point3D(2, 0, 0), g::Point3D(2, 0, 3)});
+  auto line = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
+  EXPECT_TRUE(pl.Touches(line));
+  auto tp = pl.Touch(line);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point3D(2, 0, 0)));
+}
+
+TEST_F(Polyline3DTest, TouchWRay3D_EndpointOnRay_ReturnsPoint) {
+  auto pl = g::Polyline3D::Make({g::Point3D(3, 0, 0), g::Point3D(3, 0, 2)});
+  auto ray = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
+  EXPECT_TRUE(pl.Touches(ray));
+  auto tp = pl.Touch(ray);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point3D(3, 0, 0)));
+}
+
+TEST_F(Polyline3DTest, TouchWSegment3D_TJunction_ReturnsPoint) {
+  auto pl = g::Polyline3D::Make({g::Point3D(3, 0, 0), g::Point3D(3, 0, 3)});
+  auto seg = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
+  EXPECT_TRUE(pl.Touches(seg));
+  auto tp = pl.Touch(seg);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point3D(3, 0, 0)));
+}
+
+TEST_F(Polyline3DTest, TouchWPolyline3D_SharedEndpoint_ReturnsPoint) {
+  auto pl1 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(3, 0, 0)});
+  auto pl2 = g::Polyline3D::Make({g::Point3D(3, 0, 0), g::Point3D(3, 0, 3)});
+  EXPECT_TRUE(pl1.Touches(pl2));
+  auto tp = pl1.Touch(pl2);
+  ASSERT_TRUE(tp.has_value());
+  ASSERT_EQ(1u, tp->size());
+  EXPECT_TRUE((*tp)[0].AlmostEquals(g::Point3D(3, 0, 0)));
+}
+
+TEST_F(Polyline3DTest, TouchWPolyline3D_Disjoint_NullOpt) {
+  auto pl1 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0)});
+  auto pl2 = g::Polyline3D::Make({g::Point3D(5, 0, 0), g::Point3D(5, 0, 3)});
+  EXPECT_FALSE(pl1.Touches(pl2));
+  EXPECT_FALSE(pl1.Touch(pl2).has_value());
 }
 
 }  // namespace geompp_tests

@@ -2,6 +2,7 @@
 
 #include "calc_utils2d.hpp"
 #include "line2d.hpp"
+#include "polyline2d.hpp"
 #include "ray2d.hpp"
 #include "utils.hpp"
 
@@ -33,6 +34,8 @@ LineSegment2D& LineSegment2D::operator=(LineSegment2D const& other) {
 }
 
 double LineSegment2D::Length() const { return (P1 - P0).Length(); }
+
+LineSegment2D LineSegment2D::Reversed() const { return {P1, P0}; }
 
 bool LineSegment2D::AlmostEquals(LineSegment2D const& other, double epsilon) const {
   return (P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon))  // forward
@@ -94,9 +97,7 @@ double LineSegment2D::DistanceTo(Point2D const& point) const { return (point - P
 
 #pragma region Collections Operations
 
-bool has_intersections(std::vector<LineSegment2D> const& segments) {
-  return detail::has_intersections_impl(segments);
-}
+bool has_intersections(std::vector<LineSegment2D> const& segments) { return detail::has_intersections_impl(segments); }
 
 std::vector<Point2D> find_intersections(std::vector<LineSegment2D> const& segments) {
   auto events = detail::find_intersections_impl(segments);
@@ -163,9 +164,11 @@ bool LineSegment2D::Intersects(Ray2D const& ray) const { return Intersection(ray
 
 bool LineSegment2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
-std::optional<Point2D>LineSegment2D::Intersection(Line2D const& line) const {
+bool LineSegment2D::Intersects(Polyline2D const& polyline) const { return polyline.Intersects(*this); }
+
+std::optional<Point2D> LineSegment2D::Intersection(Line2D const& line) const {
   double sc, tc;
-  auto Pc = ToLine().Intersection(line, sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, line.First(), line.Last(), sc, tc);
 
   // respecting constraints: sc should be in the range [0, 1]
   if (!Pc.has_value() || !is_in_range(sc, 0, 1)) {
@@ -175,9 +178,9 @@ std::optional<Point2D>LineSegment2D::Intersection(Line2D const& line) const {
   return Pc;
 }
 
-std::optional<Point2D>LineSegment2D::Intersection(Ray2D const& ray) const {
+std::optional<Point2D> LineSegment2D::Intersection(Ray2D const& ray) const {
   double sc, tc;
-  auto Pc = ToLine().Intersection(ray.ToLine(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, ray.Origin(), ray.Origin() + ray.Direction(), sc, tc);
 
   // respecting constraints: sc should be in the range [0, 1] while tc should be in non negative
   if (!Pc.has_value() || !is_in_range(sc, 0, 1) || !is_greater_or_equal(tc, 0)) {
@@ -187,9 +190,9 @@ std::optional<Point2D>LineSegment2D::Intersection(Ray2D const& ray) const {
   return Pc;
 }
 
-std::optional<Point2D>LineSegment2D::Intersection(LineSegment2D const& other) const {
+std::optional<Point2D> LineSegment2D::Intersection(LineSegment2D const& other) const {
   double sc, tc;
-  auto Pc = ToLine().Intersection(other.ToLine(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, other.P0, other.P1, sc, tc);
 
   // respecting constraints: sc and tc should be in the range [0, 1]
   if (!Pc.has_value() || !is_in_range(sc, 0, 1) || !is_in_range(tc, 0, 1)) {
@@ -197,6 +200,193 @@ std::optional<Point2D>LineSegment2D::Intersection(LineSegment2D const& other) co
   }
 
   return Pc;
+}
+
+std::optional<std::vector<Point2D>> LineSegment2D::Intersection(Polyline2D const& polyline) const {
+  return polyline.Intersection(*this);
+}
+
+bool LineSegment2D::Overlaps(Line2D const& line) const { return Overlap(line).has_value(); }
+bool LineSegment2D::Overlaps(Ray2D const& ray) const { return Overlap(ray).has_value(); }
+bool LineSegment2D::Overlaps(LineSegment2D const& seg) const { return Overlap(seg).has_value(); }
+bool LineSegment2D::Overlaps(Polyline2D const& polyline) const { return polyline.Overlaps(*this); }
+
+std::optional<LineSegment2D> LineSegment2D::Overlap(Line2D const& line) const {
+  if (!((P1 - P0).IsParallel(line.Direction()) && line.Contains(P0))) {
+    return std::nullopt;
+  }
+
+  double t0 = (P0 - line.Origin()).Dot(line.Direction());
+  double t1 = (P1 - line.Origin()).Dot(line.Direction());
+  if (compare(t0, t1) > 0) {
+    return Reversed();
+  }
+
+  return *this;
+}
+
+std::optional<LineSegment2D> LineSegment2D::Overlap(Ray2D const& ray) const {
+  // if not parallel, there isn't an overlap
+  if (!(P1 - P0).IsParallel(ray.Direction())) {
+    return std::nullopt;
+  }
+
+  // determine what line segment is in common if any
+  bool ray_has_first = ray.Contains(P0);
+  bool ray_has_last = ray.Contains(P1);
+
+  // case 1: nothing in common, except parallelism
+  if (!ray_has_first && !ray_has_last) {
+    return std::nullopt;
+  }
+
+  // case 2: the ray has the first point
+  if (ray_has_first && !ray_has_last) {
+    return {P0, ray.Origin()};
+  }
+
+  // case 3: the ray has the last point
+  if (!ray_has_first && ray_has_last) {
+    return {ray.Origin(), P1};
+  }
+
+  // case 4: the ray has both points, the overlap is the segment itself
+  return *this;
+}
+
+std::optional<LineSegment2D> LineSegment2D::Overlap(LineSegment2D const& other) const {
+  // if not parallel, there isn't an overlap
+  if (!(P1 - P0).IsParallel(other.P1 - other.P0)) {
+    return std::nullopt;
+  }
+
+  // if parallel, let's check which contains which
+  bool this_contains_first = Contains(other.P0);
+  bool this_contains_last = Contains(other.P1);
+  bool other_contains_first = other.Contains(P0);
+  bool other_contains_last = other.Contains(P1);
+
+  // case 1: no point in common, except parallelism
+  if (!this_contains_first && !this_contains_last &&  //
+      !other_contains_first && !other_contains_last) {
+    return std::nullopt;
+  }
+
+  // case 2: this segment fully contains the other
+  if (this_contains_first && this_contains_last &&  //
+      !other_contains_first && !other_contains_last) {
+    if (compare(P0.DistanceTo(other.P1), P1.DistanceTo(other.P0)) < 0) {
+      return other.Reversed();
+    }
+    return other;
+  }
+
+  // case 3: the other fully contains this segment
+  if (!this_contains_first && !this_contains_last &&  //
+      other_contains_first && other_contains_last) {
+    if (compare(other.P0.DistanceTo(P1), other.P1.DistanceTo(P0)) < 0) {
+      return Reversed();
+    }
+    return *this;
+  }
+
+  // case 4: the segments partially overlap, we need to find the two extremes
+
+  // \_ case 4a: this segment contains the first point of the other, but not the last
+  if (this_contains_first && !this_contains_last &&  //
+      !other_contains_first && other_contains_last) {
+    return {other.P0, P1};
+  }
+
+  // \_ case 4b: this segment contains the last point of the other, but not the first
+  if (!this_contains_first && this_contains_last &&  //
+      other_contains_first && !other_contains_last) {
+    return {P0, other.P1};
+  }
+
+  // \_ case 4c: the other segment contains the first point of this, but not the last
+  if (!this_contains_first && this_contains_last &&  //
+      !other_contains_first && other_contains_last) {
+    return {P1, other.P1};
+  }
+
+  // \_ case 4d: the other segment contains the last point of this, but not the first
+  if (this_contains_first && !this_contains_last &&  //
+      other_contains_first && !other_contains_last) {
+    return {other.P0, P0};
+  }
+
+  // impossible (we have handled all cases)
+  throw std::runtime_error("unexpected case in LineSegment2D::Overlap");
+}
+
+std::optional<std::vector<LineSegment2D>> LineSegment2D::Overlap(Polyline2D const& polyline) const {
+  return polyline.Overlap(*this);
+}
+
+bool LineSegment2D::Touches(Line2D const& line) const { return Touch(line).has_value(); }
+bool LineSegment2D::Touches(Ray2D const& ray) const { return Touch(ray).has_value(); }
+bool LineSegment2D::Touches(LineSegment2D const& seg) const { return Touch(seg).has_value(); }
+bool LineSegment2D::Touches(Polyline2D const& polyline) const { return polyline.Touches(*this); }
+
+std::optional<Point2D> LineSegment2D::Touch(Line2D const& line) const {
+  if (!(P1 - P0).IsParallel(line.Direction())) {
+    if (line.Contains(P0)) {
+      return P0;
+    }
+    if (line.Contains(P1)) {
+      return P1;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<Point2D> LineSegment2D::Touch(Ray2D const& ray) const {
+  // ray contains first or ray contains second, but not both
+  bool r_has_first = ray.Contains(P0);
+  bool r_has_last = ray.Contains(P1);
+  if (r_has_first ^ r_has_last) {
+    return r_has_first ? P0 : P1;
+  }
+
+  // otherwise, not parallel and segment contains ray origin
+  if (!(P1 - P0).IsParallel(ray.Direction())) {
+    if (Contains(ray.Origin())) {
+      return ray.Origin();
+    }
+  }
+
+  return std::nullopt;
+}
+
+std::optional<Point2D> LineSegment2D::Touch(LineSegment2D const& seg) const {
+  // not parallel and only one point in common
+  if (!(P1 - P0).IsParallel(seg.P1 - seg.P0)) {
+    bool s_has_p0 = seg.Contains(P0), s_has_p1 = seg.Contains(P1);
+    bool t_has_s0 = Contains(seg.First()), t_has_s1 = Contains(seg.Last());
+    if (s_has_p0 ^ s_has_p1) {
+      return s_has_p0 ? P0 : P1;
+    }
+    if (t_has_s0 ^ t_has_s1) {
+      return t_has_s0 ? seg.First() : seg.Last();
+    }
+    return std::nullopt;
+  }
+
+  // parallel, but not overlap, and one extremity in common
+  bool e00 = P0.AlmostEquals(seg.First()), e11 = P1.AlmostEquals(seg.Last());
+  bool e01 = P0.AlmostEquals(seg.Last()), e10 = P1.AlmostEquals(seg.First());
+  if (e00 ^ e11 ^ e01 ^ e10) {
+    if (e00 || e01) {
+      return P0;
+    }
+    return P1;
+  }
+  return std::nullopt;
+}
+
+std::optional<std::vector<Point2D>> LineSegment2D::Touch(Polyline2D const& polyline) const {
+  return polyline.Touch(*this);
 }
 
 #pragma endregion

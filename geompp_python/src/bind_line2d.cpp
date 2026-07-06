@@ -1,4 +1,5 @@
 #include "bind_helpers.hpp"
+#include "calc_utils2d.hpp"
 
 void bind_line2d(py::module_& m) {
     py::class_<geompp::Line2D>(m, "Line2D",
@@ -31,11 +32,39 @@ void bind_line2d(py::module_& m) {
              [](const geompp::Line2D& l, const geompp::Ray2D& r)         -> py::object { return opt_to_py(l.Intersection(r)); }, "ray"_a)
         .def("intersection",
              [](const geompp::Line2D& l, const geompp::LineSegment2D& s) -> py::object { return opt_to_py(l.Intersection(s)); }, "segment"_a)
+        .def("overlaps",
+             [](const geompp::Line2D& l, const geompp::Line2D& o)        { return l.Overlaps(o); }, "other"_a)
+        .def("overlaps",
+             [](const geompp::Line2D& l, const geompp::Ray2D& r)         { return l.Overlaps(r); }, "ray"_a)
+        .def("overlaps",
+             [](const geompp::Line2D& l, const geompp::LineSegment2D& s) { return l.Overlaps(s); }, "segment"_a)
+        .def("overlap",
+             [](const geompp::Line2D& l, const geompp::Line2D& o)        -> py::object { return opt_to_py(l.Overlap(o)); }, "other"_a)
+        .def("overlap",
+             [](const geompp::Line2D& l, const geompp::Ray2D& r)         -> py::object { return opt_to_py(l.Overlap(r)); }, "ray"_a)
+        .def("overlap",
+             [](const geompp::Line2D& l, const geompp::LineSegment2D& s) -> py::object { return opt_to_py(l.Overlap(s)); }, "segment"_a)
+        .def("touches",
+             [](const geompp::Line2D& l, const geompp::Ray2D& r)         { return l.Touches(r); }, "ray"_a)
+        .def("touches",
+             [](const geompp::Line2D& l, const geompp::LineSegment2D& s) { return l.Touches(s); }, "segment"_a)
+        .def("touch",
+             [](const geompp::Line2D& l, const geompp::Ray2D& r)         -> py::object { return opt_to_py(l.Touch(r)); }, "ray"_a)
+        .def("touch",
+             [](const geompp::Line2D& l, const geompp::LineSegment2D& s) -> py::object { return opt_to_py(l.Touch(s)); }, "segment"_a)
+        .def("overlaps",
+             [](const geompp::Line2D& l, const geompp::Polyline2D& p)    { return l.Overlaps(p); }, "polyline"_a)
+        .def("overlap",
+             [](const geompp::Line2D& l, const geompp::Polyline2D& p)    -> py::object { return opt_to_py(l.Overlap(p)); }, "polyline"_a)
+        .def("touches",
+             [](const geompp::Line2D& l, const geompp::Polyline2D& p)    { return l.Touches(p); }, "polyline"_a)
+        .def("touch",
+             [](const geompp::Line2D& l, const geompp::Polyline2D& p)    -> py::object { return opt_to_py(l.Touch(p)); }, "polyline"_a)
         // Returns (Optional[Point2D], sc, tc) where sc/tc are parametric t-values
         .def("intersection_with_params",
              [](const geompp::Line2D& l, const geompp::Line2D& other) {
                  double sc = 0.0, tc = 0.0;
-                 auto result = l.Intersection(other, sc, tc);
+                 auto result = geompp::detail::line_intersection(l.First(), l.Last(), other.First(), other.Last(), sc, tc);
                  return py::make_tuple(opt_to_py(result), sc, tc);
              }, "other"_a,
              "Returns (point_or_None, sc, tc). sc/tc are the parametric positions on each line.")

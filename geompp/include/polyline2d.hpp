@@ -77,48 +77,35 @@ class Polyline2D {
   /// @return true if @p point is on any of the polyline's segments.
   bool Contains(Point2D const& point) const;
 
-  using MultiPoint = std::vector<Point2D>;
-  using ReturnSet = std::optional<std::variant<Point2D, MultiPoint>>;
-
-  /// @brief Tests whether this polyline intersects a line.
-  /// @param line The line.
-  /// @return true if the line crosses any of the polyline's segments.
   bool Intersects(Line2D const& line) const;
-
-  /// @brief Tests whether this polyline intersects a ray.
-  /// @param ray The ray.
-  /// @return true if the ray crosses any of the polyline's segments.
   bool Intersects(Ray2D const& ray) const;
-
-  /// @brief Tests whether this polyline intersects a segment.
-  /// @param segment The segment.
-  /// @return true if the segment crosses any of the polyline's segments.
   bool Intersects(LineSegment2D const& segment) const;
-
-  /// @brief Tests whether two polylines intersect.
-  /// @param other The other polyline.
-  /// @return true if any segment of either polyline crosses any segment of the other.
   bool Intersects(Polyline2D const& other) const;
 
-  /// @brief Intersection of this polyline with a line.
-  /// @param line The line.
-  /// @return A single Point2D when there's one crossing, a list when there are several, or std::nullopt if disjoint.
-  ReturnSet Intersection(Line2D const& line) const;
+  std::optional<std::vector<Point2D>> Intersection(Line2D const& line) const;
+  std::optional<std::vector<Point2D>> Intersection(Ray2D const& ray) const;
+  std::optional<std::vector<Point2D>> Intersection(LineSegment2D const& segment) const;
+  std::optional<std::vector<Point2D>> Intersection(Polyline2D const& other) const;
 
-  /// @brief Intersection of this polyline with a ray.
-  /// @param ray The ray.
-  /// @return A single Point2D or a list of crossings, or std::nullopt if disjoint.
-  ReturnSet Intersection(Ray2D const& ray) const;
+  bool Overlaps(Line2D const& line) const;
+  bool Overlaps(Ray2D const& ray) const;
+  bool Overlaps(LineSegment2D const& seg) const;
+  bool Overlaps(Polyline2D const& other) const;
 
-  /// @brief Intersection of this polyline with a segment.
-  /// @param segment The segment.
-  /// @return A single Point2D or a list of crossings, or std::nullopt if disjoint.
-  ReturnSet Intersection(LineSegment2D const& segment) const;
+  std::optional<std::vector<LineSegment2D>> Overlap(Line2D const& line) const;
+  std::optional<std::vector<LineSegment2D>> Overlap(Ray2D const& ray) const;
+  std::optional<std::vector<LineSegment2D>> Overlap(LineSegment2D const& seg) const;
+  std::optional<std::vector<LineSegment2D>> Overlap(Polyline2D const& other) const;
 
-  /// @brief Intersection of two polylines.
-  /// @param other The other polyline.
-  /// @return A single Point2D or a list of crossings, or std::nullopt if disjoint.
-  ReturnSet Intersection(Polyline2D const& other) const;
+  bool Touches(Line2D const& line) const;
+  bool Touches(Ray2D const& ray) const;
+  bool Touches(LineSegment2D const& seg) const;
+  bool Touches(Polyline2D const& other) const;
+
+  std::optional<std::vector<Point2D>> Touch(Line2D const& line) const;
+  std::optional<std::vector<Point2D>> Touch(Ray2D const& ray) const;
+  std::optional<std::vector<Point2D>> Touch(LineSegment2D const& seg) const;
+  std::optional<std::vector<Point2D>> Touch(Polyline2D const& other) const;
 
 #pragma endregion
 
@@ -142,7 +129,8 @@ std::ostream& operator<<(std::ostream& os, Polyline2D const& g);
 inline int Polyline2D::Size() const { return KNOTS.size(); }
 inline SegmentRange2D Polyline2D::ToSegments() const { return SegmentRange2D(KNOTS); }
 inline double Polyline2D::Length() const { return LENGTH; }
-inline Polyline2D::Polyline2D(std::vector<Point2D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
+inline Polyline2D::Polyline2D(std::vector<Point2D>&& points, double length)
+    : KNOTS{std::move(points)}, LENGTH(length) {}
 
 #pragma endregion
 

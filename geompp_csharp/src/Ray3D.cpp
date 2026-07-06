@@ -1,5 +1,6 @@
 #include "Ray3D.hpp"
 #include "Point3D.hpp"
+#include "Polyline3D.hpp"
 #include "Vector3D.hpp"
 #include "Line3D.hpp"
 #include "LineSegment3D.hpp"
@@ -164,7 +165,98 @@ Point3D^ Ray3D::Intersection(LineSegment3D^ segment) {
     return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
+// ── Overlaps ─────────────────────────────────────────────────────────────────
+
+bool Ray3D::Overlaps(Line3D^ line) {
+    return _native->Overlaps(*line->_native);
+}
+
+bool Ray3D::Overlaps(Ray3D^ other) {
+    return _native->Overlaps(*other->_native);
+}
+
+bool Ray3D::Overlaps(LineSegment3D^ segment) {
+    return _native->Overlaps(*segment->_native);
+}
+
+// ── Overlap ───────────────────────────────────────────────────────────────────
+
+Ray3D^ Ray3D::Overlap(Line3D^ line) {
+    auto result = _native->Overlap(*line->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew Ray3D(new geompp::Ray3D(result.value()));
+}
+
+System::Object^ Ray3D::Overlap(Ray3D^ other) {
+    auto result = _native->Overlap(*other->_native);
+    if (!result.has_value()) { return nullptr; }
+    auto& var = result.value();
+    if (std::holds_alternative<geompp::Ray3D>(var)) {
+        return gcnew Ray3D(new geompp::Ray3D(std::get<geompp::Ray3D>(var)));
+    }
+    return gcnew LineSegment3D(new geompp::LineSegment3D(std::get<geompp::LineSegment3D>(var)));
+}
+
+LineSegment3D^ Ray3D::Overlap(LineSegment3D^ segment) {
+    auto result = _native->Overlap(*segment->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
+}
+
+// ── Touches ───────────────────────────────────────────────────────────────────
+
+bool Ray3D::Touches(Line3D^ line) { return _native->Touches(*line->_native); }
+bool Ray3D::Touches(Ray3D^ other) { return _native->Touches(*other->_native); }
+bool Ray3D::Touches(LineSegment3D^ segment) { return _native->Touches(*segment->_native); }
+
+// ── Touch ─────────────────────────────────────────────────────────────────────
+
+Point3D^ Ray3D::Touch(Line3D^ line) {
+    auto result = _native->Touch(*line->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
+}
+
+Point3D^ Ray3D::Touch(Ray3D^ other) {
+    auto result = _native->Touch(*other->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
+}
+
+Point3D^ Ray3D::Touch(LineSegment3D^ segment) {
+    auto result = _native->Touch(*segment->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
+}
+
 // ── Operator ──────────────────────────────────────────────────────────────────
+
+// ── Polyline3D delegates ──────────────────────────────────────────────────────
+
+bool Ray3D::Overlaps(Polyline3D^ polyline) { return _native->Overlaps(*polyline->_native); }
+bool Ray3D::Touches(Polyline3D^ polyline) { return _native->Touches(*polyline->_native); }
+
+array<LineSegment3D^>^ Ray3D::Overlap(Polyline3D^ polyline) {
+    auto result = _native->Overlap(*polyline->_native);
+    if (!result.has_value()) { return nullptr; }
+    auto& segs = result.value();
+    auto arr = gcnew array<LineSegment3D^>((int)segs.size());
+    for (int i = 0; i < (int)segs.size(); ++i) {
+        arr[i] = gcnew LineSegment3D(new geompp::LineSegment3D(segs[i]));
+    }
+    return arr;
+}
+
+array<Point3D^>^ Ray3D::Touch(Polyline3D^ polyline) {
+    auto result = _native->Touch(*polyline->_native);
+    if (!result.has_value()) { return nullptr; }
+    auto& pts = result.value();
+    auto arr = gcnew array<Point3D^>((int)pts.size());
+    for (int i = 0; i < (int)pts.size(); ++i) {
+        arr[i] = gcnew Point3D(new geompp::Point3D(pts[i]));
+    }
+    return arr;
+}
 
 bool Ray3D::operator==(Ray3D^ lhs, Ray3D^ rhs) {
     return *lhs->_native == *rhs->_native;

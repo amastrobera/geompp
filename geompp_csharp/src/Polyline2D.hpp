@@ -56,6 +56,26 @@ public:
     System::Object^ Intersection(LineSegment2D^ segment);
     System::Object^ Intersection(Polyline2D^ other);
 
+    // Overlaps / Overlap — optional<vector<LineSegment2D>> → array<LineSegment2D^>^ or nullptr
+    bool Overlaps(Line2D^ line);
+    bool Overlaps(Ray2D^ ray);
+    bool Overlaps(LineSegment2D^ segment);
+    bool Overlaps(Polyline2D^ other);
+    array<LineSegment2D^>^ Overlap(Line2D^ line);
+    array<LineSegment2D^>^ Overlap(Ray2D^ ray);
+    array<LineSegment2D^>^ Overlap(LineSegment2D^ segment);
+    array<LineSegment2D^>^ Overlap(Polyline2D^ other);
+
+    // Touches / Touch — optional<vector<Point2D>> → array<Point2D^>^ or nullptr
+    bool Touches(Line2D^ line);
+    bool Touches(Ray2D^ ray);
+    bool Touches(LineSegment2D^ segment);
+    bool Touches(Polyline2D^ other);
+    array<Point2D^>^ Touch(Line2D^ line);
+    array<Point2D^>^ Touch(Ray2D^ ray);
+    array<Point2D^>^ Touch(LineSegment2D^ segment);
+    array<Point2D^>^ Touch(Polyline2D^ other);
+
     // Operator
     static bool operator==(Polyline2D^ lhs, Polyline2D^ rhs);
 

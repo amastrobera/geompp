@@ -239,8 +239,8 @@ bool Polyline2D::Intersects(Polyline2D const& other) const { return Intersection
 
 bool Polyline2D::Intersects(LineSegment2D const& other) const { return Intersection(other).has_value(); }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point2D>> Polyline2D::Intersection(Line2D const& line) const {
+  std::vector<Point2D> intersections;
 
   for (auto const& seg : ToSegments()) {
     auto inter = line.Intersection(seg);
@@ -254,15 +254,11 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Line2D const& line) const {
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
 }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point2D>> Polyline2D::Intersection(Ray2D const& ray) const {
+  std::vector<Point2D> intersections;
 
   for (auto const& seg : ToSegments()) {
     auto inter = ray.Intersection(seg);
@@ -276,15 +272,11 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Ray2D const& ray) const {
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
 }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point2D>> Polyline2D::Intersection(LineSegment2D const& segment) const {
+  std::vector<Point2D> intersections;
 
   for (auto const& seg : ToSegments()) {
     auto inter = segment.Intersection(seg);
@@ -298,15 +290,11 @@ Polyline2D::ReturnSet Polyline2D::Intersection(LineSegment2D const& segment) con
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
 }
 
-Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other) const {
-  MultiPoint intersections;
+std::optional<std::vector<Point2D>> Polyline2D::Intersection(Polyline2D const& other) const {
+  std::vector<Point2D> intersections;
 
   for (auto const& seg : ToSegments()) {
     for (auto const& other_seg : other.ToSegments()) {
@@ -322,11 +310,133 @@ Polyline2D::ReturnSet Polyline2D::Intersection(Polyline2D const& other) const {
     return std::nullopt;
   }
 
-  if (intersections.size() == 1) {
-    return intersections[0];
-  }
-
   return intersections;
+}
+
+bool Polyline2D::Overlaps(Line2D const& line) const { return Overlap(line).has_value(); }
+bool Polyline2D::Overlaps(Ray2D const& ray) const { return Overlap(ray).has_value(); }
+bool Polyline2D::Overlaps(LineSegment2D const& seg) const { return Overlap(seg).has_value(); }
+bool Polyline2D::Overlaps(Polyline2D const& other) const { return Overlap(other).has_value(); }
+
+std::optional<std::vector<LineSegment2D>> Polyline2D::Overlap(Line2D const& line) const {
+  std::vector<LineSegment2D> result;
+  for (auto const& seg : ToSegments()) {
+    auto ov = line.Overlap(seg);
+    if (ov.has_value()) {
+      result.push_back(*ov);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<LineSegment2D>> Polyline2D::Overlap(Ray2D const& ray) const {
+  std::vector<LineSegment2D> result;
+  for (auto const& seg : ToSegments()) {
+    auto ov = ray.Overlap(seg);
+    if (ov.has_value()) {
+      result.push_back(*ov);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<LineSegment2D>> Polyline2D::Overlap(LineSegment2D const& s) const {
+  std::vector<LineSegment2D> result;
+  for (auto const& seg : ToSegments()) {
+    auto ov = s.Overlap(seg);
+    if (ov.has_value()) {
+      result.push_back(*ov);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<LineSegment2D>> Polyline2D::Overlap(Polyline2D const& other) const {
+  std::vector<LineSegment2D> result;
+  for (auto const& seg : ToSegments()) {
+    for (auto const& other_seg : other.ToSegments()) {
+      auto ov = seg.Overlap(other_seg);
+      if (ov.has_value()) {
+        result.push_back(*ov);
+      }
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+bool Polyline2D::Touches(Line2D const& line) const { return Touch(line).has_value(); }
+bool Polyline2D::Touches(Ray2D const& ray) const { return Touch(ray).has_value(); }
+bool Polyline2D::Touches(LineSegment2D const& seg) const { return Touch(seg).has_value(); }
+bool Polyline2D::Touches(Polyline2D const& other) const { return Touch(other).has_value(); }
+
+std::optional<std::vector<Point2D>> Polyline2D::Touch(Line2D const& line) const {
+  std::vector<Point2D> result;
+  for (auto const& seg : ToSegments()) {
+    auto tp = line.Touch(seg);
+    if (tp.has_value()) {
+      result.push_back(*tp);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<Point2D>> Polyline2D::Touch(Ray2D const& ray) const {
+  std::vector<Point2D> result;
+  for (auto const& seg : ToSegments()) {
+    auto tp = ray.Touch(seg);
+    if (tp.has_value()) {
+      result.push_back(*tp);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<Point2D>> Polyline2D::Touch(LineSegment2D const& s) const {
+  std::vector<Point2D> result;
+  for (auto const& seg : ToSegments()) {
+    auto tp = s.Touch(seg);
+    if (tp.has_value()) {
+      result.push_back(*tp);
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<std::vector<Point2D>> Polyline2D::Touch(Polyline2D const& other) const {
+  std::vector<Point2D> result;
+  for (auto const& seg : ToSegments()) {
+    for (auto const& other_seg : other.ToSegments()) {
+      auto tp = seg.Touch(other_seg);
+      if (tp.has_value()) {
+        result.push_back(*tp);
+      }
+    }
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  return result;
 }
 
 #pragma endregion

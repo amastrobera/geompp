@@ -1,6 +1,7 @@
 #include "LineSegment3D.hpp"
 #include "Point3D.hpp"
 #include "Line3D.hpp"
+#include "Polyline3D.hpp"
 #include "Ray3D.hpp"
 
 #include <msclr/marshal_cppstd.h>
@@ -56,6 +57,10 @@ Line3D^ LineSegment3D::ToLine() {
 
 double LineSegment3D::Length() {
     return _native->Length();
+}
+
+LineSegment3D^ LineSegment3D::Reversed() {
+    return gcnew LineSegment3D(new geompp::LineSegment3D(_native->Reversed()));
 }
 
 double LineSegment3D::DistanceTo(Point3D^ point) {
@@ -170,7 +175,94 @@ Point3D^ LineSegment3D::Intersection(LineSegment3D^ other) {
     return gcnew Point3D(new geompp::Point3D(result.value()));
 }
 
+// ── Overlaps ─────────────────────────────────────────────────────────────────
+
+bool LineSegment3D::Overlaps(Line3D^ line) {
+    return _native->Overlaps(*line->_native);
+}
+
+bool LineSegment3D::Overlaps(Ray3D^ ray) {
+    return _native->Overlaps(*ray->_native);
+}
+
+bool LineSegment3D::Overlaps(LineSegment3D^ other) {
+    return _native->Overlaps(*other->_native);
+}
+
+// ── Overlap ───────────────────────────────────────────────────────────────────
+
+LineSegment3D^ LineSegment3D::Overlap(Line3D^ line) {
+    auto result = _native->Overlap(*line->_native);
+    if (!result.has_value()) return nullptr;
+    return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
+}
+
+LineSegment3D^ LineSegment3D::Overlap(Ray3D^ ray) {
+    auto result = _native->Overlap(*ray->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
+}
+
+LineSegment3D^ LineSegment3D::Overlap(LineSegment3D^ other) {
+    auto result = _native->Overlap(*other->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew LineSegment3D(new geompp::LineSegment3D(result.value()));
+}
+
+// ── Touches ───────────────────────────────────────────────────────────────────
+
+bool LineSegment3D::Touches(Line3D^ line) { return _native->Touches(*line->_native); }
+bool LineSegment3D::Touches(Ray3D^ ray) { return _native->Touches(*ray->_native); }
+bool LineSegment3D::Touches(LineSegment3D^ other) { return _native->Touches(*other->_native); }
+
+// ── Touch ─────────────────────────────────────────────────────────────────────
+
+Point3D^ LineSegment3D::Touch(Line3D^ line) {
+    auto result = _native->Touch(*line->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
+}
+
+Point3D^ LineSegment3D::Touch(Ray3D^ ray) {
+    auto result = _native->Touch(*ray->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
+}
+
+Point3D^ LineSegment3D::Touch(LineSegment3D^ other) {
+    auto result = _native->Touch(*other->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point3D(new geompp::Point3D(result.value()));
+}
+
 // ── Operator ──────────────────────────────────────────────────────────────────
+
+// ── Polyline3D delegates ──────────────────────────────────────────────────────
+
+bool LineSegment3D::Overlaps(Polyline3D^ polyline) { return _native->Overlaps(*polyline->_native); }
+bool LineSegment3D::Touches(Polyline3D^ polyline) { return _native->Touches(*polyline->_native); }
+
+array<LineSegment3D^>^ LineSegment3D::Overlap(Polyline3D^ polyline) {
+    auto result = _native->Overlap(*polyline->_native);
+    if (!result.has_value()) { return nullptr; }
+    auto& segs = result.value();
+    auto arr = gcnew array<LineSegment3D^>((int)segs.size());
+    for (int i = 0; i < (int)segs.size(); ++i) {
+        arr[i] = gcnew LineSegment3D(new geompp::LineSegment3D(segs[i]));
+    }
+    return arr;
+}
+
+array<Point3D^>^ LineSegment3D::Touch(Polyline3D^ polyline) {
+    auto result = _native->Touch(*polyline->_native);
+    if (!result.has_value()) { return nullptr; }
+    auto& pts = result.value();
+    auto arr = gcnew array<Point3D^>((int)pts.size());
+    for (int i = 0; i < (int)pts.size(); ++i) {
+        arr[i] = gcnew Point3D(new geompp::Point3D(pts[i]));
+    }
+    return arr;
+}
 
 bool LineSegment3D::operator==(LineSegment3D^ lhs, LineSegment3D^ rhs) {
     return *lhs->_native == *rhs->_native;

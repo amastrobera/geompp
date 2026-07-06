@@ -227,7 +227,169 @@ is simple: False
 ```
 
 
-### 4. Planar operations
+### 4. Overlaps
+
+`overlaps(other)` returns `True` when two primitives share a 1D region (more than a single point).
+`overlap(other)` returns the shared geometry object, or `None` when they don't overlap.
+
+```python
+import geompp as g
+g.set_decimal_precision(3)
+
+# Line ↔ Line: same line → overlap is the line itself
+x_axis = g.Line2D.make(g.Point2D(0, 0), g.Point2D(1, 0))
+x_same = g.Line2D.make(g.Point2D(-2, 0), g.Point2D(5, 0))
+x_off  = g.Line2D.make(g.Point2D(0, 1), g.Point2D(1, 1))
+print(x_axis.overlaps(x_same))     # True
+print(x_axis.overlaps(x_off))      # False
+print(x_axis.overlap(x_same))      # LINE (0 0, 1 0)
+
+# Line ↔ Ray: collinear → overlap is the ray
+ray = g.Ray2D.make(g.Point2D(3, 0), g.Vector2D(1, 0))
+print(x_axis.overlap(ray))         # RAY (3 0, 1 0)
+
+# Ray ↔ Ray: same direction → longer swallows shorter
+r1 = g.Ray2D.make(g.Point2D(0, 0), g.Vector2D(1, 0))
+r2 = g.Ray2D.make(g.Point2D(3, 0), g.Vector2D(1, 0))
+print(r1.overlap(r2))              # RAY (0 0, 1 0)   (r1 contains r2)
+
+# Ray ↔ Ray: anti-parallel, overlapping → segment
+r3 = g.Ray2D.make(g.Point2D(5, 0), g.Vector2D(-1, 0))
+print(r1.overlap(r3))              # LINESTRING (0 0, 5 0)
+
+# Segment ↔ Segment: partial overlap
+a = g.LineSegment2D.make(g.Point2D(0, 0), g.Point2D(5, 0))
+b = g.LineSegment2D.make(g.Point2D(3, 0), g.Point2D(7, 0))
+print(a.overlaps(b))               # True
+print(a.overlap(b))                # LINESTRING (3 0, 5 0)
+
+# Touching endpoints: not an overlap
+c = g.LineSegment2D.make(g.Point2D(5, 0), g.Point2D(8, 0))
+print(a.overlaps(c))               # False
+print(a.overlap(c))                # None
+```
+
+Output:
+```
+True
+False
+LINE (0 0, 1 0)
+RAY (3 0, 1 0)
+RAY (0 0, 1 0)
+LINESTRING (0 0, 5 0)
+True
+LINESTRING (3 0, 5 0)
+False
+None
+```
+
+
+### 5. Touches
+
+`touches(other)` returns `True` when two primitives share exactly one endpoint-contact point
+(not a crossing, not a shared segment). `touch(other)` returns that contact point or `None`.
+
+```python
+import geompp as g
+g.set_decimal_precision(3)
+
+# Ray origin sits on a line → touch at origin
+line = g.Line2D.make(g.Point2D(0, 0), g.Point2D(1, 0))   # x-axis
+ray  = g.Ray2D.make(g.Point2D(3, 0), g.Vector2D(0, 1))   # vertical ray at x=3
+print(line.touches(ray))           # True
+print(line.touch(ray))             # POINT (3 0)
+
+# Collinear → overlap, not touch
+ray_col = g.Ray2D.make(g.Point2D(1, 0), g.Vector2D(1, 0))
+print(line.touches(ray_col))       # False
+
+# Anti-parallel rays at the same origin → touch
+r1 = g.Ray2D.make(g.Point2D(0, 0), g.Vector2D( 1, 0))
+r2 = g.Ray2D.make(g.Point2D(0, 0), g.Vector2D(-1, 0))
+print(r1.touches(r2))              # True
+print(r1.touch(r2))                # POINT (0 0)
+
+# Anti-parallel rays that overlap → not a touch
+r3 = g.Ray2D.make(g.Point2D(3, 0), g.Vector2D(-1, 0))
+print(r1.touches(r3))              # False
+
+# Segment T-junction: endpoint of b lies on a
+a = g.LineSegment2D.make(g.Point2D(0, 0), g.Point2D(5, 0))
+b = g.LineSegment2D.make(g.Point2D(3, 0), g.Point2D(3, 3))
+print(a.touches(b))                # True
+print(a.touch(b))                  # POINT (3 0)
+
+# Collinear endpoint contact
+c = g.LineSegment2D.make(g.Point2D(5, 0), g.Point2D(8, 0))
+print(a.touches(c))                # True
+print(a.touch(c))                  # POINT (5 0)
+
+# Overlapping collinear → not a touch
+d = g.LineSegment2D.make(g.Point2D(3, 0), g.Point2D(7, 0))
+print(a.touches(d))                # False
+print(a.touch(d))                  # None
+```
+
+Output:
+```
+True
+POINT (3 0)
+False
+True
+POINT (0 0)
+False
+True
+POINT (3 0)
+True
+POINT (5 0)
+False
+None
+```
+
+
+### 6. Polyline Overlaps / Touches
+
+`Polyline2D` and `Polyline3D` iterate over their constituent segments to collect all
+overlapping sub-segments or all touch points. `overlap()` returns a list of
+`LineSegment2D`/`3D` or `None`; `touch()` returns a list of `Point2D`/`3D` or `None`.
+
+```python
+import geompp
+
+# L-shaped polyline
+pl = geompp.Polyline2D.make([geompp.Point2D(0,0), geompp.Point2D(4,0), geompp.Point2D(4,3)])
+
+# x-axis line overlaps the horizontal leg
+x_axis = geompp.Line2D.make(geompp.Point2D(0,0), geompp.Point2D(1,0))
+print(pl.overlaps(line=x_axis))                    # True
+segs = pl.overlap(line=x_axis)
+for s in segs:
+    print(s.to_wkt())                              # LINESTRING (0 0, 4 0)
+
+# T-junction: vertical arm touches a horizontal segment at (3,0)
+stem = geompp.Polyline2D.make([geompp.Point2D(3,0), geompp.Point2D(3,3)])
+bar  = geompp.LineSegment2D.make(geompp.Point2D(0,0), geompp.Point2D(5,0))
+print(stem.touches(segment=bar))                   # True
+pts = stem.touch(segment=bar)
+for p in pts:
+    print(p.to_wkt())                              # POINT (3 0)
+
+# Two polylines sharing an endpoint
+pl1 = geompp.Polyline2D.make([geompp.Point2D(0,0), geompp.Point2D(3,0)])
+pl2 = geompp.Polyline2D.make([geompp.Point2D(3,0), geompp.Point2D(3,3)])
+print(pl1.touches(other=pl2))                      # True
+```
+
+```
+True
+LINESTRING (0 0, 4 0)
+True
+POINT (3 0)
+True
+```
+
+
+### 7. Planar operations
 
 #### 4.1 Coplanarity, orientation, and closest world plane
 
@@ -371,7 +533,7 @@ ProjectionType.XY
 ```
 
 
-### 5. PCA on a 3D point cloud
+### 7. PCA on a 3D point cloud
 
 `principal_axes(points)` runs PCA (Jacobi eigendecomposition on the 3×3 covariance matrix) and returns
 a `CoordinateFrame` — three orthonormal axes sorted by variance: `x` is the direction of most spread,
@@ -407,7 +569,7 @@ z (normal):    VECTOR (0 0 1)
 ```
 
 
-### 6. Bounding containers
+### 8. Bounding containers
 
 #### 6.1 Simple containers for quick rejection 
 

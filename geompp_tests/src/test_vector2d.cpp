@@ -108,4 +108,21 @@ TEST_F(Vector2DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
+TEST_F(Vector2DTest, IsParallel) {
+  // Same direction — parallel
+  EXPECT_TRUE(g::Vector2D(1, 0).IsParallel(g::Vector2D(2, 0)));
+  // Anti-parallel (opposite direction) — still parallel
+  EXPECT_TRUE(g::Vector2D(1, 0).IsParallel(g::Vector2D(-3, 0)));
+  // Scaled version — parallel
+  EXPECT_TRUE(g::Vector2D(1, 1).IsParallel(g::Vector2D(2, 2)));
+  // Self — parallel
+  EXPECT_TRUE(g::Vector2D(3, 4).IsParallel(g::Vector2D(3, 4)));
+  // Perpendicular — not parallel
+  EXPECT_FALSE(g::Vector2D(1, 0).IsParallel(g::Vector2D(0, 1)));
+  // Non-parallel diagonal
+  EXPECT_FALSE(g::Vector2D(1, 0).IsParallel(g::Vector2D(1, 1)));
+  // Zero vector — parallel to everything (consistent with Vector3D::IsParallel)
+  EXPECT_TRUE(g::Vector2D(0, 0).IsParallel(g::Vector2D(1, 0)));
+}
+
 }  // namespace geompp_tests

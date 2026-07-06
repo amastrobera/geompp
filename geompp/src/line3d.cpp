@@ -2,6 +2,7 @@
 
 #include "calc_utils3d.hpp"
 #include "line_segment3d.hpp"
+#include "polyline3d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
 
@@ -30,7 +31,6 @@ Line3D Line3D::Make(Point3D const& p0, Vector3D const& dir) {
   }
   return {p0, dir};
 }
-
 
 Line3D& Line3D::operator=(Line3D const& other) {
   if (this != &other) {
@@ -133,7 +133,9 @@ bool Line3D::Intersects(Ray3D const& ray) const { return ray.Intersects(*this); 
 
 bool Line3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
-std::optional<Point3D>Line3D::Intersection(Line3D const& other) const {
+bool Line3D::Intersects(Polyline3D const& polyline) const { return polyline.Intersects(*this); }
+
+std::optional<Point3D> Line3D::Intersection(Line3D const& other) const {
   double sc, tc;
 
   auto result = detail::intersection_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
@@ -144,9 +146,49 @@ std::optional<Point3D>Line3D::Intersection(Line3D const& other) const {
   return result;  // they intersect in a single point
 }
 
-std::optional<Point3D>Line3D::Intersection(Ray3D const& ray) const { return ray.Intersection(*this); }
+std::optional<Point3D> Line3D::Intersection(Ray3D const& ray) const { return ray.Intersection(*this); }
 
-std::optional<Point3D>Line3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }
+std::optional<Point3D> Line3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }
+std::optional<std::variant<Point3D, std::vector<Point3D>>> Line3D::Intersection(Polyline3D const& polyline) const {
+  return polyline.Intersection(*this);
+}
+
+bool Line3D::Overlaps(Line3D const& line) const { return Overlap(line).has_value(); }
+bool Line3D::Overlaps(Ray3D const& ray) const { return ray.Overlaps(*this); }
+bool Line3D::Overlaps(LineSegment3D const& seg) const { return seg.Overlaps(*this); }
+bool Line3D::Overlaps(Polyline3D const& polyline) const { return polyline.Overlaps(*this); }
+
+std::optional<Line3D> Line3D::Overlap(Line3D const& line) const {
+  if (!AlmostEquals(line)) {
+    return std::nullopt;
+  }
+  return *this;
+}
+
+std::optional<Ray3D> Line3D::Overlap(Ray3D const& ray) const { return ray.Overlap(*this); }
+
+std::optional<LineSegment3D> Line3D::Overlap(LineSegment3D const& seg) const {
+  auto result = seg.Overlap(*this);  // returns a segment in the direction of the segment, not the line
+
+  // flip the segment in the direction of the Line if a segment exists
+  if (result.has_value()) {
+    return result->Reversed();
+  }
+
+  return result;
+}
+
+std::optional<std::vector<LineSegment3D>> Line3D::Overlap(Polyline3D const& polyline) const {
+  return polyline.Overlap(*this);
+}
+
+bool Line3D::Touches(Ray3D const& ray) const { return ray.Touches(*this); }
+bool Line3D::Touches(LineSegment3D const& seg) const { return seg.Touches(*this); }
+bool Line3D::Touches(Polyline3D const& polyline) const { return polyline.Touches(*this); }
+
+std::optional<Point3D> Line3D::Touch(Ray3D const& ray) const { return ray.Touch(*this); }
+std::optional<Point3D> Line3D::Touch(LineSegment3D const& seg) const { return seg.Touch(*this); }
+std::optional<std::vector<Point3D>> Line3D::Touch(Polyline3D const& polyline) const { return polyline.Touch(*this); }
 
 #pragma endregion
 

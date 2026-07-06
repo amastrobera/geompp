@@ -1,6 +1,7 @@
 #include "LineSegment2D.hpp"
 #include "Point2D.hpp"
 #include "Line2D.hpp"
+#include "Polyline2D.hpp"
 #include "Ray2D.hpp"
 
 #include <msclr/marshal_cppstd.h>
@@ -56,6 +57,10 @@ Line2D^ LineSegment2D::ToLine() {
 
 double LineSegment2D::Length() {
     return _native->Length();
+}
+
+LineSegment2D^ LineSegment2D::Reversed() {
+    return gcnew LineSegment2D(new geompp::LineSegment2D(_native->Reversed()));
 }
 
 double LineSegment2D::DistanceTo(Point2D^ point) {
@@ -132,7 +137,94 @@ Point2D^ LineSegment2D::Intersection(LineSegment2D^ other) {
     return gcnew Point2D(new geompp::Point2D(result.value()));
 }
 
+// ── Overlaps ─────────────────────────────────────────────────────────────────
+
+bool LineSegment2D::Overlaps(Line2D^ line) {
+    return _native->Overlaps(*line->_native);
+}
+
+bool LineSegment2D::Overlaps(Ray2D^ ray) {
+    return _native->Overlaps(*ray->_native);
+}
+
+bool LineSegment2D::Overlaps(LineSegment2D^ other) {
+    return _native->Overlaps(*other->_native);
+}
+
+// ── Overlap ───────────────────────────────────────────────────────────────────
+
+LineSegment2D^ LineSegment2D::Overlap(Line2D^ line) {
+    auto result = _native->Overlap(*line->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew LineSegment2D(new geompp::LineSegment2D(result.value()));
+}
+
+LineSegment2D^ LineSegment2D::Overlap(Ray2D^ ray) {
+    auto result = _native->Overlap(*ray->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew LineSegment2D(new geompp::LineSegment2D(result.value()));
+}
+
+LineSegment2D^ LineSegment2D::Overlap(LineSegment2D^ other) {
+    auto result = _native->Overlap(*other->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew LineSegment2D(new geompp::LineSegment2D(result.value()));
+}
+
+// ── Touches ───────────────────────────────────────────────────────────────────
+
+bool LineSegment2D::Touches(Line2D^ line) { return _native->Touches(*line->_native); }
+bool LineSegment2D::Touches(Ray2D^ ray) { return _native->Touches(*ray->_native); }
+bool LineSegment2D::Touches(LineSegment2D^ other) { return _native->Touches(*other->_native); }
+
+// ── Touch ─────────────────────────────────────────────────────────────────────
+
+Point2D^ LineSegment2D::Touch(Line2D^ line) {
+    auto result = _native->Touch(*line->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point2D(new geompp::Point2D(result.value()));
+}
+
+Point2D^ LineSegment2D::Touch(Ray2D^ ray) {
+    auto result = _native->Touch(*ray->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point2D(new geompp::Point2D(result.value()));
+}
+
+Point2D^ LineSegment2D::Touch(LineSegment2D^ other) {
+    auto result = _native->Touch(*other->_native);
+    if (!result.has_value()) { return nullptr; }
+    return gcnew Point2D(new geompp::Point2D(result.value()));
+}
+
 // ── Operator ──────────────────────────────────────────────────────────────────
+
+// ── Polyline2D delegates ──────────────────────────────────────────────────────
+
+bool LineSegment2D::Overlaps(Polyline2D^ polyline) { return _native->Overlaps(*polyline->_native); }
+bool LineSegment2D::Touches(Polyline2D^ polyline) { return _native->Touches(*polyline->_native); }
+
+array<LineSegment2D^>^ LineSegment2D::Overlap(Polyline2D^ polyline) {
+    auto result = _native->Overlap(*polyline->_native);
+    if (!result.has_value()) { return nullptr; }
+    auto& segs = result.value();
+    auto arr = gcnew array<LineSegment2D^>((int)segs.size());
+    for (int i = 0; i < (int)segs.size(); ++i) {
+        arr[i] = gcnew LineSegment2D(new geompp::LineSegment2D(segs[i]));
+    }
+    return arr;
+}
+
+array<Point2D^>^ LineSegment2D::Touch(Polyline2D^ polyline) {
+    auto result = _native->Touch(*polyline->_native);
+    if (!result.has_value()) { return nullptr; }
+    auto& pts = result.value();
+    auto arr = gcnew array<Point2D^>((int)pts.size());
+    for (int i = 0; i < (int)pts.size(); ++i) {
+        arr[i] = gcnew Point2D(new geompp::Point2D(pts[i]));
+    }
+    return arr;
+}
 
 bool LineSegment2D::operator==(LineSegment2D^ lhs, LineSegment2D^ rhs) {
     return *lhs->_native == *rhs->_native;

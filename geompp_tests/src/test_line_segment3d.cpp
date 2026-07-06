@@ -211,20 +211,20 @@ TEST_F(LineSegment3DTest, DistanceToLineSegment3D) {
   EXPECT_EQ(5.0, g::round(s1.DistanceTo(s_skew)));
 }
 
-TEST_F(LineSegment3DTest, Flip) {
+TEST_F(LineSegment3DTest, Reversed) {
   geompp::DECIMAL_PRECISION = 4;
   auto s = g::LineSegment3D::Make(g::Point3D(1, 2, 3), g::Point3D(4, 5, 6));
-  auto f = s.Flip();
+  auto r = s.Reversed();
 
-  ASSERT_EQ(s.Last(), f.First());
-  ASSERT_EQ(s.First(), f.Last());
+  ASSERT_EQ(s.Last(), r.First());
+  ASSERT_EQ(s.First(), r.Last());
 
   // length is preserved
-  ASSERT_EQ(s.Length(), f.Length());
+  ASSERT_EQ(s.Length(), r.Length());
 
-  // flipping twice returns to the original
-  ASSERT_EQ(s.First(), f.Flip().First());
-  ASSERT_EQ(s.Last(), f.Flip().Last());
+  // reversing twice returns to the original
+  ASSERT_EQ(s.First(), r.Reversed().First());
+  ASSERT_EQ(s.Last(), r.Reversed().Last());
 }
 
 TEST_F(LineSegment3DTest, IntersectionWithLine3D) {
@@ -369,6 +369,137 @@ TEST_F(LineSegment3DTest, IntersectionWithSegment3D) {
   auto seg_short = g::LineSegment3D::Make(g::Point3D(-2, 0, 0), g::Point3D(-1, 0, 0));
   ASSERT_FALSE(seg_v.Intersects(seg_short));
   ASSERT_FALSE(seg_v.Intersection(seg_short).has_value());
+}
+
+TEST_F(LineSegment3DTest, OverlapWLine) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment3D::Make(g::Point3D(2, 0, 0), g::Point3D(5, 0, 0));
+  auto x   = g::Line3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+  auto x_off = g::Line3D::Make(g::Point3D(0, 1, 0), g::Vector3D::BasisX());
+
+  EXPECT_TRUE(seg.Overlaps(x));
+  EXPECT_EQ(seg, *seg.Overlap(x));
+
+  EXPECT_FALSE(seg.Overlaps(x_off));
+  EXPECT_FALSE(seg.Overlap(x_off).has_value());
+}
+
+TEST_F(LineSegment3DTest, OverlapWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment3D::Make(g::Point3D(2, 0, 0), g::Point3D(6, 0, 0));
+  auto r_cover   = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+  auto r_partial = g::Ray3D::Make(g::Point3D(4, 0, 0), g::Vector3D::BasisX());
+  auto r_miss    = g::Ray3D::Make(g::Point3D(7, 0, 0), g::Vector3D::BasisX());
+  auto r_touch   = g::Ray3D::Make(g::Point3D(6, 0, 0), g::Vector3D::BasisX());
+
+  EXPECT_TRUE(seg.Overlaps(r_cover));
+  EXPECT_EQ(seg, *seg.Overlap(r_cover));
+
+  EXPECT_TRUE(seg.Overlaps(r_partial));
+  EXPECT_EQ(g::LineSegment3D::Make(g::Point3D(4, 0, 0), g::Point3D(6, 0, 0)), *seg.Overlap(r_partial));
+
+  EXPECT_FALSE(seg.Overlaps(r_miss));
+  EXPECT_FALSE(seg.Overlap(r_miss).has_value());
+
+  EXPECT_FALSE(seg.Overlaps(r_touch));
+  EXPECT_FALSE(seg.Overlap(r_touch).has_value());
+}
+
+TEST_F(LineSegment3DTest, OverlapWSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto a = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
+  auto b_inside   = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(4, 0, 0));
+  auto b_partial  = g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D(7, 0, 0));
+  auto b_disjoint = g::LineSegment3D::Make(g::Point3D(6, 0, 0), g::Point3D(9, 0, 0));
+  auto b_touch    = g::LineSegment3D::Make(g::Point3D(5, 0, 0), g::Point3D(8, 0, 0));
+  auto b_skew     = g::LineSegment3D::Make(g::Point3D(2, 0, 0), g::Point3D(2, 1, 1));
+
+  EXPECT_TRUE(a.Overlaps(b_inside));
+  EXPECT_EQ(b_inside, *a.Overlap(b_inside));
+
+  EXPECT_TRUE(a.Overlaps(b_partial));
+  EXPECT_EQ(g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D(5, 0, 0)), *a.Overlap(b_partial));
+
+  EXPECT_FALSE(a.Overlaps(b_disjoint));
+  EXPECT_FALSE(a.Overlap(b_disjoint).has_value());
+
+  EXPECT_FALSE(a.Overlaps(b_touch));
+  EXPECT_FALSE(a.Overlap(b_touch).has_value());
+
+  EXPECT_FALSE(a.Overlaps(b_skew));
+  EXPECT_FALSE(a.Overlap(b_skew).has_value());
+}
+
+TEST_F(LineSegment3DTest, TouchWLine) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto x = g::Line3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+
+  // First() on line, segment goes off-axis → touch at First
+  auto seg_f = g::LineSegment3D::Make(g::Point3D(2, 0, 0), g::Point3D(2, 0, 3));
+  EXPECT_TRUE(seg_f.Touches(x));
+  auto t1 = seg_f.Touch(x);
+  ASSERT_TRUE(t1.has_value());
+  EXPECT_EQ(g::Point3D(2, 0, 0), *t1);
+
+  // collinear → Overlap, not Touch
+  auto seg_col = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(4, 0, 0));
+  EXPECT_FALSE(seg_col.Touches(x));
+  EXPECT_FALSE(seg_col.Touch(x).has_value());
+
+  // segment off-axis → no touch
+  auto seg_off = g::LineSegment3D::Make(g::Point3D(1, 1, 0), g::Point3D(3, 2, 0));
+  EXPECT_FALSE(seg_off.Touches(x));
+  EXPECT_FALSE(seg_off.Touch(x).has_value());
+}
+
+TEST_F(LineSegment3DTest, TouchWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto r = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D::BasisX());
+
+  // seg First() on ray, Last() off ray → touch at First
+  auto seg_f = g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D(3, 0, 2));
+  EXPECT_TRUE(seg_f.Touches(r));
+  auto t1 = seg_f.Touch(r);
+  ASSERT_TRUE(t1.has_value());
+  EXPECT_EQ(g::Point3D(3, 0, 0), *t1);
+
+  // both endpoints on ray → Overlap, no touch
+  auto seg_both = g::LineSegment3D::Make(g::Point3D(1, 0, 0), g::Point3D(4, 0, 0));
+  EXPECT_FALSE(seg_both.Touches(r));
+  EXPECT_FALSE(seg_both.Touch(r).has_value());
+
+  // no contact → no touch
+  auto seg_none = g::LineSegment3D::Make(g::Point3D(1, 1, 0), g::Point3D(3, 1, 0));
+  EXPECT_FALSE(seg_none.Touches(r));
+  EXPECT_FALSE(seg_none.Touch(r).has_value());
+}
+
+TEST_F(LineSegment3DTest, TouchWSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  // T-junction: a on X-axis, b touches a at (3,0,0) with one endpoint there
+  auto a = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(5, 0, 0));
+  auto b_T = g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D(3, 0, 3));
+  EXPECT_TRUE(a.Touches(b_T));
+  auto t1 = a.Touch(b_T);
+  ASSERT_TRUE(t1.has_value());
+  EXPECT_EQ(g::Point3D(3, 0, 0), *t1);
+
+  // skew, no endpoint contact → no touch
+  auto b_skew = g::LineSegment3D::Make(g::Point3D(3, 1, 0), g::Point3D(3, 1, 3));
+  EXPECT_FALSE(a.Touches(b_skew));
+  EXPECT_FALSE(a.Touch(b_skew).has_value());
+
+  // collinear, touching at endpoint → touch
+  auto b_end = g::LineSegment3D::Make(g::Point3D(5, 0, 0), g::Point3D(8, 0, 0));
+  EXPECT_TRUE(a.Touches(b_end));
+  auto t2 = a.Touch(b_end);
+  ASSERT_TRUE(t2.has_value());
+  EXPECT_EQ(g::Point3D(5, 0, 0), *t2);
+
+  // collinear, overlapping → no touch
+  auto b_ov = g::LineSegment3D::Make(g::Point3D(3, 0, 0), g::Point3D(7, 0, 0));
+  EXPECT_FALSE(a.Touches(b_ov));
+  EXPECT_FALSE(a.Touch(b_ov).has_value());
 }
 
 }  // namespace geompp_tests

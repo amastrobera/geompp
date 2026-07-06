@@ -11,6 +11,7 @@
 
 namespace geompp {
 
+class Polyline2D;
 class Ray2D;
 class LineSegment2D;
 class Triangle2D;
@@ -58,48 +59,34 @@ class Line2D {
   /// @return true if @p point is collinear with the line within decimal precision.
   bool Contains(Point2D const& point) const;
 
-  /// @brief Tests whether this line intersects another line.
-  /// @param other The other line.
-  /// @return true if they meet at a point; false for parallel non-collinear lines.
   bool Intersects(Line2D const& other) const;
-
-  /// @brief Tests whether this line intersects a ray.
-  /// @param ray The ray.
-  /// @return true if they meet within the ray's domain.
   bool Intersects(Ray2D const& ray) const;
-
-  /// @brief Tests whether this line intersects a segment.
-  /// @param segment The segment.
-  /// @return true if the line crosses or touches the segment.
   bool Intersects(LineSegment2D const& segment) const;
-
-  /// @brief Tests whether this line passes through a triangle.
-  /// @param t The triangle.
-  /// @return true if the line crosses the triangle's interior or an edge.
   bool Intersects(Triangle2D const& t) const;
+  bool Intersects(Polyline2D const& polyline) const;
 
-  /// @brief Intersection point of two lines, also returning the parametric values along each line.
-  /// @param other The other line.
-  /// @param sc Output: parameter along this line at the intersection.
-  /// @param tc Output: parameter along @p other at the intersection.
-  /// @return The intersection point, or std::nullopt for parallel lines.
-  std::optional<Point2D> Intersection(Line2D const& other, double& sc, double& tc) const;
-
-  /// @brief Intersection point of two lines.
-  /// @param other The other line.
-  /// @return The intersection point, or std::nullopt for parallel lines.
   std::optional<Point2D> Intersection(Line2D const& other) const;
-
-  /// @brief Intersection point of this line with a ray.
-  /// @param ray The ray.
-  /// @return The intersection point if it lies on the ray, or std::nullopt otherwise.
   std::optional<Point2D> Intersection(Ray2D const& ray) const;
-
-  /// @brief Intersection point of this line with a segment.
-  /// @param segment The segment.
-  /// @return The intersection point if it lies on the segment, or std::nullopt otherwise.
   std::optional<Point2D> Intersection(LineSegment2D const& segment) const;
-  // TODO write Intersection(Triangle2D)
+  std::optional<std::vector<Point2D>> Intersection(Polyline2D const& polyline) const;
+
+  bool Overlaps(Line2D const& line) const;
+  bool Overlaps(Ray2D const& ray) const;
+  bool Overlaps(LineSegment2D const& seg) const;
+  bool Overlaps(Polyline2D const& polyline) const;
+
+  std::optional<Line2D> Overlap(Line2D const& line) const;
+  std::optional<Ray2D> Overlap(Ray2D const& ray) const;
+  std::optional<LineSegment2D> Overlap(LineSegment2D const& seg) const;
+  std::optional<std::vector<LineSegment2D>> Overlap(Polyline2D const& polyline) const;
+
+  bool Touches(Ray2D const& ray) const;
+  bool Touches(LineSegment2D const& seg) const;
+  bool Touches(Polyline2D const& polyline) const;
+
+  std::optional<Point2D> Touch(Ray2D const& ray) const;
+  std::optional<Point2D> Touch(LineSegment2D const& seg) const;
+  std::optional<std::vector<Point2D>> Touch(Polyline2D const& polyline) const;
 
 #pragma endregion
 

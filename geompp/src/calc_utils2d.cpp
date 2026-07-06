@@ -71,6 +71,36 @@ bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b) {
 
 }  // namespace
 
+std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1,
+                                         Point2D const& other_p0, Point2D const& other_p1,
+                                         double& sc, double& tc) {
+  try {
+    // 2D intersection via perp-product:
+    //   L(s) = p0 + s*(p1-p0),  L(t) = other_p0 + t*(other_p1-other_p0)
+    //   s = -(w0 . vp) / (u . vp),  t = (w0 . up) / (v . up)
+    auto u = p1 - p0;
+    auto v = other_p1 - other_p0;
+    auto vp = v.Perp();
+    auto up = u.Perp();
+    auto w0 = p0 - other_p0;
+
+    if (compare(u.Dot(vp), 0) == 0 || compare(v.Dot(up), 0) == 0) {
+      sc = tc = std::numeric_limits<double>::quiet_NaN();
+      return std::nullopt;
+    }
+
+    sc = -w0.Dot(vp) / u.Dot(vp);
+    tc = w0.Dot(up) / v.Dot(up);
+
+    return p0 + (u * sc);
+
+  } catch (...) {
+    GEOMPP_LOG(WARNING) << "unexpected error while computing line intersection";
+  }
+  sc = tc = std::numeric_limits<double>::quiet_NaN();
+  return std::nullopt;
+}
+
 std::partial_ordering compare_event_point(Point2D a, Point2D b) {
   auto compare_x = compare(a.x(), b.x());
   if (compare_x != std::partial_ordering::equivalent) {

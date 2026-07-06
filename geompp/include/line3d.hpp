@@ -11,6 +11,7 @@
 
 namespace geompp {
 
+class Polyline3D;
 class Ray3D;
 class LineSegment3D;
 class Triangle3D;
@@ -75,7 +76,8 @@ class Line3D {
 
   /// @brief Directed line-segment whose endpoints are the pair of closest points between the two lines.
   /// @param other The other line.
-  /// @return A LineSegment3D from this line's closest point to @p other's closest point, or std::nullopt if the lines intersect or are collinear (in which case the distance is 0).
+  /// @return A LineSegment3D from this line's closest point to @p other's closest point, or std::nullopt if the lines
+  /// intersect or are collinear (in which case the distance is 0).
   std::optional<LineSegment3D> Distance(Line3D const& other) const;
 
   /// @brief Scalar distance between two lines.
@@ -85,7 +87,8 @@ class Line3D {
 
   /// @brief Directed line-segment whose endpoints are the closest pair between this line and a ray.
   /// @param ray The ray.
-  /// @return A LineSegment3D from this line's closest point to the ray's closest point, or std::nullopt if they intersect or overlap.
+  /// @return A LineSegment3D from this line's closest point to the ray's closest point, or std::nullopt if they
+  /// intersect or overlap.
   std::optional<LineSegment3D> Distance(Ray3D const& ray) const;
 
   /// @brief Scalar distance between this line and a ray.
@@ -95,7 +98,8 @@ class Line3D {
 
   /// @brief Directed line-segment whose endpoints are the closest pair between this line and a segment.
   /// @param seg The segment.
-  /// @return A LineSegment3D from this line's closest point to the segment's closest point, or std::nullopt if they intersect or overlap.
+  /// @return A LineSegment3D from this line's closest point to the segment's closest point, or std::nullopt if they
+  /// intersect or overlap.
   std::optional<LineSegment3D> Distance(LineSegment3D const& seg) const;
 
   /// @brief Scalar distance between this line and a segment.
@@ -134,41 +138,35 @@ class Line3D {
   /// @return true if @p point is collinear with this line within decimal precision.
   bool Contains(Point3D const& point) const;
 
-  /// @brief Tests whether this line intersects another line.
-  /// @param other The other line.
-  /// @return true if they meet at a single point (skew or parallel lines return false; collinear lines return true).
   bool Intersects(Line3D const& other) const;
-
-  /// @brief Tests whether this line intersects a ray.
-  /// @param ray The ray.
-  /// @return true if the line meets the ray's domain (sc on the ray must be >= 0).
   bool Intersects(Ray3D const& ray) const;
-
-  /// @brief Tests whether this line intersects a segment.
-  /// @param segment The segment.
-  /// @return true if the line meets the segment's domain (sc on the segment must be in [0, 1]).
   bool Intersects(LineSegment3D const& segment) const;
-
-  /// @brief Tests whether this line intersects a triangle (interior or edge).
-  /// @param t The triangle.
-  /// @return true if the line passes through the triangle's closed region.
   bool Intersects(Triangle3D const& t) const;
+  bool Intersects(Polyline3D const& polyline) const;
 
-  /// @brief Intersection point of two lines.
-  /// @param other The other line.
-  /// @return The intersection point wrapped in the variant, or std::nullopt for parallel/skew lines.
   std::optional<Point3D> Intersection(Line3D const& other) const;
-
-  /// @brief Intersection point of this line with a ray.
-  /// @param ray The ray.
-  /// @return The intersection point if it lies on the ray (sc >= 0), or std::nullopt otherwise.
   std::optional<Point3D> Intersection(Ray3D const& ray) const;
-
-  /// @brief Intersection point of this line with a segment.
-  /// @param segment The segment.
-  /// @return The intersection point if it lies on the segment (sc in [0, 1]), or std::nullopt otherwise.
   std::optional<Point3D> Intersection(LineSegment3D const& segment) const;
+  std::optional<std::variant<Point3D, std::vector<Point3D>>> Intersection(Polyline3D const& polyline) const;
   // TODO write Intersection(Triangle3D)
+
+  bool Overlaps(Line3D const& line) const;
+  bool Overlaps(Ray3D const& ray) const;
+  bool Overlaps(LineSegment3D const& seg) const;
+  bool Overlaps(Polyline3D const& polyline) const;
+
+  std::optional<Line3D> Overlap(Line3D const& line) const;
+  std::optional<Ray3D> Overlap(Ray3D const& ray) const;
+  std::optional<LineSegment3D> Overlap(LineSegment3D const& seg) const;
+  std::optional<std::vector<LineSegment3D>> Overlap(Polyline3D const& polyline) const;
+
+  bool Touches(Ray3D const& ray) const;
+  bool Touches(LineSegment3D const& seg) const;
+  bool Touches(Polyline3D const& polyline) const;
+
+  std::optional<Point3D> Touch(Ray3D const& ray) const;
+  std::optional<Point3D> Touch(LineSegment3D const& seg) const;
+  std::optional<std::vector<Point3D>> Touch(Polyline3D const& polyline) const;
 
 #pragma endregion
 

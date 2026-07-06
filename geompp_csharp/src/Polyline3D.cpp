@@ -169,6 +169,50 @@ System::Object^ Polyline3D::Intersection(Polyline3D^ other) {
     return ConvertPolyline3DIntersection(_native->Intersection(*other->_native));
 }
 
+// ── Overlaps / Overlap ────────────────────────────────────────────────────────
+
+static array<LineSegment3D^>^ ToManagedSegArray3D(const std::optional<std::vector<geompp::LineSegment3D>>& opt) {
+    if (!opt.has_value()) { return nullptr; }
+    auto& segs = opt.value();
+    auto arr = gcnew array<LineSegment3D^>((int)segs.size());
+    for (int i = 0; i < (int)segs.size(); ++i) {
+        arr[i] = gcnew LineSegment3D(new geompp::LineSegment3D(segs[i]));
+    }
+    return arr;
+}
+
+static array<Point3D^>^ ToManagedPtArray3D(const std::optional<std::vector<geompp::Point3D>>& opt) {
+    if (!opt.has_value()) { return nullptr; }
+    auto& pts = opt.value();
+    auto arr = gcnew array<Point3D^>((int)pts.size());
+    for (int i = 0; i < (int)pts.size(); ++i) {
+        arr[i] = gcnew Point3D(new geompp::Point3D(pts[i]));
+    }
+    return arr;
+}
+
+bool Polyline3D::Overlaps(Line3D^ line) { return _native->Overlaps(*line->_native); }
+bool Polyline3D::Overlaps(Ray3D^ ray) { return _native->Overlaps(*ray->_native); }
+bool Polyline3D::Overlaps(LineSegment3D^ segment) { return _native->Overlaps(*segment->_native); }
+bool Polyline3D::Overlaps(Polyline3D^ other) { return _native->Overlaps(*other->_native); }
+
+array<LineSegment3D^>^ Polyline3D::Overlap(Line3D^ line) { return ToManagedSegArray3D(_native->Overlap(*line->_native)); }
+array<LineSegment3D^>^ Polyline3D::Overlap(Ray3D^ ray) { return ToManagedSegArray3D(_native->Overlap(*ray->_native)); }
+array<LineSegment3D^>^ Polyline3D::Overlap(LineSegment3D^ segment) { return ToManagedSegArray3D(_native->Overlap(*segment->_native)); }
+array<LineSegment3D^>^ Polyline3D::Overlap(Polyline3D^ other) { return ToManagedSegArray3D(_native->Overlap(*other->_native)); }
+
+// ── Touches / Touch ───────────────────────────────────────────────────────────
+
+bool Polyline3D::Touches(Line3D^ line) { return _native->Touches(*line->_native); }
+bool Polyline3D::Touches(Ray3D^ ray) { return _native->Touches(*ray->_native); }
+bool Polyline3D::Touches(LineSegment3D^ segment) { return _native->Touches(*segment->_native); }
+bool Polyline3D::Touches(Polyline3D^ other) { return _native->Touches(*other->_native); }
+
+array<Point3D^>^ Polyline3D::Touch(Line3D^ line) { return ToManagedPtArray3D(_native->Touch(*line->_native)); }
+array<Point3D^>^ Polyline3D::Touch(Ray3D^ ray) { return ToManagedPtArray3D(_native->Touch(*ray->_native)); }
+array<Point3D^>^ Polyline3D::Touch(LineSegment3D^ segment) { return ToManagedPtArray3D(_native->Touch(*segment->_native)); }
+array<Point3D^>^ Polyline3D::Touch(Polyline3D^ other) { return ToManagedPtArray3D(_native->Touch(*other->_native)); }
+
 // ── Operator ──────────────────────────────────────────────────────────────────
 
 bool Polyline3D::operator==(Polyline3D^ lhs, Polyline3D^ rhs) {

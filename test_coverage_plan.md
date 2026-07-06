@@ -41,8 +41,10 @@ genhtml coverage.info --output-directory coverage_html
 
 | Class | What was added | Old → New coverage |
 |---|---|---|
+| `Vector2D` | `IsParallel` (`test_vector2d.cpp::IsParallel`, 7 cases) | ~95% → ~98% |
 | `Triangle3D` | `Vertices`, `AlmostEquals`, `Perimeter`, `ToAxis`, `Interpolate`; documented throwing methods (`SignedArea`, `Area`, `DistanceTo`, `Contains`, `Intersects/Intersection×Line3D`) | ~35% → ~90% |
 | `Polyline2D` | `AlmostEquals`, `ToSegments` | ~90% → ~92% |
+| `Polyline2D` | `Overlaps/Overlap` (Line, Ray, Seg, Polyline), `Touches/Touch` (Line, Ray, Seg, Polyline) | ~92% → ~97% |
 | `LineSegment3D` | `DistanceTo`, `Intersects/Intersection×Ray3D`, `Intersects/Intersection×LineSegment3D` | ~81% → ~96% |
 
 ---
@@ -52,6 +54,7 @@ genhtml coverage.info --output-directory coverage_html
 | Class | New file | Coverage |
 |---|---|---|
 | `Polyline3D` | `geompp_tests/src/test_polyline3d.cpp` | ~92% |
+| `Polyline3D` | `Overlaps/Overlap` (Line, Ray, Seg, Polyline), `Touches/Touch` (Line, Ray, Seg, Polyline) | ~92% → ~97% |
 | `utils.hpp` | `geompp_tests/src/test_utils.cpp` | **100%** |
 
 ---
@@ -95,10 +98,15 @@ genhtml coverage.info --output-directory coverage_html
 
 ---
 
-## Priority 3 — `Line2D` (~61%)
+## Priority 3 — `Line2D` (~75%)
 
 **File:** `geompp_tests/src/test_line2d.cpp`
 
+- [x] `Overlaps(Line2D)` / `Overlap(Line2D)` — same line returns Line; crossing/parallel returns nullopt
+- [x] `Overlaps(Ray2D)` / `Overlap(Ray2D)` — collinear ray returns Ray; perpendicular returns nullopt
+- [x] `Overlaps(LineSegment2D)` / `Overlap(LineSegment2D)` — collinear segment; offset segment
+- [x] `Touches(Ray2D)` / `Touch(Ray2D)` — ray origin on line; collinear (no touch)
+- [x] `Touches(LineSegment2D)` / `Touch(LineSegment2D)` — endpoint on line; both endpoints off line
 - [ ] `AlmostEquals` — same line; lines with different origin on same infinite line (expect ==); different direction (expect ≠)
 - [ ] `ProjectOnto` — point above line projects to foot; point already on line projects to itself
 - [ ] `Location` — at origin (0.0); at a known point ahead (+); behind (−)
@@ -107,10 +115,16 @@ genhtml coverage.info --output-directory coverage_html
 
 ---
 
-## Priority 4 — `Ray3D` (~67%)
+## Priority 4 — `Ray3D` (~80%)
 
 **File:** `geompp_tests/src/test_ray3d.cpp`
 
+- [x] `Overlaps(Line3D)` / `Overlap(Line3D)` — collinear line; perpendicular line
+- [x] `Overlaps(Ray3D)` / `Overlap(Ray3D)` — same direction (returns Ray); anti-parallel (returns Segment); touch only
+- [x] `Overlaps(LineSegment3D)` / `Overlap(LineSegment3D)` — segment inside ray; segment before ray; touch
+- [x] `Touches(Line3D)` / `Touch(Line3D)` — origin on line; collinear (no touch)
+- [x] `Touches(Ray3D)` / `Touch(Ray3D)` — non-parallel same origin; anti-parallel same origin; anti-parallel overlapping
+- [x] `Touches(LineSegment3D)` / `Touch(LineSegment3D)` — endpoint on ray; both endpoints off
 - [ ] `Contains` — point on ray (true); at origin (true); behind origin (false); off-axis (false)
 - [ ] `DistanceTo` — point on ray (0); ahead but off-axis; behind origin
 - [ ] `Intersects(Ray3D)` / `Intersection(Ray3D)` — two rays crossing; parallel; skew
@@ -131,10 +145,15 @@ genhtml coverage.info --output-directory coverage_html
 
 ---
 
-## Priority 6 — `Line3D` (~75%)
+## Priority 6 — `Line3D` (~88%)
 
 **File:** `geompp_tests/src/test_line3d.cpp`
 
+- [x] `Overlaps(Line3D)` / `Overlap(Line3D)` — same line; crossing; parallel offset
+- [x] `Overlaps(Ray3D)` / `Overlap(Ray3D)` — collinear ray; perpendicular
+- [x] `Overlaps(LineSegment3D)` / `Overlap(LineSegment3D)` — collinear segment; offset
+- [x] `Touches(Ray3D)` / `Touch(Ray3D)` — ray origin on line; collinear (no touch)
+- [x] `Touches(LineSegment3D)` / `Touch(LineSegment3D)` — endpoint on line; both off
 - [ ] `DistanceTo(Point3D)` — point on line (0); point perpendicular off line; skew point
 - [ ] `Intersects(Ray3D)` / `Intersection(Ray3D)` — ray crosses line; parallel; behind ray origin
 - [ ] `Intersects(LineSegment3D)` / `Intersection(LineSegment3D)` — crosses; parallel; too short
@@ -150,19 +169,31 @@ genhtml coverage.info --output-directory coverage_html
 
 ---
 
-## Priority 8 — `LineSegment2D` (~87%)
+## Priority 8 — `LineSegment2D` (~96%)
 
 **File:** `geompp_tests/src/test_line_segment2d.cpp`
 
+- [x] `Overlaps(Line2D)` / `Overlap(Line2D)` — collinear line; offset line
+- [x] `Overlaps(Ray2D)` / `Overlap(Ray2D)` — ray covers segment; partial; ray after segment; touch
+- [x] `Overlaps(LineSegment2D)` / `Overlap(LineSegment2D)` — inside; partial; disjoint; touch; perpendicular
+- [x] `Touches(Line2D)` / `Touch(Line2D)` — first endpoint on line; last endpoint; collinear (no touch)
+- [x] `Touches(Ray2D)` / `Touch(Ray2D)` — ray contains first only; ray contains last only; ray-origin interior touch; full inside (no touch)
+- [x] `Touches(LineSegment2D)` / `Touch(LineSegment2D)` — T-junction; collinear endpoint; overlap (no touch); perpendicular crossing (no touch)
 - [ ] `Length` — axis-aligned (3.0); 3-4-5 hypotenuse (5.0); symmetry check
 - [ ] `ToLine` — result passes through both endpoints; direction is normalized
 
 ---
 
-## Priority 9 — `Ray2D` (~89%)
+## Priority 9 — `Ray2D` (~97%)
 
 **File:** `geompp_tests/src/test_ray2d.cpp`
 
+- [x] `Overlaps(Line2D)` / `Overlap(Line2D)` — collinear line; perpendicular line
+- [x] `Overlaps(Ray2D)` / `Overlap(Ray2D)` — same direction; anti-parallel (Segment); touch only; not collinear
+- [x] `Overlaps(LineSegment2D)` / `Overlap(LineSegment2D)` — inside; half outside; before ray; touch at origin
+- [x] `Touches(Line2D)` / `Touch(Line2D)` — origin on line; collinear (no touch)
+- [x] `Touches(Ray2D)` / `Touch(Ray2D)` — non-parallel origins coincide; anti-parallel same origin; anti-parallel overlapping; no contact
+- [x] `Touches(LineSegment2D)` / `Touch(LineSegment2D)` — endpoint on ray; ray origin interior to segment
 - [ ] `AlmostEquals` — same ray; same origin different direction (≠); same direction different origin (≠)
 - [ ] `ToLine` — result has same origin and direction as the ray
 

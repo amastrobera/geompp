@@ -30,6 +30,7 @@ public:
     double    Cross(Vector2D^ other);
     Vector2D^ Perp();
     Vector2D^ Normalize();
+    bool      IsParallel(Vector2D^ other);
 
     Point2D^  ToPoint();
 

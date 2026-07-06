@@ -1790,6 +1790,12 @@ Test("FromWkt_Whitespace", () => {
   IsTrue(new Vector2D(0, 1).AlmostEquals(Vector2D.FromWkt("VECTOR (  0  1  )")));
 });
 
+Test("IsParallel_SameDirection",  () => IsTrue(new Vector2D(1, 0).IsParallel(new Vector2D(2, 0))));
+Test("IsParallel_AntiParallel",   () => IsTrue(new Vector2D(1, 0).IsParallel(new Vector2D(-3, 0))));
+Test("IsParallel_ScaledSameDir",  () => IsTrue(new Vector2D(1, 1).IsParallel(new Vector2D(2, 2))));
+Test("IsParallel_Perpendicular",  () => IsFalse(new Vector2D(1, 0).IsParallel(new Vector2D(0, 1))));
+Test("IsParallel_NonParallel",    () => IsFalse(new Vector2D(1, 0).IsParallel(new Vector2D(1, 1))));
+
 // ── WktParser ─────────────────────────────────────────────────────────────────
 Console.WriteLine("\nWktParser");
 
@@ -2318,6 +2324,26 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("Reversed_SwapsEndpoints", () => {
+  var s = LineSegment2D.Make(new Point2D(1, 2), new Point2D(3, 4));
+  var r = s.Reversed();
+  NotNull(r);
+  IsTrue(s.Last().AlmostEquals(r!.First()));
+  IsTrue(s.First().AlmostEquals(r.Last()));
+});
+
+Test("Reversed_LengthPreserved", () => {
+  var s = LineSegment2D.Make(new Point2D(0, 0), new Point2D(3, 4));
+  Eq(s.Length(), s.Reversed()!.Length());
+});
+
+Test("Reversed_TwiceIsOriginal", () => {
+  var s = LineSegment2D.Make(new Point2D(1, 2), new Point2D(3, 4));
+  var rr = s.Reversed()!.Reversed()!;
+  IsTrue(s.First().AlmostEquals(rr.First()));
+  IsTrue(s.Last().AlmostEquals(rr.Last()));
+});
+
 // ── LineSegment3D (additional) ────────────────────────────────────────────────
 Console.WriteLine("\nLineSegment3D (additional)");
 
@@ -2409,6 +2435,26 @@ Test("ToFile_FromFile_RoundTrip", () => {
   seg.ToFile(path);
   IsTrue(seg.AlmostEquals(LineSegment3D.FromFile(path)));
   File.Delete(path);
+});
+
+Test("Reversed_SwapsEndpoints", () => {
+  var s = LineSegment3D.Make(new Point3D(1, 2, 3), new Point3D(4, 5, 6));
+  var r = s.Reversed();
+  NotNull(r);
+  IsTrue(s.Last().AlmostEquals(r!.First()));
+  IsTrue(s.First().AlmostEquals(r.Last()));
+});
+
+Test("Reversed_LengthPreserved", () => {
+  var s = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(3, 4, 0));
+  Eq(s.Length(), s.Reversed()!.Length());
+});
+
+Test("Reversed_TwiceIsOriginal", () => {
+  var s = LineSegment3D.Make(new Point3D(1, 2, 3), new Point3D(4, 5, 6));
+  var rr = s.Reversed()!.Reversed()!;
+  IsTrue(s.First().AlmostEquals(rr.First()));
+  IsTrue(s.Last().AlmostEquals(rr.Last()));
 });
 
 // ── Ray2D (additional) ────────────────────────────────────────────────────────
@@ -4137,6 +4183,527 @@ Test("AlmostEquals_DifferentPrism_False", () => {
   var p1 = new BPrism3D(pts1);
   var p2 = new BPrism3D(pts2);
   IsFalse(p1.AlmostEquals(p2));
+});
+
+// ── Overlap — Line2D ──────────────────────────────────────────────────────────
+Console.WriteLine("\nLine2D Overlap");
+
+Test("Overlaps_SameLine_True", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var x2 = Line2D.Make(new Point2D(5, 0), new Point2D(9, 0));
+  IsTrue(x.Overlaps(x2));
+  NotNull(x.Overlap(x2));
+  IsTrue(x.Overlap(x2) is Line2D);
+});
+
+Test("Overlaps_CrossingLines_False", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var y = Line2D.Make(new Point2D(0, 0), new Point2D(0, 4));
+  IsFalse(x.Overlaps(y));
+  IsNull(x.Overlap(y));
+});
+
+Test("Overlaps_CollinearRay_True", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var r = Ray2D.Make(new Point2D(2, 0), new Vector2D(1, 0));
+  IsTrue(x.Overlaps(r));
+  IsTrue(x.Overlap(r) is Ray2D);
+});
+
+Test("Overlaps_CollinearSegment_True", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var s = LineSegment2D.Make(new Point2D(2, 0), new Point2D(5, 0));
+  IsTrue(x.Overlaps(s));
+  IsTrue(x.Overlap(s) is LineSegment2D);
+});
+
+// ── Overlap — Line3D ──────────────────────────────────────────────────────────
+Console.WriteLine("\nLine3D Overlap");
+
+Test("Overlaps_SameLine3D_True", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var x2 = Line3D.Make(new Point3D(5, 0, 0), new Point3D(9, 0, 0));
+  IsTrue(x.Overlaps(x2));
+  IsTrue(x.Overlap(x2) is Line3D);
+});
+
+Test("Overlaps_CollinearRay3D_True", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var r = Ray3D.Make(new Point3D(2, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(x.Overlaps(r));
+  IsTrue(x.Overlap(r) is Ray3D);
+});
+
+Test("Overlaps_CollinearSegment3D_True", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var s = LineSegment3D.Make(new Point3D(2, 0, 0), new Point3D(5, 0, 0));
+  IsTrue(x.Overlaps(s));
+  IsTrue(x.Overlap(s) is LineSegment3D);
+});
+
+// ── Overlap — Ray2D ───────────────────────────────────────────────────────────
+Console.WriteLine("\nRay2D Overlap");
+
+Test("Overlaps_CollinearLine2D_True", () => {
+  var r = Ray2D.Make(new Point2D(2, 0), new Vector2D(1, 0));
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  IsTrue(r.Overlaps(x));
+  IsTrue(r.Overlap(x) is Ray2D);
+});
+
+Test("Overlaps_SameDirRay2D_ReturnsRay", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(2, 0), new Vector2D(1, 0));
+  IsTrue(r1.Overlaps(r2));
+  IsTrue(r1.Overlap(r2) is Ray2D);
+});
+
+Test("Overlaps_AntiParallelRay2D_ReturnsSegment", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r3 = Ray2D.Make(new Point2D(5, 0), new Vector2D(-1, 0));
+  IsTrue(r1.Overlaps(r3));
+  IsTrue(r1.Overlap(r3) is LineSegment2D);
+});
+
+Test("Overlaps_TouchingAntiParallelRay2D_False", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r4 = Ray2D.Make(new Point2D(0, 0), new Vector2D(-1, 0));
+  IsFalse(r1.Overlaps(r4));
+  IsNull(r1.Overlap(r4));
+});
+
+Test("Overlaps_SegmentInsideRay2D_True", () => {
+  var r = Ray2D.Make(new Point2D(1, 0), new Vector2D(1, 0));
+  var s = LineSegment2D.Make(new Point2D(2, 0), new Point2D(4, 0));
+  IsTrue(r.Overlaps(s));
+  IsTrue(r.Overlap(s)!.AlmostEquals(s));
+});
+
+Test("Overlaps_SegmentBeforeRay2D_False", () => {
+  var r = Ray2D.Make(new Point2D(1, 0), new Vector2D(1, 0));
+  var s = LineSegment2D.Make(new Point2D(-3, 0), new Point2D(-1, 0));
+  IsFalse(r.Overlaps(s));
+  IsNull(r.Overlap(s));
+});
+
+// ── Overlap — Ray3D ───────────────────────────────────────────────────────────
+Console.WriteLine("\nRay3D Overlap");
+
+Test("Overlaps_SameDirRay3D_ReturnsRay", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(2, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(r1.Overlaps(r2));
+  IsTrue(r1.Overlap(r2) is Ray3D);
+});
+
+Test("Overlaps_AntiParallelRay3D_ReturnsSegment", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r3 = Ray3D.Make(new Point3D(5, 0, 0), new Vector3D(-1, 0, 0));
+  IsTrue(r1.Overlaps(r3));
+  IsTrue(r1.Overlap(r3) is LineSegment3D);
+});
+
+Test("Overlaps_TouchingAntiParallelRay3D_False", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r4 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(-1, 0, 0));
+  IsFalse(r1.Overlaps(r4));
+  IsNull(r1.Overlap(r4));
+});
+
+// ── Overlap — LineSegment2D ───────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment2D Overlap");
+
+Test("Overlaps_CollinearLine2D_True", () => {
+  var s = LineSegment2D.Make(new Point2D(2, 0), new Point2D(5, 0));
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  IsTrue(s.Overlaps(x));
+  IsTrue(s.Overlap(x)!.AlmostEquals(s));
+});
+
+Test("Overlaps_Segments_Partial", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(5, 0));
+  var b = LineSegment2D.Make(new Point2D(3, 0), new Point2D(7, 0));
+  IsTrue(a.Overlaps(b));
+  var ov = a.Overlap(b);
+  NotNull(ov);
+  IsTrue(ov!.AlmostEquals(LineSegment2D.Make(new Point2D(3, 0), new Point2D(5, 0))));
+});
+
+Test("Overlaps_Segments_TouchEndpoint_False", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(5, 0));
+  var b = LineSegment2D.Make(new Point2D(5, 0), new Point2D(8, 0));
+  IsFalse(a.Overlaps(b));
+  IsNull(a.Overlap(b));
+});
+
+Test("Overlaps_Segments_Disjoint_False", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(5, 0));
+  var b = LineSegment2D.Make(new Point2D(6, 0), new Point2D(9, 0));
+  IsFalse(a.Overlaps(b));
+  IsNull(a.Overlap(b));
+});
+
+// ── Overlap — LineSegment3D ───────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment3D Overlap");
+
+Test("Overlaps_CollinearLine3D_True", () => {
+  var s = LineSegment3D.Make(new Point3D(2, 0, 0), new Point3D(5, 0, 0));
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  IsTrue(s.Overlaps(x));
+  IsTrue(s.Overlap(x)!.AlmostEquals(s));
+});
+
+Test("Overlaps_Segments3D_Partial", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(5, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(3, 0, 0), new Point3D(7, 0, 0));
+  IsTrue(a.Overlaps(b));
+  var ov = a.Overlap(b);
+  NotNull(ov);
+  IsTrue(ov!.AlmostEquals(LineSegment3D.Make(new Point3D(3, 0, 0), new Point3D(5, 0, 0))));
+});
+
+Test("Overlaps_Segments3D_TouchEndpoint_False", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(5, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(5, 0, 0), new Point3D(8, 0, 0));
+  IsFalse(a.Overlaps(b));
+  IsNull(a.Overlap(b));
+});
+
+// ── Touch — Line2D ────────────────────────────────────────────────────────────
+Console.WriteLine("\nLine2D Touch");
+Test("Touches_RayOriginOnLine_True", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var r = Ray2D.Make(new Point2D(3, 0), new Vector2D(0, 1));
+  IsTrue(x.Touches(r));
+  NotNull(x.Touch(r));
+  IsTrue(x.Touch(r).AlmostEquals(new Point2D(3, 0)));
+});
+Test("Touches_CollinearRay_False", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var r = Ray2D.Make(new Point2D(1, 0), new Vector2D(1, 0));
+  IsFalse(x.Touches(r));
+  IsNull(x.Touch(r));
+});
+Test("Touches_SegmentEndpointOnLine_True", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var s = LineSegment2D.Make(new Point2D(2, 0), new Point2D(2, 3));
+  IsTrue(x.Touches(s));
+  NotNull(x.Touch(s));
+  IsTrue(x.Touch(s).AlmostEquals(new Point2D(2, 0)));
+});
+
+// ── Touch — Ray2D ─────────────────────────────────────────────────────────────
+Console.WriteLine("\nRay2D Touch");
+Test("Touches_LineAtOrigin_True", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var r = Ray2D.Make(new Point2D(2, 0), new Vector2D(0, 1));
+  IsTrue(r.Touches(x));
+  NotNull(r.Touch(x));
+  IsTrue(r.Touch(x).AlmostEquals(new Point2D(2, 0)));
+});
+Test("Touches_CollinearLine_False", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var r = Ray2D.Make(new Point2D(1, 0), new Vector2D(1, 0));
+  IsFalse(r.Touches(x));
+  IsNull(r.Touch(x));
+});
+Test("Touches_RayRaySameOriginDifferentDir_True", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(0, 0), new Vector2D(0, 1));
+  IsTrue(r1.Touches(r2));
+  NotNull(r1.Touch(r2));
+  IsTrue(r1.Touch(r2).AlmostEquals(new Point2D(0, 0)));
+});
+Test("Touches_RayRayAntiParallelSameOrigin_True", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(0, 0), new Vector2D(-1, 0));
+  IsTrue(r1.Touches(r2));
+  IsTrue(r1.Touch(r2).AlmostEquals(new Point2D(0, 0)));
+});
+Test("Touches_RayRayAntiParallelOverlapping_False", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(3, 0), new Vector2D(-1, 0));
+  IsFalse(r1.Touches(r2));
+  IsNull(r1.Touch(r2));
+});
+Test("Touches_SegmentEndpoint_True", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var s = LineSegment2D.Make(new Point2D(3, 0), new Point2D(3, 2));
+  IsTrue(r.Touches(s));
+  IsTrue(r.Touch(s).AlmostEquals(new Point2D(3, 0)));
+});
+
+// ── Touch — LineSegment2D ─────────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment2D Touch");
+Test("Touches_LineFirstEndpoint_True", () => {
+  var x = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var s = LineSegment2D.Make(new Point2D(2, 0), new Point2D(2, 3));
+  IsTrue(s.Touches(x));
+  IsTrue(s.Touch(x).AlmostEquals(new Point2D(2, 0)));
+});
+Test("Touches_RayEndpoint_True", () => {
+  var r = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var s = LineSegment2D.Make(new Point2D(3, 0), new Point2D(3, 2));
+  IsTrue(s.Touches(r));
+  IsTrue(s.Touch(r).AlmostEquals(new Point2D(3, 0)));
+});
+Test("Touches_SegmentTJunction_True", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(5, 0));
+  var b = LineSegment2D.Make(new Point2D(3, 0), new Point2D(3, 3));
+  IsTrue(a.Touches(b));
+  IsTrue(a.Touch(b).AlmostEquals(new Point2D(3, 0)));
+});
+Test("Touches_SegmentCollinearEndpoint_True", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(5, 0));
+  var b = LineSegment2D.Make(new Point2D(5, 0), new Point2D(8, 0));
+  IsTrue(a.Touches(b));
+  IsTrue(a.Touch(b).AlmostEquals(new Point2D(5, 0)));
+});
+Test("Touches_SegmentOverlap_False", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(5, 0));
+  var b = LineSegment2D.Make(new Point2D(3, 0), new Point2D(7, 0));
+  IsFalse(a.Touches(b));
+  IsNull(a.Touch(b));
+});
+
+// ── Touch — Line3D ────────────────────────────────────────────────────────────
+Console.WriteLine("\nLine3D Touch");
+Test("Touches_RayOriginOnLine3D_True", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var r = Ray3D.Make(new Point3D(3, 0, 0), new Vector3D(0, 0, 1));
+  IsTrue(x.Touches(r));
+  IsTrue(x.Touch(r).AlmostEquals(new Point3D(3, 0, 0)));
+});
+Test("Touches_CollinearRay3D_False", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var r = Ray3D.Make(new Point3D(1, 0, 0), new Vector3D(1, 0, 0));
+  IsFalse(x.Touches(r));
+  IsNull(x.Touch(r));
+});
+
+// ── Touch — Ray3D ─────────────────────────────────────────────────────────────
+Console.WriteLine("\nRay3D Touch");
+Test("Touches_Line3DAtOrigin_True", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var r = Ray3D.Make(new Point3D(2, 0, 0), new Vector3D(0, 0, 1));
+  IsTrue(r.Touches(x));
+  IsTrue(r.Touch(x).AlmostEquals(new Point3D(2, 0, 0)));
+});
+Test("Touches_Ray3DRaySameOrigin_True", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(0, 0, 1));
+  IsTrue(r1.Touches(r2));
+  IsTrue(r1.Touch(r2).AlmostEquals(new Point3D(0, 0, 0)));
+});
+Test("Touches_Ray3DSegmentEndpoint_True", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var s = LineSegment3D.Make(new Point3D(3, 0, 0), new Point3D(3, 0, 2));
+  IsTrue(r.Touches(s));
+  IsTrue(r.Touch(s).AlmostEquals(new Point3D(3, 0, 0)));
+});
+
+// ── Touch — LineSegment3D ─────────────────────────────────────────────────────
+Console.WriteLine("\nLineSegment3D Touch");
+Test("Touches_Seg3DLineFirstEndpoint_True", () => {
+  var x = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var s = LineSegment3D.Make(new Point3D(2, 0, 0), new Point3D(2, 0, 3));
+  IsTrue(s.Touches(x));
+  IsTrue(s.Touch(x).AlmostEquals(new Point3D(2, 0, 0)));
+});
+Test("Touches_Seg3DRayEndpoint_True", () => {
+  var r = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var s = LineSegment3D.Make(new Point3D(3, 0, 0), new Point3D(3, 0, 2));
+  IsTrue(s.Touches(r));
+  IsTrue(s.Touch(r).AlmostEquals(new Point3D(3, 0, 0)));
+});
+Test("Touches_Seg3DSegmentTJunction_True", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(5, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(3, 0, 0), new Point3D(3, 0, 3));
+  IsTrue(a.Touches(b));
+  IsTrue(a.Touch(b).AlmostEquals(new Point3D(3, 0, 0)));
+});
+Test("Touches_Seg3DCollinearEndpoint_True", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(5, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(5, 0, 0), new Point3D(8, 0, 0));
+  IsTrue(a.Touches(b));
+  IsTrue(a.Touch(b).AlmostEquals(new Point3D(5, 0, 0)));
+});
+
+// ── Polyline2D Overlap / Touch ────────────────────────────────────────────────
+
+Console.WriteLine("\nPolyline2D::Overlap / Touch");
+
+Test("Polyline2D_Overlaps_Line_CollinearSegment", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,3) });
+    var line = Line2D.Make(new Point2D(0,0), new Vector2D(1,0));
+    IsTrue(pl.Overlaps(line));
+    var ov = pl.Overlap(line);
+    NotNull(ov);
+    IsTrue(ov.Length == 1);
+    IsTrue(ov[0].AlmostEquals(LineSegment2D.Make(new Point2D(0,0), new Point2D(4,0))));
+});
+
+Test("Polyline2D_Overlaps_Line_Perpendicular_NoOverlap", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0) });
+    var line = Line2D.Make(new Point2D(0,0), new Vector2D(0,1));
+    IsFalse(pl.Overlaps(line));
+    IsNull(pl.Overlap(line));
+});
+
+Test("Polyline2D_Overlaps_Ray_CollinearPartial", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(6,0) });
+    var ray = Ray2D.Make(new Point2D(2,0), new Vector2D(1,0));
+    IsTrue(pl.Overlaps(ray));
+    var ov = pl.Overlap(ray);
+    NotNull(ov);
+    IsTrue(ov.Length == 1);
+    IsTrue(ov[0].AlmostEquals(LineSegment2D.Make(new Point2D(2,0), new Point2D(6,0))));
+});
+
+Test("Polyline2D_Overlaps_Segment_Partial", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(5,0) });
+    var seg = LineSegment2D.Make(new Point2D(3,0), new Point2D(7,0));
+    IsTrue(pl.Overlaps(seg));
+    var ov = pl.Overlap(seg);
+    NotNull(ov);
+    IsTrue(ov.Length == 1);
+    IsTrue(ov[0].AlmostEquals(LineSegment2D.Make(new Point2D(3,0), new Point2D(5,0))));
+});
+
+Test("Polyline2D_Overlaps_Polyline_Shared", () => {
+    var pl1 = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,3) });
+    var pl2 = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0) });
+    IsTrue(pl1.Overlaps(pl2));
+    NotNull(pl1.Overlap(pl2));
+});
+
+Test("Polyline2D_Overlaps_Polyline_NoOverlap", () => {
+    var pl1 = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0) });
+    var pl2 = Polyline2D.Make(new Point2D[] { new(0,1), new(4,1) });
+    IsFalse(pl1.Overlaps(pl2));
+    IsNull(pl1.Overlap(pl2));
+});
+
+Test("Polyline2D_Touches_Line_EndpointOnLine", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(2,0), new(2,3) });
+    var line = Line2D.Make(new Point2D(0,0), new Vector2D(1,0));
+    IsTrue(pl.Touches(line));
+    var tp = pl.Touch(line);
+    NotNull(tp);
+    IsTrue(tp.Length == 1);
+    IsTrue(tp[0].AlmostEquals(new Point2D(2,0)));
+});
+
+Test("Polyline2D_Touches_Line_Collinear_NotTouch", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0) });
+    var line = Line2D.Make(new Point2D(0,0), new Vector2D(1,0));
+    IsFalse(pl.Touches(line));
+    IsNull(pl.Touch(line));
+});
+
+Test("Polyline2D_Touches_Ray_EndpointOnRay", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(3,0), new(3,2) });
+    var ray = Ray2D.Make(new Point2D(0,0), new Vector2D(1,0));
+    IsTrue(pl.Touches(ray));
+    var tp = pl.Touch(ray);
+    NotNull(tp);
+    IsTrue(tp.Length == 1);
+    IsTrue(tp[0].AlmostEquals(new Point2D(3,0)));
+});
+
+Test("Polyline2D_Touches_Segment_TJunction", () => {
+    var pl = Polyline2D.Make(new Point2D[] { new(3,0), new(3,3) });
+    var seg = LineSegment2D.Make(new Point2D(0,0), new Point2D(5,0));
+    IsTrue(pl.Touches(seg));
+    var tp = pl.Touch(seg);
+    NotNull(tp);
+    IsTrue(tp.Length == 1);
+    IsTrue(tp[0].AlmostEquals(new Point2D(3,0)));
+});
+
+Test("Polyline2D_Touches_Polyline_SharedEndpoint", () => {
+    var pl1 = Polyline2D.Make(new Point2D[] { new(0,0), new(3,0) });
+    var pl2 = Polyline2D.Make(new Point2D[] { new(3,0), new(3,3) });
+    IsTrue(pl1.Touches(pl2));
+    var tp = pl1.Touch(pl2);
+    NotNull(tp);
+    IsTrue(tp.Length == 1);
+    IsTrue(tp[0].AlmostEquals(new Point2D(3,0)));
+});
+
+Test("Polyline2D_Touches_Polyline_Disjoint", () => {
+    var pl1 = Polyline2D.Make(new Point2D[] { new(0,0), new(2,0) });
+    var pl2 = Polyline2D.Make(new Point2D[] { new(5,0), new(5,3) });
+    IsFalse(pl1.Touches(pl2));
+    IsNull(pl1.Touch(pl2));
+});
+
+// ── Polyline3D Overlap / Touch ────────────────────────────────────────────────
+
+Console.WriteLine("\nPolyline3D::Overlap / Touch");
+
+Test("Polyline3D_Overlaps_Line_CollinearSegment", () => {
+    var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,0,3) });
+    var line = Line3D.Make(new Point3D(0,0,0), new Point3D(1,0,0));
+    IsTrue(pl.Overlaps(line));
+    var ov = pl.Overlap(line);
+    NotNull(ov);
+    IsTrue(ov.Length == 1);
+    IsTrue(ov[0].AlmostEquals(LineSegment3D.Make(new Point3D(0,0,0), new Point3D(4,0,0))));
+});
+
+Test("Polyline3D_Overlaps_Ray_Partial", () => {
+    var pl = Polyline3D.Make(new Point3D[] { new(0,0,0), new(6,0,0) });
+    var ray = Ray3D.Make(new Point3D(2,0,0), new Vector3D(1,0,0));
+    IsTrue(pl.Overlaps(ray));
+    var ov = pl.Overlap(ray);
+    NotNull(ov);
+    IsTrue(ov.Length == 1);
+    IsTrue(ov[0].AlmostEquals(LineSegment3D.Make(new Point3D(2,0,0), new Point3D(6,0,0))));
+});
+
+Test("Polyline3D_Overlaps_Polyline_NoOverlap", () => {
+    var pl1 = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0) });
+    var pl2 = Polyline3D.Make(new Point3D[] { new(0,1,0), new(4,1,0) });
+    IsFalse(pl1.Overlaps(pl2));
+    IsNull(pl1.Overlap(pl2));
+});
+
+Test("Polyline3D_Touches_Line_EndpointOnLine", () => {
+    var pl = Polyline3D.Make(new Point3D[] { new(2,0,0), new(2,0,3) });
+    var line = Line3D.Make(new Point3D(0,0,0), new Point3D(1,0,0));
+    IsTrue(pl.Touches(line));
+    var tp = pl.Touch(line);
+    NotNull(tp);
+    IsTrue(tp.Length == 1);
+    IsTrue(tp[0].AlmostEquals(new Point3D(2,0,0)));
+});
+
+Test("Polyline3D_Touches_Segment_TJunction", () => {
+    var pl = Polyline3D.Make(new Point3D[] { new(3,0,0), new(3,0,3) });
+    var seg = LineSegment3D.Make(new Point3D(0,0,0), new Point3D(5,0,0));
+    IsTrue(pl.Touches(seg));
+    var tp = pl.Touch(seg);
+    NotNull(tp);
+    IsTrue(tp.Length == 1);
+    IsTrue(tp[0].AlmostEquals(new Point3D(3,0,0)));
+});
+
+Test("Polyline3D_Touches_Polyline_SharedEndpoint", () => {
+    var pl1 = Polyline3D.Make(new Point3D[] { new(0,0,0), new(3,0,0) });
+    var pl2 = Polyline3D.Make(new Point3D[] { new(3,0,0), new(3,0,3) });
+    IsTrue(pl1.Touches(pl2));
+    var tp = pl1.Touch(pl2);
+    NotNull(tp);
+    IsTrue(tp.Length == 1);
+    IsTrue(tp[0].AlmostEquals(new Point3D(3,0,0)));
+});
+
+Test("Polyline3D_Touches_Polyline_Disjoint", () => {
+    var pl1 = Polyline3D.Make(new Point3D[] { new(0,0,0), new(2,0,0) });
+    var pl2 = Polyline3D.Make(new Point3D[] { new(5,0,0), new(5,0,3) });
+    IsFalse(pl1.Touches(pl2));
+    IsNull(pl1.Touch(pl2));
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

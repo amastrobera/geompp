@@ -49,5 +49,37 @@ void bind_polyline2d(py::module_& m) {
              [](const geompp::Polyline2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
         .def("intersection",
              [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    -> py::object { return opt_variant_to_py(p.Intersection(o)); }, "other"_a)
+        .def("overlaps",
+             [](const geompp::Polyline2D& p, const geompp::Line2D& l)        { return p.Overlaps(l); }, "line"_a)
+        .def("overlaps",
+             [](const geompp::Polyline2D& p, const geompp::Ray2D& r)         { return p.Overlaps(r); }, "ray"_a)
+        .def("overlaps",
+             [](const geompp::Polyline2D& p, const geompp::LineSegment2D& s) { return p.Overlaps(s); }, "segment"_a)
+        .def("overlaps",
+             [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    { return p.Overlaps(o); }, "other"_a)
+        .def("overlap",
+             [](const geompp::Polyline2D& p, const geompp::Line2D& l)        -> py::object { return opt_to_py(p.Overlap(l)); }, "line"_a)
+        .def("overlap",
+             [](const geompp::Polyline2D& p, const geompp::Ray2D& r)         -> py::object { return opt_to_py(p.Overlap(r)); }, "ray"_a)
+        .def("overlap",
+             [](const geompp::Polyline2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_to_py(p.Overlap(s)); }, "segment"_a)
+        .def("overlap",
+             [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    -> py::object { return opt_to_py(p.Overlap(o)); }, "other"_a)
+        .def("touches",
+             [](const geompp::Polyline2D& p, const geompp::Line2D& l)        { return p.Touches(l); }, "line"_a)
+        .def("touches",
+             [](const geompp::Polyline2D& p, const geompp::Ray2D& r)         { return p.Touches(r); }, "ray"_a)
+        .def("touches",
+             [](const geompp::Polyline2D& p, const geompp::LineSegment2D& s) { return p.Touches(s); }, "segment"_a)
+        .def("touches",
+             [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    { return p.Touches(o); }, "other"_a)
+        .def("touch",
+             [](const geompp::Polyline2D& p, const geompp::Line2D& l)        -> py::object { return opt_to_py(p.Touch(l)); }, "line"_a)
+        .def("touch",
+             [](const geompp::Polyline2D& p, const geompp::Ray2D& r)         -> py::object { return opt_to_py(p.Touch(r)); }, "ray"_a)
+        .def("touch",
+             [](const geompp::Polyline2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_to_py(p.Touch(s)); }, "segment"_a)
+        .def("touch",
+             [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    -> py::object { return opt_to_py(p.Touch(o)); }, "other"_a)
         .def("__eq__", [](const geompp::Polyline2D& a, const geompp::Polyline2D& b) { return a == b; });
 }
