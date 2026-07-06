@@ -52,7 +52,7 @@
   - **Containment** — does a shape contain a given point?
   - **Intersection** — do two shapes strike through each other, and what is the resulting geometry?
   - **Overlap** — do two shapes have a portion in common, and what is the resulting geometry?
-  - **Touch** — do two shapes have a point in common, and which is it?
+  - **Touch** — do two shapes have a point in common, and which is it?w
   - **Distance** — closest distance from a point to a shape
   - **Projection** — project a point onto a line, segment, or plane
   - **Interpolation** — retrieve a point at parameter `t` along a segment or polyline
