@@ -39,7 +39,12 @@ class Polygon2D {
   /// @brief Decomposes a self-intersecting polygon into one or more simple polygons.
   /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
   std::vector<Polygon2D> Simplify() const;
-  std::vector<Point2D> ToPoints();
+  std::vector<Point2D> const& ToPoints() const;
+
+  /// @brief Whether this polygon has one or more holes.
+  bool HasHoles() const;
+  /// @brief The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polygon has no holes.
+  std::vector<std::vector<Point2D>> const& Holes() const;
 
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.
@@ -120,6 +125,8 @@ std::ostream& operator<<(std::ostream& os, Polygon2D const& g);
 
 inline std::size_t Polygon2D::Size() const { return VERTICES.size(); }
 inline bool Polygon2D::IsConvex() const { return IS_CONVEX; }
+inline bool Polygon2D::HasHoles() const { return !HOLES.empty(); }
+inline std::vector<std::vector<Point2D>> const& Polygon2D::Holes() const { return HOLES; }
 inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex)
     : VERTICES(points), HOLES{}, PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,

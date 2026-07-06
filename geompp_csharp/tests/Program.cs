@@ -1425,6 +1425,25 @@ Test("ToPoints_RoundTrip", () => {
   }
 });
 
+Test("HasHoles_False_NoHoles", () => {
+  var poly = Polygon2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) });
+  IsFalse(poly.HasHoles());
+  Eq(0, poly.Holes().Length);
+});
+
+Test("HasHoles_True_WithHole", () => {
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
+  var poly  = Polygon2D.Make(outer, new Point2D[][] { hole });
+  IsTrue(poly.HasHoles());
+  var holes = poly.Holes();
+  Eq(1, holes.Length);
+  Eq(4, holes[0].Length);
+  for (int i = 0; i < hole.Length; ++i) {
+    IsTrue(hole[i].AlmostEquals(holes[0][i]), $"hole vertex {i} mismatch");
+  }
+});
+
 Test("FromWkt_Whitespace", () => {
   var sq = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
   IsTrue(sq.AlmostEquals(Polygon2D.FromWkt("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))")));
@@ -1675,6 +1694,25 @@ Test("ToPoints3D_RoundTrip", () => {
   Eq(4, back.Length);
   for (int i = 0; i < pts.Length; ++i) {
     IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after ToPoints round-trip");
+  }
+});
+
+Test("HasHoles3D_False_NoHoles", () => {
+  var poly = Polygon3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) });
+  IsFalse(poly.HasHoles());
+  Eq(0, poly.Holes().Length);
+});
+
+Test("HasHoles3D_True_WithHole", () => {
+  var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+  var hole  = new Point3D[] { new(1,1,0), new(1,3,0), new(3,3,0), new(3,1,0) };
+  var poly  = Polygon3D.Make(outer, new Point3D[][] { hole });
+  IsTrue(poly.HasHoles());
+  var holes = poly.Holes();
+  Eq(1, holes.Length);
+  Eq(4, holes[0].Length);
+  for (int i = 0; i < hole.Length; ++i) {
+    IsTrue(hole[i].AlmostEquals(holes[0][i]), $"hole vertex {i} mismatch");
   }
 });
 

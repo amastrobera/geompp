@@ -111,6 +111,27 @@ TEST_F(Polygon2DTest, WithHoles_Valid) {
   ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
 }
 
+TEST_F(Polygon2DTest, HasHoles_False_WhenNoHoles) {
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  auto p = g::Polygon2D::Make(outer);
+  EXPECT_FALSE(p.HasHoles());
+  EXPECT_TRUE(p.Holes().empty());
+}
+
+TEST_F(Polygon2DTest, HasHoles_True_WithHole) {
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+  EXPECT_TRUE(p.HasHoles());
+  ASSERT_EQ(1u, p.Holes().size());
+  ASSERT_EQ(4u, p.Holes()[0].size());
+  EXPECT_TRUE(p.Holes()[0][0].AlmostEquals(g::Point2D(1, 1)));
+  EXPECT_TRUE(p.Holes()[0][2].AlmostEquals(g::Point2D(3, 3)));
+}
+
 TEST_F(Polygon2DTest, WithHoles_PerimeterCW_Throws) {
   std::vector<g::Point2D> cw_outer = {
       g::Point2D(0, 0), g::Point2D(0, 4), g::Point2D(4, 4), g::Point2D(4, 0)};

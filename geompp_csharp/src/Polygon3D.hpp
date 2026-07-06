@@ -39,6 +39,8 @@ public:
     Polygon3D^                ConvexHull();
     array<Polygon3D^>^        Simplify();
     array<Point3D^>^          ToPoints();
+    bool                      HasHoles();
+    array<array<Point3D^>^>^  Holes();
 
     System::String^ ToWkt();
     static Polygon3D^ FromWkt(System::String^ wkt);

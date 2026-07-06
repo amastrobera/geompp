@@ -121,10 +121,28 @@ array<Polygon3D^>^ Polygon3D::Simplify() {
 }
 
 array<Point3D^>^ Polygon3D::ToPoints() {
-    auto native = _native->ToPoints();
+    auto const& native = _native->ToPoints();
     auto arr = gcnew array<Point3D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Point3D(new geompp::Point3D(native[i]));
+    }
+    return arr;
+}
+
+bool Polygon3D::HasHoles() {
+    return _native->HasHoles();
+}
+
+array<array<Point3D^>^>^ Polygon3D::Holes() {
+    auto const& native = _native->Holes();
+    auto arr = gcnew array<array<Point3D^>^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        auto const& ring = native[i];
+        auto inner = gcnew array<Point3D^>(static_cast<int>(ring.size()));
+        for (int j = 0; j < static_cast<int>(ring.size()); ++j) {
+            inner[j] = gcnew Point3D(new geompp::Point3D(ring[j]));
+        }
+        arr[i] = inner;
     }
     return arr;
 }

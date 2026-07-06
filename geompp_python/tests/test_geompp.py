@@ -4188,6 +4188,55 @@ class TestPolygon3DConvexHull:
                     and approx(orig.z, restored.z))
 
 
+# --- Polygon2D.has_holes / holes ---
+class TestPolygon2DHoles:
+    def test_no_holes(self):
+        poly = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ])
+        assert poly.has_holes() is False
+        assert poly.holes() == []
+
+    def test_with_hole(self):
+        outer = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+                 geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        hole = [geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+                geompp.Point2D(3, 3), geompp.Point2D(3, 1)]
+        poly = geompp.Polygon2D.make(outer, [hole])
+        assert poly.has_holes() is True
+        holes = poly.holes()
+        assert len(holes) == 1
+        assert len(holes[0]) == 4
+        for orig, restored in zip(hole, holes[0]):
+            assert approx(orig.x, restored.x) and approx(orig.y, restored.y)
+
+
+# --- Polygon3D.has_holes / holes ---
+class TestPolygon3DHoles:
+    def test_no_holes(self):
+        poly = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ])
+        assert poly.has_holes() is False
+        assert poly.holes() == []
+
+    def test_with_hole(self):
+        outer = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+                 geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)]
+        hole = [geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+                geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0)]
+        poly = geompp.Polygon3D.make(outer, [hole])
+        assert poly.has_holes() is True
+        holes = poly.holes()
+        assert len(holes) == 1
+        assert len(holes[0]) == 4
+        for orig, restored in zip(hole, holes[0]):
+            assert (approx(orig.x, restored.x) and approx(orig.y, restored.y)
+                    and approx(orig.z, restored.z))
+
+
 class TestPolygon2DIsConvex:
     def test_square_is_convex(self):
         p = geompp.Polygon2D.make([

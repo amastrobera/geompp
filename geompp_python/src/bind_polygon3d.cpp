@@ -32,6 +32,9 @@ void bind_polygon3d(py::module_& m) {
         .def("is_on_perimeter", &geompp::Polygon3D::IsOnPerimeter, "point"_a)
         .def("convex_hull",    &geompp::Polygon3D::ConvexHull, "Returns the convex hull as a new Polygon3D.")
         .def("to_points",      &geompp::Polygon3D::ToPoints,   "Returns the vertices as a list of Point3D.")
+        .def("has_holes",      &geompp::Polygon3D::HasHoles,   "Returns True if the polygon has one or more holes.")
+        .def("holes",          &geompp::Polygon3D::Holes,
+             "Returns the holes as a list of rings, each a list of Point3D. Empty when the polygon has no holes.")
         BIND_ALMOST_EQUALS(Polygon3D)
         BIND_SERIALIZATION(Polygon3D)
         .def("intersects",

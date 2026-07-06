@@ -388,14 +388,7 @@ Polygon3D Polygon3D::ConvexHull() {
   return Make(cv_points);
 }
 
-std::vector<Point3D> Polygon3D::ToPoints() {
-  std::vector<Point3D> points;
-  points.reserve(VERTICES.size());
-  for (auto pt : VERTICES) {
-    points.emplace_back(pt);
-  }
-  return points;
-}
+std::vector<Point3D> const& Polygon3D::ToPoints() const { return VERTICES; }
 
 double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 

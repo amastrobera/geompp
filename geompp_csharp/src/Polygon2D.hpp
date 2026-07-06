@@ -37,6 +37,8 @@ public:
     Polygon2D^                ConvexHull();
     array<Polygon2D^>^        Simplify();
     array<Point2D^>^          ToPoints();
+    bool                      HasHoles();
+    array<array<Point2D^>^>^  Holes();
 
     System::String^ ToWkt();
     static Polygon2D^ FromWkt(System::String^ wkt);

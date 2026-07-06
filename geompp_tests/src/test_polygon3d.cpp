@@ -118,6 +118,27 @@ TEST_F(Polygon3DTest, WithHoles_Valid) {
   ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
 }
 
+TEST_F(Polygon3DTest, HasHoles_False_WhenNoHoles) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  auto p = g::Polygon3D::Make(outer);
+  EXPECT_FALSE(p.HasHoles());
+  EXPECT_TRUE(p.Holes().empty());
+}
+
+TEST_F(Polygon3DTest, HasHoles_True_WithHole) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
+  auto p = g::Polygon3D::Make(outer, {hole});
+  EXPECT_TRUE(p.HasHoles());
+  ASSERT_EQ(1u, p.Holes().size());
+  ASSERT_EQ(4u, p.Holes()[0].size());
+  EXPECT_TRUE(p.Holes()[0][0].AlmostEquals(g::Point3D(1, 1, 0)));
+  EXPECT_TRUE(p.Holes()[0][2].AlmostEquals(g::Point3D(3, 3, 0)));
+}
+
 TEST_F(Polygon3DTest, WithHoles_PerimeterCW_Throws) {
   std::vector<g::Point3D> cw_outer = {
       g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(4, 4, 0), g::Point3D(4, 0, 0)};

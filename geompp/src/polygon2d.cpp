@@ -194,14 +194,7 @@ Polygon2D Polygon2D::ConvexHull() {
   return Make(cv_points);
 }
 
-std::vector<Point2D> Polygon2D::ToPoints() {
-  std::vector<Point2D> points;
-  points.reserve(VERTICES.size());
-  for (auto pt : VERTICES) {
-    points.emplace_back(pt);
-  }
-  return points;
-}
+std::vector<Point2D> const& Polygon2D::ToPoints() const { return VERTICES; }
 
 std::vector<Polygon2D> Polygon2D::Simplify() const {
   if (IsSimple()) {

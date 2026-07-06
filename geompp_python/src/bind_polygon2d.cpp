@@ -31,6 +31,9 @@ void bind_polygon2d(py::module_& m) {
              "Decomposes a self-intersecting polygon into one or more simple polygons. "
              "Returns [self] if already simple.")
         .def("to_points",      &geompp::Polygon2D::ToPoints,   "Returns the vertices as a list of Point2D.")
+        .def("has_holes",      &geompp::Polygon2D::HasHoles,   "Returns True if the polygon has one or more holes.")
+        .def("holes",          &geompp::Polygon2D::Holes,
+             "Returns the holes as a list of rings, each a list of Point2D. Empty when the polygon has no holes.")
         BIND_ALMOST_EQUALS(Polygon2D)
         BIND_SERIALIZATION(Polygon2D)
         .def("intersects",

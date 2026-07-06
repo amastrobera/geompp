@@ -1,6 +1,4 @@
-[← back](../README.md)
-
-# geompp
+# GeomPP — Python Bindings
 
 Python bindings for [geompp](https://github.com/amastrobera/geompp) — a C++ 2D/3D geometry library.
 

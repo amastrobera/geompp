@@ -67,6 +67,25 @@
 
   Return types are often `std::optional<std::variant<...>>` so callers can match on the exact geometry produced by an intersection without casting.
 
+  ### Available in multiple languages
+
+  - C++ 20
+
+  - Python ([view](./geompp_python/README.md))
+
+    | Platform | versions |
+    |---|---|
+    | Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
+    | Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
+
+  
+  - C# ([view](./geompp_csharp/README.md))
+
+    | Platform | .Net | .Net Framework |
+    |---|---|---|
+    | Windows x64  | 8 · 9 · 10 | 4.8 |
+  
+
   ### Serialization
 
   All primitives support:

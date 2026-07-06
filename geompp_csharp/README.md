@@ -8,6 +8,7 @@ Supports **.NET 8**, **.NET 9**, **.NET 10**, and **.NET Framework 4.8**.
 
 **[Changelog](https://github.com/amastrobera/geompp/blob/master/CHANGELOG.md)** — full release notes for every version.
 
+
 ---
 
 ## Install
@@ -22,6 +23,9 @@ or in your `.csproj`:
 <PackageReference Include="GeomPP" Version="0.8.0" />
 ```
 
+| Platform | .Net | .Net Framework |
+|---|---|---|
+| Windows x64  | 8 · 9 · 10 | 4.8 |
 
 ---
 
