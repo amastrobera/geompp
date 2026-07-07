@@ -9,6 +9,10 @@
 #include "LineSegment2D.hpp"
 #include "CoordinateFrame.hpp"
 #include "Vector3D.hpp"
+#include "Polygon2D.hpp"
+#include "Polygon3D.hpp"
+#include "Line2D.hpp"
+#include "Line3D.hpp"
 
 namespace GeomPP {
 
@@ -113,6 +117,20 @@ Vector3D^ GeomUtil::PrincipalNormal(System::Collections::Generic::List<Point3D^>
 
 Vector3D^ GeomUtil::PrincipalDirection(System::Collections::Generic::List<Point3D^>^ points) {
     return gcnew Vector3D(new geompp::Vector3D(geompp::principal_direction(ToNative(points))));
+}
+
+ExtremePoints2D^ GeomUtil::FindExtremePoints(Polygon2D^ polygon, Line2D^ line) {
+    auto ex = geompp::find_extreme_points(*polygon->_native, *line->_native);
+    return gcnew ExtremePoints2D(
+        gcnew Point2D(new geompp::Point2D(ex.min_point)),
+        gcnew Point2D(new geompp::Point2D(ex.max_point)));
+}
+
+ExtremePoints3D^ GeomUtil::FindExtremePoints(Polygon3D^ polygon, Line3D^ line) {
+    auto ex = geompp::find_extreme_points(*polygon->_native, *line->_native);
+    return gcnew ExtremePoints3D(
+        gcnew Point3D(new geompp::Point3D(ex.min_point)),
+        gcnew Point3D(new geompp::Point3D(ex.max_point)));
 }
 
 }  // namespace GeomPP

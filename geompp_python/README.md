@@ -996,6 +996,46 @@ A quick list of code examples per topic is provided here.
   
 </details>
 
+<details closed>
+<summary><b> &nbsp; &nbsp; 5.4 Polygon extreme points </b></summary>
+
+  `find_extreme_points(polygon, line)` returns the two vertices of a polygon that are **extreme** — the
+  least and the greatest — when projected onto a line's direction (the "supporting vertices" along that
+  axis). It is handy for collision broad-phase (SAT), rotating calipers, and directional clipping.
+
+  The result is an `ExtremePoints2D` (or `ExtremePoints3D`) with `.min_point` / `.max_point`. When the
+  polygon is **convex** it uses Daniel Sunday's O(log n) binary search; otherwise it falls back to an
+  O(n) linear scan. Holes are ignored — only the outer ring participates.
+
+  ```python
+  import geompp as g
+
+  # Convex diamond; project onto the X-axis to get the left / right tips
+  diamond = g.Polygon2D.make([
+      g.Point2D(2, 0), g.Point2D(4, 2), g.Point2D(2, 4), g.Point2D(0, 2)])
+  x_axis = g.Line2D.make(g.Point2D(0, 0), g.Point2D(1, 0))
+
+  ext = g.find_extreme_points(diamond, x_axis)   # convex → O(log n)
+  print(f"min: {ext.min_point.to_wkt()}")         # POINT (0 2)
+  print(f"max: {ext.max_point.to_wkt()}")         # POINT (4 2)
+
+  # Works in 3D too — the polygon may lie in any plane
+  para = g.Polygon3D.make([
+      g.Point3D(0, 0, 0), g.Point3D(2, 0, 2),
+      g.Point3D(2, 2, 2), g.Point3D(0, 2, 0)])
+  d = g.Line3D.make(g.Point3D(0, 0, 0), g.Point3D(1, 1, 0))
+  ext3 = g.find_extreme_points(para, d)
+  print(f"{ext3.min_point.to_wkt()} .. {ext3.max_point.to_wkt()}")
+  ```
+
+  ```
+  min: POINT (0 2)
+  max: POINT (4 2)
+  POINT (0 0 0) .. POINT (2 2 2)
+  ```
+
+</details>
+
 </details>
 
 

@@ -1,5 +1,6 @@
 #include "calc_utils2d.hpp"
 
+#include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
@@ -71,9 +72,8 @@ bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b) {
 
 }  // namespace
 
-std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1,
-                                         Point2D const& other_p0, Point2D const& other_p1,
-                                         double& sc, double& tc) {
+std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
+                                         Point2D const& other_p1, double& sc, double& tc) {
   try {
     // 2D intersection via perp-product:
     //   L(s) = p0 + s*(p1-p0),  L(t) = other_p0 + t*(other_p1-other_p0)
@@ -630,6 +630,74 @@ std::vector<std::size_t> convex_hull_monotone_chain(Points const& points, View2D
 template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point2D> const&, View2D const&);
 
 template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point3D> const&, View2D const&);
+
+template <VectorType V, ProjectablePointContainerWith<V> R>
+std::pair<std::size_t, std::size_t> extreme_points_impl(R const& vertices, bool is_convex, V const& dir) {
+  long const n = static_cast<long>(std::ranges::distance(vertices));
+  if (n == 0) {
+    throw std::invalid_argument("extreme_points_impl: empty vertex range");
+  }
+
+  // projection of vertex i (cyclic index) onto the direction
+  auto proj = [&](long i) -> double {
+    return vertices[static_cast<std::size_t>(((i % n) + n) % n)].ToVector().Dot(dir);
+  };
+
+  if (!is_convex) {
+    // brute force O(n): a concave ring has no monotone structure to exploit
+    std::size_t min_i = 0, max_i = 0;
+    double min_v = proj(0), max_v = proj(0);
+    for (long i = 1; i < n; ++i) {
+      double v = proj(i);
+      if (v < min_v) {
+        min_v = v;
+        min_i = static_cast<std::size_t>(i);
+      }
+      if (v > max_v) {
+        max_v = v;
+        max_i = static_cast<std::size_t>(i);
+      }
+    }
+    return {min_i, max_i};
+  }
+
+  // convex fast-path — Daniel Sunday's O(log n) binary search for the extreme vertex of a convex CCW
+  // polygon in a direction (cf. the KACTL "extrVertex"). search(+1) returns argmax(proj); search(-1)
+  // returns argmax(-proj) = argmin(proj). Ties (an edge perpendicular to dir) resolve to one endpoint.
+  auto sgn = [](double d) -> int { return static_cast<int>(d > 0) - static_cast<int>(d < 0); };
+
+  auto search = [&](double s) -> std::size_t {
+    auto g = [&](long i) { return s * proj(i); };                                 // maximise s * proj
+    auto cmp = [&](long i, long j) { return sgn(g(j) - g(i)); };                  // sign( g(j) - g(i) )
+    auto extr = [&](long i) { return cmp(i + 1, i) >= 0 && cmp(i, i - 1) < 0; };  // i is the peak
+    if (extr(0)) {
+      return 0;
+    }
+    long lo = 0, hi = n;
+    while (lo + 1 < hi) {
+      long m = (lo + hi) / 2;
+      if (extr(m)) {
+        return static_cast<std::size_t>(m);
+      }
+      int ls = cmp(lo + 1, lo);
+      int ms = cmp(m + 1, m);
+      bool go_hi = (ls < ms) || (ls == ms && ls == cmp(lo, m));
+      if (go_hi) {
+        hi = m;
+      } else {
+        lo = m;
+      }
+    }
+    return static_cast<std::size_t>(lo);
+  };
+
+  std::size_t max_i = search(1.0);
+  std::size_t min_i = search(-1.0);
+  return {min_i, max_i};
+}
+
+template std::pair<std::size_t, std::size_t> extreme_points_impl(std::vector<Point2D> const&, bool, Vector2D const&);
+template std::pair<std::size_t, std::size_t> extreme_points_impl(std::vector<Point3D> const&, bool, Vector3D const&);
 
 template <PointContainer Points>
 MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices, Points const& points,
@@ -1198,4 +1266,10 @@ std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
 }
 
 }  // namespace detail
+
+ExtremePoints<Point2D> find_extreme_points(Polygon2D const& polygon, Line2D const& line) {
+  auto [min_i, max_i] = detail::extreme_points_impl(polygon.Perimeter(), polygon.IsConvex(), line.Direction());
+  return {polygon[min_i], polygon[max_i]};
+}
+
 }  // namespace geompp

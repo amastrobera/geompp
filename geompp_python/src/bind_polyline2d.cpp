@@ -42,13 +42,13 @@ void bind_polyline2d(py::module_& m) {
         .def("intersects",
              [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    { return p.Intersects(o); }, "other"_a)
         .def("intersection",
-             [](const geompp::Polyline2D& p, const geompp::Line2D& l)        -> py::object { return opt_variant_to_py(p.Intersection(l)); }, "line"_a)
+             [](const geompp::Polyline2D& p, const geompp::Line2D& l)        -> py::object { return opt_to_py(p.Intersection(l)); }, "line"_a)
         .def("intersection",
-             [](const geompp::Polyline2D& p, const geompp::Ray2D& r)         -> py::object { return opt_variant_to_py(p.Intersection(r)); }, "ray"_a)
+             [](const geompp::Polyline2D& p, const geompp::Ray2D& r)         -> py::object { return opt_to_py(p.Intersection(r)); }, "ray"_a)
         .def("intersection",
-             [](const geompp::Polyline2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_variant_to_py(p.Intersection(s)); }, "segment"_a)
+             [](const geompp::Polyline2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_to_py(p.Intersection(s)); }, "segment"_a)
         .def("intersection",
-             [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    -> py::object { return opt_variant_to_py(p.Intersection(o)); }, "other"_a)
+             [](const geompp::Polyline2D& p, const geompp::Polyline2D& o)    -> py::object { return opt_to_py(p.Intersection(o)); }, "other"_a)
         .def("overlaps",
              [](const geompp::Polyline2D& p, const geompp::Line2D& l)        { return p.Overlaps(l); }, "line"_a)
         .def("overlaps",

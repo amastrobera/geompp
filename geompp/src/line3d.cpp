@@ -95,7 +95,7 @@ std::optional<LineSegment3D> Line3D::Distance(Ray3D const& ray) const {
   if (!result.has_value()) {
     return std::nullopt;
   }
-  return result->Flip();  // return the min-segment from the point of view of the line, not the ray
+  return result->Reversed();  // return the min-segment from the point of view of the line, not the ray
 }
 
 double Line3D::DistanceTo(Ray3D const& ray) const { return ray.DistanceTo(*this); }
@@ -105,7 +105,7 @@ std::optional<LineSegment3D> Line3D::Distance(LineSegment3D const& seg) const {
   if (!result.has_value()) {
     return std::nullopt;
   }
-  return result->Flip();  // return the min-segment from the point of view of the line, not the segment
+  return result->Reversed();  // return the min-segment from the point of view of the line, not the segment
 }
 
 double Line3D::DistanceTo(LineSegment3D const& seg) const { return seg.DistanceTo(*this); }
@@ -138,7 +138,7 @@ bool Line3D::Intersects(Polyline3D const& polyline) const { return polyline.Inte
 std::optional<Point3D> Line3D::Intersection(Line3D const& other) const {
   double sc, tc;
 
-  auto result = detail::intersection_line_to_line(P0, P1, other.P0, other.P1, sc, tc);
+  auto result = detail::line_intersection(P0, P1, other.P0, other.P1, sc, tc);
   if (!result.has_value()) {
     return std::nullopt;
   }

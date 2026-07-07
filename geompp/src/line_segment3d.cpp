@@ -265,7 +265,7 @@ bool LineSegment3D::Intersects(Polyline3D const& polyline) const { return polyli
 
 std::optional<Point3D> LineSegment3D::Intersection(Line3D const& line) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(P0, P1, line.First(), line.Last(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, line.First(), line.Last(), sc, tc);
 
   // respecting LineSegment and Ray constraints: sc should be between 0 and 1
   if (!(Pc.has_value() && is_in_range(sc, 0, 1))) {
@@ -277,7 +277,7 @@ std::optional<Point3D> LineSegment3D::Intersection(Line3D const& line) const {
 
 std::optional<Point3D> LineSegment3D::Intersection(Ray3D const& ray) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(P0, P1, ray.Origin(), ray.Origin() + ray.Direction(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, ray.Origin(), ray.Origin() + ray.Direction(), sc, tc);
 
   // respecting LineSegment and Ray constraints: sc should be between 0 and 1, tc should be greater than 0
   if (!(Pc.has_value() && is_in_range(sc, 0, 1) && is_greater_or_equal(tc, 0))) {
@@ -289,7 +289,7 @@ std::optional<Point3D> LineSegment3D::Intersection(Ray3D const& ray) const {
 
 std::optional<Point3D> LineSegment3D::Intersection(LineSegment3D const& other) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(P0, P1, other.First(), other.Last(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, other.First(), other.Last(), sc, tc);
 
   // respecting LineSegment constraints: sc and tc should be between 0 and 1
   if (!(Pc.has_value() && is_in_range(sc, 0, 1) && is_in_range(tc, 0, 1))) {

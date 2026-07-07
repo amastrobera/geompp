@@ -49,8 +49,7 @@ public:
     bool Intersects(LineSegment2D^ segment);
     bool Intersects(Polyline2D^ other);
 
-    // Intersection — optional<variant<Point2D, vector<Point2D>>> → System::Object^
-    // (Point2D^ or array<Point2D^>^ or nullptr)
+    // Intersection — optional<vector<Point2D>> → System::Object^ (array<Point2D^>^ or nullptr)
     System::Object^ Intersection(Line2D^ line);
     System::Object^ Intersection(Ray2D^ ray);
     System::Object^ Intersection(LineSegment2D^ segment);

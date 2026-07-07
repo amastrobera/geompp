@@ -30,7 +30,7 @@ public:
     bool     AlmostEquals(Polygon3D^ other, double epsilon);
     Point3D^ Centroid();
     double   Area();
-    double   Perimeter();
+    double   PerimeterSize();
     bool     IsSimple();
     bool     IsConvex();
     double   DistanceTo(Point3D^ point);
@@ -38,7 +38,7 @@ public:
     bool     IsOnPerimeter(Point3D^ point);
     Polygon3D^                ConvexHull();
     array<Polygon3D^>^        Simplify();
-    array<Point3D^>^          ToPoints();
+    array<Point3D^>^          Perimeter();
     bool                      HasHoles();
     array<array<Point3D^>^>^  Holes();
 

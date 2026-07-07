@@ -333,7 +333,7 @@ TEST_F(Polygon3DTest, Perimeter_Square) {
   auto p = g::Polygon3D::Make({
       g::Point3D(0, 0, 0), g::Point3D(1, 0, 0),
       g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
-  EXPECT_NEAR(4.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(4.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon3DTest, Perimeter_NonXYPlane) {
@@ -341,14 +341,14 @@ TEST_F(Polygon3DTest, Perimeter_NonXYPlane) {
   auto p = g::Polygon3D::Make({
       g::Point3D(0, 0, 0), g::Point3D(0, 1, 0),
       g::Point3D(0, 1, 1), g::Point3D(0, 0, 1)});
-  EXPECT_NEAR(4.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(4.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon3DTest, Perimeter_Triangle) {
   // 3-4-5 right triangle → perimeter = 12
   auto p = g::Polygon3D::Make({
       g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 3, 0)});
-  EXPECT_NEAR(12.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(12.0, p.PerimeterSize(), 1e-9);
 }
 
 // ---- GetPlane ---------------------------------------------------------------

@@ -11,11 +11,11 @@ Each release covers all three packages at the same version:
 
 ---
 
-## [0.12.0] - 2026-07-05
+## [0.12.0] - 2026-07-07
 
 > C++ library — tagged `v0.12.0` · C# / NuGet — tagged `csharp-v0.12.0` · Python / PyPI — tagged `python-v0.12.0`
 
-> Overlap and Touch detection for all 1D primitives and Polyline (Line, Ray, LineSegment, Polyline2D/3D in 2D and 3D); FromWkt off-by-one fix.
+> Overlap and Touch detection for all 1D primitives and Polyline (Line, Ray, LineSegment, Polyline2D/3D in 2D and 3D); polygon extreme-point search along a line (Daniel Sunday's O(log n) for convex, O(n) otherwise); polygon hole accessors; `Polygon2D/3D::ToPoints()` renamed to `Perimeter()` and the old `Perimeter()` renamed to `PerimeterSize()`; `Polygon2D/3D::operator[]` now takes `std::size_t`; FromWkt off-by-one fix.
 
 ### Added
 
@@ -42,9 +42,16 @@ Each release covers all three packages at the same version:
 - `Polyline2D::Touches/Touch(Line2D|Ray2D|LineSegment2D|Polyline2D)` — iterates segments, collects all touch points. Returns `std::optional<std::vector<Point2D>>`.
 - `Line2D/Ray2D/LineSegment2D::Overlaps/Overlap/Touches/Touch(Polyline2D)` — each delegates to `polyline.method(*this)`.
 - Exact 3D mirrors: `Polyline3D`, `Line3D`, `Ray3D`, `LineSegment3D`.
+- `find_extreme_points(Polygon2D const&, Line2D const&)` (`calc_utils2d.hpp`) and `find_extreme_points(Polygon3D const&, Line3D const&)` (`calc_utils3d.hpp`) — return `ExtremePoints<PointN>{min_point, max_point}`: the outer-ring vertices with least / greatest projection along the line's direction. Convex polygons use Daniel Sunday's O(log n) binary search (`detail::extreme_points_impl`); non-convex polygons fall back to an O(n) linear scan. Holes are ignored.
+- `ExtremePoints<PointT>` struct (`calc_utils2d.hpp`) — `min_point`, `max_point`; shared by the 2D and 3D overloads.
+- Concepts `VectorType`, `ProjectablePointWith<P, V>`, and `ProjectablePointContainerWith<R, V>` (`concepts.hpp`) — constrain the generic extreme-point search to ranges of points projectable onto a vector type; the search compares only scalar projections, so one template body drives both 2D and 3D.
+- `Polygon2D/3D::HasHoles()` — `true` when the polygon has one or more holes.
+- `Polygon2D/3D::Holes()` — returns `std::vector<std::vector<PointN>> const&`, the (CW) hole rings; empty when the polygon has no holes.
 
 **Python bindings**
 - `Vector2D.is_parallel(other)` — bound from `Vector2D::IsParallel`.
+- `find_extreme_points(polygon, line)` — returns `ExtremePoints2D` / `ExtremePoints3D` (with `.min_point` / `.max_point`) for `Polygon2D`/`Line2D` and `Polygon3D`/`Line3D` respectively.
+- `Polygon2D/3D.has_holes()` and `Polygon2D/3D.holes()` — `holes()` returns a list of hole rings (each a list of points), empty when none.
 - `overlaps(other)` and `overlap(other)` exposed on `Line2D`, `Ray2D`, `LineSegment2D`, `Line3D`, `Ray3D`, `LineSegment3D`.
 - `overlap(Ray, Ray)` uses `opt_variant_to_py` — returns `Ray2D` or `LineSegment2D` (resp. 3D) depending on geometry.
 - `touches(other)` and `touch(other)` exposed on all six classes; `touch` always returns a `Point` or `None`.
@@ -59,6 +66,25 @@ Each release covers all three packages at the same version:
 - `Overlaps/Overlap/Touches/Touch(Polyline2D^)` added to `Line2D`, `Ray2D`, `LineSegment2D` managed classes; `Overlap` returns `array<LineSegment2D^>^` (null on miss); `Touch` returns `array<Point2D^>^` (null on miss).
 - Same for the 3D managed classes with `Polyline3D^`.
 - `Overlaps/Overlap/Touches/Touch` (all 4 overloads each) added to `Polyline2D` and `Polyline3D` managed classes.
+- `GeomUtil.FindExtremePoints(Polygon2D^, Line2D^)` and `GeomUtil.FindExtremePoints(Polygon3D^, Line3D^)` — return `ExtremePoints2D^` / `ExtremePoints3D^`, each exposing `MinPoint` / `MaxPoint`.
+- `Polygon2D/3D.HasHoles()` and `Polygon2D/3D.Holes()` — `Holes()` returns `array<array<PointN^>^>^` (empty when none).
+
+### Changed
+
+**C++ core**
+- `Polygon2D/3D::ToPoints()` renamed to `Perimeter()`, coherent with `IsOnPerimeter()`; still returns `std::vector<PointN> const&` and is `const` (was a by-value copy in an earlier pass). Avoids copying the vertex vector.
+- `Polygon2D/3D::Perimeter()` (the boundary length) renamed to `PerimeterSize()`, freeing the `Perimeter()` name for the point-returning method above.
+- `Polygon2D/3D::operator[]` now takes `std::size_t` instead of `int`, matching `Polyline2D/3D` and the segment iterators. Removes the `static_cast<int>` previously needed at the two `find_extreme_points()` call sites in `calc_utils2d.cpp` / `calc_utils3d.cpp`.
+
+**Bindings**
+- Python: `Polygon2D`/`Polygon3D` `.to_points()` → `.perimeter()`, `.perimeter()` → `.perimeter_size()`.
+- C#: `Polygon2D`/`Polygon3D` `ToPoints()` → `Perimeter()`, `Perimeter()` → `PerimeterSize()`.
+
+### Tests
+
+- `test_calc_utils2d.cpp` / `test_calc_utils3d.cpp`: `ExtremePoints_*` — convex (Sunday O(log n)) and concave (brute-force) paths, diagonal/oblique directions, tilted-plane 3D polygons, hole-ignoring, and a convex-vs-brute-force agreement check. Convex binary search independently cross-checked against brute force over 200k randomized convex polygons.
+- `test_polygon2d.cpp` / `test_polygon3d.cpp`: `HasHoles_*` — presence flag and hole-ring contents with and without holes.
+- Python `TestExtremePoints`, `TestPolygon2DHoles`, `TestPolygon3DHoles`; C# `FindExtremePoints2D/3D_*`, `HasHoles*`.
 
 ### Fixed
 

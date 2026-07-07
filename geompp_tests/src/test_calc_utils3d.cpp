@@ -1,7 +1,9 @@
 #include "calc_utils3d.hpp"
 
 #include "constants.hpp"
+#include "line3d.hpp"
 #include "point3d.hpp"
+#include "polygon3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -84,7 +86,7 @@ TEST_F(CalcUtils3DTest, DistanceLineToLine_ZeroLengthInputs) {
 TEST_F(CalcUtils3DTest, IntersectionLineToLine_Intersecting) {
   // L1 along X (0..1); L2 vertical in XY at x=2 (2,-1,0)→(2,1,0). Meet at (2,0,0).
   double sc, tc;
-  auto pt = gd::intersection_line_to_line(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(2, -1, 0),
+  auto pt = gd::line_intersection(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(2, -1, 0),
                                          g::Point3D(2, 1, 0), sc, tc);
 
   ASSERT_TRUE(pt.has_value());
@@ -96,7 +98,7 @@ TEST_F(CalcUtils3DTest, IntersectionLineToLine_Intersecting) {
 TEST_F(CalcUtils3DTest, IntersectionLineToLine_SkewLinesNoIntersection) {
   // L1 along X at z=0; L2 along Y at z=5 → skew, perpendicular distance 5, no intersection point.
   double sc, tc;
-  auto pt = gd::intersection_line_to_line(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, -1, 5),
+  auto pt = gd::line_intersection(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, -1, 5),
                                          g::Point3D(0, 1, 5), sc, tc);
 
   EXPECT_FALSE(pt.has_value());
@@ -105,7 +107,7 @@ TEST_F(CalcUtils3DTest, IntersectionLineToLine_SkewLinesNoIntersection) {
 TEST_F(CalcUtils3DTest, IntersectionLineToLine_ParallelDistinctNoIntersection) {
   // Two parallel lines along X offset by 3 in Y → determinant zero → nullopt.
   double sc, tc;
-  auto pt = gd::intersection_line_to_line(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 3, 0),
+  auto pt = gd::line_intersection(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 3, 0),
                                          g::Point3D(1, 3, 0), sc, tc);
 
   EXPECT_FALSE(pt.has_value());
@@ -114,7 +116,7 @@ TEST_F(CalcUtils3DTest, IntersectionLineToLine_ParallelDistinctNoIntersection) {
 TEST_F(CalcUtils3DTest, IntersectionLineToLine_OverlapNoIntersection) {
   // Collinear lines along X → determinant zero → nullopt (treated as parallel, no unique point).
   double sc, tc;
-  auto pt = gd::intersection_line_to_line(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(3, 0, 0),
+  auto pt = gd::line_intersection(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(3, 0, 0),
                                          g::Point3D(5, 0, 0), sc, tc);
 
   EXPECT_FALSE(pt.has_value());
@@ -123,7 +125,7 @@ TEST_F(CalcUtils3DTest, IntersectionLineToLine_OverlapNoIntersection) {
 TEST_F(CalcUtils3DTest, IntersectionLineToLine_IntersectAtEndpointParams) {
   // L1 (0..2) along X, L2 from (0,-3,0) to (0,1,0). Cross at origin (sc=0 on L1, tc=0.75 on L2).
   double sc, tc;
-  auto pt = gd::intersection_line_to_line(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, -3, 0),
+  auto pt = gd::line_intersection(g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(0, -3, 0),
                                          g::Point3D(0, 1, 0), sc, tc);
 
   ASSERT_TRUE(pt.has_value());
@@ -202,6 +204,41 @@ TEST_F(CalcUtils3DTest, PrincipalAxes_TooFewPoints_Throws) {
   // principal_axes requires at least 3 points
   std::vector<g::Point3D> two_pts = {{0, 0, 0}, {1, 0, 0}};
   EXPECT_THROW(g::principal_axes(two_pts), std::runtime_error);
+}
+
+// ---- find_extreme_points (Polygon3D × Line3D) -------------------------------
+
+TEST_F(CalcUtils3DTest, ExtremePoints_ConvexDiamondXY_AlongX) {
+  // Planar CCW diamond in the XY plane; projecting onto +X isolates the left/right tips.
+  auto diamond = g::Polygon3D::Make(
+      {g::Point3D(2, 0, 0), g::Point3D(4, 2, 0), g::Point3D(2, 4, 0), g::Point3D(0, 2, 0)});
+  ASSERT_TRUE(diamond.IsConvex());  // exercises the O(log n) Sunday binary search
+  auto ex = g::find_extreme_points(diamond, g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)));
+  EXPECT_EQ(g::Point3D(0, 2, 0), ex.min_point);
+  EXPECT_EQ(g::Point3D(4, 2, 0), ex.max_point);
+}
+
+TEST_F(CalcUtils3DTest, ExtremePoints_ConvexTiltedPlane) {
+  // A convex parallelogram in the tilted plane x = z (normal ~ (-1,0,1)), CCW w.r.t. that normal.
+  // The projection-based search is dimension-agnostic, so the convex path drives 3D too.
+  auto para = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(2, 0, 2), g::Point3D(2, 2, 2), g::Point3D(0, 2, 0)});
+  ASSERT_TRUE(para.IsConvex());
+  // direction (1,1,0): proj = x + y → min at (0,0,0)=0, max at (2,2,2)=4
+  auto ex = g::find_extreme_points(para, g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0)));
+  EXPECT_EQ(g::Point3D(0, 0, 0), ex.min_point);
+  EXPECT_EQ(g::Point3D(2, 2, 2), ex.max_point);
+}
+
+TEST_F(CalcUtils3DTest, ExtremePoints_ConcavePolygon_BruteForcePath) {
+  // Non-convex planar "dart" in XY → O(n) linear scan.
+  auto dart = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+                                  g::Point3D(2, 1, 0), g::Point3D(0, 4, 0)});
+  ASSERT_FALSE(dart.IsConvex());
+  // direction (1,2,0): proj = x + 2y → min at (0,0,0)=0, max at (4,4,0)=12
+  auto ex = g::find_extreme_points(dart, g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 2, 0)));
+  EXPECT_EQ(g::Point3D(0, 0, 0), ex.min_point);
+  EXPECT_EQ(g::Point3D(4, 4, 0), ex.max_point);
 }
 
 }  // namespace geompp_tests

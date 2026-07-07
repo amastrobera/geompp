@@ -132,20 +132,13 @@ bool Polyline3D::Intersects(Polyline3D^ other) {
 
 // ── Intersection ──────────────────────────────────────────────────────────────
 
-// Helper to convert optional<variant<Point3D, vector<Point3D>>> to System::Object^
-static System::Object^ ConvertPolyline3DIntersection(
-    const geompp::Polyline3D::ReturnSet& result) {
+// Helper to convert optional<vector<Point3D>> to System::Object^ (null on miss, array otherwise)
+static array<GeomPP::Point3D^>^ ConvertPolyline3DIntersection(
+    std::optional<std::vector<geompp::Point3D>> const& result) {
     if (!result.has_value()) {
         return nullptr;
     }
-
-    auto& val = result.value();
-    if (std::holds_alternative<geompp::Point3D>(val)) {
-        return gcnew GeomPP::Point3D(new geompp::Point3D(std::get<geompp::Point3D>(val)));
-    }
-
-    // vector<Point3D>
-    auto& pts = std::get<geompp::Polyline3D::MultiPoint>(val);
+    auto const& pts = result.value();
     auto arr = gcnew array<GeomPP::Point3D^>((int)pts.size());
     for (int i = 0; i < (int)pts.size(); ++i) {
         arr[i] = gcnew GeomPP::Point3D(new geompp::Point3D(pts[i]));

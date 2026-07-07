@@ -106,6 +106,9 @@ from ._geompp import (  # noqa: F401
     principal_axes,
     principal_normal,
     principal_direction,
+    ExtremePoints2D,
+    ExtremePoints3D,
+    find_extreme_points,
 )
 
 __version__ = "1.0.0"
@@ -125,5 +128,6 @@ __all__ = [
     "signed_area", "centroid",
     "has_intersections", "find_intersections", "convex_hull",
     "CoordinateFrame", "principal_axes", "principal_normal", "principal_direction",
+    "ExtremePoints2D", "ExtremePoints3D", "find_extreme_points",
     "ProjectionType", "View2D",
 ]

@@ -1290,12 +1290,12 @@ Console.WriteLine("\nPolygon2D");
 
 Test("Perimeter_Square", () => {
   var p = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
-  Eq(4.0, p.Perimeter());
+  Eq(4.0, p.PerimeterSize());
 });
 
 Test("Perimeter_Rectangle", () => {
   var p = Polygon2D.Make(new Point2D[] { new(0,0), new(3,0), new(3,4), new(0,4) });
-  Eq(14.0, p.Perimeter());
+  Eq(14.0, p.PerimeterSize());
 });
 
 Test("Centroid_Square", () => {
@@ -1415,13 +1415,13 @@ Test("ConvexHull_StarPolygon_IsAPentagon", () => {
   Eq(5, hull.Size());
 });
 
-Test("ToPoints_RoundTrip", () => {
+Test("Perimeter_RoundTrip", () => {
   var pts = new Point2D[] { new(0,0), new(3,0), new(3,3), new(0,3) };
   var poly = Polygon2D.Make(pts);
-  var back = poly.ToPoints();
+  var back = poly.Perimeter();
   Eq(4, back.Length);
   for (int i = 0; i < pts.Length; ++i) {
-    IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after ToPoints round-trip");
+    IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after Perimeter round-trip");
   }
 });
 
@@ -1540,12 +1540,12 @@ Console.WriteLine("\nPolygon3D");
 
 Test("Perimeter_Square", () => {
   var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
-  Eq(4.0, p.Perimeter());
+  Eq(4.0, p.PerimeterSize());
 });
 
 Test("Perimeter_NonXYPlane", () => {
   var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(0,1,0), new(0,1,1), new(0,0,1) });
-  Eq(4.0, p.Perimeter());
+  Eq(4.0, p.PerimeterSize());
 });
 
 Test("Centroid_Square", () => {
@@ -1687,13 +1687,13 @@ Test("ConvexHull3D_StarPolygon_IsAPentagon", () => {
   Eq(5, hull.Size());
 });
 
-Test("ToPoints3D_RoundTrip", () => {
+Test("Perimeter3D_RoundTrip", () => {
   var pts = new Point3D[] { new(0,0,0), new(3,0,0), new(3,3,0), new(0,3,0) };
   var poly = Polygon3D.Make(pts);
-  var back = poly.ToPoints();
+  var back = poly.Perimeter();
   Eq(4, back.Length);
   for (int i = 0; i < pts.Length; ++i) {
-    IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after ToPoints round-trip");
+    IsTrue(pts[i].AlmostEquals(back[i]), $"vertex {i} mismatch after Perimeter round-trip");
   }
 });
 
@@ -3843,6 +3843,42 @@ Console.WriteLine("\nGeomUtil::PrincipalAxes/Normal/Direction");
     Test("PrincipalDirection_AlongX",     () => {
         var dir = GeomUtil.PrincipalDirection(cloud);
         Eq(1.0, Math.Abs(dir.X), 2);
+    });
+}
+
+// ── GeomUtil::FindExtremePoints ───────────────────────────────────────────────
+Console.WriteLine("\nGeomUtil::FindExtremePoints");
+{
+    // 2D convex diamond → O(log n) Sunday binary search
+    var diamond = Polygon2D.Make(new Point2D[] { new(2, 0), new(4, 2), new(2, 4), new(0, 2) });
+    Test("FindExtremePoints2D_Convex_AlongX", () => {
+        var ex = GeomUtil.FindExtremePoints(diamond, Line2D.Make(new Point2D(0, 0), new Point2D(1, 0)));
+        IsTrue(ex.MinPoint.AlmostEquals(new Point2D(0, 2)), "min");
+        IsTrue(ex.MaxPoint.AlmostEquals(new Point2D(4, 2)), "max");
+    });
+
+    // 2D concave dart → O(n) brute force
+    var dart = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(2, 1), new(0, 4) });
+    Test("FindExtremePoints2D_Concave", () => {
+        var ex = GeomUtil.FindExtremePoints(dart, Line2D.Make(new Point2D(0, 0), new Point2D(1, 2)));
+        IsTrue(ex.MinPoint.AlmostEquals(new Point2D(0, 0)), "min");
+        IsTrue(ex.MaxPoint.AlmostEquals(new Point2D(4, 4)), "max");
+    });
+
+    // 3D diamond in the XY plane
+    var diamond3 = Polygon3D.Make(new Point3D[] { new(2, 0, 0), new(4, 2, 0), new(2, 4, 0), new(0, 2, 0) });
+    Test("FindExtremePoints3D_Convex_AlongX", () => {
+        var ex = GeomUtil.FindExtremePoints(diamond3, Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0)));
+        IsTrue(ex.MinPoint.AlmostEquals(new Point3D(0, 2, 0)), "min");
+        IsTrue(ex.MaxPoint.AlmostEquals(new Point3D(4, 2, 0)), "max");
+    });
+
+    // 3D convex parallelogram in the tilted plane x = z
+    var para = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(2, 0, 2), new(2, 2, 2), new(0, 2, 0) });
+    Test("FindExtremePoints3D_TiltedPlane", () => {
+        var ex = GeomUtil.FindExtremePoints(para, Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0)));
+        IsTrue(ex.MinPoint.AlmostEquals(new Point3D(0, 0, 0)), "min");
+        IsTrue(ex.MaxPoint.AlmostEquals(new Point3D(2, 2, 2)), "max");
     });
 }
 

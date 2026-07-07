@@ -566,6 +566,7 @@
 
 </details>
 
+</details>
 
 <details open>
 <summary><b> &nbsp; 3. Planes </b></summary>
@@ -1054,6 +1055,53 @@
   
 </details>
 
+<details closed>
+<summary><b> &nbsp; &nbsp; 5.4 Polygon extreme points </b></summary>
+
+  `find_extreme_points(polygon, line)` returns the two vertices of a polygon that are **extreme** — the
+  least and the greatest — when projected onto a line's direction (the "supporting vertices" along that
+  axis). It is handy for collision broad-phase (SAT), rotating calipers, and directional clipping.
+
+  The result is an `ExtremePoints<Point2D>` (or `ExtremePoints<Point3D>`) with `.min_point` / `.max_point`.
+  When the polygon is **convex** it uses Daniel Sunday's O(log n) binary search; otherwise it falls back to
+  an O(n) linear scan. Holes are ignored — only the outer ring participates.
+
+  ```cpp
+  #include "calc_utils2d.hpp"   // find_extreme_points(Polygon2D, Line2D)
+  #include "calc_utils3d.hpp"   // find_extreme_points(Polygon3D, Line3D)
+  #include "polygon2d.hpp"
+  #include "polygon3d.hpp"
+  #include "line2d.hpp"
+  #include "line3d.hpp"
+
+  namespace g = geompp;
+
+  // Convex diamond; project onto the X-axis to get the left / right tips
+  auto diamond = g::Polygon2D::Make({
+      g::Point2D(2, 0), g::Point2D(4, 2), g::Point2D(2, 4), g::Point2D(0, 2)});
+  auto x_axis = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+
+  auto ext = g::find_extreme_points(diamond, x_axis);   // convex → O(log n)
+  GEOMPP_LOG(INFO) << "min: " << ext.min_point.ToWkt();  // POINT (0 2)
+  GEOMPP_LOG(INFO) << "max: " << ext.max_point.ToWkt();  // POINT (4 2)
+
+  // Works in 3D too — the polygon may lie in any plane
+  auto para = g::Polygon3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(2, 0, 2),
+      g::Point3D(2, 2, 2), g::Point3D(0, 2, 0)});
+  auto dir = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0));
+  auto ext3 = g::find_extreme_points(para, dir);
+  GEOMPP_LOG(INFO) << ext3.min_point.ToWkt() << " .. " << ext3.max_point.ToWkt();
+  ```
+
+  ```bash
+  min: POINT (0 2)
+  max: POINT (4 2)
+  POINT (0 0 0) .. POINT (2 2 2)
+  ```
+
+</details>
+
 </details>
 
 
@@ -1086,26 +1134,25 @@
 
   ## Roadmap
 
-  See [development plan](./development_plan.md) for the full task list. High-level:
+  High-level development plan:
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); `Triangle2D/3D::Location()` (barycentric coords); `Polygon2D/3D::Contains()` (winding number); `Triangle3D::Contains()` (barycentric, no projection); `Triangle3D::Intersection(×Line/Ray/Seg/Plane/△)` and the symmetric `Plane::Intersection(Triangle3D)`; `Line3D/Ray3D/LineSegment3D::Distance(...)` and `DistanceTo(...)` between every pair of 3D linear primitives + `LineSegment3D::Flip()`; `Polygon2D::IsSimple()` via `has_intersections` (Shamos–Hoey) and `find_intersections` (Bentley–Ottmann) on the new `calc_utils2d` sweep-line module (`EventQueue2D`, `SweepLineComparator`, `SweepLine2D`) plus 2D helpers `is_left` / `is_right` / `intersect(seg, seg)`; `convex_hull(vector<Point2D>)` (Andrew's monotone chain) |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; extreme points, polygon tangents, polyline decimation |
   | Next | TBC |
-  | Backlog | adjacency, polygon clipping, definition of "non-planar polygon" or mesh, triangulation/polygonization, graphic geometry viewer |
+  | Backlog | adjacency, polygon clipping; boolean operations (union, intersection, difference); definition of "non-planar polygon" or PolyMesh, triangulation/polygonization, graphic geometry viewer (may be on another repo)|
 
 
-  I am at improving the test coverage, see how in [test coverage plan](./test_coverage_plan.md).
+  This is the summary of the current test coverage. More on [test coverage](./test_coverage_report.md).
 
   | Metric | Count | Notes |
   |--------|-------|-------|
-  | Public methods | ~399 | Excl. ctors/dtors/operators |
-  | C++ tested | ~355 | ~89% |
-  | Python tested | ~210 | ~53% |
-  | C# tested | ~215 | ~54% |
+  | Public methods | ~405 | Excl. ctors/dtors/operators |
+  | C++ tested | ~361 | ~89% |
+  | Python tested | ~216 | ~53% |
+  | C# tested | ~221 | ~55% |
   | Stubs (not yet impl.) | 10 | Polygon2D/3D::DistanceTo; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
 
-  More on [test coverage](./test_coverage_report.md).
 
 
   ## For developers

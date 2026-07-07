@@ -1214,21 +1214,21 @@ class TestPolygon2D:
 
     def test_perimeter_square(self, square):
         # 1×1 square → perimeter = 4
-        assert approx(square.perimeter(), 4.0)
+        assert approx(square.perimeter_size(), 4.0)
 
     def test_perimeter_rectangle(self):
         p = geompp.Polygon2D.make([
             geompp.Point2D(0, 0), geompp.Point2D(3, 0),
             geompp.Point2D(3, 4), geompp.Point2D(0, 4),
         ])
-        assert approx(p.perimeter(), 14.0)
+        assert approx(p.perimeter_size(), 14.0)
 
     def test_perimeter_triangle(self):
         # 3-4-5 right triangle → perimeter = 12
         p = geompp.Polygon2D.make([
             geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(0, 3),
         ])
-        assert approx(p.perimeter(), 12.0)
+        assert approx(p.perimeter_size(), 12.0)
 
     def test_to_segments(self, square):
         segs = square.to_segments()
@@ -1556,7 +1556,7 @@ class TestPolygon3D:
             geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
             geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
         ]
-        assert approx(geompp.Polygon3D.make(pts).perimeter(), 4.0)
+        assert approx(geompp.Polygon3D.make(pts).perimeter_size(), 4.0)
 
     def test_perimeter_non_xy_plane(self):
         # 1×1 square on YZ plane → same perimeter = 4
@@ -1564,14 +1564,14 @@ class TestPolygon3D:
             geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
             geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
         ]
-        assert approx(geompp.Polygon3D.make(pts).perimeter(), 4.0)
+        assert approx(geompp.Polygon3D.make(pts).perimeter_size(), 4.0)
 
     def test_perimeter_triangle(self):
         # 3-4-5 right triangle → perimeter = 12
         pts = [
             geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 3, 0),
         ]
-        assert approx(geompp.Polygon3D.make(pts).perimeter(), 12.0)
+        assert approx(geompp.Polygon3D.make(pts).perimeter_size(), 12.0)
 
     def test_get_plane_returns_plane(self):
         pts = [
@@ -3997,6 +3997,55 @@ class TestSegmentIntersections:
         assert any(approx(h.x, 2.0) and approx(h.y, 2.0) for h in hits)
 
 
+# --- find_extreme_points (polygon extreme vertices along a line) ---
+class TestExtremePoints:
+    def test_convex_diamond_along_x(self):
+        diamond = geompp.Polygon2D.make([
+            geompp.Point2D(2, 0), geompp.Point2D(4, 2),
+            geompp.Point2D(2, 4), geompp.Point2D(0, 2)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        ex = geompp.find_extreme_points(diamond, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 2)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 2)
+
+    def test_convex_square_diagonal(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        ex = geompp.find_extreme_points(square, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 0)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 4)
+
+    def test_concave_polygon_brute_force(self):
+        dart = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        assert not dart.is_convex()
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 2))
+        ex = geompp.find_extreme_points(dart, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 0)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 4)
+
+    def test_polygon3d_along_x(self):
+        diamond = geompp.Polygon3D.make([
+            geompp.Point3D(2, 0, 0), geompp.Point3D(4, 2, 0),
+            geompp.Point3D(2, 4, 0), geompp.Point3D(0, 2, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        ex = geompp.find_extreme_points(diamond, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 2)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 2)
+
+    def test_polygon3d_tilted_plane(self):
+        para = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 2),
+            geompp.Point3D(2, 2, 2), geompp.Point3D(0, 2, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        ex = geompp.find_extreme_points(para, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 0) and approx(ex.min_point.z, 0)
+        assert approx(ex.max_point.x, 2) and approx(ex.max_point.y, 2) and approx(ex.max_point.z, 2)
+
+
 # --- convex hull (Andrew's monotone chain) ---
 class TestConvexHull:
     def test_few_points_returns_as_is(self):
@@ -4121,7 +4170,7 @@ class TestConvexHull3D:
                        for h in hull), f"tip {tip} should be on hull"
 
 
-# --- Polygon2D.convex_hull / to_points ---
+# --- Polygon2D.convex_hull / perimeter ---
 class TestPolygon2DConvexHull:
     def _star(self):
         return geompp.Polygon2D.make([
@@ -4144,17 +4193,17 @@ class TestPolygon2DConvexHull:
         hull = square.convex_hull()
         assert hull.size() == 4
 
-    def test_to_points_round_trip(self):
+    def test_perimeter_round_trip(self):
         pts = [geompp.Point2D(0, 0), geompp.Point2D(3, 0),
                geompp.Point2D(3, 3), geompp.Point2D(0, 3)]
         poly = geompp.Polygon2D.make(pts)
-        back = poly.to_points()
+        back = poly.perimeter()
         assert len(back) == 4
         for orig, restored in zip(pts, back):
             assert approx(orig.x, restored.x) and approx(orig.y, restored.y)
 
 
-# --- Polygon3D.convex_hull / to_points ---
+# --- Polygon3D.convex_hull / perimeter ---
 class TestPolygon3DConvexHull:
     def _star3d(self):
         return geompp.Polygon3D.make([
@@ -4177,11 +4226,11 @@ class TestPolygon3DConvexHull:
         hull = square.convex_hull()
         assert hull.size() == 4
 
-    def test_to_points_round_trip(self):
+    def test_perimeter_round_trip(self):
         pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0),
                geompp.Point3D(3, 3, 0), geompp.Point3D(0, 3, 0)]
         poly = geompp.Polygon3D.make(pts)
-        back = poly.to_points()
+        back = poly.perimeter()
         assert len(back) == 4
         for orig, restored in zip(pts, back):
             assert (approx(orig.x, restored.x) and approx(orig.y, restored.y)

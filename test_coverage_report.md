@@ -1,16 +1,16 @@
 # Test Coverage Report
 
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-07_
 
 ## Overall
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (total) | ~408 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
+| Public methods (total) | ~414 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
 | Stubs (`throw "not implemented"`) | 13 | Listed per class below |
-| C++ explicit tests | ~476 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~207 | At least one `test_*` function calls the method |
-| C# explicit tests | ~214 | At least one test in `Program.cs` exercises the method |
+| C++ explicit tests | ~490 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~216 | At least one `test_*` function calls the method |
+| C# explicit tests | ~222 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -32,8 +32,8 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py); new `ConvexHull()` (Melkman) tested in all three |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
-| `Polygon2D` | ✓ all key | ✓ all key | ✓ most | `DistanceTo` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); `IsSimple()` and `ConvexHull()` tested in all three; `Intersection(×Line/Ray/Seg)` now implemented and tested in all three |
-| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three |
+| `Polygon2D` | ✓ all key | ✓ all key | ✓ most | `DistanceTo` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); `IsSimple()` and `ConvexHull()` tested in all three; `Intersection(×Line/Ray/Seg)` now implemented and tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&` |
+| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&` |
 | `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, `Location`, all `Intersection` (Py) |
 | `Triangle3D` | ✓ most | ✓ most | ✓ most | `DistanceTo` ★ | new `Intersection(×Plane/△)` and the existing `Intersection(×Line/Ray/Seg)` are covered in all three languages |
 | `Plane` | ✓ all key | ✓ all key | ✓ most | — | `Intersection(Triangle3D)` now delegates to the symmetric `Triangle3D::Intersection(Plane)` (no stub remaining) |
@@ -42,8 +42,8 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |
 | `GeometryCollection2D` | ✓ core | ✓ partial | ✓ most | — | — |
 | `GeometryCollection3D` | ✓ core | ✓ partial | ✓ most | — | — |
-| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `has_intersections_impl`, `find_intersections_impl`, `convex_hull_indices`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module (internal); `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; public wrappers `has_intersections` / `find_intersections` (in `line_segment2d.hpp`) + `Polygon2D::IsSimple` tested in all three languages; `convex_hull_indices` exercised via `convex_hull` tests |
-| `calc_utils3d` (`convex_hull_indices`) | ✓ all key | ✓ core | ✓ core | — | Internal 3D hull solver; exercised via `convex_hull(list[Point3D])` free function and `Polygon3D::ConvexHull()` in all three languages; covers XY, YZ, and ZX plane projections |
+| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `has_intersections_impl`, `find_intersections_impl`, `convex_hull_indices`, `extreme_points_impl`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module (internal); `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; public wrappers `has_intersections` / `find_intersections` (in `line_segment2d.hpp`) + `Polygon2D::IsSimple` tested in all three languages; `convex_hull_indices` exercised via `convex_hull` tests; new `find_extreme_points(Polygon2D, Line2D)` + `extreme_points_impl` (Sunday convex O(log n) + brute-force) tested in all three languages and cross-checked vs brute force over 200k random convex polygons |
+| `calc_utils3d` (`convex_hull_indices`, `find_extreme_points`) | ✓ all key | ✓ core | ✓ core | — | Internal 3D hull solver; exercised via `convex_hull(list[Point3D])` free function and `Polygon3D::ConvexHull()` in all three languages; covers XY, YZ, and ZX plane projections; new `find_extreme_points(Polygon3D, Line3D)` tested in all three languages (XY and tilted-plane polygons) |
 
 ---
 
@@ -76,6 +76,7 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 - **Operator overloads** (`operator<<`, `operator=`, arithmetic) are implicitly exercised by other tests even when not explicitly targeted.
 - **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`has_intersections_impl` / `find_intersections_impl`) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case). Public `has_intersections` / `find_intersections` wrappers (now in `line_segment2d.hpp`) tested via the existing suite.
 - **`convex_hull`**: Andrew's monotone chain implemented in `calc_utils2d` (`convex_hull_indices`), exposed via `point2d.hpp`. Tested in all three languages including an asymmetric star whose hull must be exactly the 5 outer tips.
+- **`find_extreme_points`**: `detail::extreme_points_impl` is a dimension-agnostic template (compares only scalar projections). The convex fast-path is Daniel Sunday's O(log n) binary search; non-convex polygons use an O(n) scan. Tested in all three languages for convex (diamond/square/hexagon), concave (dart), hole-bearing (holes ignored), and 3D (XY + tilted-plane) polygons, plus a C++ convex-vs-brute-force equality check. The convex search was additionally cross-validated against brute force over 200k randomized convex polygons and directions (0 mismatches).
 
 ---
 

@@ -1,6 +1,8 @@
 #include "calc_utils3d.hpp"
 
 #include "calc_utils2d.hpp"
+#include "line3d.hpp"
+#include "polygon3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 #include "view2d.hpp"
@@ -55,8 +57,8 @@ void distance_line_to_line(Point3D const& L1_P0, Point3D const& L1_P1, Point3D c
   }
 }
 
-std::optional<Point3D> intersection_line_to_line(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0,
-                                                 Point3D const& L2_P1, double& sc, double& tc) {
+std::optional<Point3D> line_intersection(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0,
+                                         Point3D const& L2_P1, double& sc, double& tc) {
   try {
     // input parameters: this line as P0 + s*DIR, other as Q0 + t*DIR
     //
@@ -65,8 +67,28 @@ std::optional<Point3D> intersection_line_to_line(Point3D const& L1_P0, Point3D c
     //      - and later verify that this distance is nearly zero
     //        (intersection) or not (skew lines)
     //
-    //  solving system   | u*u u*v | | s |  =  | u*w0 |
-    //                   | u*v v*v | | t |     | v*w0 |
+    // Let L1 be defined by P0 + s*U, and L2 by Q0 + t*V, where U = P1 - P0, V = Q1 - Q0
+    //  L1: P0 + s*U
+    //  L2: Q0 + t*V
+    //    Let w0 = P0 - Q0
+    //  W(s,t) = L1(s) - L2(t) = w0 + s*U - t*V
+    //  ... we are looking for the (s,t) that minimize the distance, that is the lenght of W(s,t)
+    //
+    //  Geometrically, the minimum distance occurs when W(s,t) is perpendicular to both lines, that is:
+    //  W(s,t) . U = 0
+    //  W(s,t) . V = 0
+    //
+    //  when we expand this out, we get the following system of equations:
+    //  (u.u)*s - (v.u)*t = -v.w0
+    //  (u.v)*s - (v.v)*t = -v.w0
+    //
+    //  which we can re-write as a system of equaltion
+    //
+    //  | u*u -u*v | | s |  =  | -u*w0 |
+    //  | u*v -v*v | | t |     | -v*w0 |
+    //
+    // and then solve the system for s,t
+    //
     Point3D P0 = L1_P0;
     Point3D P1 = L1_P1;
     Point3D Q0 = L2_P0;
@@ -296,6 +318,11 @@ bool is_convex(std::vector<Point3D> const& vertices, std::vector<std::vector<Poi
   Axis dax = normal.DominantAxis();
   View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
   return detail::is_convex_with_view(vertices, view);
+}
+
+ExtremePoints<Point3D> find_extreme_points(Polygon3D const& polygon, Line3D const& line) {
+  auto [min_i, max_i] = detail::extreme_points_impl(polygon.Perimeter(), polygon.IsConvex(), line.Direction());
+  return {polygon[min_i], polygon[max_i]};
 }
 
 }  // namespace geompp

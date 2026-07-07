@@ -9,6 +9,8 @@
 #include <compare>
 #include <optional>
 #include <queue>
+#include <ranges>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -19,6 +21,15 @@ namespace geompp {
 // and geompp::SegmentRange2D, not shadow types.
 class Polygon2D;
 class SegmentRange2D;
+class Line2D;
+
+/// @brief The pair of points on a shape that are extreme (least / greatest) along a given direction.
+/// @tparam PointT Point2D or Point3D.
+template <typename PointT>
+struct ExtremePoints {
+  PointT min_point;
+  PointT max_point;
+};
 
 namespace detail {
 
@@ -26,6 +37,27 @@ namespace detail {
 // and finds geompp::Point2D (which is fully defined via "point2d.hpp" above).
 // Do NOT add 'class Point2D;' or 'using Point2D = ...' here — MSVC mangles alias
 // names differently from the canonical type in explicit template instantiations.
+
+/// @brief Indices of the two vertices extreme (least / greatest projection) along a direction.
+/// @tparam V a vector type supporting Dot (Vector2D / Vector3D).
+/// @tparam R a forward range of points, each supporting ToVector().Dot(V) (e.g. std::vector<Point2D/3D>).
+/// @param vertices ordered polygon vertices (CCW). For the convex fast-path they must form a convex ring.
+/// @param is_convex when true, uses Daniel Sunday's O(log n) binary search; otherwise an O(n) linear scan.
+/// @param dir direction to measure extremeness along (e.g. a line's direction).
+/// @returns {min_index, max_index} — indices into @p vertices of the least- and greatest-projected points.
+/// @throws std::invalid_argument if @p vertices is empty.
+///
+/// The convex binary search only ever compares scalar projections proj(i) = vertices[i].ToVector().Dot(dir),
+/// so it is dimension-agnostic: the same code drives Point2D and Point3D rings. Defined in calc_utils2d.cpp;
+/// only the two instantiations below are available (extern template suppresses implicit instantiation
+/// elsewhere, matching convex_hull_monotone_chain / is_convex_with_view in this same header).
+template <VectorType V, ProjectablePointContainerWith<V> R>
+std::pair<std::size_t, std::size_t> extreme_points_impl(R const& vertices, bool is_convex, V const& dir);
+
+extern template std::pair<std::size_t, std::size_t> extreme_points_impl(std::vector<Point2D> const&, bool,
+                                                                        Vector2D const&);
+extern template std::pair<std::size_t, std::size_t> extreme_points_impl(std::vector<Point3D> const&, bool,
+                                                                        Vector3D const&);
 
 std::partial_ordering compare_event_point(Point2D a, Point2D b);  // for ordering events in the sweep line algorithm
 
@@ -149,9 +181,8 @@ class SweepLine2D {
 /// @param sc  Output: parameter along the first line at the intersection.
 /// @param tc  Output: parameter along the second line at the intersection.
 /// @return The intersection point, or std::nullopt for parallel lines.
-std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1,
-                                         Point2D const& other_p0, Point2D const& other_p1,
-                                         double& sc, double& tc);
+std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
+                                         Point2D const& other_p1, double& sc, double& tc);
 
 /// @brief the Shamos-Hoey algorithm for checking polygon simplicity (no self-intersections)
 /// @param segments list of segments (can be generic list of segments or segments of the polygon)
@@ -308,4 +339,12 @@ extern template bool polygon_contains_with_view(std::vector<Point3D> const&, std
                                                 View2D const&, double, double);
 
 }  // namespace detail
+
+/// @brief Finds the two vertices of a polygon that are extreme (least / greatest projection) along a line.
+/// Uses Daniel Sunday's O(log n) binary search when the polygon is convex, else an O(n) linear scan.
+/// @param polygon The polygon whose vertices are searched (holes are ignored — only the outer ring matters).
+/// @param line    The line whose Direction() defines the axis of projection.
+/// @returns ExtremePoints{min_point, max_point} — the outer-ring vertices with least / greatest projection.
+ExtremePoints<Point2D> find_extreme_points(Polygon2D const& polygon, Line2D const& line);
+
 }  // namespace geompp

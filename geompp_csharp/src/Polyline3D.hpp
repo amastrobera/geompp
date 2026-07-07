@@ -51,8 +51,7 @@ public:
     bool Intersects(LineSegment3D^ segment);
     bool Intersects(Polyline3D^ other);
 
-    // Intersection — optional<variant<Point3D, vector<Point3D>>> → System::Object^
-    // (Point3D^ or array<Point3D^>^ or nullptr)
+    // Intersection — optional<vector<Point3D>> → System::Object^ (array<Point3D^>^ or nullptr)
     System::Object^ Intersection(Line3D^ line);
     System::Object^ Intersection(Ray3D^ ray);
     System::Object^ Intersection(LineSegment3D^ segment);

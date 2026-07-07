@@ -1,5 +1,6 @@
 #pragma once
 
+#include "calc_utils2d.hpp"  // ExtremePoints<> and detail::extreme_points_impl (shared with 2D)
 #include "constants.hpp"
 #include "coordinate_frame.hpp"
 #include "point3d.hpp"
@@ -7,13 +8,17 @@
 #include <optional>
 
 namespace geompp {
+
+class Polygon3D;
+class Line3D;
+
 namespace detail {
 
 void distance_line_to_line(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0, Point3D const& L2_P1,
                            double& sc, double& tc);
 
-std::optional<Point3D> intersection_line_to_line(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0,
-                                                 Point3D const& L2_P1, double& sc, double& tc);
+std::optional<Point3D> line_intersection(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0,
+                                         Point3D const& L2_P1, double& sc, double& tc);
 
 /// @brief the Andrew's Monotone Chain algorithm to make a convex hull. It assumes the points to be all co-planar, and
 /// uses the dominant normal axis to project points in 2D
@@ -55,5 +60,12 @@ Vector3D principal_direction(std::vector<Point3D> const& points);
 /// @param normal polygon normal (plane onto which the math will be done)
 bool is_convex(std::vector<Point3D> const& vertices, std::vector<std::vector<Point3D>> const& holes,
                Vector3D const& normal);
+
+/// @brief Finds the two vertices of a polygon that are extreme (least / greatest projection) along a line.
+/// Uses Daniel Sunday's O(log n) binary search when the polygon is convex, else an O(n) linear scan.
+/// @param polygon The polygon whose vertices are searched (holes are ignored — only the outer ring matters).
+/// @param line    The line whose Direction() defines the axis of projection.
+/// @returns ExtremePoints{min_point, max_point} — the outer-ring vertices with least / greatest projection.
+ExtremePoints<Point3D> find_extreme_points(Polygon3D const& polygon, Line3D const& line);
 
 }  // namespace geompp

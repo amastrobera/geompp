@@ -60,7 +60,7 @@ int Polygon3D::Size() {
 }
 
 Point3D^ Polygon3D::default::get(int i) {
-    return gcnew Point3D(new geompp::Point3D((*_native)[i]));
+    return gcnew Point3D(new geompp::Point3D((*_native)[(std::size_t)i]));
 }
 
 bool Polygon3D::AlmostEquals(Polygon3D^ other) {
@@ -83,8 +83,8 @@ double Polygon3D::Area() {
     return _native->Area();
 }
 
-double Polygon3D::Perimeter() {
-    return _native->Perimeter();
+double Polygon3D::PerimeterSize() {
+    return _native->PerimeterSize();
 }
 
 double Polygon3D::DistanceTo(Point3D^ point) {
@@ -120,8 +120,8 @@ array<Polygon3D^>^ Polygon3D::Simplify() {
     return arr;
 }
 
-array<Point3D^>^ Polygon3D::ToPoints() {
-    auto const& native = _native->ToPoints();
+array<Point3D^>^ Polygon3D::Perimeter() {
+    auto const& native = _native->Perimeter();
     auto arr = gcnew array<Point3D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Point3D(new geompp::Point3D(native[i]));

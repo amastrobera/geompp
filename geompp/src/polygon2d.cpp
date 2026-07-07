@@ -166,7 +166,7 @@ double Polygon2D::Area() const {
   return area;
 }
 
-double Polygon2D::Perimeter() const { return PERIMETER; }
+double Polygon2D::PerimeterSize() const { return PERIMETER; }
 
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
@@ -194,7 +194,7 @@ Polygon2D Polygon2D::ConvexHull() {
   return Make(cv_points);
 }
 
-std::vector<Point2D> const& Polygon2D::ToPoints() const { return VERTICES; }
+std::vector<Point2D> const& Polygon2D::Perimeter() const { return VERTICES; }
 
 std::vector<Polygon2D> Polygon2D::Simplify() const {
   if (IsSimple()) {
@@ -300,7 +300,7 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
 
 bool operator==(Polygon2D const& lhs, Polygon2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Point2D const& Polygon2D::operator[](int i) const {
+Point2D const& Polygon2D::operator[](std::size_t i) const {
   if (i >= Size()) {
     throw std::out_of_range("Index out of range");
   }

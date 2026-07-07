@@ -124,20 +124,13 @@ bool Polyline2D::Intersects(Polyline2D^ other) {
 
 // ── Intersection ──────────────────────────────────────────────────────────────
 
-// Helper to convert optional<variant<Point2D, vector<Point2D>>> to System::Object^
-static System::Object^ ConvertPolyline2DIntersection(
-    const geompp::Polyline2D::ReturnSet& result) {
+// Helper to convert optional<vector<Point2D>> to System::Object^ (null on miss, array otherwise)
+static array<GeomPP::Point2D^>^ ConvertPolyline2DIntersection(
+    std::optional<std::vector<geompp::Point2D>> const& result) {
     if (!result.has_value()) {
         return nullptr;
     }
-
-    auto& val = result.value();
-    if (std::holds_alternative<geompp::Point2D>(val)) {
-        return gcnew GeomPP::Point2D(new geompp::Point2D(std::get<geompp::Point2D>(val)));
-    }
-
-    // vector<Point2D>
-    auto& pts = std::get<geompp::Polyline2D::MultiPoint>(val);
+    auto const& pts = result.value();
     auto arr = gcnew array<GeomPP::Point2D^>((int)pts.size());
     for (int i = 0; i < (int)pts.size(); ++i) {
         arr[i] = gcnew GeomPP::Point2D(new geompp::Point2D(pts[i]));

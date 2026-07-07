@@ -192,7 +192,7 @@ double Polygon3D::Area() const {
   return area;
 }
 
-double Polygon3D::Perimeter() const { return PERIMETER; }
+double Polygon3D::PerimeterSize() const { return PERIMETER; }
 
 bool Polygon3D::IsSimple() const {
   Axis dax = PLANE.normal().DominantAxis();
@@ -388,7 +388,7 @@ Polygon3D Polygon3D::ConvexHull() {
   return Make(cv_points);
 }
 
-std::vector<Point3D> const& Polygon3D::ToPoints() const { return VERTICES; }
+std::vector<Point3D> const& Polygon3D::Perimeter() const { return VERTICES; }
 
 double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
@@ -396,7 +396,7 @@ double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_er
 
 bool operator==(Polygon3D const& lhs, Polygon3D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Point3D const& Polygon3D::operator[](int i) const {
+Point3D const& Polygon3D::operator[](std::size_t i) const {
   if (i >= Size()) {
     throw std::out_of_range("Index out of range");
   }

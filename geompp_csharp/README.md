@@ -1029,6 +1029,45 @@ A quick list of code examples per topic is provided here.
   
 </details>
 
+<details closed>
+<summary><b> &nbsp; &nbsp; 5.4 Polygon extreme points </b></summary>
+
+  `GeomUtil.FindExtremePoints(polygon, line)` returns the two vertices of a polygon that are **extreme** —
+  the least and the greatest — when projected onto a line's direction (the "supporting vertices" along that
+  axis). It is handy for collision broad-phase (SAT), rotating calipers, and directional clipping.
+
+  The result is an `ExtremePoints2D` (or `ExtremePoints3D`) with `.MinPoint` / `.MaxPoint`. When the
+  polygon is **convex** it uses Daniel Sunday's O(log n) binary search; otherwise it falls back to an
+  O(n) linear scan. Holes are ignored — only the outer ring participates.
+
+  ```csharp
+  using G = GeomPP;
+
+  // Convex diamond; project onto the X-axis to get the left / right tips
+  var diamond = G.Polygon2D.Make(new G.Point2D[] {
+      new(2, 0), new(4, 2), new(2, 4), new(0, 2) });
+  var xAxis = G.Line2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0));
+
+  var ext = G.GeomUtil.FindExtremePoints(diamond, xAxis);   // convex → O(log n)
+  Console.WriteLine($"min: {ext.MinPoint.ToWkt()}");         // POINT (0 2)
+  Console.WriteLine($"max: {ext.MaxPoint.ToWkt()}");         // POINT (4 2)
+
+  // Works in 3D too — the polygon may lie in any plane
+  var para = G.Polygon3D.Make(new G.Point3D[] {
+      new(0, 0, 0), new(2, 0, 2), new(2, 2, 2), new(0, 2, 0) });
+  var dir = G.Line3D.Make(new G.Point3D(0, 0, 0), new G.Point3D(1, 1, 0));
+  var ext3 = G.GeomUtil.FindExtremePoints(para, dir);
+  Console.WriteLine($"{ext3.MinPoint.ToWkt()} .. {ext3.MaxPoint.ToWkt()}");
+  ```
+
+  ```
+  min: POINT (0 2)
+  max: POINT (4 2)
+  POINT (0 0 0) .. POINT (2 2 2)
+  ```
+
+</details>
+
 </details>
 
 

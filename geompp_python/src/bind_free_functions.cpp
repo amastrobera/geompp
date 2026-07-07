@@ -2,7 +2,12 @@
 
 #include "line_segment2d.hpp"  // has_intersections / find_intersections
 #include "point2d.hpp"         // convex_hull
-#include "calc_utils3d.hpp"    // principal_axes / principal_normal / principal_direction
+#include "calc_utils2d.hpp"    // ExtremePoints / find_extreme_points (2D)
+#include "calc_utils3d.hpp"    // principal_axes / principal_normal / principal_direction / find_extreme_points (3D)
+#include "line2d.hpp"
+#include "line3d.hpp"
+#include "polygon2d.hpp"
+#include "polygon3d.hpp"
 
 void bind_free_functions(py::module_& m) {
     py::class_<geompp::CoordinateFrame>(m, "CoordinateFrame",
@@ -10,6 +15,16 @@ void bind_free_functions(py::module_& m) {
         .def_readonly("x", &geompp::CoordinateFrame::X, "Primary axis — direction of largest variance.")
         .def_readonly("y", &geompp::CoordinateFrame::Y, "Secondary axis — direction of second largest variance.")
         .def_readonly("z", &geompp::CoordinateFrame::Z, "Normal — direction of least variance (best-fit plane normal).");
+
+    py::class_<geompp::ExtremePoints<geompp::Point2D>>(m, "ExtremePoints2D",
+        "The two vertices of a 2D shape extreme (least / greatest projection) along a direction.")
+        .def_readonly("min_point", &geompp::ExtremePoints<geompp::Point2D>::min_point, "Vertex with least projection.")
+        .def_readonly("max_point", &geompp::ExtremePoints<geompp::Point2D>::max_point, "Vertex with greatest projection.");
+
+    py::class_<geompp::ExtremePoints<geompp::Point3D>>(m, "ExtremePoints3D",
+        "The two vertices of a 3D shape extreme (least / greatest projection) along a direction.")
+        .def_readonly("min_point", &geompp::ExtremePoints<geompp::Point3D>::min_point, "Vertex with least projection.")
+        .def_readonly("max_point", &geompp::ExtremePoints<geompp::Point3D>::max_point, "Vertex with greatest projection.");
 
     m.def("are_collinear",
           [](const geompp::Point2D& p1, const geompp::Point2D& p2, const geompp::Point2D& p3) {
@@ -156,4 +171,23 @@ void bind_free_functions(py::module_& m) {
           [](const std::vector<geompp::Point3D>& pts) { return geompp::principal_direction(pts); },
           "points"_a,
           "Dominant direction of a 3D point cloud (PCA eigenvector with largest eigenvalue).");
+
+    // ── polygon extreme points along a line ───────────────────────────────────────────────────
+    m.def("find_extreme_points",
+          [](const geompp::Polygon2D& polygon, const geompp::Line2D& line) {
+              return geompp::find_extreme_points(polygon, line);
+          },
+          "polygon"_a, "line"_a,
+          "The outer-ring vertices of the polygon extreme (least / greatest projection) along the line's "
+          "direction, as ExtremePoints2D(min_point, max_point). Uses Daniel Sunday's O(log n) binary search "
+          "when the polygon is convex, else an O(n) scan. Holes are ignored.");
+
+    m.def("find_extreme_points",
+          [](const geompp::Polygon3D& polygon, const geompp::Line3D& line) {
+              return geompp::find_extreme_points(polygon, line);
+          },
+          "polygon"_a, "line"_a,
+          "The outer-ring vertices of the polygon extreme (least / greatest projection) along the line's "
+          "direction, as ExtremePoints3D(min_point, max_point). Uses Daniel Sunday's O(log n) binary search "
+          "when the polygon is convex, else an O(n) scan. Holes are ignored.");
 }

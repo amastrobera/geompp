@@ -231,27 +231,22 @@ std::optional<LineSegment2D> LineSegment2D::Overlap(Ray2D const& ray) const {
     return std::nullopt;
   }
 
-  // determine what line segment is in common if any
   bool ray_has_first = ray.Contains(P0);
   bool ray_has_last = ray.Contains(P1);
 
-  // case 1: nothing in common, except parallelism
   if (!ray_has_first && !ray_has_last) {
     return std::nullopt;
   }
-
-  // case 2: the ray has the first point
-  if (ray_has_first && !ray_has_last) {
-    return {P0, ray.Origin()};
+  if (ray_has_first && ray_has_last) {
+    return *this;
   }
 
-  // case 3: the ray has the last point
-  if (!ray_has_first && ray_has_last) {
-    return {ray.Origin(), P1};
+  // one endpoint on the ray: overlap runs from ray.Origin() to that endpoint
+  Point2D const& end_pt = ray_has_first ? P0 : P1;
+  if (ray.Origin().AlmostEquals(end_pt)) {
+    return std::nullopt;  // single-point touch
   }
-
-  // case 4: the ray has both points, the overlap is the segment itself
-  return *this;
+  return LineSegment2D::Make(ray.Origin(), end_pt);
 }
 
 std::optional<LineSegment2D> LineSegment2D::Overlap(LineSegment2D const& other) const {
@@ -260,64 +255,42 @@ std::optional<LineSegment2D> LineSegment2D::Overlap(LineSegment2D const& other) 
     return std::nullopt;
   }
 
-  // if parallel, let's check which contains which
-  bool this_contains_first = Contains(other.P0);
-  bool this_contains_last = Contains(other.P1);
-  bool other_contains_first = other.Contains(P0);
-  bool other_contains_last = other.Contains(P1);
-
-  // case 1: no point in common, except parallelism
-  if (!this_contains_first && !this_contains_last &&  //
-      !other_contains_first && !other_contains_last) {
+  // collect all endpoints that lie inside both segments
+  std::vector<Point2D> candidates;
+  if (other.Contains(P0)) {
+    candidates.push_back(P0);
+  }
+  if (other.Contains(P1)) {
+    candidates.push_back(P1);
+  }
+  if (Contains(other.First())) {
+    candidates.push_back(other.First());
+  }
+  if (Contains(other.Last())) {
+    candidates.push_back(other.Last());
+  }
+  if (candidates.empty()) {
     return std::nullopt;
   }
 
-  // case 2: this segment fully contains the other
-  if (this_contains_first && this_contains_last &&  //
-      !other_contains_first && !other_contains_last) {
-    if (compare(P0.DistanceTo(other.P1), P1.DistanceTo(other.P0)) < 0) {
-      return other.Reversed();
+  // find the two extremes using this segment's parametric axis
+  Point2D lo = candidates[0], hi = candidates[0];
+  double lo_t = Location(lo), hi_t = lo_t;
+  for (auto const& c : candidates) {
+    double t = Location(c);
+    if (compare(t, lo_t) < 0) {
+      lo_t = t;
+      lo = c;
     }
-    return other;
-  }
-
-  // case 3: the other fully contains this segment
-  if (!this_contains_first && !this_contains_last &&  //
-      other_contains_first && other_contains_last) {
-    if (compare(other.P0.DistanceTo(P1), other.P1.DistanceTo(P0)) < 0) {
-      return Reversed();
+    if (compare(t, hi_t) > 0) {
+      hi_t = t;
+      hi = c;
     }
-    return *this;
   }
-
-  // case 4: the segments partially overlap, we need to find the two extremes
-
-  // \_ case 4a: this segment contains the first point of the other, but not the last
-  if (this_contains_first && !this_contains_last &&  //
-      !other_contains_first && other_contains_last) {
-    return {other.P0, P1};
+  if (lo.AlmostEquals(hi)) {
+    return std::nullopt;  // single-point touch
   }
-
-  // \_ case 4b: this segment contains the last point of the other, but not the first
-  if (!this_contains_first && this_contains_last &&  //
-      other_contains_first && !other_contains_last) {
-    return {P0, other.P1};
-  }
-
-  // \_ case 4c: the other segment contains the first point of this, but not the last
-  if (!this_contains_first && this_contains_last &&  //
-      !other_contains_first && other_contains_last) {
-    return {P1, other.P1};
-  }
-
-  // \_ case 4d: the other segment contains the last point of this, but not the first
-  if (this_contains_first && !this_contains_last &&  //
-      other_contains_first && !other_contains_last) {
-    return {other.P0, P0};
-  }
-
-  // impossible (we have handled all cases)
-  throw std::runtime_error("unexpected case in LineSegment2D::Overlap");
+  return LineSegment2D::Make(lo, hi);
 }
 
 std::optional<std::vector<LineSegment2D>> LineSegment2D::Overlap(Polyline2D const& polyline) const {

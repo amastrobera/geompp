@@ -173,7 +173,7 @@ bool Ray3D::Intersects(Polyline3D const& polyline) const { return polyline.Inter
 std::optional<Point3D>Ray3D::Intersection(Line3D const& line) const {
   double sc, tc;
 
-  auto Pc = detail::intersection_line_to_line(ORIGIN, ORIGIN + DIR, line.First(), line.Last(), sc, tc);
+  auto Pc = detail::line_intersection(ORIGIN, ORIGIN + DIR, line.First(), line.Last(), sc, tc);
 
   // respecting Ray constraints: sc should be positive
   if (!(Pc.has_value() && is_greater_or_equal(sc, 0))) {
@@ -185,7 +185,7 @@ std::optional<Point3D>Ray3D::Intersection(Line3D const& line) const {
 
 std::optional<Point3D>Ray3D::Intersection(Ray3D const& other) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(ORIGIN, ORIGIN + DIR, other.Origin(), other.Origin() + other.Direction(), sc, tc);
+  auto Pc = detail::line_intersection(ORIGIN, ORIGIN + DIR, other.Origin(), other.Origin() + other.Direction(), sc, tc);
 
   // respecting Ray constraints: sc and tc should be positive
   if (!(Pc.has_value() && is_greater_or_equal(sc, 0) && is_greater_or_equal(tc, 0))) {

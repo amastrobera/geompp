@@ -25,6 +25,12 @@ concept WktSerializable = requires(const T& obj, const std::string& wkt) {
   { T::FromWkt(wkt) } -> std::same_as<T>;
 };
 
+// A vector type must be able to dot with another vector of the same type, yielding a scalar.
+template <typename T>
+concept VectorType = requires(T v) {
+  { v.Dot(v) } -> std::convertible_to<double>;
+};
+
 template <typename T>
 concept Point = requires(T const& p) {
   { p.x() } -> std::convertible_to<double>;
@@ -33,12 +39,25 @@ concept Point = requires(T const& p) {
 
 template <typename T>
 concept PointContainer =
-       std::ranges::random_access_range<T>  // operator[](size_t) and iteration
-    && std::ranges::sized_range<T>          // size() / empty()
-    && requires(std::ranges::range_value_t<T> const& p) {
-  { p.x() } -> std::convertible_to<double>;  // element must expose x() and y()
-  { p.y() } -> std::convertible_to<double>;
+       std::ranges::random_access_range<T>    // Requires operator[](size_t) and iteration
+    && std::ranges::sized_range<T>            // Requires size() / empty()
+    && Point<std::ranges::range_value_t<T>>;  // Enforces that the element type is a Point
+
+
+
+// Uses composition (&&) to inherit all requirements from the Point concept automatically.
+template <typename P, typename V>
+concept ProjectablePointWith = Point<P> && requires(P const& p, V const& v) {
+    { p.ToVector().Dot(v) } -> std::convertible_to<double>;
 };
+
+// 3. Integrated Container Concept (Bonus)
+// If you need a container where elements are guaranteed to be projectable with V
+template <typename T, typename V>
+concept ProjectablePointContainerWith =
+       std::ranges::random_access_range<T>
+    && std::ranges::sized_range<T>
+    && ProjectablePointWith<std::ranges::range_value_t<T>, V>;
 
 // clang-format on
 

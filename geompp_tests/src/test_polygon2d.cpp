@@ -271,19 +271,19 @@ TEST_F(Polygon2DTest, Centroid_SquareWithOffCenterHole) {
 TEST_F(Polygon2DTest, Perimeter_Square) {
   // 1×1 square → 4 sides of length 1
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
-  EXPECT_NEAR(4.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(4.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon2DTest, Perimeter_Rectangle) {
   // 3×4 rectangle → 2*(3+4) = 14
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 4), g::Point2D(0, 4)});
-  EXPECT_NEAR(14.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(14.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon2DTest, Perimeter_Triangle) {
   // 3-4-5 right triangle → perimeter = 12
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)});
-  EXPECT_NEAR(12.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(12.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon2DTest, DistanceTo) {

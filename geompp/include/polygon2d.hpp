@@ -26,21 +26,20 @@ class Polygon2D {
   ~Polygon2D() = default;
 
   std::size_t Size() const;
-  Point2D const& operator[](int i) const;
+  Point2D const& operator[](std::size_t i) const;
 
   bool AlmostEquals(Polygon2D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange2D ToSegments() const;
   Point2D Centroid() const;
   double Area() const;
-  double Perimeter() const;
+  double PerimeterSize() const;
   bool IsSimple() const;  // no self-intersections, but holes are allowed
   bool IsConvex() const;  // no holes and all turns in the same direction — cached at construction
   Polygon2D ConvexHull();
   /// @brief Decomposes a self-intersecting polygon into one or more simple polygons.
   /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
   std::vector<Polygon2D> Simplify() const;
-  std::vector<Point2D> const& ToPoints() const;
-
+  std::vector<Point2D> const& Perimeter() const;
   /// @brief Whether this polygon has one or more holes.
   bool HasHoles() const;
   /// @brief The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polygon has no holes.

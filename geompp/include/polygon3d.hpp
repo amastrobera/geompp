@@ -27,19 +27,18 @@ class Polygon3D {
   ~Polygon3D() = default;
 
   std::size_t Size() const;
-  Point3D const& operator[](int i) const;
+  Point3D const& operator[](std::size_t i) const;
   Plane GetPlane() const;
 
   bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
   double Area() const;
-  double Perimeter() const;
+  double PerimeterSize() const;
   bool IsSimple() const;
   bool IsConvex() const;  // no holes and all turns in the same direction
   Polygon3D ConvexHull();
-  std::vector<Point3D> const& ToPoints() const;
-
+  std::vector<Point3D> const& Perimeter() const;
   /// @brief Whether this polygon has one or more holes.
   bool HasHoles() const;
   /// @brief The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polygon has no holes.

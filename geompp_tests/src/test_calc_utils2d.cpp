@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 
 #include "constants.hpp"
+#include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
@@ -592,6 +593,76 @@ TEST_F(CalcUtils2DTest, FindIntersections_WorksWithSegmentRange_SelfIntersecting
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)};
   g::SegmentRange2D range(pts, /*closed=*/true);
   EXPECT_FALSE(gd::find_intersections_impl(range).empty());
+}
+
+// ---- find_extreme_points (Polygon2D × Line2D) -------------------------------
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexDiamond_AlongX) {
+  // CCW diamond; projecting onto +X isolates the left/right tips uniquely.
+  auto diamond = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 2), g::Point2D(2, 4), g::Point2D(0, 2)});
+  ASSERT_TRUE(diamond.IsConvex());  // exercises the O(log n) Sunday binary search
+  auto ex = g::find_extreme_points(diamond, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0)));
+  EXPECT_EQ(g::Point2D(0, 2), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 2), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexDiamond_AlongY) {
+  auto diamond = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 2), g::Point2D(2, 4), g::Point2D(0, 2)});
+  auto ex = g::find_extreme_points(diamond, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(0, 1)));
+  EXPECT_EQ(g::Point2D(2, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(2, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexSquare_Diagonal) {
+  // Diagonal direction (1,1): projection = x + y, extreme at opposite corners.
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto ex = g::find_extreme_points(square, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)));
+  EXPECT_EQ(g::Point2D(0, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexHexagon_ObliqueDir) {
+  auto hex = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(2, 4),
+                                 g::Point2D(0, 3), g::Point2D(0, 1)});
+  ASSERT_TRUE(hex.IsConvex());
+  // direction (3,1): proj = 3x + y → min at (0,1)=1, max at (4,3)=15
+  auto ex = g::find_extreme_points(hex, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(3, 1)));
+  EXPECT_EQ(g::Point2D(0, 1), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 3), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConcavePolygon_BruteForcePath) {
+  // Non-convex "dart": the inner dip at (2,1) makes it concave → O(n) linear scan.
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  ASSERT_FALSE(dart.IsConvex());
+  // direction (1,2): proj = x + 2y → min at (0,0)=0, max at (4,4)=12
+  auto ex = g::find_extreme_points(dart, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 2)));
+  EXPECT_EQ(g::Point2D(0, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_PolygonWithHole_IgnoresHole) {
+  // Holes make the polygon non-convex; only the outer ring participates in the search.
+  std::vector<g::Point2D> outer = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto poly = g::Polygon2D::Make(outer, {hole});
+  auto ex = g::find_extreme_points(poly, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 2)));
+  EXPECT_EQ(g::Point2D(0, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexAndBruteForceAgree) {
+  // Same convex geometry evaluated via both code paths must yield identical extremes.
+  // Direction (3,1) is not aligned with this hexagon's symmetry axis, so projections are
+  // all distinct (no ties) and both algorithms must agree on a unique index.
+  std::vector<g::Point2D> verts = {g::Point2D(2, 0), g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(2, 4),
+                                   g::Point2D(0, 3), g::Point2D(0, 1)};
+  auto dir = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(3, 1)).Direction();
+  auto convex = gd::extreme_points_impl(verts, /*is_convex=*/true, dir);
+  auto brute = gd::extreme_points_impl(verts, /*is_convex=*/false, dir);
+  EXPECT_EQ(brute.first, convex.first);
+  EXPECT_EQ(brute.second, convex.second);
 }
 
 }  // namespace geompp_tests
