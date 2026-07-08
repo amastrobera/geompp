@@ -243,7 +243,7 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
     return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
   };
 
-  auto rings2d = detail::simplify_rings_impl(VERTICES, HOLES, view);
+  auto rings2d = detail::view::simplify_rings(VERTICES, HOLES, view);
 
   // Detect whether the dominant-axis projection reverses chirality.
   // For Y-dominant the mapping (z,x) mirrors the coordinate system, so a CCW 3D polygon
@@ -418,7 +418,7 @@ bool Polygon3D::IsOnPerimeter(Point3D const& point) const {
   }
   Axis dax = PLANE.normal().DominantAxis();
   View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
-  return detail::is_on_perimeter_with_view(VERTICES, HOLES, view, view.x(point), view.y(point));
+  return detail::view::is_on_perimeter(VERTICES, HOLES, view, view.x(point), view.y(point));
 }
 
 bool Polygon3D::Contains(Point3D const& point) const {
@@ -436,7 +436,7 @@ bool Polygon3D::Contains(Point3D const& point) const {
 
   Axis dax = PLANE.normal().DominantAxis();
   View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
-  return detail::polygon_contains_with_view(VERTICES, HOLES, view, view.x(point), view.y(point));
+  return detail::view::polygon_contains(VERTICES, HOLES, view, view.x(point), view.y(point));
 }
 
 bool Polygon3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }

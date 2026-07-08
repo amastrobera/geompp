@@ -9,6 +9,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 namespace g  = geompp;
 namespace gd = geompp::detail;
 
@@ -239,6 +241,75 @@ TEST_F(CalcUtils3DTest, ExtremePoints_ConcavePolygon_BruteForcePath) {
   auto ex = g::find_extreme_points(dart, g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 2, 0)));
   EXPECT_EQ(g::Point3D(0, 0, 0), ex.min_point);
   EXPECT_EQ(g::Point3D(4, 4, 0), ex.max_point);
+}
+
+// ---- distance_to (Polygon3D × Line3D) ---------------------------------------
+
+TEST_F(CalcUtils3DTest, DistanceTo_Coplanar_LineCrossing_IsZero) {
+  // Square in the XY plane (z=0); line lies in the same plane and crosses it.
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  ASSERT_TRUE(square.IsConvex());
+  auto line = g::Line3D::Make(g::Point3D(2, -1, 0), g::Point3D(2, 5, 0));
+  EXPECT_NEAR(0.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, DistanceTo_Coplanar_LineOutside) {
+  // Same square and plane; line lies in the plane but misses the polygon — pure 2D distance.
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto line = g::Line3D::Make(g::Point3D(6, -1, 0), g::Point3D(6, 5, 0));
+  EXPECT_NEAR(2.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, DistanceTo_ParallelOffset_PythagoreanCombination) {
+  // Line parallel to the polygon's plane but offset by h=3 along the normal; its projection onto
+  // the plane is the same x=6 line as DistanceTo_Coplanar_LineOutside (in-plane distance d=2), so
+  // the true 3D distance must combine both: sqrt(h^2 + d^2) = sqrt(9 + 4) = sqrt(13).
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto line = g::Line3D::Make(g::Point3D(6, 0, 3), g::Point3D(6, 1, 3));
+  EXPECT_NEAR(std::sqrt(13.0), g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, DistanceTo_SkewPerpendicular_CrossingInsidePolygon_IsZero) {
+  // Line perpendicular to the plane, piercing it inside the square — distance is zero regardless
+  // of how far away the line's own points are in Z.
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto line = g::Line3D::Make(g::Point3D(2, 2, -1), g::Point3D(2, 2, 1));
+  EXPECT_NEAR(0.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, DistanceTo_SkewPerpendicular_CrossingOutsidePolygon) {
+  // Perpendicular crossing outside the square: the anisotropic metric degenerates to the ordinary
+  // isotropic one (alpha=1), so this must equal the plain in-plane distance from (6,2,0) to x=4.
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto line = g::Line3D::Make(g::Point3D(6, 2, -1), g::Point3D(6, 2, 1));
+  EXPECT_NEAR(2.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, DistanceTo_SkewOblique_CrossingOutsidePolygon_AnisotropicMetric) {
+  // Line crosses the plane obliquely (45 degrees off the normal) at (6,2,0), outside the square.
+  // The naive "in-plane distance from the crossing point" would give 2 (6-4); the correct answer,
+  // from the anisotropic (elliptical) point-to-line metric derived for the oblique case, is
+  // sqrt(2) ~= 1.41421356 — verified independently by hand against the R.u / R.u_perp decomposition
+  // (alpha = 1/sqrt(2), nearest point (4,2,0), R=(-2,0,0) is entirely along the compressed axis).
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto line = g::Line3D::Make(g::Point3D(6, 2, 0), g::Point3D(7, 2, 1));
+  EXPECT_NEAR(std::sqrt(2.0), g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, DistanceTo_SkewPerpendicular_NonConvexDart) {
+  // Non-convex dart (same shape as ExtremePoints_ConcavePolygon_BruteForcePath); line pierces the
+  // plane below the dart at (2,-3,0). Nearest boundary point is (2,0,0) on the bottom edge.
+  auto dart = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+                                  g::Point3D(2, 1, 0), g::Point3D(0, 4, 0)});
+  ASSERT_FALSE(dart.IsConvex());
+  auto line = g::Line3D::Make(g::Point3D(2, -3, -1), g::Point3D(2, -3, 1));
+  EXPECT_NEAR(3.0, g::distance_to(dart, line), 1e-9);
 }
 
 }  // namespace geompp_tests

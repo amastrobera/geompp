@@ -45,7 +45,7 @@ Polyline2D& Polyline2D::operator=(Polyline2D const& other) {
 }
 
 bool Polyline2D::IsSimple() const {
-  if (detail::has_intersections_impl(ToSegments())) {
+  if (detail::has_intersections(ToSegments())) {
     return false;
   }
 

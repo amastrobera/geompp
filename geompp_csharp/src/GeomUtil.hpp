@@ -78,6 +78,11 @@ public:
     // line's direction. Daniel Sunday's O(log n) binary search when convex, else O(n). Holes are ignored.
     static ExtremePoints2D^ FindExtremePoints(Polygon2D^ polygon, Line2D^ line);
     static ExtremePoints3D^ FindExtremePoints(Polygon3D^ polygon, Line3D^ line);
+
+    // DistanceTo — distance between the polygon and an infinite line (zero if they cross). Holes are
+    // ignored. The 3D overload handles coplanar, parallel-offset, and skew lines.
+    static double DistanceTo(Polygon2D^ polygon, Line2D^ line);
+    static double DistanceTo(Polygon3D^ polygon, Line3D^ line);
 };
 
 }  // namespace GeomPP

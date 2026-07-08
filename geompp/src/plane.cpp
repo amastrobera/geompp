@@ -40,10 +40,12 @@ Plane::Plane(Point3D origin, Vector3D u, Vector3D v)
 
 bool Plane::AlmostEquals(Plane const& other, double epsilon) const {
   return (
-      // same normal (or parallel)
-      (Normal.AlmostEquals(other.Normal, epsilon) || Normal.AlmostEquals(-other.Normal, epsilon)) &&
-      // same offset from the origin
-      (compare(Normal.Dot(Origin.ToVector()), other.Normal.Dot(other.Origin.ToVector()), epsilon) == 0));
+      // same normal (same winding order CCW or CW)
+      Normal.AlmostEquals(other.Normal, epsilon) &&
+      // and, either equal origins
+      (Origin.AlmostEquals(other.Origin, epsilon) ||
+       // or on the same plane
+       compare(Normal.Dot(Origin - other.Origin), epsilon) == 0));
 }
 
 Plane& Plane::operator=(Plane const& other) {
@@ -90,8 +92,10 @@ Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
   auto W = line.First() - Origin;
   auto denominator = U.Dot(Normal);
   if (compare(denominator, 0) == 0) {
-    // parallel or part of the plane
-    return std::nullopt;
+    if (compare(W.Dot(Normal), 0) == 0) {
+      return line;  // the line lies entirely in the plane
+    }
+    return std::nullopt;  // parallel and distinct
   }
   double s = -W.Dot(Normal) / denominator;
   return ProjectOnto(line.First() + s * U);  // snap to plane: division by small denominator can accumulate error
@@ -99,12 +103,15 @@ Plane::ReturnSet Plane::Intersection(Line3D const& line) const {
 
 Plane::ReturnSet Plane::Intersection(Ray3D const& ray) const {
   auto line_intersection = Intersection(ray.ToLine());
-  if (!(line_intersection.has_value() && std::holds_alternative<Point3D>(*line_intersection))) {
+  if (!line_intersection.has_value()) {
     return std::nullopt;
   }
 
-  auto const& intersection_point = std::get<Point3D>(line_intersection.value());
+  if (std::holds_alternative<Line3D>(*line_intersection)) {
+    return line_intersection;  // the ray's line lies in the plane, so the ray does too — report it as-is
+  }
 
+  auto const& intersection_point = std::get<Point3D>(*line_intersection);
   if (!ray.IsAhead(intersection_point)) {
     return std::nullopt;
   }
@@ -113,12 +120,15 @@ Plane::ReturnSet Plane::Intersection(Ray3D const& ray) const {
 
 Plane::ReturnSet Plane::Intersection(LineSegment3D const& segment) const {
   auto line_intersection = Intersection(segment.ToLine());
-  if (!(line_intersection.has_value() && std::holds_alternative<Point3D>(*line_intersection))) {
+  if (!line_intersection.has_value()) {
     return std::nullopt;
   }
 
-  auto const& intersection_point = std::get<Point3D>(line_intersection.value());
+  if (std::holds_alternative<Line3D>(*line_intersection)) {
+    return segment;  // the segment's line lies in the plane, so the segment does too
+  }
 
+  auto const& intersection_point = std::get<Point3D>(*line_intersection);
   if (!segment.Contains(intersection_point)) {
     return std::nullopt;
   }

@@ -1039,6 +1039,120 @@ A quick list of code examples per topic is provided here.
 </details>
 
 
+<details closed>
+<summary><b> &nbsp; 6. Distance </b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 6.1 from Point</b></summary>
+
+  Every core primitive implements `.distance_to(point)` — the perpendicular / nearest distance to a
+  point, clamped to the primitive's own domain where relevant (a `Ray` only measures ahead of its
+  origin, a `LineSegment`/`Polyline` clamps to its own bounded extent). `Point2D`/`Point3D` themselves
+  just measure Euclidean distance to another point.
+
+  `Polygon2D`/`Polygon3D.distance_to(point)` and `Triangle2D`/`Triangle3D.distance_to(point)` are
+  declared but not yet implemented — they currently raise `RuntimeError`, so they're omitted from
+  the example below.
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  p2 = g.Point2D(3, 4)
+  p3 = g.Point3D(3, 4, 5)
+
+  print(f"Point2D:       {g.Point2D(0, 0).distance_to(p2):.3f}")
+  print(f"Point3D:       {g.Point3D(0, 0, 0).distance_to(p3):.3f}")
+
+  line2 = g.Line2D.make(g.Point2D(0, 0), g.Point2D(1, 0))
+  line3 = g.Line3D.make(g.Point3D(0, 0, 0), g.Point3D(1, 0, 0))
+  print(f"Line2D:        {line2.distance_to(p2):.3f}")
+  print(f"Line3D:        {line3.distance_to(p3):.3f}")
+
+  ray2 = g.Ray2D.make(g.Point2D(0, 0), g.Vector2D(1, 0))
+  ray3 = g.Ray3D.make(g.Point3D(0, 0, 0), g.Vector3D(1, 0, 0))
+  print(f"Ray2D:         {ray2.distance_to(p2):.3f}")
+  print(f"Ray3D:         {ray3.distance_to(p3):.3f}")
+
+  seg2 = g.LineSegment2D.make(g.Point2D(0, 0), g.Point2D(6, 0))
+  seg3 = g.LineSegment3D.make(g.Point3D(0, 0, 0), g.Point3D(6, 0, 0))
+  print(f"LineSegment2D: {seg2.distance_to(p2):.3f}")
+  print(f"LineSegment3D: {seg3.distance_to(p3):.3f}")
+
+  pl2 = g.Polyline2D.make([g.Point2D(0, 0), g.Point2D(6, 0), g.Point2D(6, 6)])
+  pl3 = g.Polyline3D.make([g.Point3D(0, 0, 0), g.Point3D(6, 0, 0), g.Point3D(6, 6, 0)])
+  print(f"Polyline2D:    {pl2.distance_to(p2):.3f}")
+  print(f"Polyline3D:    {pl3.distance_to(p3):.3f}")
+
+  plane = g.Plane.xy()
+  print(f"Plane:         {plane.distance_to(p3):.3f}")
+  ```
+
+  ```
+  Point2D:       5.000
+  Point3D:       7.071
+  Line2D:        4.000
+  Line3D:        6.403
+  Ray2D:         4.000
+  Ray3D:         6.403
+  LineSegment2D: 4.000
+  LineSegment3D: 6.403
+  Polyline2D:    3.000
+  Polyline3D:    5.831
+  Plane:         5.000
+  ```
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 6.2 from Other primitives</b></summary>
+
+  `Line3D`, `Ray3D`, and `LineSegment3D` each expose `.distance_to(Line3D | Ray3D | LineSegment3D)`
+  — pairwise distance between any two of the three (0 if they intersect, overlap, or one contains
+  the other). This overload set is 3D-only: two 2D primitives are either parallel (a constant
+  distance, rarely useful on its own) or they intersect (0), so `Line2D`/`Ray2D`/`LineSegment2D`
+  don't expose it.
+
+  If you need the actual closest-approach segment instead of just the scalar, use `.distance(...)`
+  (note: no `_to`) — it returns a `LineSegment3D` or `None` when the two intersect or overlap
+  (matching the zero case of `distance_to`).
+
+  For polygon-to-line distance, use the free function `distance_to(polygon, line)` (see section 5.4
+  "Polygon extreme points" for `find_extreme_points`, its sibling function) — zero if the line
+  crosses the polygon; for `Polygon3D`/`Line3D` it also handles a line coplanar with, parallel to
+  (fixed offset from), or skew to the polygon's plane.
+
+  ```python
+  lineA = g.Line3D.make(g.Point3D(0, 0, 0), g.Point3D(1, 0, 0))
+  lineB = g.Line3D.make(g.Point3D(0, 1, 1), g.Point3D(1, 1, 1))  # parallel, offset sqrt(2)
+  print(f"Line3D x Line3D:        {lineA.distance_to(lineB):.3f}")
+
+  rayB = g.Ray3D.make(g.Point3D(0, 1, 1), g.Vector3D(1, 0, 0))
+  print(f"Line3D x Ray3D:         {lineA.distance_to(rayB):.3f}")
+
+  segB = g.LineSegment3D.make(g.Point3D(0, 1, 1), g.Point3D(1, 1, 1))
+  print(f"Line3D x LineSegment3D: {lineA.distance_to(segB):.3f}")
+
+  # the closest-approach connecting segment, instead of just the scalar
+  connector = lineA.distance(lineB)
+  print(f"Line3D.distance(Line3D): {connector.to_wkt()}")
+
+  # Polygon2D / Polygon3D — distance to an infinite line (zero if the line crosses)
+  square = g.Polygon2D.make([
+      g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(4, 4), g.Point2D(0, 4)])
+  far_line = g.Line2D.make(g.Point2D(6, -1), g.Point2D(6, 5))
+  print(f"distance_to(Polygon2D, Line2D): {g.distance_to(square, far_line):.3f}")
+  ```
+
+  ```
+  Line3D x Line3D:        1.414
+  Line3D x Ray3D:         1.414
+  Line3D x LineSegment3D: 1.414
+  Line3D.distance(Line3D): LINESTRING (0 0 0, 0 1 1)
+  distance_to(Polygon2D, Line2D): 2.000
+  ```
+
+</details>
 
 </details>
 

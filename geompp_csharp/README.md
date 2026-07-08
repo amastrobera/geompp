@@ -1071,6 +1071,118 @@ A quick list of code examples per topic is provided here.
 </details>
 
 
+<details closed>
+<summary><b> &nbsp; 6. Distance </b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 6.1 from Point</b></summary>
+
+  Every core primitive implements `DistanceTo(point)` — the perpendicular / nearest distance to a
+  point, clamped to the primitive's own domain where relevant (a `Ray` only measures ahead of its
+  origin, a `LineSegment`/`Polyline` clamps to its own bounded extent). `Point2D`/`Point3D` themselves
+  just measure Euclidean distance to another point.
+
+  `Polygon2D`/`Polygon3D.DistanceTo(Point)` and `Triangle2D`/`Triangle3D.DistanceTo(Point)` are
+  exposed but not yet implemented on the native side — calling them throws a
+  `System.Runtime.InteropServices.SEHException` ("External component has thrown an exception"), so
+  they're omitted from the example below.
+
+  ```csharp
+  using GeomPP;
+
+  var p2 = new Point2D(3, 4);
+  var p3 = new Point3D(3, 4, 5);
+
+  Console.WriteLine($"Point2D:       {new Point2D(0, 0).DistanceTo(p2):F3}");
+  Console.WriteLine($"Point3D:       {new Point3D(0, 0, 0).DistanceTo(p3):F3}");
+
+  var line2 = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var line3 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  Console.WriteLine($"Line2D:        {line2.DistanceTo(p2):F3}");
+  Console.WriteLine($"Line3D:        {line3.DistanceTo(p3):F3}");
+
+  var ray2 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var ray3 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  Console.WriteLine($"Ray2D:         {ray2.DistanceTo(p2):F3}");
+  Console.WriteLine($"Ray3D:         {ray3.DistanceTo(p3):F3}");
+
+  var seg2 = LineSegment2D.Make(new Point2D(0, 0), new Point2D(6, 0));
+  var seg3 = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(6, 0, 0));
+  Console.WriteLine($"LineSegment2D: {seg2.DistanceTo(p2):F3}");
+  Console.WriteLine($"LineSegment3D: {seg3.DistanceTo(p3):F3}");
+
+  var pl2 = Polyline2D.Make(new Point2D[] { new(0, 0), new(6, 0), new(6, 6) });
+  var pl3 = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(6, 0, 0), new(6, 6, 0) });
+  Console.WriteLine($"Polyline2D:    {pl2.DistanceTo(p2):F3}");
+  Console.WriteLine($"Polyline3D:    {pl3.DistanceTo(p3):F3}");
+
+  var plane = Plane.XY();
+  Console.WriteLine($"Plane:         {plane.DistanceTo(p3):F3}");
+  ```
+
+  ```
+  Point2D:       5.000
+  Point3D:       7.071
+  Line2D:        4.000
+  Line3D:        6.403
+  Ray2D:         4.000
+  Ray3D:         6.403
+  LineSegment2D: 4.000
+  LineSegment3D: 6.403
+  Polyline2D:    3.000
+  Polyline3D:    5.831
+  Plane:         5.000
+  ```
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 6.2 from Other primitives</b></summary>
+
+  `Line3D`, `Ray3D`, and `LineSegment3D` each expose `DistanceTo(Line3D | Ray3D | LineSegment3D)` —
+  pairwise distance between any two of the three (0 if they intersect, overlap, or one contains the
+  other). This overload set is 3D-only: two 2D primitives are either parallel (a constant distance,
+  rarely useful on its own) or they intersect (0), so `Line2D`/`Ray2D`/`LineSegment2D` don't expose it.
+
+  If you need the actual closest-approach segment instead of just the scalar, use `Distance(...)`
+  (note: no `To`) — it returns a `LineSegment3D`, `null` when the two intersect or overlap (matching
+  the zero case of `DistanceTo`).
+
+  For polygon-to-line distance, use `GeomUtil.DistanceTo(polygon, line)` (see section 5.4 "Polygon
+  extreme points" for `GeomUtil.FindExtremePoints`, its sibling function) — zero if the line crosses
+  the polygon; for `Polygon3D`/`Line3D` it also handles a line coplanar with, parallel to (fixed
+  offset from), or skew to the polygon's plane.
+
+  ```csharp
+  var lineA = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var lineB = Line3D.Make(new Point3D(0, 1, 1), new Point3D(1, 1, 1));  // parallel, offset sqrt(2)
+  Console.WriteLine($"Line3D x Line3D:        {lineA.DistanceTo(lineB):F3}");
+
+  var rayB = Ray3D.Make(new Point3D(0, 1, 1), new Vector3D(1, 0, 0));
+  Console.WriteLine($"Line3D x Ray3D:         {lineA.DistanceTo(rayB):F3}");
+
+  var segB = LineSegment3D.Make(new Point3D(0, 1, 1), new Point3D(1, 1, 1));
+  Console.WriteLine($"Line3D x LineSegment3D: {lineA.DistanceTo(segB):F3}");
+
+  // the closest-approach connecting segment, instead of just the scalar
+  var connector = lineA.Distance(lineB);
+  Console.WriteLine($"Line3D.Distance(Line3D): {connector.ToWkt()}");
+
+  // Polygon2D / Polygon3D — distance to an infinite line (zero if the line crosses)
+  var square = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) });
+  var farLine = Line2D.Make(new Point2D(6, -1), new Point2D(6, 5));
+  Console.WriteLine($"GeomUtil.DistanceTo(Polygon2D, Line2D): {GeomUtil.DistanceTo(square, farLine):F3}");
+  ```
+
+  ```
+  Line3D x Line3D:        1.414
+  Line3D x Ray3D:         1.414
+  Line3D x LineSegment3D: 1.414
+  Line3D.Distance(Line3D): LINESTRING (0 0 0, 0 1 1)
+  GeomUtil.DistanceTo(Polygon2D, Line2D): 2.000
+  ```
+
+</details>
 
 </details>
 

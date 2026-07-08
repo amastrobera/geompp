@@ -190,4 +190,20 @@ void bind_free_functions(py::module_& m) {
           "The outer-ring vertices of the polygon extreme (least / greatest projection) along the line's "
           "direction, as ExtremePoints3D(min_point, max_point). Uses Daniel Sunday's O(log n) binary search "
           "when the polygon is convex, else an O(n) scan. Holes are ignored.");
+
+    // ── polygon-to-line distance ───────────────────────────────────────────────────────────────
+    m.def("distance_to",
+          [](const geompp::Polygon2D& polygon, const geompp::Line2D& line) {
+              return geompp::distance_to(polygon, line);
+          },
+          "polygon"_a, "line"_a,
+          "Distance between the polygon and an infinite line (zero if they cross). Holes are ignored.");
+
+    m.def("distance_to",
+          [](const geompp::Polygon3D& polygon, const geompp::Line3D& line) {
+              return geompp::distance_to(polygon, line);
+          },
+          "polygon"_a, "line"_a,
+          "Distance between the polygon and an infinite line (zero if they cross). Handles coplanar, "
+          "parallel-offset, and skew lines. Holes are ignored.");
 }

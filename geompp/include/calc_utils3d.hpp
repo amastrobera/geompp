@@ -1,6 +1,6 @@
 #pragma once
 
-#include "calc_utils2d.hpp"  // ExtremePoints<> and detail::extreme_points_impl (shared with 2D)
+#include "calc_utils2d.hpp"  // ExtremePoints<> and detail::extreme_points (shared with 2D)
 #include "constants.hpp"
 #include "coordinate_frame.hpp"
 #include "point3d.hpp"
@@ -67,5 +67,8 @@ bool is_convex(std::vector<Point3D> const& vertices, std::vector<std::vector<Poi
 /// @param line    The line whose Direction() defines the axis of projection.
 /// @returns ExtremePoints{min_point, max_point} — the outer-ring vertices with least / greatest projection.
 ExtremePoints<Point3D> find_extreme_points(Polygon3D const& polygon, Line3D const& line);
+
+/// @brief computes the distance between a polygon and a line (the distance is zero if they intersect)
+double distance_to(Polygon3D const& polygon, Line3D const& line);
 
 }  // namespace geompp

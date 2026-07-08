@@ -4046,6 +4046,62 @@ class TestExtremePoints:
         assert approx(ex.max_point.x, 2) and approx(ex.max_point.y, 2) and approx(ex.max_point.z, 2)
 
 
+# --- distance_to (polygon-to-line distance) ---
+class TestDistanceTo:
+    def test_2d_convex_square_line_crossing_is_zero(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(2, -1), geompp.Point2D(2, 5))
+        assert approx(geompp.distance_to(square, line), 0.0)
+
+    def test_2d_convex_square_line_outside(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(6, -1), geompp.Point2D(6, 5))
+        assert approx(geompp.distance_to(square, line), 2.0)
+
+    def test_2d_non_convex_dart_line_outside(self):
+        dart = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(10, -1), geompp.Point2D(10, 5))
+        assert approx(geompp.distance_to(dart, line), 6.0)
+
+    def test_3d_coplanar_line_outside(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(6, -1, 0), geompp.Point3D(6, 5, 0))
+        assert approx(geompp.distance_to(square, line), 2.0)
+
+    def test_3d_parallel_offset_pythagorean_combination(self):
+        # Line parallel to the plane, offset h=3; in-plane distance d=2 (same as coplanar case) ->
+        # sqrt(h^2 + d^2) = sqrt(13).
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(6, 0, 3), geompp.Point3D(6, 1, 3))
+        assert approx(geompp.distance_to(square, line), 13.0 ** 0.5)
+
+    def test_3d_skew_perpendicular_crossing_inside_is_zero(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(2, 2, -1), geompp.Point3D(2, 2, 1))
+        assert approx(geompp.distance_to(square, line), 0.0)
+
+    def test_3d_skew_oblique_crossing_outside_anisotropic_metric(self):
+        # Line crosses the plane at 45 degrees off the normal at (6,2,0), outside the square.
+        # Correct anisotropic answer is sqrt(2) ~= 1.41421356, not the naive in-plane 2 (6-4).
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(6, 2, 0), geompp.Point3D(7, 2, 1))
+        assert approx(geompp.distance_to(square, line), 2.0 ** 0.5)
+
+
 # --- convex hull (Andrew's monotone chain) ---
 class TestConvexHull:
     def test_few_points_returns_as_is(self):

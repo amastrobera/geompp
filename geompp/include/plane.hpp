@@ -67,8 +67,6 @@ class Plane {
   /// @return true if @p point's signed distance to the plane is zero within decimal precision.
   bool Contains(Point3D const& point) const;
 
-  using ReturnSet = std::optional<std::variant<Point3D, Line3D, LineSegment3D>>;
-
   /// @brief Tests whether a line meets this plane.
   /// @param line The line.
   /// @return true if the line crosses the plane or lies in it.
@@ -93,6 +91,8 @@ class Plane {
   /// @param triangle The triangle.
   /// @return true if the plane cuts through the triangle or touches it.
   bool Intersects(Triangle3D const& triangle) const;
+
+  using ReturnSet = std::optional<std::variant<Point3D, Line3D, LineSegment3D>>;
 
   /// @brief Intersection of this plane with a line.
   /// @param line The line.

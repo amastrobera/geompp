@@ -1,16 +1,16 @@
 # Test Coverage Report
 
-_Last updated: 2026-07-07_
+_Last updated: 2026-07-08_
 
 ## Overall
 
 | Metric | Count | Notes |
 |--------|-------|-------|
 | Public methods (total) | ~414 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
-| Stubs (`throw "not implemented"`) | 13 | Listed per class below |
-| C++ explicit tests | ~490 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~216 | At least one `test_*` function calls the method |
-| C# explicit tests | ~222 | At least one test in `Program.cs` exercises the method |
+| Stubs (`throw "not implemented"`) | 10 | Listed per class below |
+| C++ explicit tests | ~502 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~223 | At least one `test_*` function calls the method |
+| C# explicit tests | ~229 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -32,8 +32,8 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py); new `ConvexHull()` (Melkman) tested in all three |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py) |
-| `Polygon2D` | ✓ all key | ✓ all key | ✓ most | `DistanceTo` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); `IsSimple()` and `ConvexHull()` tested in all three; `Intersection(×Line/Ray/Seg)` now implemented and tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&` |
-| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo` ★ `Intersection(×Line/Ray/Seg)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&` |
+| `Polygon2D` | ✓ all key | ✓ all key | ✓ most | `DistanceTo(Point2D)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); `IsSimple()` and `ConvexHull()` tested in all three; `Intersection(×Line/Ray/Seg)` now implemented and tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&`; free `distance_to(Polygon2D, Line2D)` (convex O(log n) + non-convex O(n), holes ignored) now implemented and tested in all three languages |
+| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo(Point3D)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&`; `Intersection(×Line/Ray/Seg)` is implemented (not a stub — corrected from a stale mark) and tested in Python/C#, but has no dedicated C++ `TEST_F` yet; free `distance_to(Polygon3D, Line3D)` (coplanar, parallel-offset via Pythagorean combination, and skew via an exact per-edge quadratic boundary scan) now implemented and tested in all three languages |
 | `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, `Location`, all `Intersection` (Py) |
 | `Triangle3D` | ✓ most | ✓ most | ✓ most | `DistanceTo` ★ | new `Intersection(×Plane/△)` and the existing `Intersection(×Line/Ray/Seg)` are covered in all three languages |
 | `Plane` | ✓ all key | ✓ all key | ✓ most | — | `Intersection(Triangle3D)` now delegates to the symmetric `Triangle3D::Intersection(Plane)` (no stub remaining) |
@@ -42,12 +42,12 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |
 | `GeometryCollection2D` | ✓ core | ✓ partial | ✓ most | — | — |
 | `GeometryCollection3D` | ✓ core | ✓ partial | ✓ most | — | — |
-| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `has_intersections_impl`, `find_intersections_impl`, `convex_hull_indices`, `extreme_points_impl`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module (internal); `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; public wrappers `has_intersections` / `find_intersections` (in `line_segment2d.hpp`) + `Polygon2D::IsSimple` tested in all three languages; `convex_hull_indices` exercised via `convex_hull` tests; new `find_extreme_points(Polygon2D, Line2D)` + `extreme_points_impl` (Sunday convex O(log n) + brute-force) tested in all three languages and cross-checked vs brute force over 200k random convex polygons |
-| `calc_utils3d` (`convex_hull_indices`, `find_extreme_points`) | ✓ all key | ✓ core | ✓ core | — | Internal 3D hull solver; exercised via `convex_hull(list[Point3D])` free function and `Polygon3D::ConvexHull()` in all three languages; covers XY, YZ, and ZX plane projections; new `find_extreme_points(Polygon3D, Line3D)` tested in all three languages (XY and tilted-plane polygons) |
+| `calc_utils2d` (`Event2D`, `EventQueue2D`, `SweepLineComparator`, `SweepLine2D`, `detail::has_intersections`, `detail::find_intersections`, `detail::extreme_points`, `detail::view::*`) | ✓ all key | ✓ core | ✓ core | — | C++ sweep module (internal); `Add`/`Get`/`Remove`/`SetX`/`GetX` + `EventQueue2D` ordering/`Contains` tested in C++; public wrappers `has_intersections` / `find_intersections` (in `line_segment2d.hpp`) + `Polygon2D::IsSimple` tested in all three languages; `convex_hull_indices` exercised via `convex_hull` tests; `find_extreme_points(Polygon2D, Line2D)` + `detail::extreme_points` (Sunday convex O(log n) + brute-force) tested in all three languages and cross-checked vs brute force over 200k random convex polygons; the `detail::view` namespace (renamed from the old `*_with_view` names: `is_convex`, `is_on_perimeter`, `polygon_contains`, `simplify_rings`, `convex_hull_monotone_chain`, `min_bounding_rect`, `compute_parametric_intersection_intervals`, `distance_to`) groups everything that projects through a `View2D`, shared verbatim between the native-2D and projected-3D call sites; new `detail::view::distance_to` (line-to-polygon distance, projected-scalar O(log n) convex / O(n) non-convex, no `Point2D` materialization) backs the public `distance_to(Polygon2D, Line2D)`, tested in all three languages |
+| `calc_utils3d` (`convex_hull_indices`, `find_extreme_points`, `distance_to`) | ✓ all key | ✓ core | ✓ core | — | Internal 3D hull solver; exercised via `convex_hull(list[Point3D])` free function and `Polygon3D::ConvexHull()` in all three languages; covers XY, YZ, and ZX plane projections; `find_extreme_points(Polygon3D, Line3D)` tested in all three languages (XY and tilted-plane polygons); new `distance_to(Polygon3D, Line3D)` covers all three geometric cases — coplanar and parallel-offset (reduced to `detail::view::distance_to` plus a `sqrt(h^2 + d2d^2)` Pythagorean combination for the offset), and skew (crossing-point-in-polygon fast path, else an exact per-edge quadratic boundary scan — correct for convex and non-convex rings alike since point-to-line distance has convex nested level sets) — tested in all three languages, including a dedicated regression case for the oblique-crossing anisotropic metric |
 
 ---
 
-## Stub Methods (10 total)
+## Stub Methods (7 total)
 
 These methods are declared in the public API but `throw std::runtime_error("not implemented")`.
 Each has a `EXPECT_ANY_THROW` test confirming the throw.
@@ -56,14 +56,15 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 |-------|--------|
 | `Polygon2D` | `DistanceTo(Point2D)` |
 | `Polygon3D` | `DistanceTo(Point3D)` |
-| `Polygon3D` | `Intersection(Line3D)` |
-| `Polygon3D` | `Intersection(Ray3D)` |
-| `Polygon3D` | `Intersection(LineSegment3D)` |
 | `Triangle2D` | `DistanceTo(Point2D)` |
 | `Triangle2D` | `Intersects(Triangle2D)` |
 | `Triangle2D` | `Intersection(Triangle2D)` |
 | `Triangle3D` | `DistanceTo(Point3D)` |
 | `Polygon2D::FromWkt` | (parses but returns broken result — fix tracked separately) |
+
+Note: `Polygon3D::Intersection(×Line3D/Ray3D/LineSegment3D)` were previously listed here but are
+implemented (not stubs) — corrected in this update. They still lack a dedicated C++ `TEST_F`,
+though Python and C# exercise them.
 
 ---
 
@@ -71,12 +72,13 @@ Each has a `EXPECT_ANY_THROW` test confirming the throw.
 
 - **No class is at 0%** — all geometry classes have at least some test coverage.
 - **Python binding tests are the biggest gap**: `LineSegment3D`, `Polyline3D`, `BBox3D`, `Line3D`, `Ray3D` are thin or untested in Python.
-- **Stub cluster**: remaining unimplemented methods: `Polygon2D/3D::DistanceTo`, `Triangle2D::Intersects(△)` and `Triangle2D::Intersection(△)`, and `Triangle2D/3D::DistanceTo`. `Polygon2D::Intersection(×Line/Ray/Seg)` is now fully implemented and tested.
+- **Stub cluster**: remaining unimplemented methods: `Polygon2D/3D::DistanceTo(Point)`, `Triangle2D::Intersects(△)` and `Triangle2D::Intersection(△)`, and `Triangle2D/3D::DistanceTo(Point)`. `Polygon2D::Intersection(×Line/Ray/Seg)` and `Polygon3D::Intersection(×Line/Ray/Seg)` are both fully implemented and tested (the latter was previously mismarked as a stub in this report). Note the free functions `distance_to(Polygon2D/3D, Line2D/3D)` are a *different* capability from the still-stubbed `Polygon2D/3D::DistanceTo(Point)` — distance to an infinite line vs. distance to a point — and are now fully implemented and tested.
 - **`Plane`, `Point2D`, `Point3D`, `Vector2D`, `Vector3D`** have excellent coverage across C++, Python, and (newly for Plane) C#.
 - **Operator overloads** (`operator<<`, `operator=`, arithmetic) are implicitly exercised by other tests even when not explicitly targeted.
-- **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`has_intersections_impl` / `find_intersections_impl`) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case). Public `has_intersections` / `find_intersections` wrappers (now in `line_segment2d.hpp`) tested via the existing suite.
+- **`calc_utils2d` / `Polygon2D::IsSimple`**: both algorithms (`detail::has_intersections` / `detail::find_intersections`, renamed from the old `*_impl` names) are fully sound. `SweepLineComparator` uses y-at-sweep-x ordering with an id tiebreaker; `EventQueue2D` is a min-heap (left-to-right sweep). Tests in all three languages cover the normal case (simple ring, self-intersecting ring) and edge cases (parallel segments, T-intersections, star case). Public `has_intersections` / `find_intersections` wrappers (now in `line_segment2d.hpp`) tested via the existing suite.
 - **`convex_hull`**: Andrew's monotone chain implemented in `calc_utils2d` (`convex_hull_indices`), exposed via `point2d.hpp`. Tested in all three languages including an asymmetric star whose hull must be exactly the 5 outer tips.
-- **`find_extreme_points`**: `detail::extreme_points_impl` is a dimension-agnostic template (compares only scalar projections). The convex fast-path is Daniel Sunday's O(log n) binary search; non-convex polygons use an O(n) scan. Tested in all three languages for convex (diamond/square/hexagon), concave (dart), hole-bearing (holes ignored), and 3D (XY + tilted-plane) polygons, plus a C++ convex-vs-brute-force equality check. The convex search was additionally cross-validated against brute force over 200k randomized convex polygons and directions (0 mismatches).
+- **`find_extreme_points`**: `detail::extreme_points` is a dimension-agnostic template (compares only scalar projections). The convex fast-path is Daniel Sunday's O(log n) binary search; non-convex polygons use an O(n) scan. Tested in all three languages for convex (diamond/square/hexagon), concave (dart), hole-bearing (holes ignored), and 3D (XY + tilted-plane) polygons, plus a C++ convex-vs-brute-force equality check. The convex search was additionally cross-validated against brute force over 200k randomized convex polygons and directions (0 mismatches).
+- **`distance_to(Polygon, Line)`**: new free function, distance between a polygon and an infinite line (zero if they cross); holes ignored, same as `find_extreme_points`. The shared 2D core (`detail::view::distance_to`) reimplements the convex O(log n) search and non-convex O(n) edge scan directly on `View2D`-projected scalars rather than reusing `detail::extreme_points`, since the latter needs a native-dimension direction vector that a `View2D` projection can't reconstruct (its basis is private). The 3D entry point (`calc_utils3d::distance_to`) dispatches on coplanar/parallel (delegates to the 2D core, with a `sqrt(h^2 + d2d^2)` correction for a nonzero plane offset) vs. skew (crossing-point-in-polygon fast path, else an exact per-edge quadratic scan over the 3D boundary — valid for convex and non-convex rings alike). Tested in all three languages, including a dedicated case proving the oblique-crossing skew distance is the anisotropic-metric value, not the naive isotropic one. Writing the first tests for the 2D core caught a real pre-existing bug: the non-convex branch's `min_d = -1` sentinel could never be updated by `std::min`, since `-1` is smaller than any real distance — fixed to use `+infinity` as the sentinel instead.
 
 ---
 

@@ -420,6 +420,8 @@
 
 </details>
 
+</details>
+
 <details closed>
 <summary><b> &nbsp; &nbsp; 2.3 Overlap </b></summary>
 
@@ -561,8 +563,51 @@
   1
   ```
 
-
 </details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 2.5 Polyline Overlaps / Touches </b></summary>
+
+  `Polyline2D` and `Polyline3D` iterate over their constituent segments to collect all
+  overlapping sub-segments or all touch points. `Overlap(other)` returns
+  `std::optional<std::vector<LineSegment2D/3D>>`; `Touch(other)` returns `std::optional<std::vector<Point2D/3D>>`.
+
+  ```cpp
+  namespace g = geompp;
+
+  // L-shaped polyline
+  auto pl = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 3)});
+
+  // x-axis line overlaps the horizontal leg
+  auto x_axis = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  GEOMPP_LOG(INFO) << pl.Overlaps(x_axis);                            // 1
+  auto segs = pl.Overlap(x_axis);
+  for (auto const& s : *segs) {
+    GEOMPP_LOG(INFO) << s.ToWkt();                                    // LINESTRING (0 0, 4 0)
+  }
+
+  // T-junction: vertical arm touches a horizontal segment at (3,0)
+  auto stem = g::Polyline2D::Make({g::Point2D(3, 0), g::Point2D(3, 3)});
+  auto bar  = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(5, 0));
+  GEOMPP_LOG(INFO) << stem.Touches(bar);                              // 1
+  auto pts = stem.Touch(bar);
+  for (auto const& p : *pts) {
+    GEOMPP_LOG(INFO) << p.ToWkt();                                    // POINT (3 0)
+  }
+
+  // Two polylines sharing an endpoint
+  auto pl1 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(3, 0)});
+  auto pl2 = g::Polyline2D::Make({g::Point2D(3, 0), g::Point2D(3, 3)});
+  GEOMPP_LOG(INFO) << pl1.Touches(pl2);                               // 1
+  ```
+
+  ```bash
+  1
+  LINESTRING (0 0, 4 0)
+  1
+  POINT (3 0)
+  1
+  ```
 
 </details>
 
@@ -1100,11 +1145,155 @@
   POINT (0 0 0) .. POINT (2 2 2)
   ```
 
-</details>
+  `distance_to(polygon, line)` is the companion function: the distance between a polygon and an
+  infinite line, zero if they cross. It works the same way for `Polygon2D`/`Line2D` and
+  `Polygon3D`/`Line3D` — the 3D overload additionally handles a line that is coplanar with,
+  parallel to (at a fixed offset from), or skew to the polygon's plane.
+
+  ```cpp
+  auto square = g::Polygon2D::Make({
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+
+  // zero when the line crosses the polygon...
+  auto crossing = g::Line2D::Make(g::Point2D(2, -1), g::Point2D(2, 5));
+  GEOMPP_LOG(INFO) << "distance (crossing): " << g::distance_to(square, crossing);
+
+  // ...and the perpendicular distance to the nearest edge otherwise
+  auto outside = g::Line2D::Make(g::Point2D(6, -1), g::Point2D(6, 5));
+  GEOMPP_LOG(INFO) << "distance (outside): " << g::distance_to(square, outside);
+
+  // Polygon3D / Line3D: a line parallel to the polygon's plane, offset by 3 along its normal —
+  // combines the in-plane distance (2, same shape as above) with the offset via Pythagoras
+  auto square3d = g::Polygon3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto offset_line = g::Line3D::Make(g::Point3D(6, 0, 3), g::Point3D(6, 1, 3));
+  GEOMPP_LOG(INFO) << "distance (3D, parallel offset): " << g::distance_to(square3d, offset_line);
+  ```
+
+  ```bash
+  distance (crossing): 0
+  distance (outside): 2
+  distance (3D, parallel offset): 3.60555
+  ```
 
 </details>
 
+</details>
 
+
+<details closed>
+<summary><b> &nbsp; 6. Distance </b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 6.1 from Point</b></summary>
+
+  Every core primitive implements `DistanceTo(point)` — the perpendicular / nearest distance to a
+  point, clamped to the primitive's own domain where relevant (a `Ray` only measures ahead of its
+  origin, a `LineSegment`/`Polyline` clamps to its own bounded extent). `Point2D`/`Point3D` themselves
+  just measure Euclidean distance to another point.
+
+  `Polygon2D`/`Polygon3D::DistanceTo(Point)` and `Triangle2D`/`Triangle3D::DistanceTo(Point)` are
+  declared but not yet implemented — they currently `throw std::runtime_error("not implemented")`,
+  so they're omitted from the example below.
+
+  ```cpp
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  g::Point2D p2(3, 4);
+  g::Point3D p3(3, 4, 5);
+
+  GEOMPP_LOG(INFO) << "Point2D:       " << g::Point2D(0, 0).DistanceTo(p2);
+  GEOMPP_LOG(INFO) << "Point3D:       " << g::Point3D(0, 0, 0).DistanceTo(p3);
+
+  auto line2 = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  auto line3 = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
+  GEOMPP_LOG(INFO) << "Line2D:        " << line2.DistanceTo(p2);
+  GEOMPP_LOG(INFO) << "Line3D:        " << line3.DistanceTo(p3);
+
+  auto ray2 = g::Ray2D::Make(g::Point2D(0, 0), g::Vector2D(1, 0));
+  auto ray3 = g::Ray3D::Make(g::Point3D(0, 0, 0), g::Vector3D(1, 0, 0));
+  GEOMPP_LOG(INFO) << "Ray2D:         " << ray2.DistanceTo(p2);
+  GEOMPP_LOG(INFO) << "Ray3D:         " << ray3.DistanceTo(p3);
+
+  auto seg2 = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(6, 0));
+  auto seg3 = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(6, 0, 0));
+  GEOMPP_LOG(INFO) << "LineSegment2D: " << seg2.DistanceTo(p2);
+  GEOMPP_LOG(INFO) << "LineSegment3D: " << seg3.DistanceTo(p3);
+
+  auto pl2 = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(6, 0), g::Point2D(6, 6)});
+  auto pl3 = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(6, 0, 0), g::Point3D(6, 6, 0)});
+  GEOMPP_LOG(INFO) << "Polyline2D:    " << pl2.DistanceTo(p2);
+  GEOMPP_LOG(INFO) << "Polyline3D:    " << pl3.DistanceTo(p3);
+
+  auto plane = g::Plane::XY();
+  GEOMPP_LOG(INFO) << "Plane:         " << plane.DistanceTo(p3);
+  ```
+
+  ```bash
+  Point2D:       5
+  Point3D:       7.071
+  Line2D:        4
+  Line3D:        6.40312
+  Ray2D:         4
+  Ray3D:         6.40312
+  LineSegment2D: 4
+  LineSegment3D: 6.40312
+  Polyline2D:    3
+  Polyline3D:    5.83095
+  Plane:         5
+  ```
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 6.2 from Other primitives</b></summary>
+
+  `Line3D`, `Ray3D`, and `LineSegment3D` each expose `DistanceTo(Line3D | Ray3D | LineSegment3D)` —
+  pairwise distance between any two of the three (0 if they intersect, overlap, or one contains the
+  other). This overload set is 3D-only: two 2D primitives are either parallel (a constant distance,
+  rarely useful on its own) or they intersect (0), so `Line2D`/`Ray2D`/`LineSegment2D` don't expose it.
+
+  If you need the actual closest-approach segment instead of just the scalar, use `Distance(...)`
+  (note: no `To`) — it returns `std::optional<LineSegment3D>`, `std::nullopt` when the two intersect
+  or overlap (matching the zero case of `DistanceTo`).
+
+  For polygon-to-line distance, use the free function `distance_to(polygon, line)` (see section 5.4
+  "Polygon extreme points" for `find_extreme_points`, its sibling function) — zero if the line
+  crosses the polygon; for `Polygon3D`/`Line3D` it also handles a line coplanar with, parallel to
+  (fixed offset from), or skew to the polygon's plane.
+
+  ```cpp
+  auto lineA = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
+  auto lineB = g::Line3D::Make(g::Point3D(0, 1, 1), g::Point3D(1, 1, 1));  // parallel, offset sqrt(2)
+  GEOMPP_LOG(INFO) << "Line3D x Line3D:        " << lineA.DistanceTo(lineB);
+
+  auto rayB = g::Ray3D::Make(g::Point3D(0, 1, 1), g::Vector3D(1, 0, 0));
+  GEOMPP_LOG(INFO) << "Line3D x Ray3D:         " << lineA.DistanceTo(rayB);
+
+  auto segB = g::LineSegment3D::Make(g::Point3D(0, 1, 1), g::Point3D(1, 1, 1));
+  GEOMPP_LOG(INFO) << "Line3D x LineSegment3D: " << lineA.DistanceTo(segB);
+
+  // the closest-approach connecting segment, instead of just the scalar
+  auto connector = lineA.Distance(lineB);
+  GEOMPP_LOG(INFO) << "Line3D.Distance(Line3D): " << connector->ToWkt();
+
+  // Polygon2D / Polygon3D — distance to an infinite line (zero if the line crosses)
+  auto square = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto far_line = g::Line2D::Make(g::Point2D(6, -1), g::Point2D(6, 5));
+  GEOMPP_LOG(INFO) << "distance_to(Polygon2D, Line2D): " << g::distance_to(square, far_line);
+  ```
+
+  ```bash
+  Line3D x Line3D:        1.41421
+  Line3D x Ray3D:         1.41421
+  Line3D x LineSegment3D: 1.41421
+  Line3D.Distance(Line3D): LINESTRING (0 0 0, 0 1 1)
+  distance_to(Polygon2D, Line2D): 2
+  ```
+
+</details>
 
 </details>
 

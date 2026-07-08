@@ -133,4 +133,12 @@ ExtremePoints3D^ GeomUtil::FindExtremePoints(Polygon3D^ polygon, Line3D^ line) {
         gcnew Point3D(new geompp::Point3D(ex.max_point)));
 }
 
+double GeomUtil::DistanceTo(Polygon2D^ polygon, Line2D^ line) {
+    return geompp::distance_to(*polygon->_native, *line->_native);
+}
+
+double GeomUtil::DistanceTo(Polygon3D^ polygon, Line3D^ line) {
+    return geompp::distance_to(*polygon->_native, *line->_native);
+}
+
 }  // namespace GeomPP

@@ -279,7 +279,7 @@ bool Polyline3D::IsSimple() const {
     segs.push_back(LineSegment2D::Make(to2d(KNOTS[i]), to2d(KNOTS[i + 1])));
   }
 
-  return !detail::has_intersections_impl(segs);
+  return !detail::has_intersections(segs);
 }
 
 bool Polyline3D::IsConvex() const {

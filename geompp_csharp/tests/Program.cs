@@ -3882,6 +3882,47 @@ Console.WriteLine("\nGeomUtil::FindExtremePoints");
     });
 }
 
+// ── GeomUtil::DistanceTo ────────────────────────────────────────────────────────
+Console.WriteLine("\nGeomUtil::DistanceTo");
+{
+    var square = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) });
+    Test("DistanceTo2D_LineCrossing_IsZero", () => {
+        var line = Line2D.Make(new Point2D(2, -1), new Point2D(2, 5));
+        Eq(0.0, GeomUtil.DistanceTo(square, line), 9);
+    });
+    Test("DistanceTo2D_LineOutside", () => {
+        var line = Line2D.Make(new Point2D(6, -1), new Point2D(6, 5));
+        Eq(2.0, GeomUtil.DistanceTo(square, line), 9);
+    });
+
+    var dart = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(2, 1), new(0, 4) });
+    Test("DistanceTo2D_NonConvex_LineOutside", () => {
+        var line = Line2D.Make(new Point2D(10, -1), new Point2D(10, 5));
+        Eq(6.0, GeomUtil.DistanceTo(dart, line), 9);
+    });
+
+    var square3 = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0) });
+    Test("DistanceTo3D_Coplanar_LineOutside", () => {
+        var line = Line3D.Make(new Point3D(6, -1, 0), new Point3D(6, 5, 0));
+        Eq(2.0, GeomUtil.DistanceTo(square3, line), 9);
+    });
+    Test("DistanceTo3D_ParallelOffset_PythagoreanCombination", () => {
+        // h=3, d2d=2 (same in-plane line as the coplanar case) -> sqrt(9+4) = sqrt(13)
+        var line = Line3D.Make(new Point3D(6, 0, 3), new Point3D(6, 1, 3));
+        Eq(Math.Sqrt(13.0), GeomUtil.DistanceTo(square3, line), 9);
+    });
+    Test("DistanceTo3D_SkewPerpendicular_CrossingInside_IsZero", () => {
+        var line = Line3D.Make(new Point3D(2, 2, -1), new Point3D(2, 2, 1));
+        Eq(0.0, GeomUtil.DistanceTo(square3, line), 9);
+    });
+    Test("DistanceTo3D_SkewOblique_CrossingOutside_AnisotropicMetric", () => {
+        // Crosses the plane at 45 degrees off the normal at (6,2,0), outside the square.
+        // Correct answer sqrt(2) ~= 1.41421356, not the naive in-plane 2 (6-4).
+        var line = Line3D.Make(new Point3D(6, 2, 0), new Point3D(7, 2, 1));
+        Eq(Math.Sqrt(2.0), GeomUtil.DistanceTo(square3, line), 9);
+    });
+}
+
 // ── BBall2D ───────────────────────────────────────────────────────────────────
 Console.WriteLine("\nBBall2D");
 

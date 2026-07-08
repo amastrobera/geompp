@@ -585,14 +585,14 @@ TEST_F(CalcUtils2DTest, FindIntersections_ThreeSegmentsThreeDistinctPoints) {
 TEST_F(CalcUtils2DTest, HasIntersections_WorksWithSegmentRange_SimplePolygon) {
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(gd::has_intersections_impl(range));
+  EXPECT_FALSE(gd::has_intersections(range));
 }
 
 TEST_F(CalcUtils2DTest, FindIntersections_WorksWithSegmentRange_SelfIntersecting) {
   // same shape as SelfIntersectingRing but constructed as a SegmentRange2D
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(gd::find_intersections_impl(range).empty());
+  EXPECT_FALSE(gd::find_intersections(range).empty());
 }
 
 // ---- find_extreme_points (Polygon2D × Line2D) -------------------------------
@@ -659,10 +659,52 @@ TEST_F(CalcUtils2DTest, ExtremePoints_ConvexAndBruteForceAgree) {
   std::vector<g::Point2D> verts = {g::Point2D(2, 0), g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(2, 4),
                                    g::Point2D(0, 3), g::Point2D(0, 1)};
   auto dir = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(3, 1)).Direction();
-  auto convex = gd::extreme_points_impl(verts, /*is_convex=*/true, dir);
-  auto brute = gd::extreme_points_impl(verts, /*is_convex=*/false, dir);
+  auto convex = gd::extreme_points(verts, /*is_convex=*/true, dir);
+  auto brute = gd::extreme_points(verts, /*is_convex=*/false, dir);
   EXPECT_EQ(brute.first, convex.first);
   EXPECT_EQ(brute.second, convex.second);
+}
+
+// ---- distance_to (Polygon2D × Line2D) ---------------------------------------
+
+TEST_F(CalcUtils2DTest, DistanceTo_ConvexSquare_LineCrossing_IsZero) {
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  ASSERT_TRUE(square.IsConvex());
+  auto line = g::Line2D::Make(g::Point2D(2, -1), g::Point2D(2, 5));
+  EXPECT_NEAR(0.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_ConvexSquare_LineOutside) {
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto line = g::Line2D::Make(g::Point2D(6, -1), g::Point2D(6, 5));
+  EXPECT_NEAR(2.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_NonConvexDart_LineCrossing_IsZero) {
+  // Same dart as ExtremePoints_ConcavePolygon_BruteForcePath: a vertical line through its middle
+  // crosses the bottom edge, so the non-convex brute-force branch must report zero.
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  ASSERT_FALSE(dart.IsConvex());
+  auto line = g::Line2D::Make(g::Point2D(2, -1), g::Point2D(2, 5));
+  EXPECT_NEAR(0.0, g::distance_to(dart, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_NonConvexDart_LineOutside) {
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  auto line = g::Line2D::Make(g::Point2D(10, -1), g::Point2D(10, 5));
+  EXPECT_NEAR(6.0, g::distance_to(dart, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_PolygonWithHole_IgnoresHole) {
+  // Holes make the polygon non-convex; only the outer ring participates — same answer as the
+  // hole-less square in DistanceTo_ConvexSquare_LineOutside.
+  std::vector<g::Point2D> outer = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto poly = g::Polygon2D::Make(outer, {hole});
+  auto line = g::Line2D::Make(g::Point2D(6, -1), g::Point2D(6, 5));
+  EXPECT_NEAR(2.0, g::distance_to(poly, line), 1e-9);
 }
 
 }  // namespace geompp_tests

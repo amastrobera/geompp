@@ -97,10 +97,10 @@ double LineSegment2D::DistanceTo(Point2D const& point) const { return (point - P
 
 #pragma region Collections Operations
 
-bool has_intersections(std::vector<LineSegment2D> const& segments) { return detail::has_intersections_impl(segments); }
+bool has_intersections(std::vector<LineSegment2D> const& segments) { return detail::has_intersections(segments); }
 
 std::vector<Point2D> find_intersections(std::vector<LineSegment2D> const& segments) {
-  auto events = detail::find_intersections_impl(segments);
+  auto events = detail::find_intersections(segments);
   std::vector<Point2D> pts;
   pts.reserve(events.size());
   for (auto const& ev : events) {
