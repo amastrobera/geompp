@@ -26,6 +26,16 @@ void bind_free_functions(py::module_& m) {
         .def_readonly("min_point", &geompp::ExtremePoints<geompp::Point3D>::min_point, "Vertex with least projection.")
         .def_readonly("max_point", &geompp::ExtremePoints<geompp::Point3D>::max_point, "Vertex with greatest projection.");
 
+    py::class_<geompp::PolygonTangents<geompp::LineSegment2D>>(m, "PolygonTangents2D",
+        "The left and right tangent segments from a point or polygon to a 2D polygon.")
+        .def_readonly("left", &geompp::PolygonTangents<geompp::LineSegment2D>::left, "The left tangent segment.")
+        .def_readonly("right", &geompp::PolygonTangents<geompp::LineSegment2D>::right, "The right tangent segment.");
+
+    py::class_<geompp::PolygonTangents<geompp::LineSegment3D>>(m, "PolygonTangents3D",
+        "The left and right tangent segments from a point or polygon to a 3D polygon.")
+        .def_readonly("left", &geompp::PolygonTangents<geompp::LineSegment3D>::left, "The left tangent segment.")
+        .def_readonly("right", &geompp::PolygonTangents<geompp::LineSegment3D>::right, "The right tangent segment.");
+
     m.def("are_collinear",
           [](const geompp::Point2D& p1, const geompp::Point2D& p2, const geompp::Point2D& p3) {
               return geompp::are_collinear(p1, p2, p3);
@@ -206,4 +216,39 @@ void bind_free_functions(py::module_& m) {
           "polygon"_a, "line"_a,
           "Distance between the polygon and an infinite line (zero if they cross). Handles coplanar, "
           "parallel-offset, and skew lines. Holes are ignored.");
+
+    // ── polygon tangents ───────────────────────────────────────────────────────────────────────
+    m.def("tangents_to",
+          [](const geompp::Polygon2D& polygon, const geompp::Point2D& p) {
+              return geompp::tangents_to(polygon, p);
+          },
+          "polygon"_a, "point"_a,
+          "Left and right tangent segments from a point to a 2D polygon, as PolygonTangents2D(left, right). "
+          "Uses Daniel Sunday's O(log n) binary search when the polygon is convex, else reduces to its convex "
+          "hull first. Point must be strictly outside the polygon and not equal to any of its vertices.");
+
+    m.def("tangents_to",
+          [](const geompp::Polygon2D& polygon, const geompp::Polygon2D& other) {
+              return geompp::tangents_to(polygon, other);
+          },
+          "polygon"_a, "other"_a,
+          "The two common outer tangent segments between two 2D polygons, as PolygonTangents2D(left, right). "
+          "Neither polygon needs to be convex — each is reduced to its convex hull first when needed.");
+
+    m.def("tangents_to",
+          [](const geompp::Polygon3D& polygon, const geompp::Point3D& p) {
+              return geompp::tangents_to(polygon, p);
+          },
+          "polygon"_a, "point"_a,
+          "Left and right tangent segments from a point to a 3D polygon, as PolygonTangents3D(left, right). "
+          "A tangent is inherently planar, so the point must be coplanar with the polygon; raises RuntimeError "
+          "otherwise. Point must be strictly outside the polygon and not equal to any of its vertices.");
+
+    m.def("tangents_to",
+          [](const geompp::Polygon3D& polygon, const geompp::Polygon3D& other) {
+              return geompp::tangents_to(polygon, other);
+          },
+          "polygon"_a, "other"_a,
+          "The two common outer tangent segments between two 3D polygons, as PolygonTangents3D(left, right). "
+          "Both polygons must lie in the same plane; raises RuntimeError otherwise.");
 }

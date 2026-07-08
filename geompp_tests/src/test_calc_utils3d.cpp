@@ -2,6 +2,8 @@
 
 #include "constants.hpp"
 #include "line3d.hpp"
+#include "line_segment3d.hpp"
+#include "plane.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
 #include "utils.hpp"
@@ -310,6 +312,56 @@ TEST_F(CalcUtils3DTest, DistanceTo_SkewPerpendicular_NonConvexDart) {
   ASSERT_FALSE(dart.IsConvex());
   auto line = g::Line3D::Make(g::Point3D(2, -3, -1), g::Point3D(2, -3, 1));
   EXPECT_NEAR(3.0, g::distance_to(dart, line), 1e-9);
+}
+
+// ---- tangents_to (Polygon3D x Point3D / Polygon3D) --------------------------
+
+TEST_F(CalcUtils3DTest, TangentsTo_ConvexSquare_OnXYPlane_Point) {
+  // z=0 plane hits the View2D::XY() fast path; same combinatorics as the CalcUtils2DTest square case.
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  ASSERT_TRUE(square.IsConvex());
+  auto t = g::tangents_to(square, g::Point3D(10, -2, 0));
+  EXPECT_EQ(g::Point3D(0, 0, 0), t.left.Last());
+  EXPECT_EQ(g::Point3D(4, 4, 0), t.right.Last());
+}
+
+TEST_F(CalcUtils3DTest, TangentsTo_ConvexSquare_OnTiltedPlane_Point) {
+  // A square in the custom (non-axis-aligned) plane z=x, forcing View2D::OnPlane(...). Point and
+  // vertices are an isometric embedding of the CalcUtils2DTest square/point case (u=x=z, v=y), so
+  // the combinatorial result must match it exactly — verified via ZZZ discovery run beforehand.
+  auto tilted = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 4), g::Point3D(4, 4, 4), g::Point3D(0, 4, 0)});
+  ASSERT_TRUE(tilted.IsConvex());
+  auto t = g::tangents_to(tilted, g::Point3D(10, -2, 10));
+  EXPECT_EQ(g::Point3D(0, 0, 0), t.left.Last());
+  EXPECT_EQ(g::Point3D(4, 4, 4), t.right.Last());
+}
+
+TEST_F(CalcUtils3DTest, TangentsTo_ConvexSquares_OnTiltedPlane_Polygon) {
+  auto tiltedA = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 4), g::Point3D(4, 4, 4), g::Point3D(0, 4, 0)});
+  auto tiltedB = g::Polygon3D::Make(
+      {g::Point3D(10, 1, 10), g::Point3D(14, 1, 14), g::Point3D(14, 5, 14), g::Point3D(10, 5, 10)});
+  auto t = g::tangents_to(tiltedA, tiltedB);
+  EXPECT_EQ(g::Point3D(0, 4, 0), t.left.First());
+  EXPECT_EQ(g::Point3D(10, 5, 10), t.left.Last());
+  EXPECT_EQ(g::Point3D(4, 0, 4), t.right.First());
+  EXPECT_EQ(g::Point3D(14, 1, 14), t.right.Last());
+}
+
+TEST_F(CalcUtils3DTest, TangentsTo_Point_ThrowsWhenNotCoplanar) {
+  auto square = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  EXPECT_THROW(g::tangents_to(square, g::Point3D(10, -2, 1)), std::logic_error);
+}
+
+TEST_F(CalcUtils3DTest, TangentsTo_Polygon_ThrowsWhenNotCoplanar) {
+  auto squareA = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto squareB = g::Polygon3D::Make(
+      {g::Point3D(10, 1, 1), g::Point3D(14, 1, 1), g::Point3D(14, 5, 1), g::Point3D(10, 5, 1)});
+  EXPECT_THROW(g::tangents_to(squareA, squareB), std::logic_error);
 }
 
 }  // namespace geompp_tests

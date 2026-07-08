@@ -2,6 +2,7 @@
 
 #include "calc_utils2d.hpp"
 #include "line3d.hpp"
+#include "line_segment3d.hpp"
 #include "polygon3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
@@ -422,6 +423,51 @@ double distance_to(Polygon3D const& polygon, Line3D const& line) {
     min_d = std::min(min_d, ring_distance_to_line(hole, line.Origin(), line.Direction()));
   }
   return min_d;
+}
+
+namespace {
+
+// Cheapest View2D that can represent `plane`: one of the fast world-plane views when it matches exactly,
+// otherwise the plane's own (Custom) basis. Mirrors the selection distance_to(Polygon3D, Line3D) makes above.
+View2D view_for_plane(Plane const& plane) {
+  if (plane == Plane::XY()) {
+    return View2D::XY();
+  }
+  if (plane == Plane::YZ()) {
+    return View2D::YZ();
+  }
+  if (plane == Plane::ZX()) {
+    return View2D::ZX();
+  }
+  return View2D::OnPlane(plane);
+}
+
+}  // namespace
+
+PolygonTangents<LineSegment3D> tangents_to(Polygon3D const& polygon, Point3D const& p) {
+  auto poly_plane = polygon.GetPlane();
+  if (!poly_plane.Contains(p)) {
+    throw std::logic_error("tangents_to(Polygon3D, Point3D) — point is not coplanar with the polygon");
+  }
+
+  auto [left_i, right_i] =
+      detail::view::point_poly_tangent_lr_to(polygon.Perimeter(), polygon.IsConvex(), p, view_for_plane(poly_plane));
+  return {LineSegment3D::Make(p, polygon[left_i]), LineSegment3D::Make(p, polygon[right_i])};
+}
+
+PolygonTangents<LineSegment3D> tangents_to(Polygon3D const& polygon, Polygon3D const& other) {
+  auto poly_plane = polygon.GetPlane();
+  if (!(poly_plane == other.GetPlane())) {
+    throw std::logic_error("tangents_to(Polygon3D, Polygon3D) — polygons are not coplanar");
+  }
+  View2D view = view_for_plane(poly_plane);
+
+  auto [RL_poly_i, RL_other_i] = detail::view::poly_poly_RL_tangent_to(polygon.Perimeter(), polygon.IsConvex(),
+                                                                        other.Perimeter(), other.IsConvex(), view);
+  auto [LR_other_i, LR_poly_i] = detail::view::poly_poly_RL_tangent_to(other.Perimeter(), other.IsConvex(),
+                                                                        polygon.Perimeter(), polygon.IsConvex(), view);
+  return {LineSegment3D::Make(polygon[RL_poly_i], other[RL_other_i]),
+          LineSegment3D::Make(polygon[LR_poly_i], other[LR_other_i])};
 }
 
 }  // namespace geompp

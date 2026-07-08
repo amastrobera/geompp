@@ -62,6 +62,7 @@ from source — you will need CMake ≥ 3.15 and a C++20-capable compiler.
 | `principal_axes(points)` | PCA on a `list[Point3D]`: returns `CoordinateFrame` (`.x` primary, `.y` secondary, `.z` best-fit normal) |
 | `principal_normal(points)` | Best-fit plane normal of a `list[Point3D]` (PCA eigenvector with smallest eigenvalue) |
 | `principal_direction(points)` | Dominant direction of a `list[Point3D]` (PCA eigenvector with largest eigenvalue) |
+| `tangents_to(polygon, point_or_polygon)` | `PolygonTangents2D`/`PolygonTangents3D` (`.left`/`.right`) — tangent segments to a point, or common outer tangents to another polygon |
 
 
 ## How to use it
@@ -1150,6 +1151,83 @@ A quick list of code examples per topic is provided here.
   Line3D x LineSegment3D: 1.414
   Line3D.distance(Line3D): LINESTRING (0 0 0, 0 1 1)
   distance_to(Polygon2D, Line2D): 2.000
+  ```
+
+</details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; 7. Polygon tangents</b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 7.1 Point to Polygon</b></summary>
+
+  `tangents_to(polygon, point)` returns `PolygonTangents2D`/`PolygonTangents3D` (`.left` / `.right`,
+  each a `LineSegment`) — the two tangent segments from an external point to a polygon (the point's
+  "line of sight" grazing the shape on either side, like a taut string pulled around it). Convex
+  polygons use Daniel Sunday's O(log n) binary search; non-convex polygons are reduced to their
+  convex hull first (a tangent point can only ever be a hull vertex — a reflex vertex always has the
+  polygon on both sides of it, so it can never support a tangent line) and the result is mapped back
+  to the original vertex.
+
+  The point must be strictly outside the polygon and not equal to any of its vertices. For
+  `Polygon3D`, a tangent is inherently a planar concept — unlike `distance_to`, there is no "skew"
+  fallback — so the point must lie in the polygon's own plane, or the call raises `RuntimeError`.
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  square = g.Polygon2D.make([
+      g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(4, 4), g.Point2D(0, 4)])
+  t2 = g.tangents_to(square, g.Point2D(10, -2))
+  print(f"Polygon2D left:  {t2.left.to_wkt()}")
+  print(f"Polygon2D right: {t2.right.to_wkt()}")
+
+  # Polygon3D requires the point to be coplanar with the polygon (here, the z=0 plane)
+  square3 = g.Polygon3D.make([
+      g.Point3D(0, 0, 0), g.Point3D(4, 0, 0), g.Point3D(4, 4, 0), g.Point3D(0, 4, 0)])
+  t3 = g.tangents_to(square3, g.Point3D(10, -2, 0))
+  print(f"Polygon3D left:  {t3.left.to_wkt()}")
+  print(f"Polygon3D right: {t3.right.to_wkt()}")
+  ```
+
+  ```
+  Polygon2D left:  LINESTRING (10 -2, 0 0)
+  Polygon2D right: LINESTRING (10 -2, 4 4)
+  Polygon3D left:  LINESTRING (10 -2 0, 0 0 0)
+  Polygon3D right: LINESTRING (10 -2 0, 4 4 0)
+  ```
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 7.2 Polygon to Polygon</b></summary>
+
+  `tangents_to(polygon, other)` returns the two common outer tangent segments between two polygons —
+  the "belt around two pulleys" lines that touch both shapes without crossing either. Neither polygon
+  needs to be convex: each is independently reduced to its convex hull when needed, same as the
+  point overload above. For `Polygon3D`, both polygons must share the same plane (two polygons in
+  general 3D position don't have a single well-defined common tangent line), or the call raises
+  `RuntimeError`.
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  square_a = g.Polygon2D.make([
+      g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(4, 4), g.Point2D(0, 4)])
+  square_b = g.Polygon2D.make([
+      g.Point2D(10, 1), g.Point2D(14, 1), g.Point2D(14, 5), g.Point2D(10, 5)])
+  t2 = g.tangents_to(square_a, square_b)
+  print(f"Polygon2D left:  {t2.left.to_wkt()}")
+  print(f"Polygon2D right: {t2.right.to_wkt()}")
+  ```
+
+  ```
+  Polygon2D left:  LINESTRING (0 4, 10 5)
+  Polygon2D right: LINESTRING (4 0, 14 1)
   ```
 
 </details>

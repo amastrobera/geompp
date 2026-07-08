@@ -11,6 +11,7 @@ ref class Point2D;
 ref class Point3D;
 ref class Plane;
 ref class LineSegment2D;
+ref class LineSegment3D;
 ref class CoordinateFrame;
 ref class Vector3D;
 ref class Polygon2D;
@@ -40,6 +41,30 @@ internal:
 private:
     Point3D^ _min;
     Point3D^ _max;
+};
+
+// The left and right tangent segments from a point or polygon to a 2D polygon.
+public ref class PolygonTangents2D sealed {
+public:
+    property LineSegment2D^ Left { LineSegment2D^ get() { return _left; } }
+    property LineSegment2D^ Right { LineSegment2D^ get() { return _right; } }
+internal:
+    PolygonTangents2D(LineSegment2D^ l, LineSegment2D^ r) : _left(l), _right(r) {}
+private:
+    LineSegment2D^ _left;
+    LineSegment2D^ _right;
+};
+
+// The left and right tangent segments from a point or polygon to a 3D polygon.
+public ref class PolygonTangents3D sealed {
+public:
+    property LineSegment3D^ Left { LineSegment3D^ get() { return _left; } }
+    property LineSegment3D^ Right { LineSegment3D^ get() { return _right; } }
+internal:
+    PolygonTangents3D(LineSegment3D^ l, LineSegment3D^ r) : _left(l), _right(r) {}
+private:
+    LineSegment3D^ _left;
+    LineSegment3D^ _right;
 };
 
 // Static utility class — wraps the geompp free functions that operate on point collections.
@@ -83,6 +108,15 @@ public:
     // ignored. The 3D overload handles coplanar, parallel-offset, and skew lines.
     static double DistanceTo(Polygon2D^ polygon, Line2D^ line);
     static double DistanceTo(Polygon3D^ polygon, Line3D^ line);
+
+    // TangentsTo — left/right tangent segments from a point to a polygon, or the two common outer
+    // tangent segments between two polygons. Uses Daniel Sunday's O(log n) binary search when convex,
+    // else reduces to the convex hull first. The 3D overloads require coplanar inputs (point in the
+    // polygon's plane, or both polygons sharing a plane) and throw otherwise.
+    static PolygonTangents2D^ TangentsTo(Polygon2D^ polygon, Point2D^ point);
+    static PolygonTangents2D^ TangentsTo(Polygon2D^ polygon, Polygon2D^ other);
+    static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Point3D^ point);
+    static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Polygon3D^ other);
 };
 
 }  // namespace GeomPP

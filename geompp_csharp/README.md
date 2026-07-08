@@ -1186,6 +1186,73 @@ A quick list of code examples per topic is provided here.
 
 </details>
 
+<details open>
+<summary><b> &nbsp; 7. Polygon tangents</b></summary>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 7.1 Point to Polygon</b></summary>
+
+  `GeomUtil.TangentsTo(polygon, point)` returns `PolygonTangents2D^`/`PolygonTangents3D^` (`Left` /
+  `Right`, each a `LineSegment`) — the two tangent segments from an external point to a polygon (the
+  point's "line of sight" grazing the shape on either side, like a taut string pulled around it).
+  Convex polygons use Daniel Sunday's O(log n) binary search; non-convex polygons are reduced to
+  their convex hull first (a tangent point can only ever be a hull vertex — a reflex vertex always
+  has the polygon on both sides of it, so it can never support a tangent line) and the result is
+  mapped back to the original vertex.
+
+  The point must be strictly outside the polygon and not equal to any of its vertices. For
+  `Polygon3D`, a tangent is inherently a planar concept — unlike `DistanceTo`, there is no "skew"
+  fallback — so the point must lie in the polygon's own plane, or the call throws.
+
+  ```csharp
+  var square = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) });
+  var t2 = GeomUtil.TangentsTo(square, new Point2D(10, -2));
+  Console.WriteLine($"Polygon2D left:  {t2.Left.ToWkt()}");
+  Console.WriteLine($"Polygon2D right: {t2.Right.ToWkt()}");
+
+  // Polygon3D requires the point to be coplanar with the polygon (here, the z=0 plane)
+  var square3 = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0) });
+  var t3 = GeomUtil.TangentsTo(square3, new Point3D(10, -2, 0));
+  Console.WriteLine($"Polygon3D left:  {t3.Left.ToWkt()}");
+  Console.WriteLine($"Polygon3D right: {t3.Right.ToWkt()}");
+  ```
+
+  ```
+  Polygon2D left:  LINESTRING (10 -2, 0 0)
+  Polygon2D right: LINESTRING (10 -2, 4 4)
+  Polygon3D left:  LINESTRING (10 -2 0, 0 0 0)
+  Polygon3D right: LINESTRING (10 -2 0, 4 4 0)
+  ```
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 7.2 Polygon to Polygon</b></summary>
+
+  `GeomUtil.TangentsTo(polygon, other)` returns the two common outer tangent segments between two
+  polygons — the "belt around two pulleys" lines that touch both shapes without crossing either.
+  Neither polygon needs to be convex: each is independently reduced to its convex hull when needed,
+  same as the point overload above. For `Polygon3D`, both polygons must share the same plane (two
+  polygons in general 3D position don't have a single well-defined common tangent line), or the call
+  throws.
+
+  ```csharp
+  var squareA = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) });
+  var squareB = Polygon2D.Make(new Point2D[] { new(10, 1), new(14, 1), new(14, 5), new(10, 5) });
+  var t2 = GeomUtil.TangentsTo(squareA, squareB);
+  Console.WriteLine($"Polygon2D left:  {t2.Left.ToWkt()}");
+  Console.WriteLine($"Polygon2D right: {t2.Right.ToWkt()}");
+  ```
+
+  ```
+  Polygon2D left:  LINESTRING (0 4, 10 5)
+  Polygon2D right: LINESTRING (4 0, 14 1)
+  ```
+
+</details>
+
+</details>
+
 </details>
 
 

@@ -3923,6 +3923,80 @@ Console.WriteLine("\nGeomUtil::DistanceTo");
     });
 }
 
+// ── GeomUtil::TangentsTo ────────────────────────────────────────────────────────
+Console.WriteLine("\nGeomUtil::TangentsTo");
+{
+    var square = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) });
+    Test("TangentsTo2D_ConvexSquare_Point", () => {
+        var t = GeomUtil.TangentsTo(square, new Point2D(10, -2));
+        IsTrue(t.Left.Last().AlmostEquals(new Point2D(0, 0)), "left");
+        IsTrue(t.Right.Last().AlmostEquals(new Point2D(4, 4)), "right");
+    });
+
+    var dart = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(2, 1), new(0, 4) });
+    Test("TangentsTo2D_NonConvexDart_Point_ReducesToConvexHull", () => {
+        var t = GeomUtil.TangentsTo(dart, new Point2D(-6, 2));
+        IsTrue(t.Left.Last().AlmostEquals(new Point2D(0, 4)), "left");
+        IsTrue(t.Right.Last().AlmostEquals(new Point2D(0, 0)), "right");
+    });
+
+    var squareB = Polygon2D.Make(new Point2D[] { new(10, 1), new(14, 1), new(14, 5), new(10, 5) });
+    Test("TangentsTo2D_ConvexSquares_Polygon", () => {
+        var t = GeomUtil.TangentsTo(square, squareB);
+        IsTrue(t.Left.First().AlmostEquals(new Point2D(0, 4)), "left.first");
+        IsTrue(t.Left.Last().AlmostEquals(new Point2D(10, 5)), "left.last");
+        IsTrue(t.Right.First().AlmostEquals(new Point2D(4, 0)), "right.first");
+        IsTrue(t.Right.Last().AlmostEquals(new Point2D(14, 1)), "right.last");
+    });
+
+    var dartB = Polygon2D.Make(new Point2D[] { new(10, 1), new(14, 1), new(14, 5), new(12, 2), new(10, 5) });
+    Test("TangentsTo2D_NonConvexDarts_Polygon_ReducesBothToConvexHull", () => {
+        var t = GeomUtil.TangentsTo(dart, dartB);
+        IsTrue(t.Left.First().AlmostEquals(new Point2D(0, 4)), "left.first");
+        IsTrue(t.Left.Last().AlmostEquals(new Point2D(10, 5)), "left.last");
+        IsTrue(t.Right.First().AlmostEquals(new Point2D(4, 0)), "right.first");
+        IsTrue(t.Right.Last().AlmostEquals(new Point2D(14, 1)), "right.last");
+    });
+
+    var square3 = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0) });
+    Test("TangentsTo3D_ConvexSquare_OnXYPlane_Point", () => {
+        var t = GeomUtil.TangentsTo(square3, new Point3D(10, -2, 0));
+        IsTrue(t.Left.Last().AlmostEquals(new Point3D(0, 0, 0)), "left");
+        IsTrue(t.Right.Last().AlmostEquals(new Point3D(4, 4, 0)), "right");
+    });
+
+    var tilted = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 4), new(4, 4, 4), new(0, 4, 0) });
+    Test("TangentsTo3D_ConvexSquare_OnTiltedPlane_Point", () => {
+        var t = GeomUtil.TangentsTo(tilted, new Point3D(10, -2, 10));
+        IsTrue(t.Left.Last().AlmostEquals(new Point3D(0, 0, 0)), "left");
+        IsTrue(t.Right.Last().AlmostEquals(new Point3D(4, 4, 4)), "right");
+    });
+
+    var tiltedB = Polygon3D.Make(new Point3D[] { new(10, 1, 10), new(14, 1, 14), new(14, 5, 14), new(10, 5, 10) });
+    Test("TangentsTo3D_ConvexSquares_OnTiltedPlane_Polygon", () => {
+        var t = GeomUtil.TangentsTo(tilted, tiltedB);
+        IsTrue(t.Left.First().AlmostEquals(new Point3D(0, 4, 0)), "left.first");
+        IsTrue(t.Left.Last().AlmostEquals(new Point3D(10, 5, 10)), "left.last");
+        IsTrue(t.Right.First().AlmostEquals(new Point3D(4, 0, 4)), "right.first");
+        IsTrue(t.Right.Last().AlmostEquals(new Point3D(14, 1, 14)), "right.last");
+    });
+
+    Test("TangentsTo3D_Point_ThrowsWhenNotCoplanar", () => {
+        bool threw = false;
+        try { GeomUtil.TangentsTo(square3, new Point3D(10, -2, 1)); }
+        catch (Exception) { threw = true; }
+        IsTrue(threw, "expected throw for non-coplanar point");
+    });
+
+    var square3B = Polygon3D.Make(new Point3D[] { new(10, 1, 1), new(14, 1, 1), new(14, 5, 1), new(10, 5, 1) });
+    Test("TangentsTo3D_Polygon_ThrowsWhenNotCoplanar", () => {
+        bool threw = false;
+        try { GeomUtil.TangentsTo(square3, square3B); }
+        catch (Exception) { threw = true; }
+        IsTrue(threw, "expected throw for non-coplanar polygons");
+    });
+}
+
 // ── BBall2D ───────────────────────────────────────────────────────────────────
 Console.WriteLine("\nBBall2D");
 

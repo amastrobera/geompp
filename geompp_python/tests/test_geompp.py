@@ -4102,6 +4102,98 @@ class TestDistanceTo:
         assert approx(geompp.distance_to(square, line), 2.0 ** 0.5)
 
 
+# --- tangents_to (polygon tangents) ---
+class TestTangentsTo:
+    def test_2d_convex_square_point(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        t = geompp.tangents_to(square, geompp.Point2D(10, -2))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 0)
+        assert approx(t.right.last.x, 4) and approx(t.right.last.y, 4)
+
+    def test_2d_non_convex_dart_point_reduces_to_hull(self):
+        dart = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        assert not dart.is_convex()
+        t = geompp.tangents_to(dart, geompp.Point2D(-6, 2))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 4)
+        assert approx(t.right.last.x, 0) and approx(t.right.last.y, 0)
+
+    def test_2d_convex_squares_polygon(self):
+        square_a = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        square_b = geompp.Polygon2D.make([
+            geompp.Point2D(10, 1), geompp.Point2D(14, 1),
+            geompp.Point2D(14, 5), geompp.Point2D(10, 5)])
+        t = geompp.tangents_to(square_a, square_b)
+        assert approx(t.left.first.x, 0) and approx(t.left.first.y, 4)
+        assert approx(t.left.last.x, 10) and approx(t.left.last.y, 5)
+        assert approx(t.right.first.x, 4) and approx(t.right.first.y, 0)
+        assert approx(t.right.last.x, 14) and approx(t.right.last.y, 1)
+
+    def test_2d_non_convex_darts_polygon_reduces_both_to_hull(self):
+        dart_a = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        dart_b = geompp.Polygon2D.make([
+            geompp.Point2D(10, 1), geompp.Point2D(14, 1), geompp.Point2D(14, 5),
+            geompp.Point2D(12, 2), geompp.Point2D(10, 5)])
+        t = geompp.tangents_to(dart_a, dart_b)
+        assert approx(t.left.first.x, 0) and approx(t.left.first.y, 4)
+        assert approx(t.left.last.x, 10) and approx(t.left.last.y, 5)
+        assert approx(t.right.first.x, 4) and approx(t.right.first.y, 0)
+        assert approx(t.right.last.x, 14) and approx(t.right.last.y, 1)
+
+    def test_3d_coplanar_point_on_xy_plane(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        t = geompp.tangents_to(square, geompp.Point3D(10, -2, 0))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 0) and approx(t.left.last.z, 0)
+        assert approx(t.right.last.x, 4) and approx(t.right.last.y, 4) and approx(t.right.last.z, 0)
+
+    def test_3d_coplanar_point_on_tilted_plane(self):
+        tilted = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 4),
+            geompp.Point3D(4, 4, 4), geompp.Point3D(0, 4, 0)])
+        t = geompp.tangents_to(tilted, geompp.Point3D(10, -2, 10))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 0) and approx(t.left.last.z, 0)
+        assert approx(t.right.last.x, 4) and approx(t.right.last.y, 4) and approx(t.right.last.z, 4)
+
+    def test_3d_coplanar_squares_polygon(self):
+        tilted_a = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 4),
+            geompp.Point3D(4, 4, 4), geompp.Point3D(0, 4, 0)])
+        tilted_b = geompp.Polygon3D.make([
+            geompp.Point3D(10, 1, 10), geompp.Point3D(14, 1, 14),
+            geompp.Point3D(14, 5, 14), geompp.Point3D(10, 5, 10)])
+        t = geompp.tangents_to(tilted_a, tilted_b)
+        assert approx(t.left.first.x, 0) and approx(t.left.first.y, 4) and approx(t.left.first.z, 0)
+        assert approx(t.left.last.x, 10) and approx(t.left.last.y, 5) and approx(t.left.last.z, 10)
+        assert approx(t.right.first.x, 4) and approx(t.right.first.y, 0) and approx(t.right.first.z, 4)
+        assert approx(t.right.last.x, 14) and approx(t.right.last.y, 1) and approx(t.right.last.z, 14)
+
+    def test_3d_point_not_coplanar_raises(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        with pytest.raises(Exception):
+            geompp.tangents_to(square, geompp.Point3D(10, -2, 1))
+
+    def test_3d_polygons_not_coplanar_raises(self):
+        square_a = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        square_b = geompp.Polygon3D.make([
+            geompp.Point3D(10, 1, 1), geompp.Point3D(14, 1, 1),
+            geompp.Point3D(14, 5, 1), geompp.Point3D(10, 5, 1)])
+        with pytest.raises(Exception):
+            geompp.tangents_to(square_a, square_b)
+
+
 # --- convex hull (Andrew's monotone chain) ---
 class TestConvexHull:
     def test_few_points_returns_as_is(self):

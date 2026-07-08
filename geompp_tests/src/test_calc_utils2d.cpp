@@ -707,4 +707,71 @@ TEST_F(CalcUtils2DTest, DistanceTo_PolygonWithHole_IgnoresHole) {
   EXPECT_NEAR(2.0, g::distance_to(poly, line), 1e-9);
 }
 
+// ---- tangents_to (Polygon2D x Point2D / Polygon2D) --------------------------
+
+TEST_F(CalcUtils2DTest, TangentsTo_ConvexSquare_Point) {
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  ASSERT_TRUE(square.IsConvex());  // exercises the O(log n) binary search
+  auto t = g::tangents_to(square, g::Point2D(10, -2));
+  EXPECT_EQ(g::Point2D(10, -2), t.left.First());
+  EXPECT_EQ(g::Point2D(0, 0), t.left.Last());
+  EXPECT_EQ(g::Point2D(10, -2), t.right.First());
+  EXPECT_EQ(g::Point2D(4, 4), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_ConvexHexagon_Point_ExercisesFullBinarySearch) {
+  // A larger convex loop and a distant, off-axis point force the binary search to actually
+  // iterate (not just hit the "vertex 0" shortcut). Verified independently via the supporting-line
+  // cross-product test (both candidates keep every other vertex on one consistent side of p->v).
+  auto hex = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(2, 4),
+                                 g::Point2D(0, 3), g::Point2D(0, 1)});
+  ASSERT_TRUE(hex.IsConvex());
+  auto t = g::tangents_to(hex, g::Point2D(20, 7));
+  EXPECT_EQ(g::Point2D(2, 0), t.left.Last());
+  EXPECT_EQ(g::Point2D(2, 4), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_NonConvexDart_Point_ReducesToConvexHull) {
+  // The dart's concave notch (2,1) is interior to its convex hull, so it must never be
+  // returned as a tangent point. Viewed from directly left, the tangent points are exactly the
+  // endpoints of the flat left edge (0,0)-(0,4) — same answer as the hull-equivalent square would
+  // give, which also exercises the hull-index -> original-index mapping (dart has 5 vertices, its
+  // hull only 4, so a broken mapping would very likely land on the wrong vertex).
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  ASSERT_FALSE(dart.IsConvex());
+  auto t = g::tangents_to(dart, g::Point2D(-6, 2));
+  EXPECT_EQ(g::Point2D(0, 4), t.left.Last());
+  EXPECT_EQ(g::Point2D(0, 0), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_ConvexSquares_Polygon) {
+  // Two congruent squares, one translated by (10,1) relative to the other (no rotation/scaling):
+  // the outer common tangents connect corresponding corners and are parallel to the translation
+  // vector — verified independently via the supporting-line cross-product test.
+  auto squareA = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto squareB = g::Polygon2D::Make({g::Point2D(10, 1), g::Point2D(14, 1), g::Point2D(14, 5), g::Point2D(10, 5)});
+  auto t = g::tangents_to(squareA, squareB);
+  EXPECT_EQ(g::Point2D(0, 4), t.left.First());
+  EXPECT_EQ(g::Point2D(10, 5), t.left.Last());
+  EXPECT_EQ(g::Point2D(4, 0), t.right.First());
+  EXPECT_EQ(g::Point2D(14, 1), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_NonConvexDarts_Polygon_ReducesBothToConvexHull) {
+  // Same layout as TangentsTo_ConvexSquares_Polygon, but both shapes are darts with an interior
+  // notch. Neither notch is on its hull, so the result must match the square/square case exactly.
+  auto dartA = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                   g::Point2D(0, 4)});
+  auto dartB = g::Polygon2D::Make({g::Point2D(10, 1), g::Point2D(14, 1), g::Point2D(14, 5), g::Point2D(12, 2),
+                                   g::Point2D(10, 5)});
+  ASSERT_FALSE(dartA.IsConvex());
+  ASSERT_FALSE(dartB.IsConvex());
+  auto t = g::tangents_to(dartA, dartB);
+  EXPECT_EQ(g::Point2D(0, 4), t.left.First());
+  EXPECT_EQ(g::Point2D(10, 5), t.left.Last());
+  EXPECT_EQ(g::Point2D(4, 0), t.right.First());
+  EXPECT_EQ(g::Point2D(14, 1), t.right.Last());
+}
+
 }  // namespace geompp_tests
