@@ -111,6 +111,9 @@ class TestPoint2D:
         p2 = geompp.Point2D.from_wkt(wkt)
         assert p.almost_equals(p2)
 
+    def test_from_wkt_whitespace(self):
+        assert geompp.Point2D(0, 1).almost_equals(geompp.Point2D.from_wkt("POINT (  0  1  )"))
+
     def test_repr(self):
         assert "POINT" in repr(geompp.Point2D(1, 2))
 
@@ -175,6 +178,9 @@ class TestPoint3D:
         p = geompp.Point3D(1, 2, 3)
         p2 = geompp.Point3D.from_wkt(p.to_wkt())
         assert p.almost_equals(p2)
+
+    def test_from_wkt_whitespace(self):
+        assert geompp.Point3D(0, 1, 2).almost_equals(geompp.Point3D.from_wkt("POINT (  0  1  2  )"))
 
     def test_zero(self):
         z = geompp.Point3D.zero()
@@ -278,6 +284,9 @@ class TestVector2D:
         v2 = geompp.Vector2D.from_wkt(wkt)
         assert v.almost_equals(v2)
 
+    def test_from_wkt_whitespace(self):
+        assert geompp.Vector2D(0, 1).almost_equals(geompp.Vector2D.from_wkt("VECTOR (  0  1  )"))
+
     def test_to_file_from_file(self):
         v = geompp.Vector2D(1.5, 2.5)
         with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
@@ -289,6 +298,13 @@ class TestVector2D:
             assert v.almost_equals(v2)
         finally:
             os.unlink(path)
+
+    def test_is_parallel(self):
+        assert geompp.Vector2D(1, 0).is_parallel(geompp.Vector2D(2, 0))
+        assert geompp.Vector2D(1, 0).is_parallel(geompp.Vector2D(-3, 0))
+        assert geompp.Vector2D(1, 1).is_parallel(geompp.Vector2D(2, 2))
+        assert not geompp.Vector2D(1, 0).is_parallel(geompp.Vector2D(0, 1))
+        assert not geompp.Vector2D(1, 0).is_parallel(geompp.Vector2D(1, 1))
 
 
 # ─── Vector3D ────────────────────────────────────────────────────────────────
@@ -344,6 +360,9 @@ class TestVector3D:
         wkt = v.to_wkt()
         v2 = geompp.Vector3D.from_wkt(wkt)
         assert v.almost_equals(v2)
+
+    def test_from_wkt_whitespace(self):
+        assert geompp.Vector3D(0, 1, 2).almost_equals(geompp.Vector3D.from_wkt("VECTOR (  0  1  2  )"))
 
     def test_to_file_from_file(self):
         v = geompp.Vector3D(1.0, 2.0, 3.0)
@@ -441,6 +460,11 @@ class TestLineSegment2D:
         seg2 = geompp.LineSegment2D.from_wkt(seg.to_wkt())
         assert seg.almost_equals(seg2)
 
+    def test_from_wkt_whitespace(self):
+        expected = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        assert expected.almost_equals(geompp.LineSegment2D.from_wkt("LINESTRING (0 0,1 1)"))
+        assert expected.almost_equals(geompp.LineSegment2D.from_wkt("LINESTRING (  0 0  ,  1  1  )"))
+
     def test_to_line(self, seg):
         l = seg.to_line()
         assert isinstance(l, geompp.Line2D)
@@ -457,6 +481,17 @@ class TestLineSegment2D:
             assert seg.almost_equals(seg2)
         finally:
             os.unlink(path)
+
+    def test_reversed(self):
+        s = geompp.LineSegment2D.make(geompp.Point2D(1, 2), geompp.Point2D(3, 4))
+        r = s.reversed()
+        assert isinstance(r, geompp.LineSegment2D)
+        assert r.first.almost_equals(s.last)
+        assert r.last.almost_equals(s.first)
+        assert approx(s.length(), r.length())
+        rr = r.reversed()
+        assert rr.first.almost_equals(s.first)
+        assert rr.last.almost_equals(s.last)
 
     def test_intersects_line(self, seg):
         # seg goes (0,0)→(4,0); a vertical line at x=2 hits it
@@ -574,18 +609,18 @@ class TestLineSegment3D:
         assert l.contains(s.first)
         assert l.contains(s.last)
 
-    def test_flip(self):
+    def test_reversed(self):
         s = geompp.LineSegment3D.make(geompp.Point3D(1, 2, 3), geompp.Point3D(4, 5, 6))
-        f = s.flip()
-        assert isinstance(f, geompp.LineSegment3D)
-        assert f.first.almost_equals(s.last)
-        assert f.last.almost_equals(s.first)
+        r = s.reversed()
+        assert isinstance(r, geompp.LineSegment3D)
+        assert r.first.almost_equals(s.last)
+        assert r.last.almost_equals(s.first)
         # length preserved
-        assert approx(s.length(), f.length())
-        # double flip returns the original
-        ff = f.flip()
-        assert ff.first.almost_equals(s.first)
-        assert ff.last.almost_equals(s.last)
+        assert approx(s.length(), r.length())
+        # double reverse returns the original
+        rr = r.reversed()
+        assert rr.first.almost_equals(s.first)
+        assert rr.last.almost_equals(s.last)
 
     def test_to_file_from_file(self):
         s = geompp.LineSegment3D.make(geompp.Point3D(1, 2, 3), geompp.Point3D(4, 5, 6))
@@ -646,6 +681,11 @@ class TestLineSegment3D:
         assert not s1.intersects(s2)
         assert s1.intersection(s2) is None
 
+    def test_from_wkt_whitespace(self):
+        expected = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        assert expected.almost_equals(geompp.LineSegment3D.from_wkt("LINESTRING (0 0 0,1 1 0)"))
+        assert expected.almost_equals(geompp.LineSegment3D.from_wkt("LINESTRING (  0 0 0  ,  1  1  0  )"))
+
 
 # ─── Line2D ──────────────────────────────────────────────────────────────────
 
@@ -699,6 +739,11 @@ class TestLine2D:
     def test_wkt_roundtrip(self, hline):
         l2 = geompp.Line2D.from_wkt(hline.to_wkt())
         assert hline.almost_equals(l2)
+
+    def test_from_wkt_whitespace(self):
+        l = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        assert l.almost_equals(geompp.Line2D.from_wkt("LINE (0 0,1 1)"))
+        assert l.almost_equals(geompp.Line2D.from_wkt("LINE (  0 0  ,  1  1  )"))
 
     def test_intersects_ray(self, hline):
         # ray pointing upward from below y=0, crossing hline at (3,0)
@@ -847,6 +892,11 @@ class TestLine3D:
         finally:
             os.unlink(path)
 
+    def test_from_wkt_whitespace(self):
+        l = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        assert l.almost_equals(geompp.Line3D.from_wkt("LINE (0 0 0,1 1 0)"))
+        assert l.almost_equals(geompp.Line3D.from_wkt("LINE (  0 0 0  ,  1  1  0  )"))
+
 
 # ─── Ray2D ───────────────────────────────────────────────────────────────────
 
@@ -896,6 +946,10 @@ class TestRay2D:
         wkt = ray.to_wkt()
         ray2 = geompp.Ray2D.from_wkt(wkt)
         assert ray.almost_equals(ray2)
+
+    def test_from_wkt_whitespace(self, ray):
+        assert ray.almost_equals(geompp.Ray2D.from_wkt("RAY (0 0,1 0)"))
+        assert ray.almost_equals(geompp.Ray2D.from_wkt("RAY (  0 0  ,  1  0  )"))
 
     def test_to_file_from_file(self, ray):
         with tempfile.NamedTemporaryFile(suffix=".wkt", delete=False) as f:
@@ -1019,6 +1073,11 @@ class TestRay3D:
         r = geompp.Ray3D.make(geompp.Point3D(1, 2, 3), geompp.Vector3D(1, 0, 0))
         r2 = geompp.Ray3D.from_wkt(r.to_wkt())
         assert r.almost_equals(r2)
+
+    def test_from_wkt_whitespace(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert r.almost_equals(geompp.Ray3D.from_wkt("RAY (0 0 0,1 0 0)"))
+        assert r.almost_equals(geompp.Ray3D.from_wkt("RAY (  0 0 0  ,  1  0  0  )"))
 
     def test_to_file_from_file(self):
         r = geompp.Ray3D.make(geompp.Point3D(1, 2, 3), geompp.Vector3D(1, 0, 0))
@@ -1155,21 +1214,21 @@ class TestPolygon2D:
 
     def test_perimeter_square(self, square):
         # 1×1 square → perimeter = 4
-        assert approx(square.perimeter(), 4.0)
+        assert approx(square.perimeter_size(), 4.0)
 
     def test_perimeter_rectangle(self):
         p = geompp.Polygon2D.make([
             geompp.Point2D(0, 0), geompp.Point2D(3, 0),
             geompp.Point2D(3, 4), geompp.Point2D(0, 4),
         ])
-        assert approx(p.perimeter(), 14.0)
+        assert approx(p.perimeter_size(), 14.0)
 
     def test_perimeter_triangle(self):
         # 3-4-5 right triangle → perimeter = 12
         p = geompp.Polygon2D.make([
             geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(0, 3),
         ])
-        assert approx(p.perimeter(), 12.0)
+        assert approx(p.perimeter_size(), 12.0)
 
     def test_to_segments(self, square):
         segs = square.to_segments()
@@ -1293,6 +1352,14 @@ class TestPolygon2D:
             geompp.Point2D(1, 3), geompp.Point2D(3, 3),
         ])
         assert not p.is_simple()
+
+    def test_from_wkt_whitespace(self):
+        sq = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(1, 0),
+            geompp.Point2D(1, 1), geompp.Point2D(0, 1),
+        ])
+        assert sq.almost_equals(geompp.Polygon2D.from_wkt("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"))
+        assert sq.almost_equals(geompp.Polygon2D.from_wkt("POLYGON ((  0 0  ,  1 0  ,  1 1  ,  0 1  ,  0 0  ))"))
 
 
 # ─── Polygon2D Intersection ───────────────────────────────────────────────────
@@ -1489,7 +1556,7 @@ class TestPolygon3D:
             geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
             geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
         ]
-        assert approx(geompp.Polygon3D.make(pts).perimeter(), 4.0)
+        assert approx(geompp.Polygon3D.make(pts).perimeter_size(), 4.0)
 
     def test_perimeter_non_xy_plane(self):
         # 1×1 square on YZ plane → same perimeter = 4
@@ -1497,14 +1564,14 @@ class TestPolygon3D:
             geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
             geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
         ]
-        assert approx(geompp.Polygon3D.make(pts).perimeter(), 4.0)
+        assert approx(geompp.Polygon3D.make(pts).perimeter_size(), 4.0)
 
     def test_perimeter_triangle(self):
         # 3-4-5 right triangle → perimeter = 12
         pts = [
             geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 3, 0),
         ]
-        assert approx(geompp.Polygon3D.make(pts).perimeter(), 12.0)
+        assert approx(geompp.Polygon3D.make(pts).perimeter_size(), 12.0)
 
     def test_get_plane_returns_plane(self):
         pts = [
@@ -1714,6 +1781,14 @@ class TestPolygon3D:
         assert not poly.is_on_perimeter(geompp.Point3D(0.5, 0.5, 0))  # interior
         assert not poly.is_on_perimeter(geompp.Point3D(2,   2,   0))  # inside hole
 
+    def test_from_wkt_whitespace(self):
+        sq = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ])
+        assert sq.almost_equals(geompp.Polygon3D.from_wkt("POLYGON ((0 0 0, 1 0 0, 1 1 0, 0 1 0, 0 0 0))"))
+        assert sq.almost_equals(geompp.Polygon3D.from_wkt("POLYGON ((  0 0 0  ,  1 0 0  ,  1 1 0  ,  0 1 0  ,  0 0 0  ))"))
+
 
 # ─── Polygon3D::Intersection ──────────────────────────────────────────────────
 
@@ -1880,6 +1955,11 @@ class TestPolyline2D:
         p2 = geompp.Polyline2D.from_wkt(pline.to_wkt())
         assert pline.almost_equals(p2)
 
+    def test_from_wkt_whitespace(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1)])
+        assert pl.almost_equals(geompp.Polyline2D.from_wkt("LINESTRING (0 0, 1 0, 1 1)"))
+        assert pl.almost_equals(geompp.Polyline2D.from_wkt("LINESTRING (  0 0  ,  1 0  ,  1 1  )"))
+
     def test_location(self, pline):
         assert approx(pline.location(geompp.Point2D(0, 0)), 0.0)
         assert approx(pline.location(geompp.Point2D(3, 4)), 1.0)
@@ -1974,6 +2054,105 @@ class TestPolyline2DConvexHull:
                        for i in range(hull.size())), f"{e} should be on hull"
 
 
+class TestPolyline2DOverlap:
+    def test_overlap_line_collinear_segment(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 3)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        assert pl.overlaps(line=line)
+        result = pl.overlap(line=line)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(4, 0)))
+
+    def test_overlap_line_perpendicular_no_overlap(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(0, 1))
+        assert not pl.overlaps(line=line)
+        assert pl.overlap(line=line) is None
+
+    def test_overlap_ray_collinear_partial(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(6, 0)])
+        ray = geompp.Ray2D.make(geompp.Point2D(2, 0), geompp.Vector2D(1, 0))
+        assert pl.overlaps(ray=ray)
+        result = pl.overlap(ray=ray)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(6, 0)))
+
+    def test_overlap_segment_partial(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(5, 0)])
+        seg = geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(7, 0))
+        assert pl.overlaps(segment=seg)
+        result = pl.overlap(segment=seg)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(5, 0)))
+
+    def test_overlap_polyline_shared_segment(self):
+        pl1 = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 3)])
+        pl2 = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0)])
+        assert pl1.overlaps(other=pl2)
+        result = pl1.overlap(other=pl2)
+        assert result is not None
+        assert len(result) == 1
+
+    def test_overlap_polyline_no_overlap(self):
+        pl1 = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0)])
+        pl2 = geompp.Polyline2D.make([geompp.Point2D(0, 1), geompp.Point2D(4, 1)])
+        assert not pl1.overlaps(other=pl2)
+        assert pl1.overlap(other=pl2) is None
+
+
+class TestPolyline2DTouch:
+    def test_touch_line_endpoint_on_line(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(2, 0), geompp.Point2D(2, 3)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        assert pl.touches(line=line)
+        result = pl.touch(line=line)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point2D(2, 0))
+
+    def test_touch_line_collinear_not_touch(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        assert not pl.touches(line=line)
+        assert pl.touch(line=line) is None
+
+    def test_touch_ray_endpoint_on_ray(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(3, 0), geompp.Point2D(3, 2)])
+        ray = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        assert pl.touches(ray=ray)
+        result = pl.touch(ray=ray)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point2D(3, 0))
+
+    def test_touch_segment_t_junction(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(3, 0), geompp.Point2D(3, 3)])
+        seg = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        assert pl.touches(segment=seg)
+        result = pl.touch(segment=seg)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point2D(3, 0))
+
+    def test_touch_polyline_shared_endpoint(self):
+        pl1 = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(3, 0)])
+        pl2 = geompp.Polyline2D.make([geompp.Point2D(3, 0), geompp.Point2D(3, 3)])
+        assert pl1.touches(other=pl2)
+        result = pl1.touch(other=pl2)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point2D(3, 0))
+
+    def test_touch_polyline_disjoint(self):
+        pl1 = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0)])
+        pl2 = geompp.Polyline2D.make([geompp.Point2D(5, 0), geompp.Point2D(5, 3)])
+        assert not pl1.touches(other=pl2)
+        assert pl1.touch(other=pl2) is None
+
+
 # ─── Polyline3D ──────────────────────────────────────────────────────────────
 
 class TestPolyline3D:
@@ -2044,6 +2223,11 @@ class TestPolyline3D:
         pl2 = geompp.Polyline3D.from_wkt(wkt)
         assert pl.almost_equals(pl2)
 
+    def test_from_wkt_whitespace(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0)])
+        assert pl.almost_equals(geompp.Polyline3D.from_wkt("LINESTRING (0 0 0, 1 0 0, 1 1 0)"))
+        assert pl.almost_equals(geompp.Polyline3D.from_wkt("LINESTRING (  0 0 0  ,  1 0 0  ,  1 1 0  )"))
+
     def test_to_file_from_file(self):
         pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0), geompp.Point3D(3, 4, 0)]
         pl = geompp.Polyline3D.make(pts)
@@ -2109,6 +2293,85 @@ class TestPolyline3D:
         pl2_miss = geompp.Polyline3D.make([geompp.Point3D(5, -2, 0), geompp.Point3D(5, 2, 0)])
         assert not pl1.intersects(pl2_miss)
         assert pl1.intersection(pl2_miss) is None
+
+
+class TestPolyline3DOverlap:
+    def test_overlap_line3d_collinear_segment(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(4, 0, 3)])
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        assert pl.overlaps(line=line)
+        result = pl.overlap(line=line)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0)))
+
+    def test_overlap_ray3d_partial(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(6, 0, 0)])
+        ray = geompp.Ray3D.make(geompp.Point3D(2, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert pl.overlaps(ray=ray)
+        result = pl.overlap(ray=ray)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(6, 0, 0)))
+
+    def test_overlap_segment3d_partial(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(5, 0, 0)])
+        seg = geompp.LineSegment3D.make(geompp.Point3D(3, 0, 0), geompp.Point3D(7, 0, 0))
+        assert pl.overlaps(segment=seg)
+        result = pl.overlap(segment=seg)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.LineSegment3D.make(geompp.Point3D(3, 0, 0), geompp.Point3D(5, 0, 0)))
+
+    def test_overlap_polyline3d_no_overlap(self):
+        pl1 = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0)])
+        pl2 = geompp.Polyline3D.make([geompp.Point3D(0, 1, 0), geompp.Point3D(4, 1, 0)])
+        assert not pl1.overlaps(other=pl2)
+        assert pl1.overlap(other=pl2) is None
+
+
+class TestPolyline3DTouch:
+    def test_touch_line3d_endpoint_on_line(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(2, 0, 0), geompp.Point3D(2, 0, 3)])
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        assert pl.touches(line=line)
+        result = pl.touch(line=line)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point3D(2, 0, 0))
+
+    def test_touch_ray3d_endpoint_on_ray(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(3, 0, 0), geompp.Point3D(3, 0, 2)])
+        ray = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert pl.touches(ray=ray)
+        result = pl.touch(ray=ray)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point3D(3, 0, 0))
+
+    def test_touch_segment3d_t_junction(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(3, 0, 0), geompp.Point3D(3, 0, 3)])
+        seg = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(5, 0, 0))
+        assert pl.touches(segment=seg)
+        result = pl.touch(segment=seg)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point3D(3, 0, 0))
+
+    def test_touch_polyline3d_shared_endpoint(self):
+        pl1 = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0)])
+        pl2 = geompp.Polyline3D.make([geompp.Point3D(3, 0, 0), geompp.Point3D(3, 0, 3)])
+        assert pl1.touches(other=pl2)
+        result = pl1.touch(other=pl2)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].almost_equals(geompp.Point3D(3, 0, 0))
+
+    def test_touch_polyline3d_disjoint(self):
+        pl1 = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0)])
+        pl2 = geompp.Polyline3D.make([geompp.Point3D(5, 0, 0), geompp.Point3D(5, 0, 3)])
+        assert not pl1.touches(other=pl2)
+        assert pl1.touch(other=pl2) is None
 
 
 # ─── Triangle2D ──────────────────────────────────────────────────────────────
@@ -2259,6 +2522,11 @@ class TestTriangle2D:
         tri2 = geompp.Triangle2D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
 
+    def test_from_wkt_whitespace(self):
+        t = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1))
+        assert t.almost_equals(geompp.Triangle2D.from_wkt("TRIANGLE (0 0, 1 0, 0 1)"))
+        assert t.almost_equals(geompp.Triangle2D.from_wkt("TRIANGLE (  0 0  ,  1 0  ,  0 1  )"))
+
     def test_to_axis(self, tri):
         # tri fixture: P0=(0,0), P1=(4,0), P2=(0,3)
         # ToAxis() returns (P1-P0, P2-P0) — edge vectors, not normalized
@@ -2360,6 +2628,11 @@ class TestTriangle3D:
     def test_wkt_roundtrip(self, tri):
         tri2 = geompp.Triangle3D.from_wkt(tri.to_wkt())
         assert tri.almost_equals(tri2)
+
+    def test_from_wkt_whitespace(self):
+        t = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0))
+        assert t.almost_equals(geompp.Triangle3D.from_wkt("TRIANGLE (0 0 0, 1 0 0, 0 1 0)"))
+        assert t.almost_equals(geompp.Triangle3D.from_wkt("TRIANGLE (  0 0 0  ,  1 0 0  ,  0 1 0  )"))
 
     def test_to_polygon(self, tri):
         p = tri.to_polygon()
@@ -3724,6 +3997,203 @@ class TestSegmentIntersections:
         assert any(approx(h.x, 2.0) and approx(h.y, 2.0) for h in hits)
 
 
+# --- find_extreme_points (polygon extreme vertices along a line) ---
+class TestExtremePoints:
+    def test_convex_diamond_along_x(self):
+        diamond = geompp.Polygon2D.make([
+            geompp.Point2D(2, 0), geompp.Point2D(4, 2),
+            geompp.Point2D(2, 4), geompp.Point2D(0, 2)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        ex = geompp.find_extreme_points(diamond, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 2)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 2)
+
+    def test_convex_square_diagonal(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1))
+        ex = geompp.find_extreme_points(square, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 0)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 4)
+
+    def test_concave_polygon_brute_force(self):
+        dart = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        assert not dart.is_convex()
+        line = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 2))
+        ex = geompp.find_extreme_points(dart, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 0)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 4)
+
+    def test_polygon3d_along_x(self):
+        diamond = geompp.Polygon3D.make([
+            geompp.Point3D(2, 0, 0), geompp.Point3D(4, 2, 0),
+            geompp.Point3D(2, 4, 0), geompp.Point3D(0, 2, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        ex = geompp.find_extreme_points(diamond, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 2)
+        assert approx(ex.max_point.x, 4) and approx(ex.max_point.y, 2)
+
+    def test_polygon3d_tilted_plane(self):
+        para = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 2),
+            geompp.Point3D(2, 2, 2), geompp.Point3D(0, 2, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0))
+        ex = geompp.find_extreme_points(para, line)
+        assert approx(ex.min_point.x, 0) and approx(ex.min_point.y, 0) and approx(ex.min_point.z, 0)
+        assert approx(ex.max_point.x, 2) and approx(ex.max_point.y, 2) and approx(ex.max_point.z, 2)
+
+
+# --- distance_to (polygon-to-line distance) ---
+class TestDistanceTo:
+    def test_2d_convex_square_line_crossing_is_zero(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(2, -1), geompp.Point2D(2, 5))
+        assert approx(geompp.distance_to(square, line), 0.0)
+
+    def test_2d_convex_square_line_outside(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(6, -1), geompp.Point2D(6, 5))
+        assert approx(geompp.distance_to(square, line), 2.0)
+
+    def test_2d_non_convex_dart_line_outside(self):
+        dart = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        line = geompp.Line2D.make(geompp.Point2D(10, -1), geompp.Point2D(10, 5))
+        assert approx(geompp.distance_to(dart, line), 6.0)
+
+    def test_3d_coplanar_line_outside(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(6, -1, 0), geompp.Point3D(6, 5, 0))
+        assert approx(geompp.distance_to(square, line), 2.0)
+
+    def test_3d_parallel_offset_pythagorean_combination(self):
+        # Line parallel to the plane, offset h=3; in-plane distance d=2 (same as coplanar case) ->
+        # sqrt(h^2 + d^2) = sqrt(13).
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(6, 0, 3), geompp.Point3D(6, 1, 3))
+        assert approx(geompp.distance_to(square, line), 13.0 ** 0.5)
+
+    def test_3d_skew_perpendicular_crossing_inside_is_zero(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(2, 2, -1), geompp.Point3D(2, 2, 1))
+        assert approx(geompp.distance_to(square, line), 0.0)
+
+    def test_3d_skew_oblique_crossing_outside_anisotropic_metric(self):
+        # Line crosses the plane at 45 degrees off the normal at (6,2,0), outside the square.
+        # Correct anisotropic answer is sqrt(2) ~= 1.41421356, not the naive in-plane 2 (6-4).
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        line = geompp.Line3D.make(geompp.Point3D(6, 2, 0), geompp.Point3D(7, 2, 1))
+        assert approx(geompp.distance_to(square, line), 2.0 ** 0.5)
+
+
+# --- tangents_to (polygon tangents) ---
+class TestTangentsTo:
+    def test_2d_convex_square_point(self):
+        square = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        t = geompp.tangents_to(square, geompp.Point2D(10, -2))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 0)
+        assert approx(t.right.last.x, 4) and approx(t.right.last.y, 4)
+
+    def test_2d_non_convex_dart_point_reduces_to_hull(self):
+        dart = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        assert not dart.is_convex()
+        t = geompp.tangents_to(dart, geompp.Point2D(-6, 2))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 4)
+        assert approx(t.right.last.x, 0) and approx(t.right.last.y, 0)
+
+    def test_2d_convex_squares_polygon(self):
+        square_a = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4)])
+        square_b = geompp.Polygon2D.make([
+            geompp.Point2D(10, 1), geompp.Point2D(14, 1),
+            geompp.Point2D(14, 5), geompp.Point2D(10, 5)])
+        t = geompp.tangents_to(square_a, square_b)
+        assert approx(t.left.first.x, 0) and approx(t.left.first.y, 4)
+        assert approx(t.left.last.x, 10) and approx(t.left.last.y, 5)
+        assert approx(t.right.first.x, 4) and approx(t.right.first.y, 0)
+        assert approx(t.right.last.x, 14) and approx(t.right.last.y, 1)
+
+    def test_2d_non_convex_darts_polygon_reduces_both_to_hull(self):
+        dart_a = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        dart_b = geompp.Polygon2D.make([
+            geompp.Point2D(10, 1), geompp.Point2D(14, 1), geompp.Point2D(14, 5),
+            geompp.Point2D(12, 2), geompp.Point2D(10, 5)])
+        t = geompp.tangents_to(dart_a, dart_b)
+        assert approx(t.left.first.x, 0) and approx(t.left.first.y, 4)
+        assert approx(t.left.last.x, 10) and approx(t.left.last.y, 5)
+        assert approx(t.right.first.x, 4) and approx(t.right.first.y, 0)
+        assert approx(t.right.last.x, 14) and approx(t.right.last.y, 1)
+
+    def test_3d_coplanar_point_on_xy_plane(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        t = geompp.tangents_to(square, geompp.Point3D(10, -2, 0))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 0) and approx(t.left.last.z, 0)
+        assert approx(t.right.last.x, 4) and approx(t.right.last.y, 4) and approx(t.right.last.z, 0)
+
+    def test_3d_coplanar_point_on_tilted_plane(self):
+        tilted = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 4),
+            geompp.Point3D(4, 4, 4), geompp.Point3D(0, 4, 0)])
+        t = geompp.tangents_to(tilted, geompp.Point3D(10, -2, 10))
+        assert approx(t.left.last.x, 0) and approx(t.left.last.y, 0) and approx(t.left.last.z, 0)
+        assert approx(t.right.last.x, 4) and approx(t.right.last.y, 4) and approx(t.right.last.z, 4)
+
+    def test_3d_coplanar_squares_polygon(self):
+        tilted_a = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 4),
+            geompp.Point3D(4, 4, 4), geompp.Point3D(0, 4, 0)])
+        tilted_b = geompp.Polygon3D.make([
+            geompp.Point3D(10, 1, 10), geompp.Point3D(14, 1, 14),
+            geompp.Point3D(14, 5, 14), geompp.Point3D(10, 5, 10)])
+        t = geompp.tangents_to(tilted_a, tilted_b)
+        assert approx(t.left.first.x, 0) and approx(t.left.first.y, 4) and approx(t.left.first.z, 0)
+        assert approx(t.left.last.x, 10) and approx(t.left.last.y, 5) and approx(t.left.last.z, 10)
+        assert approx(t.right.first.x, 4) and approx(t.right.first.y, 0) and approx(t.right.first.z, 4)
+        assert approx(t.right.last.x, 14) and approx(t.right.last.y, 1) and approx(t.right.last.z, 14)
+
+    def test_3d_point_not_coplanar_raises(self):
+        square = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        with pytest.raises(Exception):
+            geompp.tangents_to(square, geompp.Point3D(10, -2, 1))
+
+    def test_3d_polygons_not_coplanar_raises(self):
+        square_a = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)])
+        square_b = geompp.Polygon3D.make([
+            geompp.Point3D(10, 1, 1), geompp.Point3D(14, 1, 1),
+            geompp.Point3D(14, 5, 1), geompp.Point3D(10, 5, 1)])
+        with pytest.raises(Exception):
+            geompp.tangents_to(square_a, square_b)
+
+
 # --- convex hull (Andrew's monotone chain) ---
 class TestConvexHull:
     def test_few_points_returns_as_is(self):
@@ -3848,7 +4318,7 @@ class TestConvexHull3D:
                        for h in hull), f"tip {tip} should be on hull"
 
 
-# --- Polygon2D.convex_hull / to_points ---
+# --- Polygon2D.convex_hull / perimeter ---
 class TestPolygon2DConvexHull:
     def _star(self):
         return geompp.Polygon2D.make([
@@ -3871,17 +4341,17 @@ class TestPolygon2DConvexHull:
         hull = square.convex_hull()
         assert hull.size() == 4
 
-    def test_to_points_round_trip(self):
+    def test_perimeter_round_trip(self):
         pts = [geompp.Point2D(0, 0), geompp.Point2D(3, 0),
                geompp.Point2D(3, 3), geompp.Point2D(0, 3)]
         poly = geompp.Polygon2D.make(pts)
-        back = poly.to_points()
+        back = poly.perimeter()
         assert len(back) == 4
         for orig, restored in zip(pts, back):
             assert approx(orig.x, restored.x) and approx(orig.y, restored.y)
 
 
-# --- Polygon3D.convex_hull / to_points ---
+# --- Polygon3D.convex_hull / perimeter ---
 class TestPolygon3DConvexHull:
     def _star3d(self):
         return geompp.Polygon3D.make([
@@ -3904,13 +4374,62 @@ class TestPolygon3DConvexHull:
         hull = square.convex_hull()
         assert hull.size() == 4
 
-    def test_to_points_round_trip(self):
+    def test_perimeter_round_trip(self):
         pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(3, 0, 0),
                geompp.Point3D(3, 3, 0), geompp.Point3D(0, 3, 0)]
         poly = geompp.Polygon3D.make(pts)
-        back = poly.to_points()
+        back = poly.perimeter()
         assert len(back) == 4
         for orig, restored in zip(pts, back):
+            assert (approx(orig.x, restored.x) and approx(orig.y, restored.y)
+                    and approx(orig.z, restored.z))
+
+
+# --- Polygon2D.has_holes / holes ---
+class TestPolygon2DHoles:
+    def test_no_holes(self):
+        poly = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ])
+        assert poly.has_holes() is False
+        assert poly.holes() == []
+
+    def test_with_hole(self):
+        outer = [geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+                 geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        hole = [geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+                geompp.Point2D(3, 3), geompp.Point2D(3, 1)]
+        poly = geompp.Polygon2D.make(outer, [hole])
+        assert poly.has_holes() is True
+        holes = poly.holes()
+        assert len(holes) == 1
+        assert len(holes[0]) == 4
+        for orig, restored in zip(hole, holes[0]):
+            assert approx(orig.x, restored.x) and approx(orig.y, restored.y)
+
+
+# --- Polygon3D.has_holes / holes ---
+class TestPolygon3DHoles:
+    def test_no_holes(self):
+        poly = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ])
+        assert poly.has_holes() is False
+        assert poly.holes() == []
+
+    def test_with_hole(self):
+        outer = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+                 geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)]
+        hole = [geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+                geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0)]
+        poly = geompp.Polygon3D.make(outer, [hole])
+        assert poly.has_holes() is True
+        holes = poly.holes()
+        assert len(holes) == 1
+        assert len(holes[0]) == 4
+        for orig, restored in zip(hole, holes[0]):
             assert (approx(orig.x, restored.x) and approx(orig.y, restored.y)
                     and approx(orig.z, restored.z))
 
@@ -4402,3 +4921,490 @@ class TestBPrism3D:
         p1 = geompp.BPrism3D(pts1)
         p2 = geompp.BPrism3D(pts2)
         assert not p1.almost_equals(p2)
+
+
+# ─── Overlaps ────────────────────────────────────────────────────────────────
+
+class TestLine2DOverlap:
+    def test_overlap_same_line(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        x2 = geompp.Line2D.make(geompp.Point2D(5, 0), geompp.Point2D(8, 0))
+        assert x.overlaps(x2)
+        ov = x.overlap(x2)
+        assert ov is not None
+        assert isinstance(ov, geompp.Line2D)
+
+    def test_no_overlap_crossing(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        y = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(0, 1))
+        assert not x.overlaps(y)
+        assert x.overlap(y) is None
+
+    def test_no_overlap_parallel_offset(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        x_off = geompp.Line2D.make(geompp.Point2D(0, 1), geompp.Point2D(1, 1))
+        assert not x.overlaps(x_off)
+        assert x.overlap(x_off) is None
+
+    def test_overlap_with_collinear_ray(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        rx = geompp.Ray2D.make(geompp.Point2D(2, 0), geompp.Vector2D(1, 0))
+        assert x.overlaps(rx)
+        ov = x.overlap(rx)
+        assert ov is not None
+        assert isinstance(ov, geompp.Ray2D)
+
+    def test_no_overlap_perpendicular_ray(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        ry = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(0, 1))
+        assert not x.overlaps(ry)
+        assert x.overlap(ry) is None
+
+    def test_overlap_with_collinear_segment(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        seg = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(5, 0))
+        assert x.overlaps(seg)
+        ov = x.overlap(seg)
+        assert ov is not None
+        assert isinstance(ov, geompp.LineSegment2D)
+        assert ov == seg
+
+    def test_no_overlap_offset_segment(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        seg_off = geompp.LineSegment2D.make(geompp.Point2D(2, 1), geompp.Point2D(5, 1))
+        assert not x.overlaps(seg_off)
+        assert x.overlap(seg_off) is None
+
+
+class TestRay2DOverlap:
+    def test_overlap_with_collinear_line(self):
+        r = geompp.Ray2D.make(geompp.Point2D(2, 0), geompp.Vector2D(1, 0))
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        assert r.overlaps(x)
+        ov = r.overlap(x)
+        assert ov is not None
+        assert isinstance(ov, geompp.Ray2D)
+
+    def test_no_overlap_perpendicular_line(self):
+        r = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        y = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(0, 1))
+        assert not r.overlaps(y)
+        assert r.overlap(y) is None
+
+    def test_overlap_same_direction_rays(self):
+        r1 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        r2 = geompp.Ray2D.make(geompp.Point2D(2, 0), geompp.Vector2D(1, 0))
+        assert r1.overlaps(r2)
+        ov = r1.overlap(r2)
+        assert ov is not None
+        assert isinstance(ov, geompp.Ray2D)
+
+    def test_overlap_anti_parallel_rays(self):
+        r1 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        r3 = geompp.Ray2D.make(geompp.Point2D(5, 0), geompp.Vector2D(-1, 0))
+        assert r1.overlaps(r3)
+        ov = r1.overlap(r3)
+        assert ov is not None
+        assert isinstance(ov, geompp.LineSegment2D)
+
+    def test_no_overlap_touching_anti_parallel(self):
+        r1 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        r4 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(-1, 0))
+        assert not r1.overlaps(r4)
+        assert r1.overlap(r4) is None
+
+    def test_overlap_segment_inside_ray(self):
+        r = geompp.Ray2D.make(geompp.Point2D(1, 0), geompp.Vector2D(1, 0))
+        seg = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(4, 0))
+        assert r.overlaps(seg)
+        ov = r.overlap(seg)
+        assert ov == seg
+
+    def test_no_overlap_segment_before_ray(self):
+        r = geompp.Ray2D.make(geompp.Point2D(1, 0), geompp.Vector2D(1, 0))
+        seg = geompp.LineSegment2D.make(geompp.Point2D(-3, 0), geompp.Point2D(-1, 0))
+        assert not r.overlaps(seg)
+        assert r.overlap(seg) is None
+
+    def test_no_overlap_segment_touching_ray_origin(self):
+        r = geompp.Ray2D.make(geompp.Point2D(1, 0), geompp.Vector2D(1, 0))
+        seg_touch = geompp.LineSegment2D.make(geompp.Point2D(-1, 0), geompp.Point2D(1, 0))
+        assert not r.overlaps(seg_touch)
+        assert r.overlap(seg_touch) is None
+
+
+class TestLineSegment2DOverlap:
+    def test_overlap_with_collinear_line(self):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(5, 0))
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        assert seg.overlaps(x)
+        ov = seg.overlap(x)
+        assert ov == seg
+
+    def test_no_overlap_offset_line(self):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(5, 0))
+        x_off = geompp.Line2D.make(geompp.Point2D(0, 1), geompp.Point2D(1, 1))
+        assert not seg.overlaps(x_off)
+        assert seg.overlap(x_off) is None
+
+    def test_overlap_ray_covers_segment(self):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(6, 0))
+        r = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        assert seg.overlaps(r)
+        assert seg.overlap(r) == seg
+
+    def test_overlap_ray_partial(self):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(6, 0))
+        r = geompp.Ray2D.make(geompp.Point2D(4, 0), geompp.Vector2D(1, 0))
+        assert seg.overlaps(r)
+        ov = seg.overlap(r)
+        assert ov is not None
+        assert ov == geompp.LineSegment2D.make(geompp.Point2D(4, 0), geompp.Point2D(6, 0))
+
+    def test_no_overlap_ray_after_segment(self):
+        seg = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(6, 0))
+        r = geompp.Ray2D.make(geompp.Point2D(7, 0), geompp.Vector2D(1, 0))
+        assert not seg.overlaps(r)
+        assert seg.overlap(r) is None
+
+    def test_overlap_segment_partial(self):
+        a = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        b = geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(7, 0))
+        assert a.overlaps(b)
+        ov = a.overlap(b)
+        assert ov is not None
+        assert ov == geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(5, 0))
+
+    def test_no_overlap_disjoint_segments(self):
+        a = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        b = geompp.LineSegment2D.make(geompp.Point2D(6, 0), geompp.Point2D(9, 0))
+        assert not a.overlaps(b)
+        assert a.overlap(b) is None
+
+    def test_no_overlap_touching_endpoint(self):
+        a = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        b = geompp.LineSegment2D.make(geompp.Point2D(5, 0), geompp.Point2D(8, 0))
+        assert not a.overlaps(b)
+        assert a.overlap(b) is None
+
+    def test_no_overlap_perpendicular(self):
+        a = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        b = geompp.LineSegment2D.make(geompp.Point2D(2, -1), geompp.Point2D(2, 1))
+        assert not a.overlaps(b)
+        assert a.overlap(b) is None
+
+
+class TestLine3DOverlap:
+    def test_overlap_same_line(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        x2 = geompp.Line3D.make(geompp.Point3D(5, 0, 0), geompp.Point3D(8, 0, 0))
+        assert x.overlaps(x2)
+        ov = x.overlap(x2)
+        assert ov is not None
+        assert isinstance(ov, geompp.Line3D)
+
+    def test_no_overlap_crossing(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        y = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0))
+        assert not x.overlaps(y)
+        assert x.overlap(y) is None
+
+    def test_overlap_with_collinear_ray(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        rx = geompp.Ray3D.make(geompp.Point3D(2, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert x.overlaps(rx)
+        ov = x.overlap(rx)
+        assert ov is not None
+        assert isinstance(ov, geompp.Ray3D)
+
+    def test_overlap_with_collinear_segment(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        seg = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(5, 0, 0))
+        assert x.overlaps(seg)
+        ov = x.overlap(seg)
+        assert ov == seg
+
+
+class TestRay3DOverlap:
+    def test_overlap_same_direction(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        r2 = geompp.Ray3D.make(geompp.Point3D(2, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert r1.overlaps(r2)
+        ov = r1.overlap(r2)
+        assert ov is not None
+        assert isinstance(ov, geompp.Ray3D)
+
+    def test_overlap_anti_parallel(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        r3 = geompp.Ray3D.make(geompp.Point3D(5, 0, 0), geompp.Vector3D(-1, 0, 0))
+        assert r1.overlaps(r3)
+        ov = r1.overlap(r3)
+        assert ov is not None
+        assert isinstance(ov, geompp.LineSegment3D)
+
+    def test_no_overlap_touching(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        r4 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(-1, 0, 0))
+        assert not r1.overlaps(r4)
+        assert r1.overlap(r4) is None
+
+    def test_overlap_segment_inside_ray(self):
+        r = geompp.Ray3D.make(geompp.Point3D(1, 0, 0), geompp.Vector3D(1, 0, 0))
+        seg = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(4, 0, 0))
+        assert r.overlaps(seg)
+        assert r.overlap(seg) == seg
+
+    def test_no_overlap_segment_before_ray(self):
+        r = geompp.Ray3D.make(geompp.Point3D(1, 0, 0), geompp.Vector3D(1, 0, 0))
+        seg = geompp.LineSegment3D.make(geompp.Point3D(-3, 0, 0), geompp.Point3D(-1, 0, 0))
+        assert not r.overlaps(seg)
+        assert r.overlap(seg) is None
+
+
+class TestLineSegment3DOverlap:
+    def test_overlap_with_line(self):
+        seg = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(5, 0, 0))
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        assert seg.overlaps(x)
+        assert seg.overlap(x) == seg
+
+    def test_no_overlap_offset_line(self):
+        seg = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(5, 0, 0))
+        x_off = geompp.Line3D.make(geompp.Point3D(0, 1, 0), geompp.Point3D(1, 1, 0))
+        assert not seg.overlaps(x_off)
+        assert seg.overlap(x_off) is None
+
+    def test_overlap_segment_partial(self):
+        a = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(5, 0, 0))
+        b = geompp.LineSegment3D.make(geompp.Point3D(3, 0, 0), geompp.Point3D(7, 0, 0))
+        assert a.overlaps(b)
+        ov = a.overlap(b)
+        assert ov == geompp.LineSegment3D.make(geompp.Point3D(3, 0, 0), geompp.Point3D(5, 0, 0))
+
+    def test_no_overlap_disjoint(self):
+        a = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(5, 0, 0))
+        b = geompp.LineSegment3D.make(geompp.Point3D(6, 0, 0), geompp.Point3D(9, 0, 0))
+        assert not a.overlaps(b)
+        assert a.overlap(b) is None
+
+    def test_no_overlap_touching_endpoint(self):
+        a = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(5, 0, 0))
+        b = geompp.LineSegment3D.make(geompp.Point3D(5, 0, 0), geompp.Point3D(8, 0, 0))
+        assert not a.overlaps(b)
+        assert a.overlap(b) is None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Touch — 2D
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestLine2DTouch:
+    def test_touch_with_ray_origin_on_line(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        r = geompp.Ray2D.make(geompp.Point2D(3, 0), geompp.Vector2D(0, 1))
+        assert x.touches(r)
+        t = x.touch(r)
+        assert t is not None
+        assert t == geompp.Point2D(3, 0)
+
+    def test_touch_with_ray_collinear_no_touch(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        r = geompp.Ray2D.make(geompp.Point2D(1, 0), geompp.Vector2D(1, 0))
+        assert not x.touches(r)
+        assert x.touch(r) is None
+
+    def test_touch_with_segment_endpoint_on_line(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        s = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(2, 3))
+        assert x.touches(s)
+        t = x.touch(s)
+        assert t is not None
+        assert t == geompp.Point2D(2, 0)
+
+    def test_touch_with_segment_collinear_no_touch(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        s = geompp.LineSegment2D.make(geompp.Point2D(1, 0), geompp.Point2D(4, 0))
+        assert not x.touches(s)
+        assert x.touch(s) is None
+
+
+class TestRay2DTouch:
+    def test_touch_with_line_origin_on_line(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        r = geompp.Ray2D.make(geompp.Point2D(2, 0), geompp.Vector2D(0, 1))
+        assert r.touches(x)
+        t = r.touch(x)
+        assert t is not None
+        assert t == geompp.Point2D(2, 0)
+
+    def test_touch_with_line_collinear_no_touch(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        r = geompp.Ray2D.make(geompp.Point2D(1, 0), geompp.Vector2D(1, 0))
+        assert not r.touches(x)
+        assert r.touch(x) is None
+
+    def test_touch_with_ray_same_origin_different_dir(self):
+        r1 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        r2 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(0, 1))
+        assert r1.touches(r2)
+        t = r1.touch(r2)
+        assert t is not None
+        assert t == geompp.Point2D(0, 0)
+
+    def test_touch_with_ray_anti_parallel_same_origin(self):
+        r1 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        r2 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(-1, 0))
+        assert r1.touches(r2)
+        t = r1.touch(r2)
+        assert t is not None
+        assert t == geompp.Point2D(0, 0)
+
+    def test_touch_with_ray_anti_parallel_overlapping_no_touch(self):
+        r1 = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        r2 = geompp.Ray2D.make(geompp.Point2D(3, 0), geompp.Vector2D(-1, 0))
+        assert not r1.touches(r2)
+        assert r1.touch(r2) is None
+
+    def test_touch_with_segment_endpoint(self):
+        r = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        s = geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(3, 2))
+        assert r.touches(s)
+        t = r.touch(s)
+        assert t is not None
+        assert t == geompp.Point2D(3, 0)
+
+
+class TestLineSegment2DTouch:
+    def test_touch_with_line_first_on_line(self):
+        x = geompp.Line2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0))
+        s = geompp.LineSegment2D.make(geompp.Point2D(2, 0), geompp.Point2D(2, 3))
+        assert s.touches(x)
+        t = s.touch(x)
+        assert t is not None
+        assert t == geompp.Point2D(2, 0)
+
+    def test_touch_with_ray_endpoint(self):
+        r = geompp.Ray2D.make(geompp.Point2D(0, 0), geompp.Vector2D(1, 0))
+        s = geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(3, 2))
+        assert s.touches(r)
+        t = s.touch(r)
+        assert t is not None
+        assert t == geompp.Point2D(3, 0)
+
+    def test_touch_with_segment_t_junction(self):
+        a = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        b = geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(3, 3))
+        assert a.touches(b)
+        t = a.touch(b)
+        assert t is not None
+        assert t == geompp.Point2D(3, 0)
+
+    def test_touch_with_segment_collinear_endpoint(self):
+        a = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        b = geompp.LineSegment2D.make(geompp.Point2D(5, 0), geompp.Point2D(8, 0))
+        assert a.touches(b)
+        t = a.touch(b)
+        assert t is not None
+        assert t == geompp.Point2D(5, 0)
+
+    def test_touch_with_segment_overlap_no_touch(self):
+        a = geompp.LineSegment2D.make(geompp.Point2D(0, 0), geompp.Point2D(5, 0))
+        b = geompp.LineSegment2D.make(geompp.Point2D(3, 0), geompp.Point2D(7, 0))
+        assert not a.touches(b)
+        assert a.touch(b) is None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Touch — 3D
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestLine3DTouch:
+    def test_touch_with_ray_origin_on_line(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        r = geompp.Ray3D.make(geompp.Point3D(3, 0, 0), geompp.Vector3D(0, 0, 1))
+        assert x.touches(r)
+        t = x.touch(r)
+        assert t is not None
+        assert t == geompp.Point3D(3, 0, 0)
+
+    def test_touch_with_ray_collinear_no_touch(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        r = geompp.Ray3D.make(geompp.Point3D(1, 0, 0), geompp.Vector3D(1, 0, 0))
+        assert not x.touches(r)
+        assert x.touch(r) is None
+
+    def test_touch_with_segment_endpoint_on_line(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        s = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(2, 0, 3))
+        assert x.touches(s)
+        t = x.touch(s)
+        assert t is not None
+        assert t == geompp.Point3D(2, 0, 0)
+
+
+class TestRay3DTouch:
+    def test_touch_with_line_origin_on_line(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        r = geompp.Ray3D.make(geompp.Point3D(2, 0, 0), geompp.Vector3D(0, 0, 1))
+        assert r.touches(x)
+        t = r.touch(x)
+        assert t is not None
+        assert t == geompp.Point3D(2, 0, 0)
+
+    def test_touch_with_ray_same_origin(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        r2 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(0, 0, 1))
+        assert r1.touches(r2)
+        t = r1.touch(r2)
+        assert t is not None
+        assert t == geompp.Point3D(0, 0, 0)
+
+    def test_touch_with_ray_anti_parallel_same_origin(self):
+        r1 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        r2 = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(-1, 0, 0))
+        assert r1.touches(r2)
+        t = r1.touch(r2)
+        assert t is not None
+        assert t == geompp.Point3D(0, 0, 0)
+
+    def test_touch_with_segment_endpoint(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        s = geompp.LineSegment3D.make(geompp.Point3D(3, 0, 0), geompp.Point3D(3, 0, 2))
+        assert r.touches(s)
+        t = r.touch(s)
+        assert t is not None
+        assert t == geompp.Point3D(3, 0, 0)
+
+
+class TestLineSegment3DTouch:
+    def test_touch_with_line_first_on_line(self):
+        x = geompp.Line3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0))
+        s = geompp.LineSegment3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(2, 0, 3))
+        assert s.touches(x)
+        t = s.touch(x)
+        assert t is not None
+        assert t == geompp.Point3D(2, 0, 0)
+
+    def test_touch_with_ray_endpoint(self):
+        r = geompp.Ray3D.make(geompp.Point3D(0, 0, 0), geompp.Vector3D(1, 0, 0))
+        s = geompp.LineSegment3D.make(geompp.Point3D(3, 0, 0), geompp.Point3D(3, 0, 2))
+        assert s.touches(r)
+        t = s.touch(r)
+        assert t is not None
+        assert t == geompp.Point3D(3, 0, 0)
+
+    def test_touch_with_segment_t_junction(self):
+        a = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(5, 0, 0))
+        b = geompp.LineSegment3D.make(geompp.Point3D(3, 0, 0), geompp.Point3D(3, 0, 3))
+        assert a.touches(b)
+        t = a.touch(b)
+        assert t is not None
+        assert t == geompp.Point3D(3, 0, 0)
+
+    def test_touch_with_segment_collinear_endpoint(self):
+        a = geompp.LineSegment3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(5, 0, 0))
+        b = geompp.LineSegment3D.make(geompp.Point3D(5, 0, 0), geompp.Point3D(8, 0, 0))
+        assert a.touches(b)
+        t = a.touch(b)
+        assert t is not None
+        assert t == geompp.Point3D(5, 0, 0)

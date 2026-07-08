@@ -31,6 +31,9 @@ Free functions
     average(points)
     signed_area(points[, plane])
     centroid(points[, plane])
+    find_extreme_points(polygon, line)
+    distance_to(polygon, line)
+    tangents_to(polygon, point_or_polygon)
 
 Precision
 ---------
@@ -106,6 +109,13 @@ from ._geompp import (  # noqa: F401
     principal_axes,
     principal_normal,
     principal_direction,
+    ExtremePoints2D,
+    ExtremePoints3D,
+    find_extreme_points,
+    distance_to,
+    PolygonTangents2D,
+    PolygonTangents3D,
+    tangents_to,
 )
 
 __version__ = "1.0.0"
@@ -125,5 +135,7 @@ __all__ = [
     "signed_area", "centroid",
     "has_intersections", "find_intersections", "convex_hull",
     "CoordinateFrame", "principal_axes", "principal_normal", "principal_direction",
+    "ExtremePoints2D", "ExtremePoints3D", "find_extreme_points", "distance_to",
+    "PolygonTangents2D", "PolygonTangents3D", "tangents_to",
     "ProjectionType", "View2D",
 ]

@@ -75,6 +75,10 @@ Vector2D^ Vector2D::Normalize() {
     return gcnew Vector2D(new geompp::Vector2D(_native->Normalize()));
 }
 
+bool Vector2D::IsParallel(Vector2D^ other) {
+    return _native->IsParallel(*other->_native);
+}
+
 Point2D^ Vector2D::ToPoint() {
     return gcnew Point2D(new geompp::Point2D(_native->ToPoint()));
 }

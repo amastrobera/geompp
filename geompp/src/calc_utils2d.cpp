@@ -1,15 +1,13 @@
 #include "calc_utils2d.hpp"
 
-#include "line_segment2d.hpp"
-#include "point2d.hpp"
+#include "line2d.hpp"
+#include "point3d.hpp"
 #include "polygon2d.hpp"
 #include "segment_iterator2d.hpp"
 #include "vector2d.hpp"
+#include "vector3d.hpp"
 
 #include "geompp_log.hpp"
-
-#include "point3d.hpp"
-#include "vector3d.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -70,6 +68,35 @@ bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b) {
 }
 
 }  // namespace
+
+std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
+                                         Point2D const& other_p1, double& sc, double& tc) {
+  try {
+    // 2D intersection via perp-product:
+    //   L(s) = p0 + s*(p1-p0),  L(t) = other_p0 + t*(other_p1-other_p0)
+    //   s = -(w0 . vp) / (u . vp),  t = (w0 . up) / (v . up)
+    auto u = p1 - p0;
+    auto v = other_p1 - other_p0;
+    auto vp = v.Perp();
+    auto up = u.Perp();
+    auto w0 = p0 - other_p0;
+
+    if (compare(u.Dot(vp), 0) == 0 || compare(v.Dot(up), 0) == 0) {
+      sc = tc = std::numeric_limits<double>::quiet_NaN();
+      return std::nullopt;
+    }
+
+    sc = -w0.Dot(vp) / u.Dot(vp);
+    tc = w0.Dot(up) / v.Dot(up);
+
+    return p0 + (u * sc);
+
+  } catch (...) {
+    GEOMPP_LOG(WARNING) << "unexpected error while computing line intersection";
+  }
+  sc = tc = std::numeric_limits<double>::quiet_NaN();
+  return std::nullopt;
+}
 
 std::partial_ordering compare_event_point(Point2D a, Point2D b) {
   auto compare_x = compare(a.x(), b.x());
@@ -317,7 +344,7 @@ double SweepLine2D<Segments>::GetX() const {
 // ------- free functions -------
 
 template <SegmentList Segments>
-bool has_intersections_impl(Segments const& segments) {
+bool has_intersections(Segments const& segments) {
   if (segments.size() < 2) {
     throw std::invalid_argument("provided less than 2 segments, cannot check for intersections");
   }
@@ -364,7 +391,7 @@ bool has_intersections_impl(Segments const& segments) {
 }
 
 template <SegmentList Segments>
-std::vector<IntersectionEvent2D> find_intersections_impl(Segments const& segments) {
+std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
   if (segments.size() < 2) {
     throw std::invalid_argument("less than 2 segments provided, cannot check for intersections");
   }
@@ -538,12 +565,16 @@ template class SweepLine2D<std::vector<LineSegment2D>>;
 template class SweepLine2D<SegmentRange2D>;
 
 // for a free function template the instantiation deduces the parameter from the argument type:
-template bool has_intersections_impl(std::vector<LineSegment2D> const&);
-template bool has_intersections_impl(SegmentRange2D const&);
+template bool has_intersections(std::vector<LineSegment2D> const&);
+template bool has_intersections(SegmentRange2D const&);
 
 // for a free function template the instantiation deduces the parameter from the argument type:
-template std::vector<IntersectionEvent2D> find_intersections_impl(std::vector<LineSegment2D> const&);
-template std::vector<IntersectionEvent2D> find_intersections_impl(SegmentRange2D const&);
+template std::vector<IntersectionEvent2D> find_intersections(std::vector<LineSegment2D> const&);
+template std::vector<IntersectionEvent2D> find_intersections(SegmentRange2D const&);
+
+// Everything in namespace view projects points through a View2D before operating on them.
+// Grouped together since they all share that one dependency.
+namespace view {
 
 template <PointContainer Points>
 std::vector<std::size_t> convex_hull_monotone_chain(Points const& points, View2D const& view) {
@@ -600,6 +631,78 @@ std::vector<std::size_t> convex_hull_monotone_chain(Points const& points, View2D
 template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point2D> const&, View2D const&);
 
 template std::vector<std::size_t> convex_hull_monotone_chain(std::vector<Point3D> const&, View2D const&);
+
+}  // namespace view
+
+template <VectorType V, ProjectablePointContainerWith<V> R>
+std::pair<std::size_t, std::size_t> extreme_points(R const& vertices, bool is_convex, V const& dir) {
+  long const n = static_cast<long>(std::ranges::distance(vertices));
+  if (n == 0) {
+    throw std::invalid_argument("extreme_points: empty vertex range");
+  }
+
+  // projection of vertex i (cyclic index) onto the direction
+  auto proj = [&](long i) -> double {
+    return vertices[static_cast<std::size_t>(((i % n) + n) % n)].ToVector().Dot(dir);
+  };
+
+  // convex fast-path — Daniel Sunday's O(log n) binary search for the extreme vertex of a convex CCW
+  // polygon in a direction (cf. the KACTL "extrVertex"). search(+1) returns argmax(proj); search(-1)
+  // returns argmax(-proj) = argmin(proj). Ties (an edge perpendicular to dir) resolve to one endpoint.
+  if (is_convex) {
+    auto sgn = [](double d) -> int { return static_cast<int>(d > 0) - static_cast<int>(d < 0); };
+
+    auto search = [&](double s) -> std::size_t {
+      auto g = [&](long i) { return s * proj(i); };                                 // maximise s * proj
+      auto cmp = [&](long i, long j) { return sgn(g(j) - g(i)); };                  // sign( g(j) - g(i) )
+      auto extr = [&](long i) { return cmp(i + 1, i) >= 0 && cmp(i, i - 1) < 0; };  // i is the peak
+      if (extr(0)) {
+        return 0;
+      }
+      long lo = 0, hi = n;
+      while (lo + 1 < hi) {
+        long m = (lo + hi) / 2;
+        if (extr(m)) {
+          return static_cast<std::size_t>(m);
+        }
+        int ls = cmp(lo + 1, lo);
+        int ms = cmp(m + 1, m);
+        bool go_hi = (ls < ms) || (ls == ms && ls == cmp(lo, m));
+        if (go_hi) {
+          hi = m;
+        } else {
+          lo = m;
+        }
+      }
+      return static_cast<std::size_t>(lo);
+    };
+
+    std::size_t max_i = search(1.0);
+    std::size_t min_i = search(-1.0);
+    return {min_i, max_i};
+  }
+
+  // brute force O(n): a concave ring has no monotone structure to exploit
+  std::size_t min_i = 0, max_i = 0;
+  double min_v = proj(0), max_v = proj(0);
+  for (long i = 1; i < n; ++i) {
+    double v = proj(i);
+    if (v < min_v) {
+      min_v = v;
+      min_i = static_cast<std::size_t>(i);
+    }
+    if (v > max_v) {
+      max_v = v;
+      max_i = static_cast<std::size_t>(i);
+    }
+  }
+  return {min_i, max_i};
+}
+
+template std::pair<std::size_t, std::size_t> extreme_points(std::vector<Point2D> const&, bool, Vector2D const&);
+template std::pair<std::size_t, std::size_t> extreme_points(std::vector<Point3D> const&, bool, Vector3D const&);
+
+namespace view {
 
 template <PointContainer Points>
 MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const& hull_indices, Points const& points,
@@ -682,13 +785,17 @@ template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&
 template MinBoundingRectResult min_bounding_rect(std::vector<std::size_t> const&, std::vector<Point3D> const&,
                                                  View2D const&);
 
+}  // namespace view
+
 std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points) {
-  return convex_hull_monotone_chain(points, View2D::XY());
+  return view::convex_hull_monotone_chain(points, View2D::XY());
 }
 
+namespace view {
+
 template <PointContainer Points>
-std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::vector<Points> const& holes,
-                                                      View2D const& view) {
+std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vector<Points> const& holes,
+                                                 View2D const& view) {
   // --- Stage 1: project rings to 2D segments ---
   std::vector<LineSegment2D> segs;
   {
@@ -708,11 +815,15 @@ std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::
   }
 
   if (segs.size() < 3) {
-    throw std::invalid_argument("simplify_rings_impl: need at least 3 segments");
+    throw std::invalid_argument("simplify_rings: need at least 3 segments");
   }
 
   // --- Stage 2: split every segment at its crossing points ---
-  auto crossings = find_intersections_impl(segs);
+  // Qualified deliberately: an unqualified call would ADL onto geompp::find_intersections
+  // (segs is std::vector<LineSegment2D>, and LineSegment2D lives in geompp) and, being a
+  // non-template exact match, that overload wins over this template — silently returning
+  // std::vector<Point2D> instead of std::vector<IntersectionEvent2D>.
+  auto crossings = detail::find_intersections(segs);
 
   // map: segment index → crossing points on that segment
   std::map<std::size_t, std::vector<Point2D>> seg_cp;
@@ -856,11 +967,13 @@ std::vector<std::vector<Point2D>> simplify_rings_impl(Points const& outer, std::
   return rings;
 }
 
-template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point2D> const&,
-                                                               std::vector<std::vector<Point2D>> const&, View2D const&);
+template std::vector<std::vector<Point2D>> simplify_rings(std::vector<Point2D> const&,
+                                                          std::vector<std::vector<Point2D>> const&, View2D const&);
 
-template std::vector<std::vector<Point2D>> simplify_rings_impl(std::vector<Point3D> const&,
-                                                               std::vector<std::vector<Point3D>> const&, View2D const&);
+template std::vector<std::vector<Point2D>> simplify_rings(std::vector<Point3D> const&,
+                                                          std::vector<std::vector<Point3D>> const&, View2D const&);
+
+}  // namespace view
 
 int winding_number(std::vector<Point2D> const& vertices, Point2D const& p) {
   int wn = 0;
@@ -886,8 +999,10 @@ int winding_number(std::vector<Point2D> const& vertices, Point2D const& p) {
   return wn;
 }
 
+namespace view {
+
 template <PointContainer Points>
-bool is_convex_with_view(Points const& vertices, View2D const& view) {
+bool is_convex(Points const& vertices, View2D const& view) {
   int n = static_cast<int>(vertices.size());
   bool seen_positive = false;
   bool seen_negative = false;
@@ -912,19 +1027,22 @@ bool is_convex_with_view(Points const& vertices, View2D const& view) {
   return true;
 }
 
-template bool is_convex_with_view(std::vector<Point2D> const&, View2D const&);
-template bool is_convex_with_view(std::vector<Point3D> const&, View2D const&);
+template bool is_convex(std::vector<Point2D> const&, View2D const&);
+template bool is_convex(std::vector<Point3D> const&, View2D const&);
+
+}  // namespace view
 
 bool is_convex(std::vector<Point2D> const& vertices, std::vector<std::vector<Point2D>> const& holes) {
   if (!holes.empty() || vertices.size() < 3) {
     return false;
   }
-  return is_convex_with_view(vertices, View2D::XY());
+  return view::is_convex(vertices, View2D::XY());
 }
 
+namespace view {
+
 template <PointContainer Points>
-bool is_on_perimeter_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
-                               double py) {
+bool is_on_perimeter(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px, double py) {
   Point2D test_pt(px, py);
   auto check_ring = [&](auto const& ring) -> bool {
     int n = static_cast<int>(ring.size());
@@ -948,14 +1066,13 @@ bool is_on_perimeter_with_view(Points const& outer, std::vector<Points> const& h
   return false;
 }
 
-template bool is_on_perimeter_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
-                                        View2D const&, double, double);
-template bool is_on_perimeter_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
-                                        View2D const&, double, double);
+template bool is_on_perimeter(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&, View2D const&,
+                              double, double);
+template bool is_on_perimeter(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&, View2D const&,
+                              double, double);
 
 template <PointContainer Points>
-bool polygon_contains_with_view(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px,
-                                double py) {
+bool polygon_contains(Points const& outer, std::vector<Points> const& holes, View2D const& view, double px, double py) {
   auto ring_winding = [&](auto const& ring) -> int {
     int wn = 0;
     int n = static_cast<int>(ring.size());
@@ -997,10 +1114,10 @@ bool polygon_contains_with_view(Points const& outer, std::vector<Points> const& 
   return wn != 0;
 }
 
-template bool polygon_contains_with_view(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&,
-                                         View2D const&, double, double);
-template bool polygon_contains_with_view(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&,
-                                         View2D const&, double, double);
+template bool polygon_contains(std::vector<Point2D> const&, std::vector<std::vector<Point2D>> const&, View2D const&,
+                               double, double);
+template bool polygon_contains(std::vector<Point3D> const&, std::vector<std::vector<Point3D>> const&, View2D const&,
+                               double, double);
 
 template <PointContainer Points, Point P>
 std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
@@ -1011,7 +1128,7 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
   if constexpr (std::is_same_v<typename Points::value_type, Point3D>) {
     assert(are_coplanar(outer_coplanar_ccw));
   }
-  assert(!is_convex_input || is_convex_with_view(outer_coplanar_ccw, view));
+  assert(!is_convex_input || is_convex(outer_coplanar_ccw, view));
   assert(!is_convex_input || holes_coplanar_cw.empty());
   for (auto const& hole : holes_coplanar_cw) {
     assert(are_cw(hole));
@@ -1167,5 +1284,361 @@ std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
                                                    line_p1, view);
 }
 
+template <PointContainer Points, Point P>
+double distance_to(Points const& outer_loop, bool is_convex, P const& line_p0, P const& line_p1, View2D const& view) {
+  std::size_t n = std::ranges::size(outer_loop);
+  if (n == 0) {
+    throw std::invalid_argument("distance_to: empty vertex range");
+  }
+
+  double lx0 = view.x(line_p0), ly0 = view.y(line_p0);
+  double ldx = view.x(line_p1) - lx0, ldy = view.y(line_p1) - ly0;
+  double llen = std::sqrt(ldx * ldx + ldy * ldy);
+  if (compare(llen, 0.0) == 0) {
+    throw std::invalid_argument("distance_to: line_p0, line_p1 project onto a zero-length line");
+  }
+  double nx = -ldy / llen, ny = ldx / llen;  // unit, perpendicular to the (projected) line
+
+  auto signed_dist = [&](std::size_t i) {
+    return (view.x(outer_loop[i]) - lx0) * nx + (view.y(outer_loop[i]) - ly0) * ny;
+  };
+
+  // convex: binary search based O(LogN) algorithm
+  if (is_convex) {
+    // Daniel Sunday's O(log n) extreme-vertex binary search (cf. detail::extreme_points), reimplemented
+    // here on view-projected scalars: view.x()/y() have no native-vector equivalent to dot a direction
+    // against, so the native detail::extreme_points can't be reused for the projected case.
+    long const ln = static_cast<long>(n);
+    auto proj = [&](long i) { return signed_dist(static_cast<std::size_t>(((i % ln) + ln) % ln)); };
+    auto sgn = [](double d) -> int { return static_cast<int>(d > 0) - static_cast<int>(d < 0); };
+    auto search = [&](double s) -> std::size_t {
+      auto g = [&](long i) { return s * proj(i); };
+      auto cmp = [&](long i, long j) { return sgn(g(j) - g(i)); };
+      auto extr = [&](long i) { return cmp(i + 1, i) >= 0 && cmp(i, i - 1) < 0; };
+      if (extr(0)) {
+        return 0;
+      }
+      long lo = 0, hi = ln;
+      while (lo + 1 < hi) {
+        long m = (lo + hi) / 2;
+        if (extr(m)) {
+          return static_cast<std::size_t>(m);
+        }
+        int ls = cmp(lo + 1, lo);
+        int ms = cmp(m + 1, m);
+        bool go_hi = (ls < ms) || (ls == ms && ls == cmp(lo, m));
+        if (go_hi) {
+          hi = m;
+        } else {
+          lo = m;
+        }
+      }
+      return static_cast<std::size_t>(lo);
+    };
+
+    double d_max = signed_dist(search(1.0));
+    double d_min = signed_dist(search(-1.0));
+
+    // polygon straddles the line if the extreme signed offsets have opposite sign (or touch)
+    if (compare(d_min, 0) <= 0 && compare(d_max, 0) >= 0) {
+      return 0.0;
+    }
+
+    return std::min(std::abs(d_min), std::abs(d_max));
+  }
+
+  // non convex: brute force O(N) algorithm
+  double min_d = std::numeric_limits<double>::infinity();
+  for (std::size_t i = 0; i < n; ++i) {
+    double d0 = signed_dist(i);
+    double d1 = signed_dist((i + 1) % n);
+
+    // the signed distance is affine along the edge, so its rate of change is exactly d1 - d0;
+    // solving d0 + t*(d1-d0) = 0 gives the parametric crossing point without any extra dot products
+    double denom = d1 - d0;
+    if (compare(denom, 0.0) != 0) {
+      double t = -d0 / denom;
+      if (is_in_range(t, 0.0, 1.0)) {
+        return 0.0;  // this edge crosses the line
+      }
+    }
+
+    // no crossing: the closest point on this edge to the line is one of its endpoints
+    min_d = std::min({min_d, std::abs(d0), std::abs(d1)});
+  }
+
+  return min_d;
+}
+
+template double distance_to(std::vector<Point2D> const&, bool, Point2D const&, Point2D const&, View2D const&);
+template double distance_to(std::vector<Point3D> const&, bool, Point3D const&, Point3D const&, View2D const&);
+
+}  // namespace view
+
+double distance_to(std::vector<Point2D> const& outer_loop, bool is_convex, Point2D const& line_p0,
+                   Point2D const& line_p1) {
+  return view::distance_to(outer_loop, is_convex, line_p0, line_p1, View2D::XY());
+}
+
+namespace view {
+
+namespace {
+
+// Cross-product orientation tests, projected through `view` (dimension-agnostic: works for Point2D or Point3D).
+template <Point P>
+bool is_left(P const& v1, P const& v2, P const& p, View2D const& view) {
+  double cross = (view.x(v2) - view.x(v1)) * (view.y(p) - view.y(v1)) -
+                 (view.y(v2) - view.y(v1)) * (view.x(p) - view.x(v1));
+  return compare(cross, 0.0) > 0;
+}
+
+template <Point P>
+bool is_right(P const& v1, P const& v2, P const& p, View2D const& view) {
+  double cross = (view.x(v2) - view.x(v1)) * (view.y(p) - view.y(v1)) -
+                 (view.y(v2) - view.y(v1)) * (view.x(p) - view.x(v1));
+  return compare(cross, 0.0) < 0;
+}
+
+// tells if v1 is above v2, with respect to point p (ref)
+template <Point P>
+bool is_above(P const& p, P const& v1, P const& v2, View2D const& view) {
+  return is_left(p, v1, v2, view);
+}
+// tells if v1 is below v2, with respect to point p (ref)
+template <Point P>
+bool is_below(P const& p, P const& v1, P const& v2, View2D const& view) {
+  return is_right(p, v1, v2, view);
+}
+
+/// @brief finds the index of outer_loop corresponding to the RIGHT tangent from point p (Dan Sunday's O(log n)
+/// binary search). Assumes outer_loop is CONVEX and CCW, projected through `view`.
+template <PointContainer Points, Point P>
+std::size_t r_tangent(Points const& outer_loop, P const& p, View2D const& view) {
+  std::size_t n = outer_loop.size();
+  if (n < 3) {
+    throw std::invalid_argument("r_tangent requires at least 3 vertices");
+  }
+
+  // test if the first vertex is a local max
+  if (is_below(p, outer_loop[1], outer_loop[0], view) && !is_above(p, outer_loop[n - 1], outer_loop[0], view)) {
+    return 0;
+  }
+
+  std::size_t a = 0, b = n;
+  std::size_t max_iter = n + 1;  // each iteration strictly halves [a,b], so this is a generous safety bound
+  while (max_iter-- > 0) {
+    if (b - a <= 1) {  // narrowed to a single edge: whichever endpoint is more "above" wins
+      return is_above(p, outer_loop[a % n], outer_loop[b % n], view) ? a % n : b % n;
+    }
+    std::size_t c = (a + b) / 2;
+    bool dnC = is_below(p, outer_loop[(c + 1) % n], outer_loop[c % n], view);
+    if (dnC && !is_above(p, outer_loop[(c + n - 1) % n], outer_loop[c % n], view)) {  // found the max tangent point
+      return c % n;
+    }
+    // no max yet, continue the binary search, in either sub-chain [a,c] or [c,b]
+    bool upA = is_above(p, outer_loop[(a + 1) % n], outer_loop[a % n], view);
+    if (upA) {
+      if (dnC) {
+        b = c;
+      } else if (is_above(p, outer_loop[a % n], outer_loop[c % n], view)) {
+        b = c;
+      } else {
+        a = c;
+      }
+    } else {
+      if (!dnC) {
+        a = c;
+      } else if (is_below(p, outer_loop[a % n], outer_loop[c % n], view)) {
+        b = c;
+      } else {
+        a = c;
+      }
+    }
+  }
+
+  throw std::logic_error("loop above max_iter without finding c in binary search (r_tangent)");
+}
+
+/// @brief finds the index of outer_loop corresponding to the LEFT tangent from point p (Dan Sunday's O(log n)
+/// binary search). Assumes outer_loop is CONVEX and CCW, projected through `view`.
+template <PointContainer Points, Point P>
+std::size_t l_tangent(Points const& outer_loop, P const& p, View2D const& view) {
+  std::size_t n = outer_loop.size();
+  if (n < 3) {
+    throw std::invalid_argument("l_tangent requires at least 3 vertices");
+  }
+
+  // test if the first vertex is a local min
+  if (!is_below(p, outer_loop[1], outer_loop[0], view) && is_above(p, outer_loop[n - 1], outer_loop[0], view)) {
+    return 0;
+  }
+
+  std::size_t a = 0, b = n;
+  std::size_t max_iter = n + 1;  // each iteration strictly halves [a,b], so this is a generous safety bound
+  while (max_iter-- > 0) {
+    if (b - a <= 1) {  // narrowed to a single edge: whichever endpoint is more "below" wins
+      return is_below(p, outer_loop[a % n], outer_loop[b % n], view) ? a % n : b % n;
+    }
+    std::size_t c = (a + b) / 2;
+    bool dnC = is_below(p, outer_loop[(c + 1) % n], outer_loop[c % n], view);
+    if (!dnC && is_above(p, outer_loop[(c + n - 1) % n], outer_loop[c % n], view)) {  // found the min tangent point
+      return c % n;
+    }
+    // no min yet, continue the binary search, in either sub-chain [a,c] or [c,b]
+    bool dnA = is_below(p, outer_loop[(a + 1) % n], outer_loop[a % n], view);
+    if (dnA) {
+      if (!dnC) {
+        b = c;
+      } else if (is_below(p, outer_loop[a % n], outer_loop[c % n], view)) {
+        b = c;
+      } else {
+        a = c;
+      }
+    } else {
+      if (dnC) {
+        a = c;
+      } else if (is_above(p, outer_loop[a % n], outer_loop[c % n], view)) {
+        b = c;
+      } else {
+        a = c;
+      }
+    }
+  }
+
+  throw std::logic_error("loop above max_iter without finding c in binary search (l_tangent)");
+}
+
+// Reduces `loop` to its convex hull (projected through `view`) when it isn't already convex. Returns the hull
+// points alongside the indices (into the ORIGINAL loop) each hull point came from, so callers can map hull-local
+// results back to the caller's index space. When `already_convex`, both are trivial identity pass-throughs.
+template <PointContainer Points>
+std::pair<std::vector<std::ranges::range_value_t<Points>>, std::vector<std::size_t>> to_convex_loop(
+    Points const& loop, bool already_convex, View2D const& view) {
+  using PointT = std::ranges::range_value_t<Points>;
+
+  std::vector<std::size_t> idx;
+  if (already_convex) {
+    idx.resize(loop.size());
+    std::iota(idx.begin(), idx.end(), std::size_t{0});
+  } else {
+    idx = convex_hull_monotone_chain(loop, view);
+  }
+
+  std::vector<PointT> pts;
+  pts.reserve(idx.size());
+  for (auto i : idx) {
+    pts.push_back(loop[i]);
+  }
+  return {std::move(pts), std::move(idx)};
+}
+
+}  // namespace
+
+template <PointContainer Points, Point P>
+std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(Points const& outer_loop, bool is_convex, P const& p,
+                                                              View2D const& view) {
+  // if the polygon is convex we can use the binary search, O(logN)
+  if (is_convex) {
+    return {l_tangent(outer_loop, p, view), r_tangent(outer_loop, p, view)};
+  }
+
+  // otherwise reduce to the convex hull first — a tangent from an external point can only ever touch a hull
+  // vertex — then map the hull-local result back to an index into the original outer_loop
+  auto [hull_pts, hull_idx] = to_convex_loop(outer_loop, /*already_convex=*/false, view);
+  return {hull_idx[l_tangent(hull_pts, p, view)], hull_idx[r_tangent(hull_pts, p, view)]};
+}
+
+template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point2D> const&, bool,
+                                                                       Point2D const&, View2D const&);
+template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point3D> const&, bool,
+                                                                       Point3D const&, View2D const&);
+
+template <PointContainer Points>
+std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(Points const& loop1, bool is_convex1, Points const& loop2,
+                                                             bool is_convex2, View2D const& view) {
+  auto [cv1, idx1] = to_convex_loop(loop1, is_convex1, view);
+  auto [cv2, idx2] = to_convex_loop(loop2, is_convex2, view);
+
+  std::size_t m = cv1.size();
+  std::size_t n = cv2.size();
+  if (m < 3 || n < 3) {
+    throw std::invalid_argument("poly_poly_RL_tangent_to requires polygons with at least 3 vertices");
+  }
+
+  std::size_t i1 = r_tangent(cv1, cv2[0], view);
+  std::size_t i2 = l_tangent(cv2, cv1[i1], view);
+
+  std::size_t max_iter = m * n + 1;
+  bool done = false;
+  while (!done && max_iter-- > 0) {
+    done = true;
+
+    std::size_t guard1 = 0;
+    while (!is_left(cv2[i2], cv1[i1], cv1[(i1 + 1) % m], view)) {
+      i1 = (i1 + 1) % m;
+      if (++guard1 > m) {
+        throw std::logic_error("poly_poly_RL_tangent_to: i1 walk failed to converge");
+      }
+    }
+
+    std::size_t guard2 = 0;
+    while (!is_right(cv1[i1], cv2[i2], cv2[(i2 + n - 1) % n], view)) {
+      i2 = (i2 + n - 1) % n;
+      done = false;
+      if (++guard2 > n) {
+        throw std::logic_error("poly_poly_RL_tangent_to: i2 walk failed to converge");
+      }
+    }
+  }
+  if (!done) {
+    throw std::logic_error("poly_poly_RL_tangent_to exceeded max iterations without converging");
+  }
+
+  return {idx1[i1], idx2[i2]};
+}
+
+template std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(std::vector<Point2D> const&, bool,
+                                                                      std::vector<Point2D> const&, bool,
+                                                                      View2D const&);
+template std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(std::vector<Point3D> const&, bool,
+                                                                      std::vector<Point3D> const&, bool,
+                                                                      View2D const&);
+
+}  // namespace view
+
+std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point2D> const& outer_loop, bool is_convex,
+                                                             Point2D const& p) {
+  return view::point_poly_tangent_lr_to(outer_loop, is_convex, p, View2D::XY());
+}
+
+std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(std::vector<Point2D> const& loop1, bool is_convex1,
+                                                            std::vector<Point2D> const& loop2, bool is_convex2) {
+  return view::poly_poly_RL_tangent_to(loop1, is_convex1, loop2, is_convex2, View2D::XY());
+}
+
 }  // namespace detail
+
+ExtremePoints<Point2D> find_extreme_points(Polygon2D const& polygon, Line2D const& line) {
+  auto [min_i, max_i] = detail::extreme_points(polygon.Perimeter(), polygon.IsConvex(), line.Direction());
+  return {polygon[min_i], polygon[max_i]};
+}
+
+double distance_to(Polygon2D const& polygon, Line2D const& line) {
+  return detail::distance_to(polygon.Perimeter(), polygon.IsConvex(), line.First(), line.Last());
+}
+
+PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Point2D const& p) {
+  auto [left_i, right_i] = detail::point_poly_tangent_lr_to(polygon.Perimeter(), polygon.IsConvex(), p);
+  return {LineSegment2D::Make(p, polygon[left_i]), LineSegment2D::Make(p, polygon[right_i])};
+}
+
+PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D const& other) {
+  auto [RL_poly_i, RL_other_i] =
+      detail::poly_poly_RL_tangent_to(polygon.Perimeter(), polygon.IsConvex(), other.Perimeter(), other.IsConvex());
+  auto [LR_other_i, LR_poly_i] =
+      detail::poly_poly_RL_tangent_to(other.Perimeter(), other.IsConvex(), polygon.Perimeter(), polygon.IsConvex());
+  return {LineSegment2D::Make(polygon[RL_poly_i], other[RL_other_i]),
+          LineSegment2D::Make(polygon[LR_poly_i], other[LR_other_i])};
+}
+
 }  // namespace geompp

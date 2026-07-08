@@ -60,7 +60,7 @@ int Polygon3D::Size() {
 }
 
 Point3D^ Polygon3D::default::get(int i) {
-    return gcnew Point3D(new geompp::Point3D((*_native)[i]));
+    return gcnew Point3D(new geompp::Point3D((*_native)[(std::size_t)i]));
 }
 
 bool Polygon3D::AlmostEquals(Polygon3D^ other) {
@@ -83,8 +83,8 @@ double Polygon3D::Area() {
     return _native->Area();
 }
 
-double Polygon3D::Perimeter() {
-    return _native->Perimeter();
+double Polygon3D::PerimeterSize() {
+    return _native->PerimeterSize();
 }
 
 double Polygon3D::DistanceTo(Point3D^ point) {
@@ -120,11 +120,29 @@ array<Polygon3D^>^ Polygon3D::Simplify() {
     return arr;
 }
 
-array<Point3D^>^ Polygon3D::ToPoints() {
-    auto native = _native->ToPoints();
+array<Point3D^>^ Polygon3D::Perimeter() {
+    auto const& native = _native->Perimeter();
     auto arr = gcnew array<Point3D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Point3D(new geompp::Point3D(native[i]));
+    }
+    return arr;
+}
+
+bool Polygon3D::HasHoles() {
+    return _native->HasHoles();
+}
+
+array<array<Point3D^>^>^ Polygon3D::Holes() {
+    auto const& native = _native->Holes();
+    auto arr = gcnew array<array<Point3D^>^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        auto const& ring = native[i];
+        auto inner = gcnew array<Point3D^>(static_cast<int>(ring.size()));
+        for (int j = 0; j < static_cast<int>(ring.size()); ++j) {
+            inner[j] = gcnew Point3D(new geompp::Point3D(ring[j]));
+        }
+        arr[i] = inner;
     }
     return arr;
 }

@@ -59,7 +59,7 @@ int Polygon2D::Size() {
 }
 
 Point2D^ Polygon2D::default::get(int i) {
-    return gcnew Point2D(new geompp::Point2D((*_native)[i]));
+    return gcnew Point2D(new geompp::Point2D((*_native)[(std::size_t)i]));
 }
 
 bool Polygon2D::AlmostEquals(Polygon2D^ other) {
@@ -78,8 +78,8 @@ double Polygon2D::Area() {
     return _native->Area();
 }
 
-double Polygon2D::Perimeter() {
-    return _native->Perimeter();
+double Polygon2D::PerimeterSize() {
+    return _native->PerimeterSize();
 }
 
 double Polygon2D::DistanceTo(Point2D^ point) {
@@ -115,11 +115,29 @@ array<Polygon2D^>^ Polygon2D::Simplify() {
     return arr;
 }
 
-array<Point2D^>^ Polygon2D::ToPoints() {
-    auto native = _native->ToPoints();
+array<Point2D^>^ Polygon2D::Perimeter() {
+    auto const& native = _native->Perimeter();
     auto arr = gcnew array<Point2D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Point2D(new geompp::Point2D(native[i]));
+    }
+    return arr;
+}
+
+bool Polygon2D::HasHoles() {
+    return _native->HasHoles();
+}
+
+array<array<Point2D^>^>^ Polygon2D::Holes() {
+    auto const& native = _native->Holes();
+    auto arr = gcnew array<array<Point2D^>^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        auto const& ring = native[i];
+        auto inner = gcnew array<Point2D^>(static_cast<int>(ring.size()));
+        for (int j = 0; j < static_cast<int>(ring.size()); ++j) {
+            inner[j] = gcnew Point2D(new geompp::Point2D(ring[j]));
+        }
+        arr[i] = inner;
     }
     return arr;
 }

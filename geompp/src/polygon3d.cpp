@@ -192,7 +192,7 @@ double Polygon3D::Area() const {
   return area;
 }
 
-double Polygon3D::Perimeter() const { return PERIMETER; }
+double Polygon3D::PerimeterSize() const { return PERIMETER; }
 
 bool Polygon3D::IsSimple() const {
   Axis dax = PLANE.normal().DominantAxis();
@@ -243,7 +243,7 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
     return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
   };
 
-  auto rings2d = detail::simplify_rings_impl(VERTICES, HOLES, view);
+  auto rings2d = detail::view::simplify_rings(VERTICES, HOLES, view);
 
   // Detect whether the dominant-axis projection reverses chirality.
   // For Y-dominant the mapping (z,x) mirrors the coordinate system, so a CCW 3D polygon
@@ -388,14 +388,7 @@ Polygon3D Polygon3D::ConvexHull() {
   return Make(cv_points);
 }
 
-std::vector<Point3D> Polygon3D::ToPoints() {
-  std::vector<Point3D> points;
-  points.reserve(VERTICES.size());
-  for (auto pt : VERTICES) {
-    points.emplace_back(pt);
-  }
-  return points;
-}
+std::vector<Point3D> const& Polygon3D::Perimeter() const { return VERTICES; }
 
 double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
 
@@ -403,7 +396,7 @@ double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_er
 
 bool operator==(Polygon3D const& lhs, Polygon3D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Point3D const& Polygon3D::operator[](int i) const {
+Point3D const& Polygon3D::operator[](std::size_t i) const {
   if (i >= Size()) {
     throw std::out_of_range("Index out of range");
   }
@@ -425,7 +418,7 @@ bool Polygon3D::IsOnPerimeter(Point3D const& point) const {
   }
   Axis dax = PLANE.normal().DominantAxis();
   View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
-  return detail::is_on_perimeter_with_view(VERTICES, HOLES, view, view.x(point), view.y(point));
+  return detail::view::is_on_perimeter(VERTICES, HOLES, view, view.x(point), view.y(point));
 }
 
 bool Polygon3D::Contains(Point3D const& point) const {
@@ -443,7 +436,7 @@ bool Polygon3D::Contains(Point3D const& point) const {
 
   Axis dax = PLANE.normal().DominantAxis();
   View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
-  return detail::polygon_contains_with_view(VERTICES, HOLES, view, view.x(point), view.y(point));
+  return detail::view::polygon_contains(VERTICES, HOLES, view, view.x(point), view.y(point));
 }
 
 bool Polygon3D::Intersects(Line3D const& line) const { return Intersection(line).has_value(); }

@@ -32,7 +32,7 @@ void bind_line_segment3d(py::module_& m) {
         .def("project_onto", &geompp::LineSegment3D::ProjectOnto, "point"_a)
         .def("location",     &geompp::LineSegment3D::Location,    "point"_a)
         .def("interpolate", &geompp::LineSegment3D::Interpolate, "pct"_a)
-        .def("flip",        &geompp::LineSegment3D::Flip)
+        .def("reversed",    &geompp::LineSegment3D::Reversed)
         .def("contains",    &geompp::LineSegment3D::Contains,    "point"_a)
         BIND_ALMOST_EQUALS(LineSegment3D)
         BIND_SERIALIZATION(LineSegment3D)
@@ -48,5 +48,37 @@ void bind_line_segment3d(py::module_& m) {
              [](const geompp::LineSegment3D& s, const geompp::Ray3D& r)         -> py::object { return opt_to_py(s.Intersection(r)); }, "ray"_a)
         .def("intersection",
              [](const geompp::LineSegment3D& s, const geompp::LineSegment3D& o) -> py::object { return opt_to_py(s.Intersection(o)); }, "segment"_a)
+        .def("overlaps",
+             [](const geompp::LineSegment3D& s, const geompp::Line3D& l)        { return s.Overlaps(l); }, "line"_a)
+        .def("overlaps",
+             [](const geompp::LineSegment3D& s, const geompp::Ray3D& r)         { return s.Overlaps(r); }, "ray"_a)
+        .def("overlaps",
+             [](const geompp::LineSegment3D& s, const geompp::LineSegment3D& o) { return s.Overlaps(o); }, "segment"_a)
+        .def("overlap",
+             [](const geompp::LineSegment3D& s, const geompp::Line3D& l)        -> py::object { return opt_to_py(s.Overlap(l)); }, "line"_a)
+        .def("overlap",
+             [](const geompp::LineSegment3D& s, const geompp::Ray3D& r)         -> py::object { return opt_to_py(s.Overlap(r)); }, "ray"_a)
+        .def("overlap",
+             [](const geompp::LineSegment3D& s, const geompp::LineSegment3D& o) -> py::object { return opt_to_py(s.Overlap(o)); }, "segment"_a)
+        .def("touches",
+             [](const geompp::LineSegment3D& s, const geompp::Line3D& l)        { return s.Touches(l); }, "line"_a)
+        .def("touches",
+             [](const geompp::LineSegment3D& s, const geompp::Ray3D& r)         { return s.Touches(r); }, "ray"_a)
+        .def("touches",
+             [](const geompp::LineSegment3D& s, const geompp::LineSegment3D& o) { return s.Touches(o); }, "segment"_a)
+        .def("touch",
+             [](const geompp::LineSegment3D& s, const geompp::Line3D& l)        -> py::object { return opt_to_py(s.Touch(l)); }, "line"_a)
+        .def("touch",
+             [](const geompp::LineSegment3D& s, const geompp::Ray3D& r)         -> py::object { return opt_to_py(s.Touch(r)); }, "ray"_a)
+        .def("touch",
+             [](const geompp::LineSegment3D& s, const geompp::LineSegment3D& o) -> py::object { return opt_to_py(s.Touch(o)); }, "segment"_a)
+        .def("overlaps",
+             [](const geompp::LineSegment3D& s, const geompp::Polyline3D& p)    { return s.Overlaps(p); }, "polyline"_a)
+        .def("overlap",
+             [](const geompp::LineSegment3D& s, const geompp::Polyline3D& p)    -> py::object { return opt_to_py(s.Overlap(p)); }, "polyline"_a)
+        .def("touches",
+             [](const geompp::LineSegment3D& s, const geompp::Polyline3D& p)    { return s.Touches(p); }, "polyline"_a)
+        .def("touch",
+             [](const geompp::LineSegment3D& s, const geompp::Polyline3D& p)    -> py::object { return opt_to_py(s.Touch(p)); }, "polyline"_a)
         .def("__eq__", [](const geompp::LineSegment3D& a, const geompp::LineSegment3D& b) { return a == b; });
 }

@@ -28,7 +28,7 @@ public:
     bool     AlmostEquals(Polygon2D^ other, double epsilon);
     Point2D^ Centroid();
     double   Area();
-    double   Perimeter();
+    double   PerimeterSize();
     double   DistanceTo(Point2D^ point);
     bool     Contains(Point2D^ point);
     bool     IsOnPerimeter(Point2D^ point);
@@ -36,7 +36,9 @@ public:
     bool     IsConvex();
     Polygon2D^                ConvexHull();
     array<Polygon2D^>^        Simplify();
-    array<Point2D^>^          ToPoints();
+    array<Point2D^>^          Perimeter();
+    bool                      HasHoles();
+    array<array<Point2D^>^>^  Holes();
 
     System::String^ ToWkt();
     static Polygon2D^ FromWkt(System::String^ wkt);

@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 
 #include "constants.hpp"
+#include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
@@ -584,14 +585,193 @@ TEST_F(CalcUtils2DTest, FindIntersections_ThreeSegmentsThreeDistinctPoints) {
 TEST_F(CalcUtils2DTest, HasIntersections_WorksWithSegmentRange_SimplePolygon) {
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(gd::has_intersections_impl(range));
+  EXPECT_FALSE(gd::has_intersections(range));
 }
 
 TEST_F(CalcUtils2DTest, FindIntersections_WorksWithSegmentRange_SelfIntersecting) {
   // same shape as SelfIntersectingRing but constructed as a SegmentRange2D
   std::vector<g::Point2D> pts{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(1, 3), g::Point2D(3, 3)};
   g::SegmentRange2D range(pts, /*closed=*/true);
-  EXPECT_FALSE(gd::find_intersections_impl(range).empty());
+  EXPECT_FALSE(gd::find_intersections(range).empty());
+}
+
+// ---- find_extreme_points (Polygon2D × Line2D) -------------------------------
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexDiamond_AlongX) {
+  // CCW diamond; projecting onto +X isolates the left/right tips uniquely.
+  auto diamond = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 2), g::Point2D(2, 4), g::Point2D(0, 2)});
+  ASSERT_TRUE(diamond.IsConvex());  // exercises the O(log n) Sunday binary search
+  auto ex = g::find_extreme_points(diamond, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0)));
+  EXPECT_EQ(g::Point2D(0, 2), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 2), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexDiamond_AlongY) {
+  auto diamond = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 2), g::Point2D(2, 4), g::Point2D(0, 2)});
+  auto ex = g::find_extreme_points(diamond, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(0, 1)));
+  EXPECT_EQ(g::Point2D(2, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(2, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexSquare_Diagonal) {
+  // Diagonal direction (1,1): projection = x + y, extreme at opposite corners.
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto ex = g::find_extreme_points(square, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)));
+  EXPECT_EQ(g::Point2D(0, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexHexagon_ObliqueDir) {
+  auto hex = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(2, 4),
+                                 g::Point2D(0, 3), g::Point2D(0, 1)});
+  ASSERT_TRUE(hex.IsConvex());
+  // direction (3,1): proj = 3x + y → min at (0,1)=1, max at (4,3)=15
+  auto ex = g::find_extreme_points(hex, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(3, 1)));
+  EXPECT_EQ(g::Point2D(0, 1), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 3), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConcavePolygon_BruteForcePath) {
+  // Non-convex "dart": the inner dip at (2,1) makes it concave → O(n) linear scan.
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  ASSERT_FALSE(dart.IsConvex());
+  // direction (1,2): proj = x + 2y → min at (0,0)=0, max at (4,4)=12
+  auto ex = g::find_extreme_points(dart, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 2)));
+  EXPECT_EQ(g::Point2D(0, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_PolygonWithHole_IgnoresHole) {
+  // Holes make the polygon non-convex; only the outer ring participates in the search.
+  std::vector<g::Point2D> outer = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto poly = g::Polygon2D::Make(outer, {hole});
+  auto ex = g::find_extreme_points(poly, g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 2)));
+  EXPECT_EQ(g::Point2D(0, 0), ex.min_point);
+  EXPECT_EQ(g::Point2D(4, 4), ex.max_point);
+}
+
+TEST_F(CalcUtils2DTest, ExtremePoints_ConvexAndBruteForceAgree) {
+  // Same convex geometry evaluated via both code paths must yield identical extremes.
+  // Direction (3,1) is not aligned with this hexagon's symmetry axis, so projections are
+  // all distinct (no ties) and both algorithms must agree on a unique index.
+  std::vector<g::Point2D> verts = {g::Point2D(2, 0), g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(2, 4),
+                                   g::Point2D(0, 3), g::Point2D(0, 1)};
+  auto dir = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(3, 1)).Direction();
+  auto convex = gd::extreme_points(verts, /*is_convex=*/true, dir);
+  auto brute = gd::extreme_points(verts, /*is_convex=*/false, dir);
+  EXPECT_EQ(brute.first, convex.first);
+  EXPECT_EQ(brute.second, convex.second);
+}
+
+// ---- distance_to (Polygon2D × Line2D) ---------------------------------------
+
+TEST_F(CalcUtils2DTest, DistanceTo_ConvexSquare_LineCrossing_IsZero) {
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  ASSERT_TRUE(square.IsConvex());
+  auto line = g::Line2D::Make(g::Point2D(2, -1), g::Point2D(2, 5));
+  EXPECT_NEAR(0.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_ConvexSquare_LineOutside) {
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto line = g::Line2D::Make(g::Point2D(6, -1), g::Point2D(6, 5));
+  EXPECT_NEAR(2.0, g::distance_to(square, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_NonConvexDart_LineCrossing_IsZero) {
+  // Same dart as ExtremePoints_ConcavePolygon_BruteForcePath: a vertical line through its middle
+  // crosses the bottom edge, so the non-convex brute-force branch must report zero.
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  ASSERT_FALSE(dart.IsConvex());
+  auto line = g::Line2D::Make(g::Point2D(2, -1), g::Point2D(2, 5));
+  EXPECT_NEAR(0.0, g::distance_to(dart, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_NonConvexDart_LineOutside) {
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  auto line = g::Line2D::Make(g::Point2D(10, -1), g::Point2D(10, 5));
+  EXPECT_NEAR(6.0, g::distance_to(dart, line), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DistanceTo_PolygonWithHole_IgnoresHole) {
+  // Holes make the polygon non-convex; only the outer ring participates — same answer as the
+  // hole-less square in DistanceTo_ConvexSquare_LineOutside.
+  std::vector<g::Point2D> outer = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto poly = g::Polygon2D::Make(outer, {hole});
+  auto line = g::Line2D::Make(g::Point2D(6, -1), g::Point2D(6, 5));
+  EXPECT_NEAR(2.0, g::distance_to(poly, line), 1e-9);
+}
+
+// ---- tangents_to (Polygon2D x Point2D / Polygon2D) --------------------------
+
+TEST_F(CalcUtils2DTest, TangentsTo_ConvexSquare_Point) {
+  auto square = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  ASSERT_TRUE(square.IsConvex());  // exercises the O(log n) binary search
+  auto t = g::tangents_to(square, g::Point2D(10, -2));
+  EXPECT_EQ(g::Point2D(10, -2), t.left.First());
+  EXPECT_EQ(g::Point2D(0, 0), t.left.Last());
+  EXPECT_EQ(g::Point2D(10, -2), t.right.First());
+  EXPECT_EQ(g::Point2D(4, 4), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_ConvexHexagon_Point_ExercisesFullBinarySearch) {
+  // A larger convex loop and a distant, off-axis point force the binary search to actually
+  // iterate (not just hit the "vertex 0" shortcut). Verified independently via the supporting-line
+  // cross-product test (both candidates keep every other vertex on one consistent side of p->v).
+  auto hex = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 1), g::Point2D(4, 3), g::Point2D(2, 4),
+                                 g::Point2D(0, 3), g::Point2D(0, 1)});
+  ASSERT_TRUE(hex.IsConvex());
+  auto t = g::tangents_to(hex, g::Point2D(20, 7));
+  EXPECT_EQ(g::Point2D(2, 0), t.left.Last());
+  EXPECT_EQ(g::Point2D(2, 4), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_NonConvexDart_Point_ReducesToConvexHull) {
+  // The dart's concave notch (2,1) is interior to its convex hull, so it must never be
+  // returned as a tangent point. Viewed from directly left, the tangent points are exactly the
+  // endpoints of the flat left edge (0,0)-(0,4) — same answer as the hull-equivalent square would
+  // give, which also exercises the hull-index -> original-index mapping (dart has 5 vertices, its
+  // hull only 4, so a broken mapping would very likely land on the wrong vertex).
+  auto dart = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                  g::Point2D(0, 4)});
+  ASSERT_FALSE(dart.IsConvex());
+  auto t = g::tangents_to(dart, g::Point2D(-6, 2));
+  EXPECT_EQ(g::Point2D(0, 4), t.left.Last());
+  EXPECT_EQ(g::Point2D(0, 0), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_ConvexSquares_Polygon) {
+  // Two congruent squares, one translated by (10,1) relative to the other (no rotation/scaling):
+  // the outer common tangents connect corresponding corners and are parallel to the translation
+  // vector — verified independently via the supporting-line cross-product test.
+  auto squareA = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)});
+  auto squareB = g::Polygon2D::Make({g::Point2D(10, 1), g::Point2D(14, 1), g::Point2D(14, 5), g::Point2D(10, 5)});
+  auto t = g::tangents_to(squareA, squareB);
+  EXPECT_EQ(g::Point2D(0, 4), t.left.First());
+  EXPECT_EQ(g::Point2D(10, 5), t.left.Last());
+  EXPECT_EQ(g::Point2D(4, 0), t.right.First());
+  EXPECT_EQ(g::Point2D(14, 1), t.right.Last());
+}
+
+TEST_F(CalcUtils2DTest, TangentsTo_NonConvexDarts_Polygon_ReducesBothToConvexHull) {
+  // Same layout as TangentsTo_ConvexSquares_Polygon, but both shapes are darts with an interior
+  // notch. Neither notch is on its hull, so the result must match the square/square case exactly.
+  auto dartA = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1),
+                                   g::Point2D(0, 4)});
+  auto dartB = g::Polygon2D::Make({g::Point2D(10, 1), g::Point2D(14, 1), g::Point2D(14, 5), g::Point2D(12, 2),
+                                   g::Point2D(10, 5)});
+  ASSERT_FALSE(dartA.IsConvex());
+  ASSERT_FALSE(dartB.IsConvex());
+  auto t = g::tangents_to(dartA, dartB);
+  EXPECT_EQ(g::Point2D(0, 4), t.left.First());
+  EXPECT_EQ(g::Point2D(10, 5), t.left.Last());
+  EXPECT_EQ(g::Point2D(4, 0), t.right.First());
+  EXPECT_EQ(g::Point2D(14, 1), t.right.Last());
 }
 
 }  // namespace geompp_tests

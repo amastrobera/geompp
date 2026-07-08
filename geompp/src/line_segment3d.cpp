@@ -2,6 +2,7 @@
 
 #include "calc_utils3d.hpp"
 #include "line3d.hpp"
+#include "polyline3d.hpp"
 #include "ray3d.hpp"
 #include "utils.hpp"
 
@@ -11,6 +12,7 @@
 #include <fstream>
 #include <limits>
 #include <stdexcept>
+#include <vector>
 
 namespace geompp {
 
@@ -33,6 +35,8 @@ LineSegment3D& LineSegment3D::operator=(LineSegment3D const& other) {
 }
 
 double LineSegment3D::Length() const { return (P1 - P0).Length(); }
+
+LineSegment3D LineSegment3D::Reversed() const { return {P1, P0}; }
 
 bool LineSegment3D::AlmostEquals(LineSegment3D const& other, double epsilon) const {
   return (P0.AlmostEquals(other.P0, epsilon) && P1.AlmostEquals(other.P1, epsilon))  // forward
@@ -81,8 +85,6 @@ Point3D LineSegment3D::Interpolate(double pct) const {
 
   return P0 + pct * (P1 - P0);
 }
-
-LineSegment3D LineSegment3D::Flip() const { return {P1, P0}; }
 
 double LineSegment3D::DistanceTo(Point3D const& point) const { return (point - ProjectOnto(point)).Length(); }
 
@@ -259,9 +261,11 @@ bool LineSegment3D::Intersects(Ray3D const& ray) const { return Intersection(ray
 
 bool LineSegment3D::Intersects(LineSegment3D const& other) const { return Intersection(other).has_value(); }
 
-std::optional<Point3D>LineSegment3D::Intersection(Line3D const& line) const {
+bool LineSegment3D::Intersects(Polyline3D const& polyline) const { return polyline.Intersects(*this); }
+
+std::optional<Point3D> LineSegment3D::Intersection(Line3D const& line) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(P0, P1, line.First(), line.Last(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, line.First(), line.Last(), sc, tc);
 
   // respecting LineSegment and Ray constraints: sc should be between 0 and 1
   if (!(Pc.has_value() && is_in_range(sc, 0, 1))) {
@@ -271,9 +275,9 @@ std::optional<Point3D>LineSegment3D::Intersection(Line3D const& line) const {
   return Pc;  // intersection!
 }
 
-std::optional<Point3D>LineSegment3D::Intersection(Ray3D const& ray) const {
+std::optional<Point3D> LineSegment3D::Intersection(Ray3D const& ray) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(P0, P1, ray.Origin(), ray.Origin() + ray.Direction(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, ray.Origin(), ray.Origin() + ray.Direction(), sc, tc);
 
   // respecting LineSegment and Ray constraints: sc should be between 0 and 1, tc should be greater than 0
   if (!(Pc.has_value() && is_in_range(sc, 0, 1) && is_greater_or_equal(tc, 0))) {
@@ -283,9 +287,9 @@ std::optional<Point3D>LineSegment3D::Intersection(Ray3D const& ray) const {
   return Pc;  // intersection!
 }
 
-std::optional<Point3D>LineSegment3D::Intersection(LineSegment3D const& other) const {
+std::optional<Point3D> LineSegment3D::Intersection(LineSegment3D const& other) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(P0, P1, other.First(), other.Last(), sc, tc);
+  auto Pc = detail::line_intersection(P0, P1, other.First(), other.Last(), sc, tc);
 
   // respecting LineSegment constraints: sc and tc should be between 0 and 1
   if (!(Pc.has_value() && is_in_range(sc, 0, 1) && is_in_range(tc, 0, 1))) {
@@ -293,6 +297,153 @@ std::optional<Point3D>LineSegment3D::Intersection(LineSegment3D const& other) co
   }
 
   return Pc;  // intersection!
+}
+
+std::optional<std::variant<Point3D, std::vector<Point3D>>> LineSegment3D::Intersection(
+    Polyline3D const& polyline) const {
+  return polyline.Intersection(*this);
+}
+
+bool LineSegment3D::Overlaps(Line3D const& line) const { return Overlap(line).has_value(); }
+bool LineSegment3D::Overlaps(Ray3D const& ray) const { return Overlap(ray).has_value(); }
+bool LineSegment3D::Overlaps(LineSegment3D const& seg) const { return Overlap(seg).has_value(); }
+bool LineSegment3D::Overlaps(Polyline3D const& polyline) const { return polyline.Overlaps(*this); }
+
+std::optional<LineSegment3D> LineSegment3D::Overlap(Line3D const& line) const {
+  if (!((P1 - P0).IsParallel(line.Direction()) && line.Contains(P0))) {
+    return std::nullopt;
+  }
+  double t0 = (P0 - line.Origin()).Dot(line.Direction());
+  double t1 = (P1 - line.Origin()).Dot(line.Direction());
+  if (compare(t0, t1) > 0) {
+    return Reversed();
+  }
+  return *this;
+}
+
+std::optional<LineSegment3D> LineSegment3D::Overlap(Ray3D const& ray) const {
+  if (!(P1 - P0).IsParallel(ray.Direction())) {
+    return std::nullopt;
+  }
+  bool ray_has_first = ray.Contains(P0);
+  bool ray_has_last = ray.Contains(P1);
+  if (!ray_has_first && !ray_has_last) {
+    return std::nullopt;
+  }
+  if (ray_has_first && ray_has_last) {
+    return *this;
+  }
+  // one endpoint on the ray: overlap runs from ray.Origin() to that endpoint
+  Point3D const& end_pt = ray_has_first ? P0 : P1;
+  if (ray.Origin().AlmostEquals(end_pt)) {
+    return std::nullopt;
+  }  // single-point touch
+  return LineSegment3D::Make(ray.Origin(), end_pt);
+}
+
+std::optional<LineSegment3D> LineSegment3D::Overlap(LineSegment3D const& other) const {
+  if (!(P1 - P0).IsParallel(other.P1 - other.P0)) {
+    return std::nullopt;
+  }
+  // collect all endpoints that lie inside both segments
+  std::vector<Point3D> candidates;
+  if (other.Contains(P0)) {
+    candidates.push_back(P0);
+  }
+  if (other.Contains(P1)) {
+    candidates.push_back(P1);
+  }
+  if (Contains(other.First())) {
+    candidates.push_back(other.First());
+  }
+  if (Contains(other.Last())) {
+    candidates.push_back(other.Last());
+  }
+  if (candidates.empty()) {
+    return std::nullopt;
+  }
+  // find the two extremes using this segment's parametric axis
+  Point3D lo = candidates[0], hi = candidates[0];
+  double lo_t = Location(lo), hi_t = lo_t;
+  for (auto const& c : candidates) {
+    double t = Location(c);
+    if (compare(t, lo_t) < 0) {
+      lo_t = t;
+      lo = c;
+    }
+    if (compare(t, hi_t) > 0) {
+      hi_t = t;
+      hi = c;
+    }
+  }
+  if (lo.AlmostEquals(hi)) {
+    return std::nullopt;
+  }  // single-point touch
+  return LineSegment3D::Make(lo, hi);
+}
+
+std::optional<std::vector<LineSegment3D>> LineSegment3D::Overlap(Polyline3D const& polyline) const {
+  return polyline.Overlap(*this);
+}
+
+bool LineSegment3D::Touches(Line3D const& line) const { return Touch(line).has_value(); }
+bool LineSegment3D::Touches(Ray3D const& ray) const { return Touch(ray).has_value(); }
+bool LineSegment3D::Touches(LineSegment3D const& seg) const { return Touch(seg).has_value(); }
+bool LineSegment3D::Touches(Polyline3D const& polyline) const { return polyline.Touches(*this); }
+
+std::optional<Point3D> LineSegment3D::Touch(Line3D const& line) const {
+  if ((P1 - P0).IsParallel(line.Direction())) {
+    return std::nullopt;
+  }
+  if (line.Contains(P0)) {
+    return P0;
+  }
+  if (line.Contains(P1)) {
+    return P1;
+  }
+  return std::nullopt;
+}
+
+std::optional<Point3D> LineSegment3D::Touch(Ray3D const& ray) const {
+  bool r_has_first = ray.Contains(P0);
+  bool r_has_last = ray.Contains(P1);
+  if (r_has_first ^ r_has_last) {
+    return r_has_first ? P0 : P1;
+  }
+  if (!(P1 - P0).IsParallel(ray.Direction()) && Contains(ray.Origin())) {
+    return ray.Origin();
+  }
+  return std::nullopt;
+}
+
+std::optional<Point3D> LineSegment3D::Touch(LineSegment3D const& seg) const {
+  if (!(P1 - P0).IsParallel(seg.P1 - seg.P0)) {
+    bool s_has_p0 = seg.Contains(P0), s_has_p1 = seg.Contains(P1);
+    bool t_has_s0 = Contains(seg.First()), t_has_s1 = Contains(seg.Last());
+    if (s_has_p0 ^ s_has_p1) {
+      return s_has_p0 ? P0 : P1;
+    }
+    if (t_has_s0 ^ t_has_s1) {
+      return t_has_s0 ? seg.First() : seg.Last();
+    }
+    return std::nullopt;
+  }
+  if (Overlaps(seg)) {
+    return std::nullopt;
+  }
+  bool e00 = P0.AlmostEquals(seg.First()), e11 = P1.AlmostEquals(seg.Last());
+  bool e01 = P0.AlmostEquals(seg.Last()), e10 = P1.AlmostEquals(seg.First());
+  if (e00 ^ e11 ^ e01 ^ e10) {
+    if (e00 || e01) {
+      return P0;
+    }
+    return P1;
+  }
+  return std::nullopt;
+}
+
+std::optional<std::vector<Point3D>> LineSegment3D::Touch(Polyline3D const& polyline) const {
+  return polyline.Touch(*this);
 }
 
 #pragma endregion
@@ -332,7 +483,7 @@ LineSegment3D LineSegment3D::FromWkt(std::string const& wkt) {
     if (end_p2 == std::string::npos) {
       throw std::runtime_error("brakets");
     }
-    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2 - 1);
+    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1, end_p2);
 
     auto nums_p2 = geompp::tokenize_to_doubles(s_nums_p2);
     if (nums_p2.size() != 3) {

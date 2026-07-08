@@ -2,10 +2,10 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Users\angel\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.runtimeconfig.json</FullPath>
+      <FullPath>F:\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.runtimeconfig.json</FullPath>
     </ProjectOutput>
     <ProjectOutput>
-      <FullPath>C:\Users\angel\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.dll</FullPath>
+      <FullPath>F:\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

@@ -90,6 +90,11 @@ TEST_F(Polygon3DTest, Wkt) {
   EXPECT_EQ(4, q.Size());
   EXPECT_EQ(g::Point3D(0, 0, 0), q[0]);
   EXPECT_EQ(g::Point3D(1, 0, 0), q[1]);
+  // whitespace tolerance
+  auto qw = g::Polygon3D::FromWkt("POLYGON ((  0 0 0  ,  1 0 0  ,  1 1 0  ,  0 1 0  ,  0 0 0  ))");
+  EXPECT_EQ(4, qw.Size());
+  EXPECT_EQ(g::Point3D(0, 0, 0), qw[0]);
+  EXPECT_EQ(g::Point3D(1, 0, 0), qw[1]);
   // invalid input still throws
   EXPECT_ANY_THROW(g::Polygon3D::FromWkt("anything"));
 }
@@ -111,6 +116,27 @@ TEST_F(Polygon3DTest, WithHoles_Valid) {
       g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
   auto p = g::Polygon3D::Make(outer, {hole});
   ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
+}
+
+TEST_F(Polygon3DTest, HasHoles_False_WhenNoHoles) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  auto p = g::Polygon3D::Make(outer);
+  EXPECT_FALSE(p.HasHoles());
+  EXPECT_TRUE(p.Holes().empty());
+}
+
+TEST_F(Polygon3DTest, HasHoles_True_WithHole) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
+  auto p = g::Polygon3D::Make(outer, {hole});
+  EXPECT_TRUE(p.HasHoles());
+  ASSERT_EQ(1u, p.Holes().size());
+  ASSERT_EQ(4u, p.Holes()[0].size());
+  EXPECT_TRUE(p.Holes()[0][0].AlmostEquals(g::Point3D(1, 1, 0)));
+  EXPECT_TRUE(p.Holes()[0][2].AlmostEquals(g::Point3D(3, 3, 0)));
 }
 
 TEST_F(Polygon3DTest, WithHoles_PerimeterCW_Throws) {
@@ -307,7 +333,7 @@ TEST_F(Polygon3DTest, Perimeter_Square) {
   auto p = g::Polygon3D::Make({
       g::Point3D(0, 0, 0), g::Point3D(1, 0, 0),
       g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
-  EXPECT_NEAR(4.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(4.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon3DTest, Perimeter_NonXYPlane) {
@@ -315,14 +341,14 @@ TEST_F(Polygon3DTest, Perimeter_NonXYPlane) {
   auto p = g::Polygon3D::Make({
       g::Point3D(0, 0, 0), g::Point3D(0, 1, 0),
       g::Point3D(0, 1, 1), g::Point3D(0, 0, 1)});
-  EXPECT_NEAR(4.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(4.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon3DTest, Perimeter_Triangle) {
   // 3-4-5 right triangle → perimeter = 12
   auto p = g::Polygon3D::Make({
       g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 3, 0)});
-  EXPECT_NEAR(12.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(12.0, p.PerimeterSize(), 1e-9);
 }
 
 // ---- GetPlane ---------------------------------------------------------------

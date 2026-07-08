@@ -166,17 +166,17 @@ double Polygon2D::Area() const {
   return area;
 }
 
-double Polygon2D::Perimeter() const { return PERIMETER; }
+double Polygon2D::PerimeterSize() const { return PERIMETER; }
 
 double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
 
 bool Polygon2D::IsSimple() const {
-  if (detail::has_intersections_impl(ToSegments())) {
+  if (detail::has_intersections(ToSegments())) {
     return false;
   }
 
   for (auto const& hole : HOLES) {
-    if (detail::has_intersections_impl(SegmentRange2D(hole, true))) {
+    if (detail::has_intersections(SegmentRange2D(hole, true))) {
       return false;
     }
   }
@@ -194,21 +194,14 @@ Polygon2D Polygon2D::ConvexHull() {
   return Make(cv_points);
 }
 
-std::vector<Point2D> Polygon2D::ToPoints() {
-  std::vector<Point2D> points;
-  points.reserve(VERTICES.size());
-  for (auto pt : VERTICES) {
-    points.emplace_back(pt);
-  }
-  return points;
-}
+std::vector<Point2D> const& Polygon2D::Perimeter() const { return VERTICES; }
 
 std::vector<Polygon2D> Polygon2D::Simplify() const {
   if (IsSimple()) {
     return {*this};
   }
 
-  auto rings = detail::simplify_rings_impl(VERTICES, HOLES, View2D::XY());
+  auto rings = detail::view::simplify_rings(VERTICES, HOLES, View2D::XY());
 
   // The half-edge walk traces interior faces with CW orientation (SA < 0) and the outer
   // (unbounded) graph face with CCW orientation (SA > 0).  Flip each CW interior ring to
@@ -307,7 +300,7 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
 
 bool operator==(Polygon2D const& lhs, Polygon2D const& rhs) { return lhs.AlmostEquals(rhs); }
 
-Point2D const& Polygon2D::operator[](int i) const {
+Point2D const& Polygon2D::operator[](std::size_t i) const {
   if (i >= Size()) {
     throw std::out_of_range("Index out of range");
   }
@@ -324,7 +317,7 @@ std::ostream& operator<<(std::ostream& os, Polygon2D const& g) {
 #pragma region Geometrical Operations
 
 bool Polygon2D::IsOnPerimeter(Point2D const& point) const {
-  return detail::is_on_perimeter_with_view(VERTICES, HOLES, View2D::XY(), point.x(), point.y());
+  return detail::view::is_on_perimeter(VERTICES, HOLES, View2D::XY(), point.x(), point.y());
 }
 
 // winding number method — boundary-inclusive (matches Triangle behaviour)
@@ -339,7 +332,7 @@ bool Polygon2D::Contains(Point2D const& point) const {
     return true;
   }
 
-  return detail::polygon_contains_with_view(VERTICES, HOLES, View2D::XY(), point.x(), point.y());
+  return detail::view::polygon_contains(VERTICES, HOLES, View2D::XY(), point.x(), point.y());
 }
 
 bool Polygon2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
@@ -352,7 +345,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Line2D const& 
   auto const& p0 = line.First();
   auto const& p1 = line.Last();
 
-  auto intervals = detail::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+  auto intervals = detail::view::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
 
   if (intervals.empty()) {
     return std::nullopt;
@@ -373,7 +366,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Ray2D const& r
   Point2D const p0 = ray.Origin();
   Point2D const p1(p0.x() + ray.Direction().x(), p0.y() + ray.Direction().y());
 
-  auto intervals = detail::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+  auto intervals = detail::view::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
 
   if (intervals.empty()) {
     return std::nullopt;
@@ -420,7 +413,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
   auto const& p0 = other.First();
   auto const& p1 = other.Last();
 
-  auto intervals = detail::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
+  auto intervals = detail::view::compute_intersection_intervals_2d(VERTICES, HOLES, IS_CONVEX, p0, p1, View2D::XY());
 
   if (intervals.empty()) {
     return std::nullopt;

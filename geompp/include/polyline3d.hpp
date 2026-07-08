@@ -48,7 +48,8 @@ class Polyline3D {
 
   /// @brief Position of a point along the polyline, normalized to [0, 1] by arc length.
   /// @param point The point to locate. Must lie on the polyline.
-  /// @return 0 at the first knot, 1 at the last, fractional values in between, or +infinity if @p point is off the polyline.
+  /// @return 0 at the first knot, 1 at the last, fractional values in between, or +infinity if @p point is off the
+  /// polyline.
   double Location(Point3D const& point) const;
 
   /// @brief Linear interpolation along the polyline by arc-length fraction.
@@ -72,48 +73,35 @@ class Polyline3D {
   /// @return true if @p point is on any of the polyline's segments (interior or knot).
   bool Contains(Point3D const& point) const;
 
-  using MultiPoint = std::vector<Point3D>;
-  using ReturnSet = std::optional<std::variant<Point3D, MultiPoint>>;
-
-  /// @brief Tests whether this polyline intersects a line.
-  /// @param line The line.
-  /// @return true if the line crosses any of the polyline's segments.
   bool Intersects(Line3D const& line) const;
-
-  /// @brief Tests whether this polyline intersects a ray.
-  /// @param ray The ray.
-  /// @return true if the ray crosses any of the polyline's segments within its domain.
   bool Intersects(Ray3D const& ray) const;
-
-  /// @brief Tests whether this polyline intersects a segment.
-  /// @param segment The segment.
-  /// @return true if the segment crosses any of the polyline's segments.
   bool Intersects(LineSegment3D const& segment) const;
-
-  /// @brief Tests whether two polylines intersect.
-  /// @param other The other polyline.
-  /// @return true if any segment of either polyline crosses any segment of the other.
   bool Intersects(Polyline3D const& other) const;
 
-  /// @brief Intersection of this polyline with a line.
-  /// @param line The line.
-  /// @return A single Point3D when there's one crossing, a list when there are several, or std::nullopt if disjoint.
-  ReturnSet Intersection(Line3D const& line) const;
+  std::optional<std::vector<Point3D>> Intersection(Line3D const& line) const;
+  std::optional<std::vector<Point3D>> Intersection(Ray3D const& ray) const;
+  std::optional<std::vector<Point3D>> Intersection(LineSegment3D const& segment) const;
+  std::optional<std::vector<Point3D>> Intersection(Polyline3D const& other) const;
 
-  /// @brief Intersection of this polyline with a ray.
-  /// @param ray The ray.
-  /// @return A single Point3D or a list of crossings, or std::nullopt if disjoint.
-  ReturnSet Intersection(Ray3D const& ray) const;
+  bool Overlaps(Line3D const& line) const;
+  bool Overlaps(Ray3D const& ray) const;
+  bool Overlaps(LineSegment3D const& seg) const;
+  bool Overlaps(Polyline3D const& other) const;
 
-  /// @brief Intersection of this polyline with a segment.
-  /// @param segment The segment.
-  /// @return A single Point3D or a list of crossings, or std::nullopt if disjoint.
-  ReturnSet Intersection(LineSegment3D const& segment) const;
+  std::optional<std::vector<LineSegment3D>> Overlap(Line3D const& line) const;
+  std::optional<std::vector<LineSegment3D>> Overlap(Ray3D const& ray) const;
+  std::optional<std::vector<LineSegment3D>> Overlap(LineSegment3D const& seg) const;
+  std::optional<std::vector<LineSegment3D>> Overlap(Polyline3D const& other) const;
 
-  /// @brief Intersection of two polylines.
-  /// @param other The other polyline.
-  /// @return A single Point3D or a list of crossings, or std::nullopt if disjoint.
-  ReturnSet Intersection(Polyline3D const& other) const;
+  bool Touches(Line3D const& line) const;
+  bool Touches(Ray3D const& ray) const;
+  bool Touches(LineSegment3D const& seg) const;
+  bool Touches(Polyline3D const& other) const;
+
+  std::optional<std::vector<Point3D>> Touch(Line3D const& line) const;
+  std::optional<std::vector<Point3D>> Touch(Ray3D const& ray) const;
+  std::optional<std::vector<Point3D>> Touch(LineSegment3D const& seg) const;
+  std::optional<std::vector<Point3D>> Touch(Polyline3D const& other) const;
 
   /// @brief Tests whether all knots of the polyline are coplanar.
   /// @return true if all knots lie in a common plane.
@@ -161,7 +149,8 @@ std::ostream& operator<<(std::ostream& os, Polyline3D const& g);
 inline int Polyline3D::Size() const { return KNOTS.size(); }
 inline SegmentRange3D Polyline3D::ToSegments() const { return SegmentRange3D(KNOTS); }
 inline double Polyline3D::Length() const { return LENGTH; }
-inline Polyline3D::Polyline3D(std::vector<Point3D>&& points, double length) : KNOTS{std::move(points)}, LENGTH(length) {}
+inline Polyline3D::Polyline3D(std::vector<Point3D>&& points, double length)
+    : KNOTS{std::move(points)}, LENGTH(length) {}
 
 #pragma endregion
 

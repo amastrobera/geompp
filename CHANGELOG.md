@@ -11,6 +11,94 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.12.0] - 2026-07-07
+
+> C++ library — tagged `v0.12.0` · C# / NuGet — tagged `csharp-v0.12.0` · Python / PyPI — tagged `python-v0.12.0`
+
+> Overlap and Touch detection for all 1D primitives and Polyline (Line, Ray, LineSegment, Polyline2D/3D in 2D and 3D); polygon extreme-point search along a line (Daniel Sunday's O(log n) for convex, O(n) otherwise); polygon-to-point and polygon-to-polygon tangent segments (2D and 3D, coplanar); polygon hole accessors; `Polygon2D/3D::ToPoints()` renamed to `Perimeter()` and the old `Perimeter()` renamed to `PerimeterSize()`; `Polygon2D/3D::operator[]` now takes `std::size_t`; FromWkt off-by-one fix.
+
+### Added
+
+**C++ core**
+- `Vector2D::IsParallel(Vector2D const& other)` — returns `true` when the 2D cross product (perp-product) is within precision of zero; consistent with `Vector3D::IsParallel`.
+- `Overlaps(X)` (bool) and `Overlap(X)` (returns the shared geometry) for all pairs among `Line2D`, `Ray2D`, `LineSegment2D` — and the exact mirror for `Line3D`, `Ray3D`, `LineSegment3D`.
+  - `Line::Overlap(Line)` → `std::optional<Line>` — entire line if collinear, nullopt otherwise.
+  - `Line::Overlap(Ray)` / `Ray::Overlap(Line)` → `std::optional<Ray>` — the full ray when collinear.
+  - `Line::Overlap(Segment)` / `Segment::Overlap(Line)` → `std::optional<Segment>` — the full segment when collinear.
+  - `Ray::Overlap(Ray)` → `std::optional<std::variant<Ray, Segment>>` — same-direction: the ray starting later; opposite-direction: the finite segment between origins; single-point touch: nullopt.
+  - `Ray::Overlap(Segment)` / `Segment::Overlap(Ray)` → `std::optional<Segment>` — clipped segment; nullopt when disjoint or only touching at origin.
+  - `Segment::Overlap(Segment)` → `std::optional<Segment>` — intersection of the two ranges; nullopt when disjoint or single-point touch.
+- All 18 `Overlaps()` boolean wrappers delegate to `Overlap().has_value()` (no circular delegation).
+- `Touches(X)` (bool) and `Touch(X)` (returns `std::optional<Point>`) for all pairs among `Line2D`, `Ray2D`, `LineSegment2D` — and the exact mirror for `Line3D`, `Ray3D`, `LineSegment3D`.
+  - Touch is defined as: two geometries share exactly one endpoint-contact point (not an interior crossing, not a shared segment).
+  - `Ray::Touch(Line)` — nullopt if collinear (Overlap), else origin if line contains origin.
+  - `Ray::Touch(Ray)` — collinear same-direction: nullopt; collinear anti-parallel same origin: that origin; anti-parallel overlapping: nullopt; non-parallel: origin of whichever ray the other contains.
+  - `Segment::Touch(Line)` — nullopt if collinear; P0 or P1 if line contains exactly one endpoint.
+  - `Segment::Touch(Ray)` — XOR: return the endpoint the ray contains exclusively; or ray origin if it falls on the interior of the segment (non-collinear).
+  - `Segment::Touch(Segment)` — non-parallel: XOR endpoint containment; parallel collinear: endpoint coincidence without overlap.
+  - `Line::Touches/Touch(Ray)` and `Line::Touches/Touch(Segment)` delegate to the Ray/Segment counterparts.
+- All 18 `Touches()` boolean wrappers delegate to `Touch().has_value()`.
+- `Polyline2D::Overlaps/Overlap(Line2D|Ray2D|LineSegment2D|Polyline2D)` — iterates segments, collects all overlapping sub-segments. Returns `std::optional<std::vector<LineSegment2D>>`.
+- `Polyline2D::Touches/Touch(Line2D|Ray2D|LineSegment2D|Polyline2D)` — iterates segments, collects all touch points. Returns `std::optional<std::vector<Point2D>>`.
+- `Line2D/Ray2D/LineSegment2D::Overlaps/Overlap/Touches/Touch(Polyline2D)` — each delegates to `polyline.method(*this)`.
+- Exact 3D mirrors: `Polyline3D`, `Line3D`, `Ray3D`, `LineSegment3D`.
+- `find_extreme_points(Polygon2D const&, Line2D const&)` (`calc_utils2d.hpp`) and `find_extreme_points(Polygon3D const&, Line3D const&)` (`calc_utils3d.hpp`) — return `ExtremePoints<PointN>{min_point, max_point}`: the outer-ring vertices with least / greatest projection along the line's direction. Convex polygons use Daniel Sunday's O(log n) binary search (`detail::extreme_points_impl`); non-convex polygons fall back to an O(n) linear scan. Holes are ignored.
+- `ExtremePoints<PointT>` struct (`calc_utils2d.hpp`) — `min_point`, `max_point`; shared by the 2D and 3D overloads.
+- Concepts `VectorType`, `ProjectablePointWith<P, V>`, and `ProjectablePointContainerWith<R, V>` (`concepts.hpp`) — constrain the generic extreme-point search to ranges of points projectable onto a vector type; the search compares only scalar projections, so one template body drives both 2D and 3D.
+- `Polygon2D/3D::HasHoles()` — `true` when the polygon has one or more holes.
+- `Polygon2D/3D::Holes()` — returns `std::vector<std::vector<PointN>> const&`, the (CW) hole rings; empty when the polygon has no holes.
+- `PolygonTangents<LineSegmentT>` struct (`calc_utils2d.hpp`) — `left`, `right`; shared by the 2D and 3D overloads below.
+- `tangents_to(Polygon2D const&, Point2D const&)` and `tangents_to(Polygon3D const&, Point3D const&)` — left/right tangent `LineSegment` from an external point to a polygon. Convex polygons use Daniel Sunday's O(log n) binary search; non-convex polygons are reduced to their convex hull first (a tangent point can only ever be a hull vertex), then mapped back to the original vertex index. The 3D overload requires the point to be coplanar with the polygon (a tangent is inherently planar) and throws `std::logic_error` otherwise.
+- `tangents_to(Polygon2D const&, Polygon2D const&)` and `tangents_to(Polygon3D const&, Polygon3D const&)` — the two common outer tangent `LineSegment`s between two polygons. Neither polygon needs to be convex — each is independently reduced to its convex hull when needed. The 3D overload requires both polygons to share the same plane and throws `std::logic_error` otherwise.
+- Internally, the convex tangent search (`detail::view::point_poly_tangent_lr_to` / `detail::view::poly_poly_RL_tangent_to`) is templated on `PointContainer` + `View2D`, following the existing `detail::view::*` projection pattern (`is_convex`, `distance_to`, `polygon_contains`, …) so the same O(log n) algorithm drives both `Point2D` and `Point3D` inputs — the 3D entry points just pick the polygon's own plane as the projection view.
+
+**Python bindings**
+- `Vector2D.is_parallel(other)` — bound from `Vector2D::IsParallel`.
+- `find_extreme_points(polygon, line)` — returns `ExtremePoints2D` / `ExtremePoints3D` (with `.min_point` / `.max_point`) for `Polygon2D`/`Line2D` and `Polygon3D`/`Line3D` respectively.
+- `Polygon2D/3D.has_holes()` and `Polygon2D/3D.holes()` — `holes()` returns a list of hole rings (each a list of points), empty when none.
+- `PolygonTangents2D` / `PolygonTangents3D` (`.left` / `.right`) and `tangents_to(polygon, point_or_polygon)` — bound for `Polygon2D`×`Point2D`/`Polygon2D`, `Polygon3D`×`Point3D`/`Polygon3D`. The 3D overloads raise on non-coplanar input.
+- `overlaps(other)` and `overlap(other)` exposed on `Line2D`, `Ray2D`, `LineSegment2D`, `Line3D`, `Ray3D`, `LineSegment3D`.
+- `overlap(Ray, Ray)` uses `opt_variant_to_py` — returns `Ray2D` or `LineSegment2D` (resp. 3D) depending on geometry.
+- `touches(other)` and `touch(other)` exposed on all six classes; `touch` always returns a `Point` or `None`.
+- `overlaps/overlap/touches/touch(polyline)` added to all six 2D and 3D primitive classes (delegates).
+- `overlaps/overlap/touches/touch` added to `Polyline2D` and `Polyline3D`; `overlap` returns a Python list of segments or `None`; `touch` returns a Python list of points or `None`.
+
+**C# bindings**
+- `Vector2D::IsParallel(Vector2D^ other)` — managed wrapper delegating to the native method.
+- `Overlaps(X^)` (bool) and `Overlap(X^)` (managed ref, null on miss) added to all six managed classes.
+- `Ray2D::Overlap(Ray2D^)` / `Ray3D::Overlap(Ray3D^)` return `System::Object^` (null, `Ray^`, or `LineSegment^`); use `is` pattern matching.
+- `Touches(X^)` (bool) and `Touch(X^)` (`Point^`, null on miss) added to all six managed classes.
+- `Overlaps/Overlap/Touches/Touch(Polyline2D^)` added to `Line2D`, `Ray2D`, `LineSegment2D` managed classes; `Overlap` returns `array<LineSegment2D^>^` (null on miss); `Touch` returns `array<Point2D^>^` (null on miss).
+- Same for the 3D managed classes with `Polyline3D^`.
+- `Overlaps/Overlap/Touches/Touch` (all 4 overloads each) added to `Polyline2D` and `Polyline3D` managed classes.
+- `GeomUtil.FindExtremePoints(Polygon2D^, Line2D^)` and `GeomUtil.FindExtremePoints(Polygon3D^, Line3D^)` — return `ExtremePoints2D^` / `ExtremePoints3D^`, each exposing `MinPoint` / `MaxPoint`.
+- `Polygon2D/3D.HasHoles()` and `Polygon2D/3D.Holes()` — `Holes()` returns `array<array<PointN^>^>^` (empty when none).
+- `PolygonTangents2D^` / `PolygonTangents3D^` (`Left` / `Right`) and `GeomUtil.TangentsTo(...)` — overloads for `Polygon2D^`×`Point2D^`/`Polygon2D^`, `Polygon3D^`×`Point3D^`/`Polygon3D^`. The 3D overloads throw on non-coplanar input.
+
+### Changed
+
+**C++ core**
+- `Polygon2D/3D::ToPoints()` renamed to `Perimeter()`, coherent with `IsOnPerimeter()`; still returns `std::vector<PointN> const&` and is `const` (was a by-value copy in an earlier pass). Avoids copying the vertex vector.
+- `Polygon2D/3D::Perimeter()` (the boundary length) renamed to `PerimeterSize()`, freeing the `Perimeter()` name for the point-returning method above.
+- `Polygon2D/3D::operator[]` now takes `std::size_t` instead of `int`, matching `Polyline2D/3D` and the segment iterators. Removes the `static_cast<int>` previously needed at the two `find_extreme_points()` call sites in `calc_utils2d.cpp` / `calc_utils3d.cpp`.
+
+**Bindings**
+- Python: `Polygon2D`/`Polygon3D` `.to_points()` → `.perimeter()`, `.perimeter()` → `.perimeter_size()`.
+- C#: `Polygon2D`/`Polygon3D` `ToPoints()` → `Perimeter()`, `Perimeter()` → `PerimeterSize()`.
+
+### Tests
+
+- `test_calc_utils2d.cpp` / `test_calc_utils3d.cpp`: `ExtremePoints_*` — convex (Sunday O(log n)) and concave (brute-force) paths, diagonal/oblique directions, tilted-plane 3D polygons, hole-ignoring, and a convex-vs-brute-force agreement check. Convex binary search independently cross-checked against brute force over 200k randomized convex polygons.
+- `test_polygon2d.cpp` / `test_polygon3d.cpp`: `HasHoles_*` — presence flag and hole-ring contents with and without holes.
+- Python `TestExtremePoints`, `TestPolygon2DHoles`, `TestPolygon3DHoles`; C# `FindExtremePoints2D/3D_*`, `HasHoles*`.
+- `test_calc_utils2d.cpp` / `test_calc_utils3d.cpp`: `TangentsTo_*` — convex point/polygon (O(log n) path, including a larger convex loop that forces the binary search to actually iterate), non-convex point/polygon (convex-hull reduction, including hull-index → original-index mapping), coplanar 3D on both a world-axis plane and a custom tilted plane, and the non-coplanar `std::logic_error` cases. Every expected vertex was independently cross-checked via the supporting-line cross-product test (all other vertices on one consistent side of the tangent ray) before being hard-coded as an assertion. Python `TestTangentsTo`, C# `TangentsTo2D/3D_*` mirror the same cases.
+
+### Fixed
+
+- `FromWkt` off-by-one substring error in all six 2D/3D line, ray, and segment source files: `substr(end_gtype+1+end_p1+1, end_p2-1)` → `substr(end_gtype+1+end_p1, end_p2)`. Previously caused WKT tokens to be parsed with the first character clipped and the last character included from the surrounding delimiter.
+
+---
+
 ## [0.11.0] - 2026-06-24
 
 > C++ library — tagged `v0.11.0` · C# / NuGet — tagged `csharp-v0.11.0` · Python / PyPI — tagged `python-v0.11.0`

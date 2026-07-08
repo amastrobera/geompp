@@ -39,6 +39,8 @@ Vector2D Vector2D::Normalize() const {
   return {X / len, Y / len};
 }
 
+bool Vector2D::IsParallel(Vector2D const& other) const { return compare(Cross(other), 0) == 0; }
+
 #pragma region Operator Overloading
 
 Vector2D Vector2D::operator-() const { return {-X, -Y}; }

@@ -11,8 +11,61 @@ ref class Point2D;
 ref class Point3D;
 ref class Plane;
 ref class LineSegment2D;
+ref class LineSegment3D;
 ref class CoordinateFrame;
 ref class Vector3D;
+ref class Polygon2D;
+ref class Polygon3D;
+ref class Line2D;
+ref class Line3D;
+
+// The two vertices of a 2D shape extreme (least / greatest projection) along a direction.
+public ref class ExtremePoints2D sealed {
+public:
+    property Point2D^ MinPoint { Point2D^ get() { return _min; } }
+    property Point2D^ MaxPoint { Point2D^ get() { return _max; } }
+internal:
+    ExtremePoints2D(Point2D^ mn, Point2D^ mx) : _min(mn), _max(mx) {}
+private:
+    Point2D^ _min;
+    Point2D^ _max;
+};
+
+// The two vertices of a 3D shape extreme (least / greatest projection) along a direction.
+public ref class ExtremePoints3D sealed {
+public:
+    property Point3D^ MinPoint { Point3D^ get() { return _min; } }
+    property Point3D^ MaxPoint { Point3D^ get() { return _max; } }
+internal:
+    ExtremePoints3D(Point3D^ mn, Point3D^ mx) : _min(mn), _max(mx) {}
+private:
+    Point3D^ _min;
+    Point3D^ _max;
+};
+
+// The left and right tangent segments from a point or polygon to a 2D polygon.
+public ref class PolygonTangents2D sealed {
+public:
+    property LineSegment2D^ Left { LineSegment2D^ get() { return _left; } }
+    property LineSegment2D^ Right { LineSegment2D^ get() { return _right; } }
+internal:
+    PolygonTangents2D(LineSegment2D^ l, LineSegment2D^ r) : _left(l), _right(r) {}
+private:
+    LineSegment2D^ _left;
+    LineSegment2D^ _right;
+};
+
+// The left and right tangent segments from a point or polygon to a 3D polygon.
+public ref class PolygonTangents3D sealed {
+public:
+    property LineSegment3D^ Left { LineSegment3D^ get() { return _left; } }
+    property LineSegment3D^ Right { LineSegment3D^ get() { return _right; } }
+internal:
+    PolygonTangents3D(LineSegment3D^ l, LineSegment3D^ r) : _left(l), _right(r) {}
+private:
+    LineSegment3D^ _left;
+    LineSegment3D^ _right;
+};
 
 // Static utility class — wraps the geompp free functions that operate on point collections.
 // Consumed directly or via the Geompp.Extensions extension methods.
@@ -45,6 +98,25 @@ public:
     static CoordinateFrame^ PrincipalAxes(System::Collections::Generic::List<Point3D^>^ points);
     static Vector3D^        PrincipalNormal(System::Collections::Generic::List<Point3D^>^ points);
     static Vector3D^        PrincipalDirection(System::Collections::Generic::List<Point3D^>^ points);
+
+    // FindExtremePoints — the polygon's outer-ring vertices extreme (least / greatest projection) along the
+    // line's direction. Daniel Sunday's O(log n) binary search when convex, else O(n). Holes are ignored.
+    static ExtremePoints2D^ FindExtremePoints(Polygon2D^ polygon, Line2D^ line);
+    static ExtremePoints3D^ FindExtremePoints(Polygon3D^ polygon, Line3D^ line);
+
+    // DistanceTo — distance between the polygon and an infinite line (zero if they cross). Holes are
+    // ignored. The 3D overload handles coplanar, parallel-offset, and skew lines.
+    static double DistanceTo(Polygon2D^ polygon, Line2D^ line);
+    static double DistanceTo(Polygon3D^ polygon, Line3D^ line);
+
+    // TangentsTo — left/right tangent segments from a point to a polygon, or the two common outer
+    // tangent segments between two polygons. Uses Daniel Sunday's O(log n) binary search when convex,
+    // else reduces to the convex hull first. The 3D overloads require coplanar inputs (point in the
+    // polygon's plane, or both polygons sharing a plane) and throw otherwise.
+    static PolygonTangents2D^ TangentsTo(Polygon2D^ polygon, Point2D^ point);
+    static PolygonTangents2D^ TangentsTo(Polygon2D^ polygon, Polygon2D^ other);
+    static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Point3D^ point);
+    static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Polygon3D^ other);
 };
 
 }  // namespace GeomPP

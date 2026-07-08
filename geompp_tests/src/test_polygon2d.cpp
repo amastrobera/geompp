@@ -83,6 +83,11 @@ TEST_F(Polygon2DTest, Wkt) {
   EXPECT_EQ(4, q.Size());
   EXPECT_EQ(g::Point2D(0, 0), q[0]);
   EXPECT_EQ(g::Point2D(1, 0), q[1]);
+  // whitespace tolerance
+  auto qw = g::Polygon2D::FromWkt("POLYGON ((  0 0  ,  1 0  ,  1 1  ,  0 1  ,  0 0  ))");
+  EXPECT_EQ(4, qw.Size());
+  EXPECT_EQ(g::Point2D(0, 0), qw[0]);
+  EXPECT_EQ(g::Point2D(1, 0), qw[1]);
   // invalid input still throws
   EXPECT_ANY_THROW(g::Polygon2D::FromWkt("anything"));
 }
@@ -104,6 +109,27 @@ TEST_F(Polygon2DTest, WithHoles_Valid) {
       g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
   auto p = g::Polygon2D::Make(outer, {hole});
   ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
+}
+
+TEST_F(Polygon2DTest, HasHoles_False_WhenNoHoles) {
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  auto p = g::Polygon2D::Make(outer);
+  EXPECT_FALSE(p.HasHoles());
+  EXPECT_TRUE(p.Holes().empty());
+}
+
+TEST_F(Polygon2DTest, HasHoles_True_WithHole) {
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+  EXPECT_TRUE(p.HasHoles());
+  ASSERT_EQ(1u, p.Holes().size());
+  ASSERT_EQ(4u, p.Holes()[0].size());
+  EXPECT_TRUE(p.Holes()[0][0].AlmostEquals(g::Point2D(1, 1)));
+  EXPECT_TRUE(p.Holes()[0][2].AlmostEquals(g::Point2D(3, 3)));
 }
 
 TEST_F(Polygon2DTest, WithHoles_PerimeterCW_Throws) {
@@ -245,19 +271,19 @@ TEST_F(Polygon2DTest, Centroid_SquareWithOffCenterHole) {
 TEST_F(Polygon2DTest, Perimeter_Square) {
   // 1×1 square → 4 sides of length 1
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
-  EXPECT_NEAR(4.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(4.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon2DTest, Perimeter_Rectangle) {
   // 3×4 rectangle → 2*(3+4) = 14
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 4), g::Point2D(0, 4)});
-  EXPECT_NEAR(14.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(14.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon2DTest, Perimeter_Triangle) {
   // 3-4-5 right triangle → perimeter = 12
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3)});
-  EXPECT_NEAR(12.0, p.Perimeter(), 1e-9);
+  EXPECT_NEAR(12.0, p.PerimeterSize(), 1e-9);
 }
 
 TEST_F(Polygon2DTest, DistanceTo) {

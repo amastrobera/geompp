@@ -89,6 +89,7 @@ TEST_F(Point2DTest, Wkt) {
   EXPECT_EQ(g::Point2D(256.1343, -684.64971), g::Point2D::FromWkt("POINT (256.1343 -684.64971)"));
   EXPECT_EQ(g::Point2D(-7.5, -60.7), g::Point2D::FromWkt("  point( -7.5    -60.7)"));
   EXPECT_EQ(g::Point2D(0.645, -1.689741), g::Point2D::FromWkt("PoInT   ( 0.645  -1.689741  )"));
+  EXPECT_EQ(g::Point2D(0, 1), g::Point2D::FromWkt("POINT (  0  1  )"));
 
   EXPECT_ANY_THROW(g::Point2D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::Point2D::FromWkt("poin ( -7.5 -60.7)"));

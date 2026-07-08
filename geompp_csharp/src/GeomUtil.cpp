@@ -7,8 +7,13 @@
 #include "Point3D.hpp"
 #include "Plane.hpp"
 #include "LineSegment2D.hpp"
+#include "LineSegment3D.hpp"
 #include "CoordinateFrame.hpp"
 #include "Vector3D.hpp"
+#include "Polygon2D.hpp"
+#include "Polygon3D.hpp"
+#include "Line2D.hpp"
+#include "Line3D.hpp"
 
 namespace GeomPP {
 
@@ -113,6 +118,56 @@ Vector3D^ GeomUtil::PrincipalNormal(System::Collections::Generic::List<Point3D^>
 
 Vector3D^ GeomUtil::PrincipalDirection(System::Collections::Generic::List<Point3D^>^ points) {
     return gcnew Vector3D(new geompp::Vector3D(geompp::principal_direction(ToNative(points))));
+}
+
+ExtremePoints2D^ GeomUtil::FindExtremePoints(Polygon2D^ polygon, Line2D^ line) {
+    auto ex = geompp::find_extreme_points(*polygon->_native, *line->_native);
+    return gcnew ExtremePoints2D(
+        gcnew Point2D(new geompp::Point2D(ex.min_point)),
+        gcnew Point2D(new geompp::Point2D(ex.max_point)));
+}
+
+ExtremePoints3D^ GeomUtil::FindExtremePoints(Polygon3D^ polygon, Line3D^ line) {
+    auto ex = geompp::find_extreme_points(*polygon->_native, *line->_native);
+    return gcnew ExtremePoints3D(
+        gcnew Point3D(new geompp::Point3D(ex.min_point)),
+        gcnew Point3D(new geompp::Point3D(ex.max_point)));
+}
+
+double GeomUtil::DistanceTo(Polygon2D^ polygon, Line2D^ line) {
+    return geompp::distance_to(*polygon->_native, *line->_native);
+}
+
+double GeomUtil::DistanceTo(Polygon3D^ polygon, Line3D^ line) {
+    return geompp::distance_to(*polygon->_native, *line->_native);
+}
+
+PolygonTangents2D^ GeomUtil::TangentsTo(Polygon2D^ polygon, Point2D^ point) {
+    auto t = geompp::tangents_to(*polygon->_native, *point->_native);
+    return gcnew PolygonTangents2D(
+        gcnew LineSegment2D(new geompp::LineSegment2D(t.left)),
+        gcnew LineSegment2D(new geompp::LineSegment2D(t.right)));
+}
+
+PolygonTangents2D^ GeomUtil::TangentsTo(Polygon2D^ polygon, Polygon2D^ other) {
+    auto t = geompp::tangents_to(*polygon->_native, *other->_native);
+    return gcnew PolygonTangents2D(
+        gcnew LineSegment2D(new geompp::LineSegment2D(t.left)),
+        gcnew LineSegment2D(new geompp::LineSegment2D(t.right)));
+}
+
+PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Point3D^ point) {
+    auto t = geompp::tangents_to(*polygon->_native, *point->_native);
+    return gcnew PolygonTangents3D(
+        gcnew LineSegment3D(new geompp::LineSegment3D(t.left)),
+        gcnew LineSegment3D(new geompp::LineSegment3D(t.right)));
+}
+
+PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Polygon3D^ other) {
+    auto t = geompp::tangents_to(*polygon->_native, *other->_native);
+    return gcnew PolygonTangents3D(
+        gcnew LineSegment3D(new geompp::LineSegment3D(t.left)),
+        gcnew LineSegment3D(new geompp::LineSegment3D(t.right)));
 }
 
 }  // namespace GeomPP

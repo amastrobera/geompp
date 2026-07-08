@@ -27,18 +27,22 @@ class Polygon3D {
   ~Polygon3D() = default;
 
   std::size_t Size() const;
-  Point3D const& operator[](int i) const;
+  Point3D const& operator[](std::size_t i) const;
   Plane GetPlane() const;
 
   bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
   double Area() const;
-  double Perimeter() const;
+  double PerimeterSize() const;
   bool IsSimple() const;
   bool IsConvex() const;  // no holes and all turns in the same direction
   Polygon3D ConvexHull();
-  std::vector<Point3D> ToPoints();
+  std::vector<Point3D> const& Perimeter() const;
+  /// @brief Whether this polygon has one or more holes.
+  bool HasHoles() const;
+  /// @brief The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polygon has no holes.
+  std::vector<std::vector<Point3D>> const& Holes() const;
 
   /// @brief Decomposes a self-intersecting polygon into one or more simple polygons.
   /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
@@ -131,6 +135,8 @@ std::ostream& operator<<(std::ostream& os, Polygon3D const& g);
 inline std::size_t Polygon3D::Size() const { return VERTICES.size(); }
 inline Plane Polygon3D::GetPlane() const { return PLANE; }
 inline bool Polygon3D::IsConvex() const { return IS_CONVEX; }
+inline bool Polygon3D::HasHoles() const { return !HOLES.empty(); }
+inline std::vector<std::vector<Point3D>> const& Polygon3D::Holes() const { return HOLES; }
 inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex)
     : VERTICES(points), HOLES{}, PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,

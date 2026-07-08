@@ -195,6 +195,7 @@ TEST_F(Point3DTest, Wkt) {
   EXPECT_EQ(g::Point3D(256.1343, -684.6497, 99.0), g::Point3D::FromWkt("POINT (256.1343 -684.6497 99.0)"));
   EXPECT_EQ(g::Point3D(-7.5, -60.7, 0.0), g::Point3D::FromWkt("  point( -7.5    -60.7  0.0 )"));
   EXPECT_EQ(g::Point3D(0.645, -1.689741, 3.0), g::Point3D::FromWkt("PoInT   ( 0.645  -1.689741  3.0  )"));
+  EXPECT_EQ(g::Point3D(0, 1, 2), g::Point3D::FromWkt("POINT (  0  1  2  )"));
 
   // invalid: wrong geometry type
   EXPECT_ANY_THROW(g::Point3D::FromWkt("angelo"));

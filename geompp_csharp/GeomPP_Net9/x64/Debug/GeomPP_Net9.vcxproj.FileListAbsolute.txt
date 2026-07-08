@@ -3,3 +3,8 @@ C:\Users\angel\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.deps.
 C:\Users\angel\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.runtimeconfig.json
 C:\Users\angel\development\geompp\geompp_csharp\GeomPP_Net9\x64\Debug\GeomPP_Net9.sourcelink.json
 C:\Users\angel\development\geompp\geompp_csharp\GeomPP_Net9\x64\Debug\GeomPP_Net9.genruntimeconfig.cache
+F:\development\geompp\geompp_csharp\x64\Debug_Net9\Ijwhost.dll
+F:\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.deps.json
+F:\development\geompp\geompp_csharp\x64\Debug_Net9\GeomPP_Net9.runtimeconfig.json
+F:\development\geompp\geompp_csharp\GeomPP_Net9\x64\Debug\GeomPP_Net9.sourcelink.json
+F:\development\geompp\geompp_csharp\GeomPP_Net9\x64\Debug\GeomPP_Net9.genruntimeconfig.cache

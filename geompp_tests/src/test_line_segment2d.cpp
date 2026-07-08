@@ -47,6 +47,22 @@ TEST_F(LineSegment2DTest, AlmostEquals) {
   ASSERT_EQ(s1, s4);
 }
 
+TEST_F(LineSegment2DTest, Reversed) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto s = g::LineSegment2D::Make(g::Point2D(1, 2), g::Point2D(3, 4));
+  auto r = s.Reversed();
+
+  ASSERT_EQ(s.Last(), r.First());
+  ASSERT_EQ(s.First(), r.Last());
+
+  // length is preserved
+  ASSERT_EQ(s.Length(), r.Length());
+
+  // reversing twice returns to the original
+  ASSERT_EQ(s.First(), r.Reversed().First());
+  ASSERT_EQ(s.Last(), r.Reversed().Last());
+}
+
 TEST_F(LineSegment2DTest, Constructor) {
   auto s1 = g::LineSegment2D::Make(g::Point2D::Zero(), g::Point2D(1, 0));
 
@@ -241,6 +257,10 @@ TEST_F(LineSegment2DTest, Wkt) {
             g::LineSegment2D::FromWkt("  linestring( -7.5    -60.7, 0   0)"));
   EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0.645, -1.689741), g::Point2D(1, 0)),
             g::LineSegment2D::FromWkt("LinESTRing   ( 0.645  -1.689741  , 1 0  )"));
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+            g::LineSegment2D::FromWkt("LINESTRING (0 0,1 1)"));
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+            g::LineSegment2D::FromWkt("LINESTRING (  0 0  ,  1  1  )"));
 
   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::LineSegment2D::FromWkt("linestrin ( -7.5 -60.7, 0 0)"));
@@ -386,6 +406,156 @@ TEST_F(LineSegment2DTest, FreeIntersect_SeparatedDoesNotCross) {
   auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
   auto b = g::LineSegment2D::Make(g::Point2D(2, -1), g::Point2D(2, 1));  // vertical at x=2, a ends at x=1
   EXPECT_FALSE(g::intersect(a, b));
+}
+
+TEST_F(LineSegment2DTest, OverlapWLine) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment2D::Make(g::Point2D(2, 0), g::Point2D(5, 0));
+  auto x   = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());   // collinear
+  auto x_off = g::Line2D::Make(g::Point2D(0, 1), g::Vector2D::BasisX());   // parallel, offset
+
+  EXPECT_TRUE(seg.Overlaps(x));
+  auto ov = seg.Overlap(x);
+  ASSERT_TRUE(ov.has_value());
+  EXPECT_EQ(seg, *ov);
+
+  EXPECT_FALSE(seg.Overlaps(x_off));
+  EXPECT_FALSE(seg.Overlap(x_off).has_value());
+}
+
+TEST_F(LineSegment2DTest, OverlapWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto seg = g::LineSegment2D::Make(g::Point2D(2, 0), g::Point2D(6, 0));
+  auto r_cover  = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());   // covers entire seg
+  auto r_partial = g::Ray2D::Make(g::Point2D(4, 0), g::Vector2D::BasisX());   // starts inside seg
+  auto r_miss   = g::Ray2D::Make(g::Point2D(7, 0), g::Vector2D::BasisX());    // starts after seg ends
+  auto r_touch  = g::Ray2D::Make(g::Point2D(6, 0), g::Vector2D::BasisX());    // starts at seg's last point
+
+  EXPECT_TRUE(seg.Overlaps(r_cover));
+  EXPECT_EQ(seg, *seg.Overlap(r_cover));
+
+  EXPECT_TRUE(seg.Overlaps(r_partial));
+  auto ov_partial = seg.Overlap(r_partial);
+  ASSERT_TRUE(ov_partial.has_value());
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(4, 0), g::Point2D(6, 0)), *ov_partial);
+
+  EXPECT_FALSE(seg.Overlaps(r_miss));
+  EXPECT_FALSE(seg.Overlap(r_miss).has_value());
+
+  EXPECT_FALSE(seg.Overlaps(r_touch));
+  EXPECT_FALSE(seg.Overlap(r_touch).has_value());
+}
+
+TEST_F(LineSegment2DTest, OverlapWSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(5, 0));
+  auto b_inside  = g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(4, 0));  // fully inside a
+  auto b_partial = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(7, 0));  // overlaps right half
+  auto b_disjoint = g::LineSegment2D::Make(g::Point2D(6, 0), g::Point2D(9, 0)); // disjoint
+  auto b_touch   = g::LineSegment2D::Make(g::Point2D(5, 0), g::Point2D(8, 0));  // touches at endpoint
+  auto b_perp    = g::LineSegment2D::Make(g::Point2D(2, -1), g::Point2D(2, 1)); // not collinear
+
+  EXPECT_TRUE(a.Overlaps(b_inside));
+  EXPECT_EQ(b_inside, *a.Overlap(b_inside));
+
+  EXPECT_TRUE(a.Overlaps(b_partial));
+  auto ov_partial = a.Overlap(b_partial);
+  ASSERT_TRUE(ov_partial.has_value());
+  EXPECT_EQ(g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(5, 0)), *ov_partial);
+
+  EXPECT_FALSE(a.Overlaps(b_disjoint));
+  EXPECT_FALSE(a.Overlap(b_disjoint).has_value());
+
+  EXPECT_FALSE(a.Overlaps(b_touch));
+  EXPECT_FALSE(a.Overlap(b_touch).has_value());
+
+  EXPECT_FALSE(a.Overlaps(b_perp));
+  EXPECT_FALSE(a.Overlap(b_perp).has_value());
+}
+
+TEST_F(LineSegment2DTest, TouchWLine) {
+  geompp::DECIMAL_PRECISION = 4;
+  auto x = g::Line2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+
+  // First() on line, segment goes off-line → touch at First
+  auto seg_f = g::LineSegment2D::Make(g::Point2D(2, 0), g::Point2D(2, 3));
+  EXPECT_TRUE(seg_f.Touches(x));
+  auto t1 = seg_f.Touch(x);
+  ASSERT_TRUE(t1.has_value());
+  EXPECT_EQ(g::Point2D(2, 0), *t1);
+
+  // collinear segment → Overlap, not Touch
+  auto seg_col = g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(4, 0));
+  EXPECT_FALSE(seg_col.Touches(x));
+  EXPECT_FALSE(seg_col.Touch(x).has_value());
+
+  // segment fully above line → no touch
+  auto seg_off = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(3, 2));
+  EXPECT_FALSE(seg_off.Touches(x));
+  EXPECT_FALSE(seg_off.Touch(x).has_value());
+}
+
+TEST_F(LineSegment2DTest, TouchWRay) {
+  geompp::DECIMAL_PRECISION = 4;
+  // ray goes +x from origin
+  auto r = g::Ray2D::Make(g::Point2D::Zero(), g::Vector2D::BasisX());
+
+  // seg First() = (3,0) on ray, Last() = (3,2) not on ray → touch at First
+  auto seg_f = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(3, 2));
+  EXPECT_TRUE(seg_f.Touches(r));
+  auto t1 = seg_f.Touch(r);
+  ASSERT_TRUE(t1.has_value());
+  EXPECT_EQ(g::Point2D(3, 0), *t1);
+
+  // ray origin (0,0) is inside seg, not collinear → touch at ray.Origin
+  auto seg_mid = g::LineSegment2D::Make(g::Point2D(-1, 1), g::Point2D(1, -1));
+  EXPECT_TRUE(seg_mid.Touches(r));
+  auto t2 = seg_mid.Touch(r);
+  ASSERT_TRUE(t2.has_value());
+  EXPECT_EQ(g::Point2D::Zero(), *t2);
+
+  // both endpoints on ray (full overlap) → no touch
+  auto seg_both = g::LineSegment2D::Make(g::Point2D(1, 0), g::Point2D(4, 0));
+  EXPECT_FALSE(seg_both.Touches(r));
+  EXPECT_FALSE(seg_both.Touch(r).has_value());
+
+  // no contact → no touch
+  auto seg_none = g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(3, 1));
+  EXPECT_FALSE(seg_none.Touches(r));
+  EXPECT_FALSE(seg_none.Touch(r).has_value());
+}
+
+TEST_F(LineSegment2DTest, TouchWSegment) {
+  geompp::DECIMAL_PRECISION = 4;
+  // T-intersection: a = [0,5] on X; b crosses at (3,0) with one endpoint there
+  auto a = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(5, 0));
+  auto b_T = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(3, 3));  // endpoint on a
+  EXPECT_TRUE(a.Touches(b_T));
+  auto t1 = a.Touch(b_T);
+  ASSERT_TRUE(t1.has_value());
+  EXPECT_EQ(g::Point2D(3, 0), *t1);
+
+  // X-crossing (interior cross, no endpoint on the other) → no touch
+  auto b_X = g::LineSegment2D::Make(g::Point2D(3, -2), g::Point2D(3, 2));
+  EXPECT_FALSE(a.Touches(b_X));
+  EXPECT_FALSE(a.Touch(b_X).has_value());
+
+  // Parallel collinear, touching at endpoint → touch
+  auto b_end = g::LineSegment2D::Make(g::Point2D(5, 0), g::Point2D(8, 0));
+  EXPECT_TRUE(a.Touches(b_end));
+  auto t2 = a.Touch(b_end);
+  ASSERT_TRUE(t2.has_value());
+  EXPECT_EQ(g::Point2D(5, 0), *t2);
+
+  // Parallel collinear, overlapping → no touch (Overlap handles it)
+  auto b_ov = g::LineSegment2D::Make(g::Point2D(3, 0), g::Point2D(7, 0));
+  EXPECT_FALSE(a.Touches(b_ov));
+  EXPECT_FALSE(a.Touch(b_ov).has_value());
+
+  // Parallel offset → no touch
+  auto b_off = g::LineSegment2D::Make(g::Point2D(0, 1), g::Point2D(5, 1));
+  EXPECT_FALSE(a.Touches(b_off));
+  EXPECT_FALSE(a.Touch(b_off).has_value());
 }
 
 }  // namespace geompp_tests

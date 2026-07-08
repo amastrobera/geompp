@@ -9,6 +9,7 @@ namespace GeomPP {
 
 ref class Point2D;
 ref class Line2D;
+ref class Polyline2D;
 ref class Ray2D;
 
 public ref class LineSegment2D {
@@ -26,6 +27,7 @@ public:
     bool             AlmostEquals(LineSegment2D^ other, double epsilon);
     Line2D^          ToLine();
     double           Length();
+    LineSegment2D^   Reversed();
     double           DistanceTo(Point2D^ point);
     double           Location(Point2D^ point);
     Point2D^         Interpolate(double pct);
@@ -46,6 +48,32 @@ public:
     Point2D^ Intersection(Line2D^ line);
     Point2D^ Intersection(Ray2D^ ray);
     Point2D^ Intersection(LineSegment2D^ other);
+
+    // Overlaps — true if the two primitives share a 1D region (not just a point)
+    bool Overlaps(Line2D^ line);
+    bool Overlaps(Ray2D^ ray);
+    bool Overlaps(LineSegment2D^ other);
+
+    // Overlap — returns the shared geometry, or nullptr on miss / single-point touch
+    LineSegment2D^ Overlap(Line2D^ line);
+    LineSegment2D^ Overlap(Ray2D^ ray);
+    LineSegment2D^ Overlap(LineSegment2D^ other);
+
+    // Touches — true if they share exactly one endpoint-contact point
+    bool Touches(Line2D^ line);
+    bool Touches(Ray2D^ ray);
+    bool Touches(LineSegment2D^ other);
+
+    // Touch — returns the contact point, or nullptr if no touch
+    Point2D^ Touch(Line2D^ line);
+    Point2D^ Touch(Ray2D^ ray);
+    Point2D^ Touch(LineSegment2D^ other);
+
+    // Overlaps / Overlap / Touches / Touch — Polyline2D
+    bool Overlaps(Polyline2D^ polyline);
+    array<LineSegment2D^>^ Overlap(Polyline2D^ polyline);
+    bool Touches(Polyline2D^ polyline);
+    array<Point2D^>^ Touch(Polyline2D^ polyline);
 
     // Operator
     static bool operator==(LineSegment2D^ lhs, LineSegment2D^ rhs);

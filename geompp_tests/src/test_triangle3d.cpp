@@ -350,6 +350,8 @@ TEST_F(Triangle3DTest, Wkt) {
             g::Triangle3D::FromWkt("  triangle( 0     0 0 , 1   1  0, 0 2 0  )"));
   EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 2), g::Point3D(0, 2, 3)),
             g::Triangle3D::FromWkt("triANGle   ( 0 0  1, 1 1  2, 0   2  3    )"));
+  EXPECT_EQ(g::Triangle3D::Make(g::Point3D(0, 0, 1), g::Point3D(1, 1, 2), g::Point3D(0, 2, 3)),
+            g::Triangle3D::FromWkt("TRIANGLE (  0 0 1  ,  1 1 2  ,  0 2 3  )"));
 
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("angelo"));
   EXPECT_ANY_THROW(g::Triangle3D::FromWkt("triangl ( -7.5 -60.7, 0 0, 1 1)"));

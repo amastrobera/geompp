@@ -76,13 +76,17 @@ TEST_F(PlaneTest, AlmostEquals) {
   EXPECT_FALSE(g::Plane::XY().AlmostEquals(g::Plane::YZ()));
   EXPECT_FALSE(g::Plane::XY().AlmostEquals(g::Plane::ZX()));
 
-  // anti-parallel normals at the same offset represent the same plane
-  EXPECT_TRUE(g::Plane::FromOriginAndNormal(g::Point3D::Zero(), g::Vector3D::BasisZ())
-                  .AlmostEquals(g::Plane::FromOriginAndNormal(g::Point3D::Zero(), -g::Vector3D::BasisZ())));
+  // anti-parallel normals are no longer the same plane — opposite winding is a real difference
+  EXPECT_FALSE(g::Plane::FromOriginAndNormal(g::Point3D::Zero(), g::Vector3D::BasisZ())
+                   .AlmostEquals(g::Plane::FromOriginAndNormal(g::Point3D::Zero(), -g::Vector3D::BasisZ())));
 
   // same normal, different offset
   EXPECT_FALSE(g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1), g::Vector3D::BasisZ())
                    .AlmostEquals(g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 2), g::Vector3D::BasisZ())));
+
+  // same normal, different origin point, but on the same actual plane
+  EXPECT_TRUE(g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1), g::Vector3D::BasisZ())
+                  .AlmostEquals(g::Plane::FromOriginAndNormal(g::Point3D(5, 3, 1), g::Vector3D::BasisZ())));
 }
 
 TEST_F(PlaneTest, Assignment) {
@@ -248,10 +252,15 @@ TEST_F(PlaneTest, IntersectionWLine) {
     EXPECT_EQ(g::Point3D(5, 3, 0), std::get<g::Point3D>(*inter));
   }
 
-  // line lying in XY (parallel) — no intersection
+  // line lying in XY — the whole line lies in the plane, reported as a Line3D
   auto x_line = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0));
-  ASSERT_FALSE(xy.Intersects(x_line));
-  ASSERT_FALSE(xy.Intersection(x_line).has_value());
+  ASSERT_TRUE(xy.Intersects(x_line));
+  {
+    auto inter = xy.Intersection(x_line);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    EXPECT_EQ(x_line, std::get<g::Line3D>(*inter));
+  }
 
   // diagonal: (0,0,-1)→(1,0,1) crosses Z=0 at (0.5,0,0)
   auto diag_xy = g::Line3D::Make(g::Point3D(0, 0, -1), g::Point3D(1, 0, 1));
@@ -275,10 +284,15 @@ TEST_F(PlaneTest, IntersectionWLine) {
     EXPECT_EQ(g::Point3D(0, 5, 3), std::get<g::Point3D>(*inter));
   }
 
-  // line lying in YZ (parallel) — no intersection
+  // line lying in YZ — the whole line lies in the plane, reported as a Line3D
   auto y_line = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(0, 1, 0));
-  ASSERT_FALSE(yz.Intersects(y_line));
-  ASSERT_FALSE(yz.Intersection(y_line).has_value());
+  ASSERT_TRUE(yz.Intersects(y_line));
+  {
+    auto inter = yz.Intersection(y_line);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    EXPECT_EQ(y_line, std::get<g::Line3D>(*inter));
+  }
 
   // diagonal: (-1,0,0)→(1,0,1) crosses X=0 at (0,0,0.5)
   auto diag_yz = g::Line3D::Make(g::Point3D(-1, 0, 0), g::Point3D(1, 0, 1));
@@ -302,10 +316,15 @@ TEST_F(PlaneTest, IntersectionWLine) {
     EXPECT_EQ(g::Point3D(5, 0, 3), std::get<g::Point3D>(*inter));
   }
 
-  // line lying in ZX (parallel) — no intersection
+  // line lying in ZX — the whole line lies in the plane, reported as a Line3D
   auto z_line2 = g::Line3D::Make(g::Point3D::Zero(), g::Point3D(1, 0, 0));
-  ASSERT_FALSE(zx.Intersects(z_line2));
-  ASSERT_FALSE(zx.Intersection(z_line2).has_value());
+  ASSERT_TRUE(zx.Intersects(z_line2));
+  {
+    auto inter = zx.Intersection(z_line2);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    EXPECT_EQ(z_line2, std::get<g::Line3D>(*inter));
+  }
 
   // diagonal: (0,-1,0)→(0,1,1) crosses Y=0 at (0,0,0.5)
   auto diag_zx = g::Line3D::Make(g::Point3D(0, -1, 0), g::Point3D(0, 1, 1));
@@ -322,8 +341,9 @@ TEST_F(PlaneTest, EqualityOperator) {
   EXPECT_TRUE(g::Plane::XY() == g::Plane::XY());
   EXPECT_FALSE(g::Plane::XY() == g::Plane::YZ());
 
-  EXPECT_TRUE(g::Plane::FromOriginAndNormal(g::Point3D::Zero(), g::Vector3D::BasisY()) ==
-              g::Plane::FromOriginAndNormal(g::Point3D::Zero(), -g::Vector3D::BasisY()));
+  // opposite-facing normals are no longer equal — opposite winding is a real difference
+  EXPECT_FALSE(g::Plane::FromOriginAndNormal(g::Point3D::Zero(), g::Vector3D::BasisY()) ==
+               g::Plane::FromOriginAndNormal(g::Point3D::Zero(), -g::Vector3D::BasisY()));
 }
 
 TEST_F(PlaneTest, ClosestWorldPlaneTo) {
@@ -540,10 +560,15 @@ TEST_F(PlaneTest, IntersectionWRay) {
   ASSERT_FALSE(xy.Intersects(parallel_above));
   ASSERT_FALSE(xy.Intersection(parallel_above).has_value());
 
-  // ray lying in the plane (coplanar) — API limitation: returns nullopt
+  // ray lying in the plane (coplanar) — its containing line lies in the plane, reported as a Line3D
   auto coplanar = g::Ray3D::Make(g::Point3D::Zero(), g::Vector3D(1, 0, 0));
-  ASSERT_FALSE(xy.Intersects(coplanar));
-  ASSERT_FALSE(xy.Intersection(coplanar).has_value());
+  ASSERT_TRUE(xy.Intersects(coplanar));
+  {
+    auto inter = xy.Intersection(coplanar);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Line3D>(*inter));
+    EXPECT_EQ(coplanar.ToLine(), std::get<g::Line3D>(*inter));
+  }
 
   // ray with origin exactly on plane, pointing away — origin is the intersection
   auto on_pointing_up = g::Ray3D::Make(g::Point3D(5, 3, 0), g::Vector3D(0, 0, 1));
@@ -599,10 +624,15 @@ TEST_F(PlaneTest, IntersectionWLineSegment) {
     EXPECT_EQ(g::Point3D(2, 2, 0), std::get<g::Point3D>(*inter));
   }
 
-  // segment lying in the plane (coplanar) — API limitation: nullopt
+  // segment lying in the plane (coplanar) — reported as the segment itself
   auto coplanar = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0));
-  ASSERT_FALSE(xy.Intersects(coplanar));
-  ASSERT_FALSE(xy.Intersection(coplanar).has_value());
+  ASSERT_TRUE(xy.Intersects(coplanar));
+  {
+    auto inter = xy.Intersection(coplanar);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::LineSegment3D>(*inter));
+    EXPECT_EQ(coplanar, std::get<g::LineSegment3D>(*inter));
+  }
 
   // segment parallel above plane (not coplanar)
   auto parallel = g::LineSegment3D::Make(g::Point3D(0, 0, 2), g::Point3D(1, 1, 2));

@@ -124,20 +124,13 @@ bool Polyline2D::Intersects(Polyline2D^ other) {
 
 // ── Intersection ──────────────────────────────────────────────────────────────
 
-// Helper to convert optional<variant<Point2D, vector<Point2D>>> to System::Object^
-static System::Object^ ConvertPolyline2DIntersection(
-    const geompp::Polyline2D::ReturnSet& result) {
+// Helper to convert optional<vector<Point2D>> to System::Object^ (null on miss, array otherwise)
+static array<GeomPP::Point2D^>^ ConvertPolyline2DIntersection(
+    std::optional<std::vector<geompp::Point2D>> const& result) {
     if (!result.has_value()) {
         return nullptr;
     }
-
-    auto& val = result.value();
-    if (std::holds_alternative<geompp::Point2D>(val)) {
-        return gcnew GeomPP::Point2D(new geompp::Point2D(std::get<geompp::Point2D>(val)));
-    }
-
-    // vector<Point2D>
-    auto& pts = std::get<geompp::Polyline2D::MultiPoint>(val);
+    auto const& pts = result.value();
     auto arr = gcnew array<GeomPP::Point2D^>((int)pts.size());
     for (int i = 0; i < (int)pts.size(); ++i) {
         arr[i] = gcnew GeomPP::Point2D(new geompp::Point2D(pts[i]));
@@ -160,6 +153,50 @@ System::Object^ Polyline2D::Intersection(LineSegment2D^ segment) {
 System::Object^ Polyline2D::Intersection(Polyline2D^ other) {
     return ConvertPolyline2DIntersection(_native->Intersection(*other->_native));
 }
+
+// ── Overlaps / Overlap ────────────────────────────────────────────────────────
+
+static array<LineSegment2D^>^ ToManagedSegArray(const std::optional<std::vector<geompp::LineSegment2D>>& opt) {
+    if (!opt.has_value()) { return nullptr; }
+    auto& segs = opt.value();
+    auto arr = gcnew array<LineSegment2D^>((int)segs.size());
+    for (int i = 0; i < (int)segs.size(); ++i) {
+        arr[i] = gcnew LineSegment2D(new geompp::LineSegment2D(segs[i]));
+    }
+    return arr;
+}
+
+static array<Point2D^>^ ToManagedPtArray(const std::optional<std::vector<geompp::Point2D>>& opt) {
+    if (!opt.has_value()) { return nullptr; }
+    auto& pts = opt.value();
+    auto arr = gcnew array<Point2D^>((int)pts.size());
+    for (int i = 0; i < (int)pts.size(); ++i) {
+        arr[i] = gcnew Point2D(new geompp::Point2D(pts[i]));
+    }
+    return arr;
+}
+
+bool Polyline2D::Overlaps(Line2D^ line) { return _native->Overlaps(*line->_native); }
+bool Polyline2D::Overlaps(Ray2D^ ray) { return _native->Overlaps(*ray->_native); }
+bool Polyline2D::Overlaps(LineSegment2D^ segment) { return _native->Overlaps(*segment->_native); }
+bool Polyline2D::Overlaps(Polyline2D^ other) { return _native->Overlaps(*other->_native); }
+
+array<LineSegment2D^>^ Polyline2D::Overlap(Line2D^ line) { return ToManagedSegArray(_native->Overlap(*line->_native)); }
+array<LineSegment2D^>^ Polyline2D::Overlap(Ray2D^ ray) { return ToManagedSegArray(_native->Overlap(*ray->_native)); }
+array<LineSegment2D^>^ Polyline2D::Overlap(LineSegment2D^ segment) { return ToManagedSegArray(_native->Overlap(*segment->_native)); }
+array<LineSegment2D^>^ Polyline2D::Overlap(Polyline2D^ other) { return ToManagedSegArray(_native->Overlap(*other->_native)); }
+
+// ── Touches / Touch ───────────────────────────────────────────────────────────
+
+bool Polyline2D::Touches(Line2D^ line) { return _native->Touches(*line->_native); }
+bool Polyline2D::Touches(Ray2D^ ray) { return _native->Touches(*ray->_native); }
+bool Polyline2D::Touches(LineSegment2D^ segment) { return _native->Touches(*segment->_native); }
+bool Polyline2D::Touches(Polyline2D^ other) { return _native->Touches(*other->_native); }
+
+array<Point2D^>^ Polyline2D::Touch(Line2D^ line) { return ToManagedPtArray(_native->Touch(*line->_native)); }
+array<Point2D^>^ Polyline2D::Touch(Ray2D^ ray) { return ToManagedPtArray(_native->Touch(*ray->_native)); }
+array<Point2D^>^ Polyline2D::Touch(LineSegment2D^ segment) { return ToManagedPtArray(_native->Touch(*segment->_native)); }
+array<Point2D^>^ Polyline2D::Touch(Polyline2D^ other) { return ToManagedPtArray(_native->Touch(*other->_native)); }
 
 // ── Operator ──────────────────────────────────────────────────────────────────
 

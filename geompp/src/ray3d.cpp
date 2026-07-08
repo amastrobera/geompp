@@ -3,6 +3,7 @@
 #include "calc_utils3d.hpp"
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
+#include "polyline3d.hpp"
 #include "utils.hpp"
 
 #include "geompp_log.hpp"
@@ -167,10 +168,12 @@ bool Ray3D::Intersects(Ray3D const& other) const { return Intersection(other).ha
 
 bool Ray3D::Intersects(LineSegment3D const& segment) const { return segment.Intersects(*this); }
 
+bool Ray3D::Intersects(Polyline3D const& polyline) const { return polyline.Intersects(*this); }
+
 std::optional<Point3D>Ray3D::Intersection(Line3D const& line) const {
   double sc, tc;
 
-  auto Pc = detail::intersection_line_to_line(ORIGIN, ORIGIN + DIR, line.First(), line.Last(), sc, tc);
+  auto Pc = detail::line_intersection(ORIGIN, ORIGIN + DIR, line.First(), line.Last(), sc, tc);
 
   // respecting Ray constraints: sc should be positive
   if (!(Pc.has_value() && is_greater_or_equal(sc, 0))) {
@@ -182,7 +185,7 @@ std::optional<Point3D>Ray3D::Intersection(Line3D const& line) const {
 
 std::optional<Point3D>Ray3D::Intersection(Ray3D const& other) const {
   double sc, tc;
-  auto Pc = detail::intersection_line_to_line(ORIGIN, ORIGIN + DIR, other.Origin(), other.Origin() + other.Direction(), sc, tc);
+  auto Pc = detail::line_intersection(ORIGIN, ORIGIN + DIR, other.Origin(), other.Origin() + other.Direction(), sc, tc);
 
   // respecting Ray constraints: sc and tc should be positive
   if (!(Pc.has_value() && is_greater_or_equal(sc, 0) && is_greater_or_equal(tc, 0))) {
@@ -193,6 +196,62 @@ std::optional<Point3D>Ray3D::Intersection(Ray3D const& other) const {
 }
 
 std::optional<Point3D>Ray3D::Intersection(LineSegment3D const& segment) const { return segment.Intersection(*this); }
+std::optional<std::variant<Point3D, std::vector<Point3D>>> Ray3D::Intersection(Polyline3D const& polyline) const { return polyline.Intersection(*this); }
+
+bool Ray3D::Overlaps(Line3D const& line) const { return Overlap(line).has_value(); }
+bool Ray3D::Overlaps(Ray3D const& ray) const { return Overlap(ray).has_value(); }
+bool Ray3D::Overlaps(LineSegment3D const& seg) const { return seg.Overlaps(*this); }
+bool Ray3D::Overlaps(Polyline3D const& polyline) const { return polyline.Overlaps(*this); }
+
+std::optional<Ray3D> Ray3D::Overlap(Line3D const& line) const {
+  if (!DIR.IsParallel(line.Direction()) || !line.Contains(ORIGIN)) { return std::nullopt; }
+  return *this;
+}
+
+std::optional<std::variant<Ray3D, LineSegment3D>> Ray3D::Overlap(Ray3D const& ray) const {
+  if (!DIR.IsParallel(ray.Direction())) { return std::nullopt; }
+  bool this_has_theirs = Contains(ray.Origin());
+  bool they_have_ours  = ray.Contains(ORIGIN);
+  if (!this_has_theirs && !they_have_ours) { return std::nullopt; }
+  if (this_has_theirs && !they_have_ours) { return ray; }
+  if (!this_has_theirs && they_have_ours) { return *this; }
+  // both origins are on the other ray
+  if (ORIGIN.AlmostEquals(ray.Origin())) {
+    if (compare(DIR.Dot(ray.Direction()), 0) < 0) { return std::nullopt; }  // anti-parallel touch
+    return *this;                                                             // identical rays
+  }
+  // anti-parallel overlap: segment between the two origins
+  return LineSegment3D::Make(ORIGIN, ray.Origin());
+}
+
+std::optional<LineSegment3D> Ray3D::Overlap(LineSegment3D const& seg) const { return seg.Overlap(*this); }
+std::optional<std::vector<LineSegment3D>> Ray3D::Overlap(Polyline3D const& polyline) const { return polyline.Overlap(*this); }
+
+bool Ray3D::Touches(Line3D const& line) const { return Touch(line).has_value(); }
+bool Ray3D::Touches(Ray3D const& ray) const { return Touch(ray).has_value(); }
+bool Ray3D::Touches(LineSegment3D const& seg) const { return seg.Touches(*this); }
+bool Ray3D::Touches(Polyline3D const& polyline) const { return polyline.Touches(*this); }
+
+std::optional<Point3D> Ray3D::Touch(Line3D const& line) const {
+  if (!DIR.IsParallel(line.Direction()) && line.Contains(ORIGIN)) { return ORIGIN; }
+  return std::nullopt;
+}
+
+std::optional<Point3D> Ray3D::Touch(Ray3D const& ray) const {
+  if (!DIR.IsParallel(ray.Direction())) {
+    if (ray.Contains(ORIGIN)) { return ORIGIN; }
+    if (Contains(ray.Origin())) { return ray.Origin(); }
+    return std::nullopt;
+  }
+  // parallel: only a touch if anti-parallel and origins coincide
+  if (compare(DIR.Dot(ray.Direction()), 0) < 0 && ORIGIN.AlmostEquals(ray.Origin())) {
+    return ORIGIN;
+  }
+  return std::nullopt;
+}
+
+std::optional<Point3D> Ray3D::Touch(LineSegment3D const& seg) const { return seg.Touch(*this); }
+std::optional<std::vector<Point3D>> Ray3D::Touch(Polyline3D const& polyline) const { return polyline.Touch(*this); }
 
 #pragma endregion
 
@@ -232,7 +291,7 @@ Ray3D Ray3D::FromWkt(std::string const& wkt) {
     if (end_p2 == std::string::npos) {
       throw std::runtime_error("brakets");
     }
-    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1 + 1, end_p2 - 1);
+    std::string s_nums_p2 = wkt.substr(end_gtype + 1 + end_p1, end_p2);
 
     auto nums_p2 = geompp::tokenize_to_doubles(s_nums_p2);
     if (nums_p2.size() != 3) {

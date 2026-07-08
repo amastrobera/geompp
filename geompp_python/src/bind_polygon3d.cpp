@@ -21,7 +21,7 @@ void bind_polygon3d(py::module_& m) {
         .def("get_plane",   &geompp::Polygon3D::GetPlane)
         .def("centroid",    &geompp::Polygon3D::Centroid)
         .def("area",        &geompp::Polygon3D::Area)
-        .def("perimeter",   &geompp::Polygon3D::Perimeter)
+        .def("perimeter_size", &geompp::Polygon3D::PerimeterSize)
         .def("is_simple",   &geompp::Polygon3D::IsSimple,    "Returns True if the polygon boundary has no self-intersections.")
         .def("is_convex",   &geompp::Polygon3D::IsConvex)
         .def("simplify",    &geompp::Polygon3D::Simplify,
@@ -31,7 +31,10 @@ void bind_polygon3d(py::module_& m) {
         .def("contains",       &geompp::Polygon3D::Contains,      "point"_a)
         .def("is_on_perimeter", &geompp::Polygon3D::IsOnPerimeter, "point"_a)
         .def("convex_hull",    &geompp::Polygon3D::ConvexHull, "Returns the convex hull as a new Polygon3D.")
-        .def("to_points",      &geompp::Polygon3D::ToPoints,   "Returns the vertices as a list of Point3D.")
+        .def("perimeter",      &geompp::Polygon3D::Perimeter,  "Returns the vertices as a list of Point3D.")
+        .def("has_holes",      &geompp::Polygon3D::HasHoles,   "Returns True if the polygon has one or more holes.")
+        .def("holes",          &geompp::Polygon3D::Holes,
+             "Returns the holes as a list of rings, each a list of Point3D. Empty when the polygon has no holes.")
         BIND_ALMOST_EQUALS(Polygon3D)
         BIND_SERIALIZATION(Polygon3D)
         .def("intersects",

@@ -20,7 +20,7 @@ void bind_polygon2d(py::module_& m) {
         })
         .def("centroid",    &geompp::Polygon2D::Centroid)
         .def("area",        &geompp::Polygon2D::Area)
-        .def("perimeter",   &geompp::Polygon2D::Perimeter)
+        .def("perimeter_size", &geompp::Polygon2D::PerimeterSize)
         .def("distance_to", &geompp::Polygon2D::DistanceTo,  "point"_a)
         .def("contains",       &geompp::Polygon2D::Contains,      "point"_a)
         .def("is_on_perimeter", &geompp::Polygon2D::IsOnPerimeter, "point"_a)
@@ -30,7 +30,10 @@ void bind_polygon2d(py::module_& m) {
         .def("simplify",       &geompp::Polygon2D::Simplify,
              "Decomposes a self-intersecting polygon into one or more simple polygons. "
              "Returns [self] if already simple.")
-        .def("to_points",      &geompp::Polygon2D::ToPoints,   "Returns the vertices as a list of Point2D.")
+        .def("perimeter",      &geompp::Polygon2D::Perimeter,  "Returns the vertices as a list of Point2D.")
+        .def("has_holes",      &geompp::Polygon2D::HasHoles,   "Returns True if the polygon has one or more holes.")
+        .def("holes",          &geompp::Polygon2D::Holes,
+             "Returns the holes as a list of rings, each a list of Point2D. Empty when the polygon has no holes.")
         BIND_ALMOST_EQUALS(Polygon2D)
         BIND_SERIALIZATION(Polygon2D)
         .def("intersects",
