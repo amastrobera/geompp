@@ -167,6 +167,40 @@ void bind_free_functions(py::module_& m) {
           "Points do not need to be coplanar — when normal is omitted, the best-fit plane "
           "is estimated via PCA (Jacobi eigendecomposition).");
 
+    // ── polyline decimation ──────────────────────────────────────────────────────────────────
+    // Lower-level building blocks behind Polyline2D.reduce() / Polyline3D.reduce() — operate
+    // directly on a list of points instead of a Polyline object.
+    m.def("dist_decimation",
+          [](const std::vector<geompp::Point2D>& pts, double threshold) { return geompp::dist_decimation(pts, threshold); },
+          "points"_a, "threshold"_a,
+          "O(n) radial-distance decimation: drop a 2D point if it's closer than threshold to the last kept point.");
+    m.def("dist_decimation",
+          [](const std::vector<geompp::Point3D>& pts, double threshold) { return geompp::dist_decimation(pts, threshold); },
+          "points"_a, "threshold"_a,
+          "O(n) radial-distance decimation: drop a 3D point if it's closer than threshold to the last kept point.");
+
+    m.def("rdp_decimation",
+          [](const std::vector<geompp::Point2D>& pts, double threshold) { return geompp::rdp_decimation(pts, threshold); },
+          "points"_a, "threshold"_a,
+          "Ramer-Douglas-Peucker decimation: recursively drop 2D points closer than threshold to the chord "
+          "spanning their segment.");
+    m.def("rdp_decimation",
+          [](const std::vector<geompp::Point3D>& pts, double threshold) { return geompp::rdp_decimation(pts, threshold); },
+          "points"_a, "threshold"_a,
+          "Ramer-Douglas-Peucker decimation: recursively drop 3D points closer than threshold to the chord "
+          "spanning their segment.");
+
+    m.def("vw_decimation",
+          [](const std::vector<geompp::Point2D>& pts, double threshold) { return geompp::vw_decimation(pts, threshold); },
+          "points"_a, "threshold"_a,
+          "Visvalingam-Whyatt decimation: repeatedly drops the 2D point forming the smallest-area triangle with "
+          "its neighbors, while that area stays below threshold.");
+    m.def("vw_decimation",
+          [](const std::vector<geompp::Point3D>& pts, double threshold) { return geompp::vw_decimation(pts, threshold); },
+          "points"_a, "threshold"_a,
+          "Visvalingam-Whyatt decimation: repeatedly drops the 3D point forming the smallest-area triangle with "
+          "its neighbors, while that area stays below threshold.");
+
     m.def("principal_axes",
           [](const std::vector<geompp::Point3D>& pts) { return geompp::principal_axes(pts); },
           "points"_a,

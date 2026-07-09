@@ -70,6 +70,15 @@ Polygon2D^ Polyline2D::ConvexHull() {
     return gcnew Polygon2D(new geompp::Polygon2D(_native->ConvexHull()));
 }
 
+Polyline2D^ Polyline2D::Reduce() {
+    return gcnew Polyline2D(new geompp::Polyline2D(_native->Reduce()));
+}
+
+Polyline2D^ Polyline2D::Reduce(PolylineDecimationStrategy strategy, double threshold) {
+    return gcnew Polyline2D(new geompp::Polyline2D(
+        _native->Reduce(static_cast<geompp::PolylineDecimationStrategy>(strategy), threshold)));
+}
+
 double Polyline2D::DistanceTo(Point2D^ point) {
     return _native->DistanceTo(*point->_native);
 }

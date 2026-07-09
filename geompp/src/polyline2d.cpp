@@ -112,6 +112,26 @@ Polygon2D Polyline2D::ConvexHull() {
   return Polygon2D::Make(cv_pts);
 }
 
+Polyline2D Polyline2D::Reduce(PolylineDecimationStrategy strategy, double threshold) const {
+  switch (strategy) {
+    case PolylineDecimationStrategy::RadialDistance:
+      return Make(dist_decimation(KNOTS, threshold));
+
+    case PolylineDecimationStrategy::VisvalingamWhyatt: {
+      // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
+      auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
+      return Make(vw_decimation(clean_points, threshold));
+    }
+
+    case PolylineDecimationStrategy::RamerDouglasPeucker: {
+      // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
+      auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
+      return Make(rdp_decimation(clean_points, threshold));
+    }
+  }
+  throw std::logic_error("unknown strategy in polyline2d::reduce");
+}
+
 bool Polyline2D::AlmostEquals(Polyline2D const& other, double epsilon) const {
   if (compare(LENGTH, other.LENGTH, epsilon) != 0) {
     return false;

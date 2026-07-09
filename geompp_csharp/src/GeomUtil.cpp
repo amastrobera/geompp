@@ -104,6 +104,66 @@ System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::ConvexHull(
     return list;
 }
 
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::DistDecimation(
+    System::Collections::Generic::List<Point2D^>^ points, double threshold) {
+    auto native = geompp::dist_decimation(ToNativePoints2D(points), threshold);
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::DistDecimation(
+    System::Collections::Generic::List<Point3D^>^ points, double threshold) {
+    auto native = geompp::dist_decimation(ToNative(points), threshold);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::RdpDecimation(
+    System::Collections::Generic::List<Point2D^>^ points, double threshold) {
+    auto native = geompp::rdp_decimation(ToNativePoints2D(points), threshold);
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::RdpDecimation(
+    System::Collections::Generic::List<Point3D^>^ points, double threshold) {
+    auto native = geompp::rdp_decimation(ToNative(points), threshold);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::VwDecimation(
+    System::Collections::Generic::List<Point2D^>^ points, double threshold) {
+    auto native = geompp::vw_decimation(ToNativePoints2D(points), threshold);
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::VwDecimation(
+    System::Collections::Generic::List<Point3D^>^ points, double threshold) {
+    auto native = geompp::vw_decimation(ToNative(points), threshold);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
 CoordinateFrame^ GeomUtil::PrincipalAxes(System::Collections::Generic::List<Point3D^>^ points) {
     auto native = geompp::principal_axes(ToNative(points));
     return gcnew CoordinateFrame(

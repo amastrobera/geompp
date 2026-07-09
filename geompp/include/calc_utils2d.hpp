@@ -356,12 +356,12 @@ extern template double distance_to(std::vector<Point3D> const&, bool, Point3D co
 /// @pre p must be strictly outside outer_loop and not equal to any of its vertices.
 template <PointContainer Points, Point P>
 std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(Points const& outer_loop, bool is_convex, P const& p,
-                                                              View2D const& view);
+                                                             View2D const& view);
 
 extern template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point2D> const&, bool,
-                                                                              Point2D const&, View2D const&);
+                                                                             Point2D const&, View2D const&);
 extern template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point3D> const&, bool,
-                                                                              Point3D const&, View2D const&);
+                                                                             Point3D const&, View2D const&);
 
 /// @brief RIGHT tangent index of loop1 paired with the LEFT tangent index of loop2 (the "RL" common outer
 /// tangent), both projected through @p view. Neither loop needs to be convex — each is internally reduced to
@@ -370,14 +370,14 @@ extern template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std
 /// @return {loop1_index, loop2_index}. Swap the (loop, is_convex) argument pairs to get the LR tangent instead.
 template <PointContainer Points>
 std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(Points const& loop1, bool is_convex1, Points const& loop2,
-                                                             bool is_convex2, View2D const& view);
+                                                            bool is_convex2, View2D const& view);
 
 extern template std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(std::vector<Point2D> const&, bool,
-                                                                             std::vector<Point2D> const&, bool,
-                                                                             View2D const&);
+                                                                            std::vector<Point2D> const&, bool,
+                                                                            View2D const&);
 extern template std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(std::vector<Point3D> const&, bool,
-                                                                             std::vector<Point3D> const&, bool,
-                                                                             View2D const&);
+                                                                            std::vector<Point3D> const&, bool,
+                                                                            View2D const&);
 
 }  // namespace view
 
@@ -432,5 +432,23 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Point2D con
 
 /// @brief finds the tangents from a polygon to another
 PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D const& other);
+
+template <PointContainer Points>
+Points dist_decimation(Points const& points, double threshold);
+
+extern template std::vector<Point2D> dist_decimation(std::vector<Point2D> const&, double threshold);
+extern template std::vector<Point3D> dist_decimation(std::vector<Point3D> const&, double threshold);
+
+template <PointContainer Points>
+Points rdp_decimation(Points const& points, double threshold);
+
+extern template std::vector<Point2D> rdp_decimation(std::vector<Point2D> const&, double threshold);
+extern template std::vector<Point3D> rdp_decimation(std::vector<Point3D> const&, double threshold);
+
+template <PointContainer Points>
+Points vw_decimation(Points const& points, double threshold);
+
+extern template std::vector<Point2D> vw_decimation(std::vector<Point2D> const&, double threshold);
+extern template std::vector<Point3D> vw_decimation(std::vector<Point3D> const&, double threshold);
 
 }  // namespace geompp

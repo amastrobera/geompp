@@ -21,6 +21,14 @@ struct DynamicEpsilon {
   operator double() const { return pow(10.0, -DECIMAL_PRECISION); }
 };
 
+#ifdef GEOMPP_NO_THREAD_LOCAL
+extern DynamicEpsilon DOUBLE_EPSILON;
+#else
+extern thread_local DynamicEpsilon DOUBLE_EPSILON;
+#endif
+
+#pragma endregion
+
 enum class GeometryType {
   Point,
   Line,
@@ -32,12 +40,6 @@ enum class GeometryType {
   GeometryCollection
 };  // update as needed
 
-#ifdef GEOMPP_NO_THREAD_LOCAL
-extern DynamicEpsilon DOUBLE_EPSILON;
-#else
-extern thread_local DynamicEpsilon DOUBLE_EPSILON;
-#endif
-
-#pragma endregion
+enum class PolylineDecimationStrategy { RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt };
 
 }  // namespace geompp

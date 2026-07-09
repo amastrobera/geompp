@@ -34,10 +34,24 @@ class Polyline2D {
   SegmentRange2D ToSegments() const;
   double Length() const;
   bool IsSimple() const;
+
   /// @brief Convex Hull via the Melkman's algorithm. It requires IsSimple() to be true in order to make sense
   /// @return The convex hull polygon of the polyline, even if the polyline is not simple (it will be a wrong hull in
   /// that case). So please check IsSimple() before running this.
   Polygon2D ConvexHull();
+
+  /// @brief Reduces the polyline to one with less vertices
+  /// @param strategy decimation strategy
+  ///         - RadialDistance (brute force) -> O(N). Linear vertex reduction (the distance between each vertex smaller
+  ///                                                 than threshold)
+  ///         - RamerDouglasPeucker -> O(N.LogN) to O(N^2). Given ponts P1,P2,P3, the distance of P2 from P1->P3 segment
+  ///                                                       should be smaller than a threshold.
+  ///         - VisvalingamWhyatt -> O(N.LogN) to O(N^2). Given ponts P1,P2,P3, the area of the triangle P1-P2-P3
+  ///                                                     should be smaller than a threshold.
+  /// @param threshold
+  /// @return
+  Polyline2D Reduce(PolylineDecimationStrategy strategy = PolylineDecimationStrategy::RamerDouglasPeucker,
+                    double threshold = 0.5) const;
 
 #pragma region line operations
 

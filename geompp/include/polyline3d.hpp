@@ -122,6 +122,19 @@ class Polyline3D {
   /// @throws std::runtime_error if fewer than 3 non-collinear points.
   Polyline3D ConvexHull() const;
 
+  /// @brief Reduces the polyline to one with less vertices
+  /// @param strategy decimation strategy
+  ///         - RadialDistance (brute force) -> O(N). Linear vertex reduction (the distance between each vertex smaller
+  ///                                                 than threshold)
+  ///         - RamerDouglasPeucker -> O(N.LogN) to O(N^2). Given ponts P1,P2,P3, the distance of P2 from P1->P3 segment
+  ///                                                       should be smaller than a threshold.
+  ///         - VisvalingamWhyatt -> O(N.LogN) to O(N^2). Given ponts P1,P2,P3, the area of the triangle P1-P2-P3
+  ///                                                     should be smaller than a threshold.
+  /// @param threshold
+  /// @return
+  Polyline3D Reduce(PolylineDecimationStrategy strategy = PolylineDecimationStrategy::RamerDouglasPeucker,
+                    double threshold = 0.5) const;
+
   /// @brief Converts this polyline to a Polygon3D.
   /// @return A Polygon3D with the same vertices.
   /// @throws std::runtime_error if the polyline is not planar or has fewer than 3 vertices.

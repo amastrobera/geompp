@@ -11,6 +11,43 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.13.0] - 2026-07-10
+
+> C++ library — tagged `v0.13.0` · C# / NuGet — tagged `csharp-v0.13.0` · Python / PyPI — tagged `python-v0.13.0`
+
+> Polyline vertex-count reduction: `Polyline2D/3D::Reduce()` with three selectable strategies (RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt), backed by three new dimension-agnostic free functions in `calc_utils2d.hpp`. `geompp_sample/` removed (superseded by the test suite and README code examples).
+
+### Added
+
+**C++ core**
+- `PolylineDecimationStrategy` enum (`constants.hpp`) — `RadialDistance`, `RamerDouglasPeucker`, `VisvalingamWhyatt`.
+- `dist_decimation(Points const&, double threshold)` (`calc_utils2d.hpp`) — O(n) radial-distance decimation: drops a vertex when it's closer than `threshold` to the last kept vertex. Templated over `PointContainer`; explicit-instantiated for `std::vector<Point2D>` / `std::vector<Point3D>`.
+- `rdp_decimation(Points const&, double threshold)` — Ramer-Douglas-Peucker, O(n log n) to O(n²): iterative (explicit-stack, no recursion) search for the vertex with maximum perpendicular distance from the chord spanning its segment; keeps it and recurses when that distance exceeds `threshold`, else discards the whole span. Perpendicular distance is computed via vector projection (`line_distance_2`), avoiding the `LineSegment` constructor and working uniformly across `Vector2D`/`Vector3D`.
+- `vw_decimation(Points const&, double threshold)` — Visvalingam-Whyatt, O(n log n) to O(n²): doubly-linked-list topology + lazy-deletion min-heap keyed on (squared) triangle area; repeatedly removes the lowest-area vertex while its neighbors' areas are recomputed and re-pushed, until the smallest remaining area exceeds `threshold`.
+- `Polyline2D::Reduce(PolylineDecimationStrategy strategy = RamerDouglasPeucker, double threshold = 0.5) const` and `Polyline3D::Reduce(...)` — returns a copy of the polyline with fewer vertices. The `VisvalingamWhyatt` and `RamerDouglasPeucker` cases run a cheap `dist_decimation` noise pre-pass (`threshold * 0.1`) before the main algorithm.
+
+**Python bindings**
+- `PolylineDecimationStrategy` enum (`RadialDistance`, `RamerDouglasPeucker`, `VisvalingamWhyatt`).
+- `dist_decimation(points, threshold)`, `rdp_decimation(points, threshold)`, `vw_decimation(points, threshold)` — bound for both `Point2D` and `Point3D` point lists.
+- `Polyline2D.reduce(strategy=RamerDouglasPeucker, threshold=0.5)` and `Polyline3D.reduce(...)`.
+
+**C# bindings**
+- `PolylineDecimationStrategy` enum (declared alongside `Polyline2D`, shared by `Polyline3D`).
+- `GeomUtil.DistDecimation(List<Point2D^>^, double)` / `RdpDecimation(...)` / `VwDecimation(...)` — and the `Point3D^` overloads.
+- `Polyline2D.Reduce()` (defaults) and `Polyline2D.Reduce(PolylineDecimationStrategy, double)`; same pair on `Polyline3D`.
+
+### Removed
+
+- `geompp_sample/` (the standalone `sample.cpp` demo app and its `CMakeLists.txt`) — dropped from the top-level `CMakeLists.txt` and the README's "How to use it" pointer. The test suite and README code examples already cover the same ground.
+
+### Tests
+
+- `test_calc_utils2d.cpp` / `test_calc_utils3d.cpp`: `DistDecimation_*`, `RdpDecimation_*`, `VwDecimation_*` — clustered-point removal, collinear collapse, a hand-verified triangular-spike case (peak kept, shoulders discarded) cross-checked by hand for both the RDP chord-distance and VW triangle-area math, and epsilon-boundary behavior at `threshold=0`. 3D cases isometrically embed the same numeric scenarios in a non-axis-aligned plane to exercise the `Vector3D` code path.
+- `test_polyline2d.cpp` / `test_polyline3d.cpp`: `Reduce_*` — all three strategies, default-parameter equivalence to explicit `RamerDouglasPeucker`/`0.5`, and the two-point pass-through case.
+- Python `TestDecimationFreeFunctions`, `TestPolyline2DReduce`, `TestPolyline3DReduce`; C# `DistDecimation_*`/`RdpDecimation_*`/`VwDecimation_*`, `Polyline2D_Reduce_*`, `Polyline3D_Reduce_*` mirror the same cases.
+
+---
+
 ## [0.12.0] - 2026-07-07
 
 > C++ library — tagged `v0.12.0` · C# / NuGet — tagged `csharp-v0.12.0` · Python / PyPI — tagged `python-v0.12.0`

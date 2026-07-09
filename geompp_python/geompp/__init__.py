@@ -34,6 +34,12 @@ Free functions
     find_extreme_points(polygon, line)
     distance_to(polygon, line)
     tangents_to(polygon, point_or_polygon)
+    dist_decimation(points, threshold)
+    rdp_decimation(points, threshold)
+    vw_decimation(points, threshold)
+
+Polyline decimation:
+    PolylineDecimationStrategy (RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt)
 
 Precision
 ---------
@@ -116,6 +122,11 @@ from ._geompp import (  # noqa: F401
     PolygonTangents2D,
     PolygonTangents3D,
     tangents_to,
+    # polyline decimation
+    PolylineDecimationStrategy,
+    dist_decimation,
+    rdp_decimation,
+    vw_decimation,
 )
 
 __version__ = "1.0.0"
@@ -138,4 +149,5 @@ __all__ = [
     "ExtremePoints2D", "ExtremePoints3D", "find_extreme_points", "distance_to",
     "PolygonTangents2D", "PolygonTangents3D", "tangents_to",
     "ProjectionType", "View2D",
+    "PolylineDecimationStrategy", "dist_decimation", "rdp_decimation", "vw_decimation",
 ]

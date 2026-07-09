@@ -5,6 +5,9 @@
 #include <polyline3d.hpp>
 #pragma managed(pop)
 
+// Reuses the PolylineDecimationStrategy enum declared alongside Polyline2D.
+#include "Polyline2D.hpp"
+
 namespace GeomPP {
 
 ref class Point3D;
@@ -33,6 +36,11 @@ public:
     bool     IsSimple();
     bool     IsConvex();
     Polyline3D^ ConvexHull();
+
+    // Returns a copy of this polyline with fewer vertices, per the given PolylineDecimationStrategy.
+    Polyline3D^ Reduce();
+    Polyline3D^ Reduce(PolylineDecimationStrategy strategy, double threshold);
+
     Polygon3D^  ToPolygon();
     double   DistanceTo(Point3D^ point);
     double   Location(Point3D^ point);
