@@ -348,6 +348,26 @@ Polyline3D Polyline3D::ConvexHull() const {
   return Make(hull_pts);
 }
 
+Polyline3D Polyline3D::Reduce(PolylineDecimationStrategy strategy, double threshold) const {
+  switch (strategy) {
+    case PolylineDecimationStrategy::RadialDistance:
+      return {dist_decimation(KNOTS, threshold)};
+
+    case PolylineDecimationStrategy::VisvalingamWhyatt: {
+      // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
+      auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
+      return {vw_decimation(clean_points, threshold)};
+    }
+
+    case PolylineDecimationStrategy::RamerDouglasPeucker: {
+      // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
+      auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
+      return {rdp_decimation(clean_points, threshold)};
+    }
+  }
+  throw std::logic_error("unknown strategy in polyline3d::reduce");
+}
+
 Polygon3D Polyline3D::ToPolygon() const {
   if (static_cast<int>(KNOTS.size()) < 3) {
     throw std::runtime_error("Polyline3D::ToPolygon — fewer than 3 vertices");

@@ -1071,7 +1071,7 @@ A quick list of code examples per topic is provided here.
 </details>
 
 
-<details closed>
+<details open>
 <summary><b> &nbsp; 6. Distance </b></summary>
 
 <details closed>

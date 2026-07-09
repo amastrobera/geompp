@@ -18,7 +18,9 @@
 #include <map>
 #include <numbers>
 #include <numeric>
+#include <queue>
 #include <set>
+#include <stack>
 #include <stdexcept>
 #include <variant>
 
@@ -1387,15 +1389,15 @@ namespace {
 // Cross-product orientation tests, projected through `view` (dimension-agnostic: works for Point2D or Point3D).
 template <Point P>
 bool is_left(P const& v1, P const& v2, P const& p, View2D const& view) {
-  double cross = (view.x(v2) - view.x(v1)) * (view.y(p) - view.y(v1)) -
-                 (view.y(v2) - view.y(v1)) * (view.x(p) - view.x(v1));
+  double cross =
+      (view.x(v2) - view.x(v1)) * (view.y(p) - view.y(v1)) - (view.y(v2) - view.y(v1)) * (view.x(p) - view.x(v1));
   return compare(cross, 0.0) > 0;
 }
 
 template <Point P>
 bool is_right(P const& v1, P const& v2, P const& p, View2D const& view) {
-  double cross = (view.x(v2) - view.x(v1)) * (view.y(p) - view.y(v1)) -
-                 (view.y(v2) - view.y(v1)) * (view.x(p) - view.x(v1));
+  double cross =
+      (view.x(v2) - view.x(v1)) * (view.y(p) - view.y(v1)) - (view.y(v2) - view.y(v1)) * (view.x(p) - view.x(v1));
   return compare(cross, 0.0) < 0;
 }
 
@@ -1536,7 +1538,7 @@ std::pair<std::vector<std::ranges::range_value_t<Points>>, std::vector<std::size
 
 template <PointContainer Points, Point P>
 std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(Points const& outer_loop, bool is_convex, P const& p,
-                                                              View2D const& view) {
+                                                             View2D const& view) {
   // if the polygon is convex we can use the binary search, O(logN)
   if (is_convex) {
     return {l_tangent(outer_loop, p, view), r_tangent(outer_loop, p, view)};
@@ -1548,14 +1550,14 @@ std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(Points const& outer
   return {hull_idx[l_tangent(hull_pts, p, view)], hull_idx[r_tangent(hull_pts, p, view)]};
 }
 
-template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point2D> const&, bool,
-                                                                       Point2D const&, View2D const&);
-template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point3D> const&, bool,
-                                                                       Point3D const&, View2D const&);
+template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point2D> const&, bool, Point2D const&,
+                                                                      View2D const&);
+template std::pair<std::size_t, std::size_t> point_poly_tangent_lr_to(std::vector<Point3D> const&, bool, Point3D const&,
+                                                                      View2D const&);
 
 template <PointContainer Points>
 std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(Points const& loop1, bool is_convex1, Points const& loop2,
-                                                             bool is_convex2, View2D const& view) {
+                                                            bool is_convex2, View2D const& view) {
   auto [cv1, idx1] = to_convex_loop(loop1, is_convex1, view);
   auto [cv2, idx2] = to_convex_loop(loop2, is_convex2, view);
 
@@ -1598,11 +1600,9 @@ std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(Points const& loop1,
 }
 
 template std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(std::vector<Point2D> const&, bool,
-                                                                      std::vector<Point2D> const&, bool,
-                                                                      View2D const&);
+                                                                     std::vector<Point2D> const&, bool, View2D const&);
 template std::pair<std::size_t, std::size_t> poly_poly_RL_tangent_to(std::vector<Point3D> const&, bool,
-                                                                      std::vector<Point3D> const&, bool,
-                                                                      View2D const&);
+                                                                     std::vector<Point3D> const&, bool, View2D const&);
 
 }  // namespace view
 
@@ -1640,5 +1640,243 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D c
   return {LineSegment2D::Make(polygon[RL_poly_i], other[RL_other_i]),
           LineSegment2D::Make(polygon[LR_poly_i], other[LR_other_i])};
 }
+
+namespace {
+
+// made in order to avoid the use of std::sqrt()
+template <typename P>
+double distance2(P const& a, P const& b) {
+  auto c = b - a;
+  return c.Dot(c);
+}
+
+}  // namespace
+
+template <PointContainer Points>
+Points dist_decimation(Points const& points, double threshold) {
+  if (points.size() < 3) {
+    return points;
+  }
+  Points result;
+  result.push_back(points.front());
+
+  double threshold2 = threshold * threshold;
+
+  for (size_t i = 1; i < points.size() - 1; ++i) {
+    if (compare(distance2(points[i], result.back()), threshold2) > 0) {
+      result.push_back(points[i]);
+    }
+  }
+  result.push_back(points.back());
+  return result;
+}
+
+template std::vector<Point2D> dist_decimation(std::vector<Point2D> const&, double threshold);
+template std::vector<Point3D> dist_decimation(std::vector<Point3D> const&, double threshold);
+
+namespace {
+
+// function created in order to avoid the ctor of LineSegment to use DistanceTo(Point)
+template <typename P>
+double line_distance_2(P const& s_p0, P const& s_p1, P const& p) {
+  auto cathet = s_p1 - s_p0;
+  auto hypotenuse = p - s_p0;
+
+  double cathet_len2 = cathet.Dot(cathet);
+  if (compare(cathet_len2, 0) == 0) {
+    return (p - s_p0).Dot(p - s_p0);  // Fallback to point-point distance
+  }
+
+  // t belongs to [0,1] if on the segment, otherwise belongs to the infinite line
+  // we don't particularly care of the segment distance here
+  double t = hypotenuse.Dot(cathet) / cathet_len2;
+
+  return distance2(p, s_p0 + cathet * t);
+}
+
+}  // namespace
+
+template <PointContainer Points>
+Points rdp_decimation(Points const& points, double threshold) {
+  if (points.size() < 3) {
+    return points;
+  }
+
+  double threshold2 = threshold * threshold;  // comparable to the quick and easy square_area2
+
+  std::size_t n = points.size();
+
+  // maskof booleans, very light in memory
+  std::vector<bool> keep(n, false);
+  keep.front() = true;
+  keep.back() = true;
+
+  // avoiding recursion when splitting the polyline in two, using iteration on a stack
+  std::vector<std::pair<std::size_t, std::size_t>> i_vec;
+  i_vec.reserve(n);  // Zero allocation overhead during the loop
+  std::stack<std::pair<std::size_t, std::size_t>, std::vector<std::pair<std::size_t, std::size_t>>> i_stack(
+      std::move(i_vec));
+  i_stack.push({0, n - 1});
+
+  while (!i_stack.empty()) {
+    auto [i_start, i_end] = i_stack.top();
+    i_stack.pop();
+
+    // dynamic finding of the max distance
+    std::size_t i_max = i_start;
+    double dist2_max = 0;
+    for (std::size_t i = i_start + 1; i < i_end; ++i) {
+      double dist2 = line_distance_2(points[i_start], points[i_end], points[i]);
+      if (compare(dist2, threshold2) > 0 && compare(dist2_max, dist2) < 0) {
+        dist2_max = dist2;
+        i_max = i;
+      }
+    }
+
+    if (i_max != i_start) {
+      // keep that index
+      keep[i_max] = true;
+      // split the points in two portions and guarantee an end condition for the stack
+      if (i_start + 1 < i_max) {  // below
+        i_stack.push({i_start, i_max});
+      }
+      if (i_max + 1 != i_end) {  // above
+        i_stack.push({i_max, i_end});
+      }
+    }
+  }
+
+  // return decimated polyline
+  // use reserve to optimize the vector's space
+  std::size_t m = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (keep[i]) {
+      ++m;
+    }
+  }
+
+  Points result;
+  result.reserve(m);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (keep[i]) {
+      result.emplace_back(points[i]);
+    }
+  }
+  return result;
+}
+
+template std::vector<Point2D> rdp_decimation(std::vector<Point2D> const&, double threshold);
+template std::vector<Point3D> rdp_decimation(std::vector<Point3D> const&, double threshold);
+
+namespace {
+// A lighter tracker: Just stores the area and the vertex index for the heap
+struct HeapEntry {
+  double area;
+  size_t index;
+
+  // std::priority_queue is a max-heap by default;
+  // greater-than operator turns it into a min-heap
+  bool operator>(HeapEntry const& other) const {
+    return area > other.area;  // preferrable to compare(are, other.area) > 0
+                               // (1) cost: DynamicEpsilon::operator double() is a transcendental call, recomputed on
+                               //           every single invocation (it's not cached — DECIMAL_PRECISION is a
+                               //           thread_local runtime value, so the compiler can't fold it).
+                               // (2) correctness: epsilon-equivalence isn't transitive, and std::priority_queue
+                               //                  requires it to be.
+  }
+};
+
+// To handle topology, we STILL need to track current neighbors
+struct Topology {
+  size_t prev;
+  size_t next;
+  double current_area;
+};
+
+template <typename P>
+double square_area2(P const& s_p0, P const& s_p1, P const& p) {
+  auto c = (p - s_p0).Cross(s_p1 - s_p0);
+  return c * c;  // valid for both 3D (this is a .Dot() prod) and 2D (it's a scalar prod of doubles)
+}
+
+}  // namespace
+
+template <PointContainer Points>
+Points vw_decimation(Points const& points, double threshold) {
+  if (points.size() < 3) {
+    return points;
+  }
+
+  double square_threshold2 = threshold * threshold * 4;  // comparable to the quick and easy square_area2
+
+  std::size_t n = points.size();
+  std::vector<Topology> line(n);
+
+  // The real C++ heap structure!
+  std::priority_queue<HeapEntry, std::vector<HeapEntry>, std::greater<HeapEntry>> min_heap;
+
+  // 1. Initialize topology and heap
+  for (size_t i = 0; i < n; ++i) {
+    line[i].prev = (i == 0) ? std::numeric_limits<size_t>::max() : i - 1;
+    line[i].next = (i == n - 1) ? std::numeric_limits<size_t>::max() : i + 1;
+
+    if (i == 0 || i == n - 1) {
+      line[i].current_area = std::numeric_limits<double>::infinity();
+    } else {
+      line[i].current_area = square_area2(points[i - 1], points[i], points[i + 1]);
+      min_heap.push({line[i].current_area, i});
+    }
+  }
+
+  // 2. Main Loop
+  while (!min_heap.empty()) {
+    auto [area, idx] = min_heap.top();
+    min_heap.pop();
+
+    // LAZY DELETION GUARD: If this area doesn't match the updated truth,
+    // it's a stale duplicate. Toss it out.
+    if (area != line[idx].current_area) {
+      continue;
+    }
+    if (compare(area, square_threshold2) > 0) {
+      break;
+    }
+
+    size_t p = line[idx].prev;
+    size_t nxt = line[idx].next;
+
+    // Bypass the current vertex in our topology chain
+    if (p != std::numeric_limits<size_t>::max()) {
+      line[p].next = nxt;
+    }
+    if (nxt != std::numeric_limits<size_t>::max()) {
+      line[nxt].prev = p;
+    }
+
+    // Update neighbor 'p' and push a fresh copy to the heap
+    if (p != std::numeric_limits<size_t>::max() && line[p].prev != std::numeric_limits<size_t>::max()) {
+      line[p].current_area = square_area2(points[line[p].prev], points[p], points[line[p].next]);
+      min_heap.push({line[p].current_area, p});
+    }
+
+    // Update neighbor 'nxt' and push a fresh copy to the heap
+    if (nxt != std::numeric_limits<size_t>::max() && line[nxt].next != std::numeric_limits<size_t>::max()) {
+      line[nxt].current_area = square_area2(points[line[nxt].prev], points[nxt], points[line[nxt].next]);
+      min_heap.push({line[nxt].current_area, nxt});
+    }
+  }
+
+  // 3. Build output path
+  Points result;
+  size_t curr = 0;
+  while (curr != std::numeric_limits<size_t>::max()) {
+    result.push_back(points[curr]);
+    curr = line[curr].next;
+  }
+  return result;
+}
+
+template std::vector<Point2D> vw_decimation(std::vector<Point2D> const&, double threshold);
+template std::vector<Point3D> vw_decimation(std::vector<Point3D> const&, double threshold);
 
 }  // namespace geompp

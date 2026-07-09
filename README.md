@@ -1181,7 +1181,7 @@
 </details>
 
 
-<details closed>
+<details open>
 <summary><b> &nbsp; 6. Distance </b></summary>
 
 <details closed>
