@@ -774,4 +774,114 @@ TEST_F(CalcUtils2DTest, TangentsTo_NonConvexDarts_Polygon_ReducesBothToConvexHul
   EXPECT_EQ(g::Point2D(14, 1), t.right.Last());
 }
 
+// ---- dist_decimation / rdp_decimation / vw_decimation -----------------------
+
+TEST_F(CalcUtils2DTest, DistDecimation_TooFewPoints_ReturnsUnchanged) {
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(1, 1)};
+  auto result = g::dist_decimation(points, 5.0);
+  ASSERT_EQ(2u, result.size());
+  EXPECT_EQ(points[0], result[0]);
+  EXPECT_EQ(points[1], result[1]);
+}
+
+TEST_F(CalcUtils2DTest, DistDecimation_ClusteredPoints_RemovesWithinThreshold) {
+  // two tight clusters near (0,0) and (5,0), then a far endpoint: each cluster should
+  // collapse to its first member, measured radially from the last *kept* point.
+  std::vector<g::Point2D> points{g::Point2D(0, 0),   g::Point2D(0.1, 0), g::Point2D(0.2, 0),
+                                 g::Point2D(5, 0),   g::Point2D(5.1, 0), g::Point2D(10, 0)};
+  auto result = g::dist_decimation(points, 1.0);
+  std::vector<g::Point2D> expected{g::Point2D(0, 0), g::Point2D(5, 0), g::Point2D(10, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils2DTest, DistDecimation_ThresholdZero_DropsOnlySubEpsilonPoints) {
+  // compare() is epsilon-aware even at threshold 0: a point within DOUBLE_EPSILON of the last
+  // kept point is still dropped, while a genuinely distinct one is kept.
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(0.0001, 0), g::Point2D(5, 0)};
+  auto result = g::dist_decimation(points, 0.0);
+  std::vector<g::Point2D> expected{g::Point2D(0, 0), g::Point2D(5, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils2DTest, RdpDecimation_TooFewPoints_ReturnsUnchanged) {
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(1, 1)};
+  auto result = g::rdp_decimation(points, 5.0);
+  ASSERT_EQ(2u, result.size());
+  EXPECT_EQ(points[0], result[0]);
+  EXPECT_EQ(points[1], result[1]);
+}
+
+TEST_F(CalcUtils2DTest, RdpDecimation_CollinearPoints_CollapsesToEndpoints) {
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(3, 0),
+                                 g::Point2D(4, 0)};
+  auto result = g::rdp_decimation(points, 0.5);
+  std::vector<g::Point2D> expected{g::Point2D(0, 0), g::Point2D(4, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils2DTest, RdpDecimation_SingleSpike_KeepsPeakDiscardsShoulders) {
+  // a triangular spike on an otherwise straight path: (2,0) and (6,0) sit ~1.56 units off their
+  // local chord (below threshold=2), while the peak (4,5) sits 5 units off the outer chord (above
+  // it) — so only the peak should survive.
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(4, 5), g::Point2D(6, 0),
+                                 g::Point2D(8, 0)};
+  auto result = g::rdp_decimation(points, 2.0);
+  std::vector<g::Point2D> expected{g::Point2D(0, 0), g::Point2D(4, 5), g::Point2D(8, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils2DTest, VwDecimation_TooFewPoints_ReturnsUnchanged) {
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(1, 1)};
+  auto result = g::vw_decimation(points, 5.0);
+  ASSERT_EQ(2u, result.size());
+  EXPECT_EQ(points[0], result[0]);
+  EXPECT_EQ(points[1], result[1]);
+}
+
+TEST_F(CalcUtils2DTest, VwDecimation_CollinearPoints_RemovesZeroAreaVertices) {
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(3, 0),
+                                 g::Point2D(4, 0)};
+  auto result = g::vw_decimation(points, 0.5);
+  std::vector<g::Point2D> expected{g::Point2D(0, 0), g::Point2D(4, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils2DTest, VwDecimation_SingleSpike_KeepsHighAreaVertex) {
+  // triangle areas: (2,0)=5, (4,5)=10, (6,0)=5 — with threshold=6 the two area-5 vertices are
+  // removed (and their neighbor's area recomputed against the wider base), the area-10 peak stays.
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(4, 5), g::Point2D(6, 0),
+                                 g::Point2D(8, 0)};
+  auto result = g::vw_decimation(points, 6.0);
+  std::vector<g::Point2D> expected{g::Point2D(0, 0), g::Point2D(4, 5), g::Point2D(8, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils2DTest, VwDecimation_ThresholdBelowAllAreas_KeepsAllPoints) {
+  std::vector<g::Point2D> points{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(4, 5), g::Point2D(6, 0),
+                                 g::Point2D(8, 0)};
+  auto result = g::vw_decimation(points, 1.0);
+  ASSERT_EQ(points.size(), result.size());
+  for (std::size_t i = 0; i < points.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(points[i])) << "index " << i;
+  }
+}
+
 }  // namespace geompp_tests

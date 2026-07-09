@@ -94,6 +94,30 @@ public:
     static System::Collections::Generic::IEnumerable<Point3D^>^ ConvexHull(
         System::Collections::Generic::List<Point3D^>^ points);
 
+    // Lower-level building blocks behind Polyline2D.Reduce() / Polyline3D.Reduce() — operate
+    // directly on a list of points instead of a Polyline object.
+    //
+    // DistDecimation — O(n) radial-distance decimation: drop a point if it's closer than
+    // threshold to the last kept point.
+    static System::Collections::Generic::IEnumerable<Point2D^>^ DistDecimation(
+        System::Collections::Generic::List<Point2D^>^ points, double threshold);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ DistDecimation(
+        System::Collections::Generic::List<Point3D^>^ points, double threshold);
+
+    // RdpDecimation — Ramer-Douglas-Peucker: recursively drop points closer than threshold to
+    // the chord spanning their segment.
+    static System::Collections::Generic::IEnumerable<Point2D^>^ RdpDecimation(
+        System::Collections::Generic::List<Point2D^>^ points, double threshold);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ RdpDecimation(
+        System::Collections::Generic::List<Point3D^>^ points, double threshold);
+
+    // VwDecimation — Visvalingam-Whyatt: repeatedly drop the point forming the smallest-area
+    // triangle with its neighbors, while that area stays below threshold.
+    static System::Collections::Generic::IEnumerable<Point2D^>^ VwDecimation(
+        System::Collections::Generic::List<Point2D^>^ points, double threshold);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ VwDecimation(
+        System::Collections::Generic::List<Point3D^>^ points, double threshold);
+
     // PCA — principal axes of a 3D point cloud via Jacobi eigendecomposition.
     static CoordinateFrame^ PrincipalAxes(System::Collections::Generic::List<Point3D^>^ points);
     static Vector3D^        PrincipalNormal(System::Collections::Generic::List<Point3D^>^ points);

@@ -4895,6 +4895,139 @@ Test("Polyline3D_Touches_Polyline_Disjoint", () => {
     IsNull(pl1.Touch(pl2));
 });
 
+// ── Polyline decimation (GeomUtil.DistDecimation / RdpDecimation / VwDecimation) ─
+Console.WriteLine("\nPolyline decimation (free functions)");
+
+Test("DistDecimation_RemovesClusteredPoints", () => {
+  var pts = new List<Point2D> {
+    new(0, 0), new(0.1, 0), new(0.2, 0), new(5, 0), new(5.1, 0), new(10, 0) };
+  var result = new List<Point2D>(GeomUtil.DistDecimation(pts, 1.0));
+  Eq(3, result.Count, 0);
+  IsTrue(result[0].AlmostEquals(new Point2D(0, 0)));
+  IsTrue(result[1].AlmostEquals(new Point2D(5, 0)));
+  IsTrue(result[2].AlmostEquals(new Point2D(10, 0)));
+});
+
+Test("DistDecimation_TooFewPoints_ReturnsUnchanged", () => {
+  var pts = new List<Point3D> { new(0, 0, 0), new(1, 1, 1) };
+  var result = new List<Point3D>(GeomUtil.DistDecimation(pts, 5.0));
+  Eq(2, result.Count, 0);
+});
+
+Test("RdpDecimation_CollinearPoints_CollapseToEndpoints", () => {
+  var pts = new List<Point2D> { new(0, 0), new(1, 0), new(2, 0), new(3, 0), new(4, 0) };
+  var result = new List<Point2D>(GeomUtil.RdpDecimation(pts, 0.5));
+  Eq(2, result.Count, 0);
+  IsTrue(result[0].AlmostEquals(new Point2D(0, 0)));
+  IsTrue(result[1].AlmostEquals(new Point2D(4, 0)));
+});
+
+Test("RdpDecimation_KeepsPeakDiscardsShoulders", () => {
+  var pts = new List<Point3D> { new(0, 0, 0), new(2, 0, 0), new(4, 0, 5), new(6, 0, 0), new(8, 0, 0) };
+  var result = new List<Point3D>(GeomUtil.RdpDecimation(pts, 2.0));
+  Eq(3, result.Count, 0);
+  IsTrue(result[0].AlmostEquals(new Point3D(0, 0, 0)));
+  IsTrue(result[1].AlmostEquals(new Point3D(4, 0, 5)));
+  IsTrue(result[2].AlmostEquals(new Point3D(8, 0, 0)));
+});
+
+Test("VwDecimation_KeepsHighAreaVertex", () => {
+  var pts = new List<Point2D> { new(0, 0), new(2, 0), new(4, 5), new(6, 0), new(8, 0) };
+  var result = new List<Point2D>(GeomUtil.VwDecimation(pts, 6.0));
+  Eq(3, result.Count, 0);
+  IsTrue(result[0].AlmostEquals(new Point2D(0, 0)));
+  IsTrue(result[1].AlmostEquals(new Point2D(4, 5)));
+  IsTrue(result[2].AlmostEquals(new Point2D(8, 0)));
+});
+
+Test("VwDecimation_ThresholdBelowAllAreas_KeepsAllPoints", () => {
+  var pts = new List<Point3D> { new(0, 0, 0), new(2, 0, 0), new(4, 0, 5), new(6, 0, 0), new(8, 0, 0) };
+  var result = new List<Point3D>(GeomUtil.VwDecimation(pts, 1.0));
+  Eq(pts.Count, result.Count, 0);
+});
+
+// ── Polyline2D.Reduce ─────────────────────────────────────────────────────────
+Console.WriteLine("\nPolyline2D.Reduce");
+
+Test("Polyline2D_Reduce_TwoPoints_ReturnsUnchanged", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(1, 1) });
+  IsTrue(pl.AlmostEquals(pl.Reduce()));
+});
+
+Test("Polyline2D_Reduce_RadialDistance", () => {
+  // Note: a "peak" shape (not a straight line) is deliberate — Polyline2D.Make() prunes exactly
+  // collinear knots at construction time, so a flat clustered dataset would collapse to its 2
+  // endpoints regardless of what Reduce() does, defeating the test.
+  var pl = Polyline2D.Make(new Point2D[] {
+    new(0, 0), new(0.1, 0.05), new(0.2, -0.05), new(5, 5), new(5.1, 5.05), new(10, 0) });
+  var reduced = pl.Reduce(PolylineDecimationStrategy.RadialDistance, 1.0);
+  Eq(3, reduced.Size(), 0);
+  IsTrue(reduced[0].AlmostEquals(new Point2D(0, 0)));
+  IsTrue(reduced[1].AlmostEquals(new Point2D(5, 5)));
+  IsTrue(reduced[2].AlmostEquals(new Point2D(10, 0)));
+});
+
+Test("Polyline2D_Reduce_RamerDouglasPeucker", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(4, 5), new(6, 0), new(8, 0) });
+  var reduced = pl.Reduce(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0);
+  var expected = Polyline2D.Make(new Point2D[] { new(0, 0), new(4, 5), new(8, 0) });
+  IsTrue(reduced.AlmostEquals(expected));
+});
+
+Test("Polyline2D_Reduce_VisvalingamWhyatt", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(4, 5), new(6, 0), new(8, 0) });
+  var reduced = pl.Reduce(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0);
+  var expected = Polyline2D.Make(new Point2D[] { new(0, 0), new(4, 5), new(8, 0) });
+  IsTrue(reduced.AlmostEquals(expected));
+});
+
+Test("Polyline2D_Reduce_DefaultParams_MatchesExplicitRdpHalfThreshold", () => {
+  var pl = Polyline2D.Make(new Point2D[] {
+    new(0, 0), new(1, 0.01), new(2, -0.01), new(3, 0), new(4, 0) });
+  var reducedDefault = pl.Reduce();
+  var reducedExplicit = pl.Reduce(PolylineDecimationStrategy.RamerDouglasPeucker, 0.5);
+  IsTrue(reducedDefault.AlmostEquals(reducedExplicit));
+  var expected = Polyline2D.Make(new Point2D[] { new(0, 0), new(4, 0) });
+  IsTrue(reducedDefault.AlmostEquals(expected));
+});
+
+// ── Polyline3D.Reduce ─────────────────────────────────────────────────────────
+Console.WriteLine("\nPolyline3D.Reduce");
+
+Test("Polyline3D_Reduce_TwoPoints_ReturnsUnchanged", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(1, 1, 1) });
+  IsTrue(pl.AlmostEquals(pl.Reduce()));
+});
+
+Test("Polyline3D_Reduce_RadialDistance", () => {
+  // Note: a "peak" shape (not a straight line) is deliberate — Polyline3D.Make() prunes exactly
+  // collinear knots at construction time, so a flat clustered dataset would collapse to its 2
+  // endpoints regardless of what Reduce() does, defeating the test.
+  var pl = Polyline3D.Make(new Point3D[] {
+    new(0, 0, 0), new(0.1, 0, 0.05), new(0.2, 0, -0.05), new(5, 0, 5), new(5.1, 0, 5.05), new(10, 0, 0) });
+  var reduced = pl.Reduce(PolylineDecimationStrategy.RadialDistance, 1.0);
+  Eq(3, reduced.Size(), 0);
+  IsTrue(reduced[0].AlmostEquals(new Point3D(0, 0, 0)));
+  IsTrue(reduced[1].AlmostEquals(new Point3D(5, 0, 5)));
+  IsTrue(reduced[2].AlmostEquals(new Point3D(10, 0, 0)));
+});
+
+Test("Polyline3D_Reduce_RamerDouglasPeucker", () => {
+  var pl = Polyline3D.Make(new Point3D[] {
+    new(0, 0, 0), new(2, 0, 0), new(4, 0, 5), new(6, 0, 0), new(8, 0, 0) });
+  var reduced = pl.Reduce(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0);
+  var expected = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 5), new(8, 0, 0) });
+  IsTrue(reduced.AlmostEquals(expected));
+});
+
+Test("Polyline3D_Reduce_VisvalingamWhyatt", () => {
+  var pl = Polyline3D.Make(new Point3D[] {
+    new(0, 0, 0), new(2, 0, 0), new(4, 0, 5), new(6, 0, 0), new(8, 0, 0) });
+  var reduced = pl.Reduce(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0);
+  var expected = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 5), new(8, 0, 0) });
+  IsTrue(reduced.AlmostEquals(expected));
+});
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 Console.WriteLine($"\n{passed} passed, {failed} failed out of {passed + failed} tests.");
 return failed > 0 ? 1 : 0;

@@ -519,4 +519,52 @@ TEST_F(Polyline3DTest, TouchWPolyline3D_Disjoint_NullOpt) {
   EXPECT_FALSE(pl1.Touch(pl2).has_value());
 }
 
+// ---- Reduce -------------------------------------------------------------
+
+TEST_F(Polyline3DTest, Reduce_TwoPointPolyline_ReturnsUnchanged) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 1, 1)});
+  auto reduced = pl.Reduce();
+  EXPECT_EQ(pl, reduced);
+}
+
+TEST_F(Polyline3DTest, Reduce_RadialDistance_RemovesClusteredKnots) {
+  // Note: the "peak" shape (not a straight line) is deliberate — Polyline3D::Make() prunes exactly
+  // collinear knots at construction time, so a flat clustered dataset would collapse to its 2
+  // endpoints regardless of what Reduce() does, defeating the test.
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(0.1, 0, 0.05), g::Point3D(0.2, 0, -0.05),
+                                 g::Point3D(5, 0, 5), g::Point3D(5.1, 0, 5.05), g::Point3D(10, 0, 0)});
+  auto reduced = pl.Reduce(g::PolylineDecimationStrategy::RadialDistance, 1.0);
+  ASSERT_EQ(3, reduced.Size());
+  EXPECT_TRUE(reduced[0].AlmostEquals(g::Point3D(0, 0, 0)));
+  EXPECT_TRUE(reduced[1].AlmostEquals(g::Point3D(5, 0, 5)));
+  EXPECT_TRUE(reduced[2].AlmostEquals(g::Point3D(10, 0, 0)));
+}
+
+TEST_F(Polyline3DTest, Reduce_RamerDouglasPeucker_KeepsPeakDiscardsShoulders) {
+  auto pl = g::Polyline3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(4, 0, 5), g::Point3D(6, 0, 0), g::Point3D(8, 0, 0)});
+  auto reduced = pl.Reduce(g::PolylineDecimationStrategy::RamerDouglasPeucker, 2.0);
+  auto expected = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 5), g::Point3D(8, 0, 0)});
+  EXPECT_EQ(expected, reduced);
+}
+
+TEST_F(Polyline3DTest, Reduce_VisvalingamWhyatt_KeepsHighAreaVertex) {
+  auto pl = g::Polyline3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(4, 0, 5), g::Point3D(6, 0, 0), g::Point3D(8, 0, 0)});
+  auto reduced = pl.Reduce(g::PolylineDecimationStrategy::VisvalingamWhyatt, 6.0);
+  auto expected = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 5), g::Point3D(8, 0, 0)});
+  EXPECT_EQ(expected, reduced);
+}
+
+TEST_F(Polyline3DTest, Reduce_DefaultParams_MatchesExplicitRdpHalfThreshold) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0.01), g::Point3D(2, 0, -0.01),
+                                 g::Point3D(3, 0, 0), g::Point3D(4, 0, 0)});
+  auto reducedDefault = pl.Reduce();
+  auto reducedExplicit = pl.Reduce(g::PolylineDecimationStrategy::RamerDouglasPeucker, 0.5);
+  EXPECT_EQ(reducedExplicit, reducedDefault);
+
+  auto expected = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0)});
+  EXPECT_EQ(expected, reducedDefault);
+}
+
 }  // namespace geompp_tests

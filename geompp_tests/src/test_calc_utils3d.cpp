@@ -364,4 +364,97 @@ TEST_F(CalcUtils3DTest, TangentsTo_Polygon_ThrowsWhenNotCoplanar) {
   EXPECT_THROW(g::tangents_to(squareA, squareB), std::logic_error);
 }
 
+// ---- dist_decimation / rdp_decimation / vw_decimation -----------------------
+// Same numeric scenarios as CalcUtils2DTest, isometrically embedded in the XZ plane (y=0), to
+// exercise the Point3D/Vector3D instantiation of these dimension-agnostic templates.
+
+TEST_F(CalcUtils3DTest, DistDecimation_TooFewPoints_ReturnsUnchanged) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(1, 1, 1)};
+  auto result = g::dist_decimation(points, 5.0);
+  ASSERT_EQ(2u, result.size());
+  EXPECT_EQ(points[0], result[0]);
+  EXPECT_EQ(points[1], result[1]);
+}
+
+TEST_F(CalcUtils3DTest, DistDecimation_ClusteredPoints_RemovesWithinThreshold) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0),   g::Point3D(0.1, 0, 0.05), g::Point3D(0.2, 0, -0.05),
+                                 g::Point3D(5, 0, 0),   g::Point3D(5.1, 0, 0.05), g::Point3D(10, 0, 0)};
+  auto result = g::dist_decimation(points, 1.0);
+  std::vector<g::Point3D> expected{g::Point3D(0, 0, 0), g::Point3D(5, 0, 0), g::Point3D(10, 0, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils3DTest, RdpDecimation_TooFewPoints_ReturnsUnchanged) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(1, 1, 1)};
+  auto result = g::rdp_decimation(points, 5.0);
+  ASSERT_EQ(2u, result.size());
+  EXPECT_EQ(points[0], result[0]);
+  EXPECT_EQ(points[1], result[1]);
+}
+
+TEST_F(CalcUtils3DTest, RdpDecimation_CollinearPoints_CollapsesToEndpoints) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(1, 1, 1), g::Point3D(2, 2, 2),
+                                 g::Point3D(3, 3, 3), g::Point3D(4, 4, 4)};
+  auto result = g::rdp_decimation(points, 0.5);
+  std::vector<g::Point3D> expected{g::Point3D(0, 0, 0), g::Point3D(4, 4, 4)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils3DTest, RdpDecimation_SingleSpike_KeepsPeakDiscardsShoulders) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(4, 0, 5),
+                                 g::Point3D(6, 0, 0), g::Point3D(8, 0, 0)};
+  auto result = g::rdp_decimation(points, 2.0);
+  std::vector<g::Point3D> expected{g::Point3D(0, 0, 0), g::Point3D(4, 0, 5), g::Point3D(8, 0, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils3DTest, VwDecimation_TooFewPoints_ReturnsUnchanged) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(1, 1, 1)};
+  auto result = g::vw_decimation(points, 5.0);
+  ASSERT_EQ(2u, result.size());
+  EXPECT_EQ(points[0], result[0]);
+  EXPECT_EQ(points[1], result[1]);
+}
+
+TEST_F(CalcUtils3DTest, VwDecimation_CollinearPoints_RemovesZeroAreaVertices) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(1, 1, 1), g::Point3D(2, 2, 2),
+                                 g::Point3D(3, 3, 3), g::Point3D(4, 4, 4)};
+  auto result = g::vw_decimation(points, 0.5);
+  std::vector<g::Point3D> expected{g::Point3D(0, 0, 0), g::Point3D(4, 4, 4)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils3DTest, VwDecimation_SingleSpike_KeepsHighAreaVertex) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(4, 0, 5),
+                                 g::Point3D(6, 0, 0), g::Point3D(8, 0, 0)};
+  auto result = g::vw_decimation(points, 6.0);
+  std::vector<g::Point3D> expected{g::Point3D(0, 0, 0), g::Point3D(4, 0, 5), g::Point3D(8, 0, 0)};
+  ASSERT_EQ(expected.size(), result.size());
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(expected[i])) << "index " << i;
+  }
+}
+
+TEST_F(CalcUtils3DTest, VwDecimation_ThresholdBelowAllAreas_KeepsAllPoints) {
+  std::vector<g::Point3D> points{g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(4, 0, 5),
+                                 g::Point3D(6, 0, 0), g::Point3D(8, 0, 0)};
+  auto result = g::vw_decimation(points, 1.0);
+  ASSERT_EQ(points.size(), result.size());
+  for (std::size_t i = 0; i < points.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(points[i])) << "index " << i;
+  }
+}
+
 }  // namespace geompp_tests

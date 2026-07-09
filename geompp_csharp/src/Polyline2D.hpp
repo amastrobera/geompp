@@ -3,6 +3,7 @@
 // Keep native headers out of managed compilation
 #pragma managed(push, off)
 #include <polyline2d.hpp>
+#include <constants.hpp>
 #pragma managed(pop)
 
 namespace GeomPP {
@@ -12,6 +13,18 @@ ref class Line2D;
 ref class Ray2D;
 ref class LineSegment2D;
 ref class Polygon2D;
+
+// Vertex-reduction strategy for Polyline2D::Reduce() / Polyline3D::Reduce().
+public enum class PolylineDecimationStrategy {
+    // O(n) brute-force pass: drop a vertex if it's closer than threshold to the last kept vertex.
+    RadialDistance = 0,
+    // O(n log n) to O(n^2): recursively drop vertices closer than threshold to the chord spanning
+    // their segment.
+    RamerDouglasPeucker = 1,
+    // O(n log n) to O(n^2): repeatedly drop the vertex forming the smallest-area triangle with its
+    // neighbors, while that area stays below threshold.
+    VisvalingamWhyatt = 2
+};
 
 public ref class Polyline2D {
 public:
@@ -32,6 +45,11 @@ public:
     // Requires the polyline to be simple (no self-intersections). Call IsSimple() first to verify;
     // behaviour is undefined on non-simple input.
     Polygon2D^ ConvexHull();
+
+    // Returns a copy of this polyline with fewer vertices, per the given PolylineDecimationStrategy.
+    Polyline2D^ Reduce();
+    Polyline2D^ Reduce(PolylineDecimationStrategy strategy, double threshold);
+
     double   DistanceTo(Point2D^ point);
     double   Location(Point2D^ point);
     Point2D^ Interpolate(double pct);

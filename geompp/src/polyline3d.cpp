@@ -351,18 +351,18 @@ Polyline3D Polyline3D::ConvexHull() const {
 Polyline3D Polyline3D::Reduce(PolylineDecimationStrategy strategy, double threshold) const {
   switch (strategy) {
     case PolylineDecimationStrategy::RadialDistance:
-      return {dist_decimation(KNOTS, threshold)};
+      return Make(dist_decimation(KNOTS, threshold));
 
     case PolylineDecimationStrategy::VisvalingamWhyatt: {
       // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
       auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
-      return {vw_decimation(clean_points, threshold)};
+      return Make(vw_decimation(clean_points, threshold));
     }
 
     case PolylineDecimationStrategy::RamerDouglasPeucker: {
       // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
       auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
-      return {rdp_decimation(clean_points, threshold)};
+      return Make(rdp_decimation(clean_points, threshold));
     }
   }
   throw std::logic_error("unknown strategy in polyline3d::reduce");

@@ -74,6 +74,15 @@ Polyline3D^ Polyline3D::ConvexHull() {
     return gcnew Polyline3D(new geompp::Polyline3D(_native->ConvexHull()));
 }
 
+Polyline3D^ Polyline3D::Reduce() {
+    return gcnew Polyline3D(new geompp::Polyline3D(_native->Reduce()));
+}
+
+Polyline3D^ Polyline3D::Reduce(PolylineDecimationStrategy strategy, double threshold) {
+    return gcnew Polyline3D(new geompp::Polyline3D(
+        _native->Reduce(static_cast<geompp::PolylineDecimationStrategy>(strategy), threshold)));
+}
+
 Polygon3D^ Polyline3D::ToPolygon() {
     return gcnew Polygon3D(new geompp::Polygon3D(_native->ToPolygon()));
 }

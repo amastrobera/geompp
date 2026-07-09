@@ -13,7 +13,6 @@ include_directories(${CMAKE_SOURCE_DIR}/geompp/include)
 
 add_subdirectory(geompp)
 add_subdirectory(geompp_tests)
-add_subdirectory(geompp_sample)
 
 # ─── Python bindings (opt-in) ────────────────────────────────────────────────
 # Enable with:  cmake -DBUILD_PYTHON=ON ...

@@ -20,6 +20,9 @@ void bind_polyline3d(py::module_& m) {
         .def("is_simple",   &geompp::Polyline3D::IsSimple)
         .def("is_convex",   &geompp::Polyline3D::IsConvex)
         .def("convex_hull", &geompp::Polyline3D::ConvexHull)
+        .def("reduce", &geompp::Polyline3D::Reduce,
+             "strategy"_a = geompp::PolylineDecimationStrategy::RamerDouglasPeucker, "threshold"_a = 0.5,
+             "Returns a copy of this polyline with fewer vertices, per the given PolylineDecimationStrategy.")
         .def("to_polygon",  &geompp::Polyline3D::ToPolygon)
         BIND_ALMOST_EQUALS(Polyline3D)
         BIND_SERIALIZATION(Polyline3D)

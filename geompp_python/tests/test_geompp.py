@@ -5408,3 +5408,129 @@ class TestLineSegment3DTouch:
         t = a.touch(b)
         assert t is not None
         assert t == geompp.Point3D(5, 0, 0)
+
+
+# ─── Polyline decimation (dist_decimation / rdp_decimation / vw_decimation) ───
+
+class TestDecimationFreeFunctions:
+    def test_dist_decimation_removes_clustered_points(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(0.1, 0), geompp.Point2D(0.2, 0),
+               geompp.Point2D(5, 0), geompp.Point2D(5.1, 0), geompp.Point2D(10, 0)]
+        result = geompp.dist_decimation(pts, 1.0)
+        assert len(result) == 3
+        assert result[0].almost_equals(geompp.Point2D(0, 0))
+        assert result[1].almost_equals(geompp.Point2D(5, 0))
+        assert result[2].almost_equals(geompp.Point2D(10, 0))
+
+    def test_dist_decimation_too_few_points_returns_unchanged(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 1)]
+        result = geompp.dist_decimation(pts, 5.0)
+        assert len(result) == 2
+
+    def test_rdp_decimation_collinear_points_collapse_to_endpoints(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(2, 0),
+               geompp.Point2D(3, 0), geompp.Point2D(4, 0)]
+        result = geompp.rdp_decimation(pts, 0.5)
+        assert len(result) == 2
+        assert result[0].almost_equals(geompp.Point2D(0, 0))
+        assert result[1].almost_equals(geompp.Point2D(4, 0))
+
+    def test_rdp_decimation_keeps_peak_discards_shoulders(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(4, 0, 5),
+               geompp.Point3D(6, 0, 0), geompp.Point3D(8, 0, 0)]
+        result = geompp.rdp_decimation(pts, 2.0)
+        assert len(result) == 3
+        assert result[0].almost_equals(geompp.Point3D(0, 0, 0))
+        assert result[1].almost_equals(geompp.Point3D(4, 0, 5))
+        assert result[2].almost_equals(geompp.Point3D(8, 0, 0))
+
+    def test_vw_decimation_keeps_high_area_vertex(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(4, 5),
+               geompp.Point2D(6, 0), geompp.Point2D(8, 0)]
+        result = geompp.vw_decimation(pts, 6.0)
+        assert len(result) == 3
+        assert result[0].almost_equals(geompp.Point2D(0, 0))
+        assert result[1].almost_equals(geompp.Point2D(4, 5))
+        assert result[2].almost_equals(geompp.Point2D(8, 0))
+
+    def test_vw_decimation_threshold_below_all_areas_keeps_all_points(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(4, 0, 5),
+               geompp.Point3D(6, 0, 0), geompp.Point3D(8, 0, 0)]
+        result = geompp.vw_decimation(pts, 1.0)
+        assert len(result) == len(pts)
+
+
+class TestPolyline2DReduce:
+    def test_two_point_polyline_returns_unchanged(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 1)])
+        assert pl.almost_equals(pl.reduce())
+
+    def test_radial_distance(self):
+        # Note: a "peak" shape (not a straight line) is deliberate — Polyline2D.make() prunes exactly
+        # collinear knots at construction time, so a flat clustered dataset would collapse to its 2
+        # endpoints regardless of what reduce() does, defeating the test.
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(0.1, 0.05), geompp.Point2D(0.2, -0.05),
+                                     geompp.Point2D(5, 5), geompp.Point2D(5.1, 5.05), geompp.Point2D(10, 0)])
+        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RadialDistance, 1.0)
+        assert reduced.size() == 3
+        assert reduced[0].almost_equals(geompp.Point2D(0, 0))
+        assert reduced[1].almost_equals(geompp.Point2D(5, 5))
+        assert reduced[2].almost_equals(geompp.Point2D(10, 0))
+
+    def test_ramer_douglas_peucker(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(4, 5),
+                                     geompp.Point2D(6, 0), geompp.Point2D(8, 0)])
+        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 2.0)
+        expected = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 5), geompp.Point2D(8, 0)])
+        assert reduced.almost_equals(expected)
+
+    def test_visvalingam_whyatt(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(4, 5),
+                                     geompp.Point2D(6, 0), geompp.Point2D(8, 0)])
+        reduced = pl.reduce(geompp.PolylineDecimationStrategy.VisvalingamWhyatt, 6.0)
+        expected = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 5), geompp.Point2D(8, 0)])
+        assert reduced.almost_equals(expected)
+
+    def test_default_params_match_explicit_rdp_half_threshold(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0.01), geompp.Point2D(2, -0.01),
+                                     geompp.Point2D(3, 0), geompp.Point2D(4, 0)])
+        reduced_default = pl.reduce()
+        reduced_explicit = pl.reduce(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 0.5)
+        assert reduced_default.almost_equals(reduced_explicit)
+        expected = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0)])
+        assert reduced_default.almost_equals(expected)
+
+
+class TestPolyline3DReduce:
+    def test_two_point_polyline_returns_unchanged(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 1)])
+        assert pl.almost_equals(pl.reduce())
+
+    def test_radial_distance(self):
+        # Note: a "peak" shape (not a straight line) is deliberate — Polyline3D.make() prunes exactly
+        # collinear knots at construction time, so a flat clustered dataset would collapse to its 2
+        # endpoints regardless of what reduce() does, defeating the test.
+        pl = geompp.Polyline3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(0.1, 0, 0.05), geompp.Point3D(0.2, 0, -0.05),
+             geompp.Point3D(5, 0, 5), geompp.Point3D(5.1, 0, 5.05), geompp.Point3D(10, 0, 0)])
+        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RadialDistance, 1.0)
+        assert reduced.size() == 3
+        assert reduced[0].almost_equals(geompp.Point3D(0, 0, 0))
+        assert reduced[1].almost_equals(geompp.Point3D(5, 0, 5))
+        assert reduced[2].almost_equals(geompp.Point3D(10, 0, 0))
+
+    def test_ramer_douglas_peucker(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(4, 0, 5),
+                                     geompp.Point3D(6, 0, 0), geompp.Point3D(8, 0, 0)])
+        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 2.0)
+        expected = geompp.Polyline3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 5), geompp.Point3D(8, 0, 0)])
+        assert reduced.almost_equals(expected)
+
+    def test_visvalingam_whyatt(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(4, 0, 5),
+                                     geompp.Point3D(6, 0, 0), geompp.Point3D(8, 0, 0)])
+        reduced = pl.reduce(geompp.PolylineDecimationStrategy.VisvalingamWhyatt, 6.0)
+        expected = geompp.Polyline3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 5), geompp.Point3D(8, 0, 0)])
+        assert reduced.almost_equals(expected)
