@@ -1818,7 +1818,21 @@ template std::vector<Point3D> bezier_smoothing_2(Point3D p0, Point3D p1, Point3D
 
 template <typename PointT>
 std::vector<PointT> polyline_expansion(std::vector<PointT> const& input, PolylineExpansionParams const& settings) {
+  std::size_t n = input.size();
+
   std::vector<PointT> output;
+  // Upper bound on the final size: each of the (n-2) inner corners contributes at most
+  // segments_per_corner + 1 points in FixedSegments mode. MinDistance mode can't be sized exactly
+  // without redoing bezier_smoothing_2's own arc-length math per corner, so this is a rough
+  // (usually-undershooting) guess there — reserve() only needs to be in the right ballpark to avoid
+  // repeated reallocation as output grows, not exact.
+  if (n >= 2) {
+    std::size_t points_per_corner = settings.mode == PolylineExpansionParams::Mode::FixedSegments
+        ? static_cast<std::size_t>(std::max(settings.segments_per_corner, 1)) + 1
+        : 4;
+    output.reserve(2 + (n - 2) * points_per_corner);
+  }
+
   // Skips a point that would be a zero-length segment from the last one already in output — both a
   // corner fully skipped via min_segment_length (T0 == T1 == p1, so every one of its samples is the
   // same point) and, in principle, two adjacent corners' arcs meeting exactly at a shared edge's
@@ -1837,7 +1851,6 @@ std::vector<PointT> polyline_expansion(std::vector<PointT> const& input, Polylin
   // 2. Loop over every INNER corner (index 1 through N-2). p0/p1/p2 always come from the ORIGINAL
   // input, never from the growing output buffer — see the doc comment in calc_utils2d.hpp for why
   // that matters (it's what keeps adjacent corners' trims from ever exceeding their shared edge).
-  std::size_t n = input.size();
   for (std::size_t i = 1; i < n - 1; ++i) {
     PointT const& p0 = input[i - 1];
     PointT const& p1 = input[i];  // The corner point

@@ -1433,6 +1433,11 @@ A quick list of code examples per topic is provided here.
 
 </details>
 
+Here is an example of polyline reduction / expansion in jupyter notebook 
+
+
+![polyline_ops_examples](etc/polyline_changes_py.png)
+
 </details>
 
 </details>
@@ -2753,6 +2758,13 @@ A quick list of code examples per topic is provided here.
   work — call it directly when you want to round a raw point list without constructing a `Polyline`.
 
 </details>
+
+
+Here is an example of polyline reduction / expansion in jupyter notebook 
+
+
+![polyline_ops_examples](etc/polyline_changes_py.png)
+
 
 </details>
 
@@ -4076,6 +4088,13 @@ A quick list of code examples per topic is provided here.
   the same way without constructing a `Polyline` first.
 
 </details>
+
+
+Here is an example of polyline reduction / expansion in jupyter notebook 
+
+
+![polyline_ops_examples](etc/polyline_changes_py.png)
+
 
 </details>
 
