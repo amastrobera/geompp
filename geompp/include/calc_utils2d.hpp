@@ -277,11 +277,22 @@ struct IntersectionEvent2D {
   bool operator==(IntersectionEvent2D const& other) const;
 };
 
-/// @brief Hooks invoked during the Bentley-Ottmann sweep (see run_bentley_ottmann). Both hooks return true to
-/// stop the sweep immediately (short-circuit), false to keep scanning.
-/// OnStart fires once a segment becomes active (its LEFT event). OnIntersection fires once per confirmed
-/// crossing between two segments — possibly several times for the same point when 3+ segments meet there;
-/// the visitor owns whatever deduplication/collection it needs.
+/// @brief Hooks invoked during the Bentley-Ottmann sweep (see run_bentley_ottmann).
+/// OnStart/OnIntersection return true to stop the sweep immediately (short-circuit), false to keep
+/// scanning. OnStart fires once a segment becomes active (its LEFT event). OnIntersection fires once
+/// per confirmed crossing between two segments — possibly several times for the same point when 3+
+/// segments meet there; the visitor owns whatever deduplication/collection it needs.
+/// TestPair supplies the actual segment-pair predicate the sweep uses to decide whether two segments
+/// that just became adjacent in the sweep-line status interact at all, and where: it returns 0 points
+/// (no interaction), 1 (a transversal crossing), or 2 (collinear, overlapping — the shared sub-segment's
+/// endpoints). Pulling this out of the algorithm and into the visitor means a visitor that wants
+/// LineSegment2D::Intersection() alone, or Intersection() || Overlap() together, is a policy choice made
+/// once per visitor — not a second, separately-implemented pass over the whole segment set. Because the
+/// test only ever runs on pairs the sweep-line already brought adjacent, adding the Overlap() case costs
+/// nothing asymptotically: still the same O((n+k) log n) the sweep already guarantees for crossings,
+/// since two collinear overlapping segments are necessarily adjacent in the sweep-line ordering
+/// throughout their shared x-range (same argument that makes the crossing case correct in the first
+/// place).
 template <typename Visitor, typename Segments>
 concept BentleyOttmannVisitor2D = requires(Visitor& v, typename SweepLine2D<Segments>::IdSegPair const& seg,
                                            IntersectionEvent2D const& hit) {
@@ -289,13 +300,17 @@ concept BentleyOttmannVisitor2D = requires(Visitor& v, typename SweepLine2D<Segm
   ->std::convertible_to<bool>;
   { v.OnIntersection(hit) }
   ->std::convertible_to<bool>;
+  { v.TestPair(seg.Seg, seg.Seg) }
+  ->std::convertible_to<std::vector<Point2D>>;
 };
 
 /// @brief The Bentley-Ottmann sweep, generalized with a visitor so callers can implement different algorithms
-/// (collection, counting, early-exit, ...) on top of the same O((n+k) log n) crossing-detection scan.
+/// (collection, counting, early-exit, ...) and different segment-pair predicates (exact crossings only, or
+/// crossings plus collinear overlap) on top of the same O((n+k) log n) scan.
 /// @param segments list of segments (can be generic list of segments or segments of the polygon)
-/// @param visitor  called at each LEFT event (OnStart) and at each confirmed crossing (OnIntersection); the
-/// sweep stops as soon as either hook returns true.
+/// @param visitor  called at each LEFT event (OnStart), for each newly-adjacent pair (TestPair), and at
+/// each confirmed crossing/overlap-endpoint (OnIntersection); the sweep stops as soon as OnStart or
+/// OnIntersection returns true.
 /// @returns true if the sweep was stopped early by the visitor, false if the whole queue was drained.
 /// @throws less than 2 segments arguments, or algorithm based throw logic
 template <SegmentList Segments, typename Visitor>
@@ -337,14 +352,14 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
       }
 
       if (elem.Above && !shares_endpoint(elem.Segment->Seg, elem.Above->Seg)) {
-        if (auto inter_p = elem.Segment->Seg.Intersection(elem.Above->Seg)) {
-          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Segment->Id, elem.Above->Id});
+        for (auto const& pt : visitor.TestPair(elem.Segment->Seg, elem.Above->Seg)) {
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, pt, elem.Segment->Id, elem.Above->Id});
         }
       }
 
       if (elem.Below && !shares_endpoint(elem.Below->Seg, elem.Segment->Seg)) {
-        if (auto inter_p = elem.Below->Seg.Intersection(elem.Segment->Seg)) {
-          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Below->Id, elem.Segment->Id});
+        for (auto const& pt : visitor.TestPair(elem.Below->Seg, elem.Segment->Seg)) {
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, pt, elem.Below->Id, elem.Segment->Id});
         }
       }
 
@@ -361,8 +376,8 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
                                            // removed to the new neighbours after removal
 
       if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
-        if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
-          auto inter_event = Event2D{EventType2D::INTERSECTION, inter_p.value(), below_elem->Id, above_elem->Id};
+        for (auto const& pt : visitor.TestPair(above_elem->Seg, below_elem->Seg)) {
+          auto inter_event = Event2D{EventType2D::INTERSECTION, pt, below_elem->Id, above_elem->Id};
           if (!event_queue.Contains(inter_event)) {
             event_queue.Push(inter_event);
           }
@@ -427,8 +442,8 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
       // (4) check the new above/below intersections
       // now : segB < seg2 < seg1 < segA
       if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
-        if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg1.Segment->Id, new_seg1.Above->Id};
+        for (auto const& pt : visitor.TestPair(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, pt, new_seg1.Segment->Id, new_seg1.Above->Id};
           if (!event_queue.Contains(inter_ev)) {
             event_queue.Push(inter_ev);
           }
@@ -436,8 +451,8 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
       }
 
       if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
-        if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg2.Below->Id, new_seg2.Segment->Id};
+        for (auto const& pt : visitor.TestPair(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, pt, new_seg2.Below->Id, new_seg2.Segment->Id};
           if (!event_queue.Contains(inter_ev)) {
             event_queue.Push(inter_ev);
           }
@@ -459,11 +474,11 @@ template <SegmentList Segments>
 std::vector<IntersectionEvent2D> find_intersections(Segments const& segments);
 
 /// @brief Splits every segment in @p segs at each crossing point Bentley-Ottmann finds among them, so
-/// that no two segments in the result cross except at shared endpoints. Also splits collinear,
-/// partially-overlapping segment pairs at their shared sub-segment's endpoints (via
-/// LineSegment2D::Overlap) — a case find_intersections doesn't cover, since LineSegment2D::Intersection
-/// returns nullopt for parallel input. Shared by simplify_rings() and boolean_op() — the step that turns
-/// an arbitrary segment soup into one ready for half-edge face tracing.
+/// that no two segments in the result cross except at shared endpoints — including collinear,
+/// partially-overlapping pairs, split at their shared sub-segment's endpoints (find_intersections'
+/// sweep-line visitor tries LineSegment2D::Intersection then falls back to LineSegment2D::Overlap for
+/// exactly this case, at no extra asymptotic cost). Shared by simplify_rings() and boolean_op() — the
+/// step that turns an arbitrary segment soup into one ready for half-edge face tracing.
 std::vector<LineSegment2D> split_segments_at_crossings(std::vector<LineSegment2D> const& segs);
 
 enum class BooleanOp { Union, Intersection, Difference, Xor };

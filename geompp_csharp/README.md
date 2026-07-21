@@ -100,7 +100,7 @@ directly, without needing a class instance first:
 | `GeomUtil.RdpDecimation(points, threshold)` | Ramer–Douglas–Peucker point decimation |
 | `GeomUtil.VwDecimation(points, threshold)` | Visvalingam–Whyatt point decimation |
 | `GeomUtil.BezierSmoothing2(p0, p1, p2, smoothness, minDistance\|numSegments[, minSegmentLength])` | Rounds one polyline corner with a quadratic Bezier arc |
-| `GeomUtil.PolylineExpansion(points, settings)` | Rounds every inner corner of a point list (the engine behind `Polyline.Expand()`) |
+| `GeomUtil.PolylineExpansion(points, settings)` | Rounds every inner corner of a point list and works with either fixed number of segmens or fixed min segment length (the engine behind `Polyline.Expand()`) |
 | `GeomUtil.PrincipalAxes(points)` | PCA on a point cloud: returns a `CoordinateFrame` (`.X` primary, `.Y` secondary, `.Z` best-fit normal) |
 | `GeomUtil.PrincipalNormal(points)` | Best-fit plane normal (PCA eigenvector with smallest eigenvalue) |
 | `GeomUtil.PrincipalDirection(points)` | Dominant direction (PCA eigenvector with largest eigenvalue) |

@@ -362,6 +362,21 @@ struct CollectIntersectionsVisitor2D {
 
   bool OnStart(auto const&) { return false; }
 
+  // Intersection() alone misses collinear, partially-overlapping segments — it returns nullopt for
+  // parallel input (no unique point), so two segments that merely overlap along a shared sub-interval
+  // would otherwise never generate an event. Overlap() finds that shared sub-segment directly (and
+  // already discounts a mere shared-endpoint touch, returning nullopt for that), so its endpoints are
+  // reported the same way a transversal crossing point would be.
+  std::vector<Point2D> TestPair(LineSegment2D const& a, LineSegment2D const& b) const {
+    if (auto p = a.Intersection(b)) {
+      return {p.value()};
+    }
+    if (auto overlap = a.Overlap(b)) {
+      return {overlap->First(), overlap->Last()};
+    }
+    return {};
+  }
+
   bool OnIntersection(IntersectionEvent2D const& hit) {
     auto it = Output.find(hit);
     if (it == Output.end()) {
@@ -422,31 +437,14 @@ std::vector<LineSegment2D> split_segments_at_crossings(std::vector<LineSegment2D
   auto crossings = detail::find_intersections(segs);
 
   // map: segment index → crossing points on that segment
+  // find_intersections()'s sweep already reports both transversal crossings AND collinear-overlap
+  // endpoints (CollectIntersectionsVisitor2D::TestPair tries Intersection() then falls back to
+  // Overlap()), so no separate all-pairs pass is needed here — everything below is O((n+k) log n), the
+  // same bound the sweep itself guarantees.
   std::map<std::size_t, std::vector<Point2D>> seg_cp;
   for (auto const& ev : crossings) {
     for (auto id : ev.SegmentIds) {
       seg_cp[id].push_back(ev.Point);
-    }
-  }
-
-  // find_intersections only reports single-point crossings — LineSegment2D::Intersection returns
-  // nullopt for parallel input (no unique solution), so two collinear, partially-overlapping segments
-  // never generate a crossing event at all and would otherwise pass through unsplit. Overlap() finds
-  // the shared sub-segment directly (and already discounts a mere shared-endpoint touch, returning
-  // nullopt for that), so both its endpoints become extra split points on both segments. This is an
-  // O(n^2) pass in the segment count, separate from the O(n log n) sweep above, since collinear overlap
-  // isn't something the sweep's neighbor-adjacency check surfaces on its own.
-  for (std::size_t i = 0; i < segs.size(); ++i) {
-    for (std::size_t j = i + 1; j < segs.size(); ++j) {
-      if (shares_endpoint(segs[i], segs[j])) {
-        continue;
-      }
-      if (auto overlap = segs[i].Overlap(segs[j])) {
-        seg_cp[i].push_back(overlap->First());
-        seg_cp[i].push_back(overlap->Last());
-        seg_cp[j].push_back(overlap->First());
-        seg_cp[j].push_back(overlap->Last());
-      }
     }
   }
 

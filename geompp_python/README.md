@@ -93,7 +93,7 @@ what the operation produced — check each method's docstring for the exact shap
 | `rdp_decimation(points, threshold)` | Ramer–Douglas–Peucker point decimation |
 | `vw_decimation(points, threshold)` | Visvalingam–Whyatt point decimation |
 | `bezier_smoothing_2(p0, p1, p2, smoothness, min_distance\|num_segments, min_segment_length=...)` | Rounds one polyline corner with a quadratic Bezier arc |
-| `polyline_expansion(points, settings)` | Rounds every inner corner of a point list (the engine behind `Polyline.expand()`) |
+| `polyline_expansion(points, settings)` | Rounds every inner corner of a point list and works with either fixed number of segmens or fixed min segment length (the engine behind `Polyline.expand()`) |
 | `principal_axes(points)` | PCA on a `list[Point3D]`: returns `CoordinateFrame` (`.x` primary, `.y` secondary, `.z` best-fit normal) |
 | `principal_normal(points)` | Best-fit plane normal of a `list[Point3D]` (PCA eigenvector with smallest eigenvalue) |
 | `principal_direction(points)` | Dominant direction of a `list[Point3D]` (PCA eigenvector with largest eigenvalue) |
