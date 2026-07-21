@@ -1,11 +1,14 @@
 #pragma once
 
+#include "constants.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
 
 #include <cstddef>
+#include <format>
 #include <iterator>
 #include <ranges>
+#include <stdexcept>
 #include <vector>
 
 namespace geompp {
@@ -21,9 +24,11 @@ class SegmentIterator2D {
   SegmentIterator2D(std::vector<Point2D> const* pts, std::size_t i, bool closed)
       : PTS(pts), I(i), CLOSED(closed) {}
 
+  // Unchecked on purpose: PTS was already validated once, in full, by the SegmentRange2D that produced this
+  // iterator (see SegmentRange2D's constructor) — see the friendship comment on LineSegment2D.
   LineSegment2D operator*() const {
     std::size_t j = CLOSED ? (I + 1) % PTS->size() : I + 1;
-    return LineSegment2D::Make((*PTS)[I], (*PTS)[j]);
+    return LineSegment2D((*PTS)[I], (*PTS)[j]);
   }
 
   SegmentIterator2D& operator++() { ++I; return *this; }
@@ -40,8 +45,21 @@ class SegmentIterator2D {
 
 class SegmentRange2D {
  public:
-  SegmentRange2D(std::vector<Point2D> const& pts, bool closed = false)
-      : PTS(&pts), CLOSED(closed) {}
+  // Validates every consecutive pair (including the closing edge, when closed) once, up front — the same
+  // degeneracy check LineSegment2D::Make() does, but paid once here instead of on every operator[]/operator*()
+  // access. begin()/end()/operator[] then build segments through LineSegment2D's private constructor (this
+  // class is a friend), skipping that now-redundant re-check.
+  SegmentRange2D(std::vector<Point2D> const& pts, bool closed = false) : PTS(&pts), CLOSED(closed) {
+    std::size_t n = pts.size();
+    std::size_t edges = closed ? n : (n > 0 ? n - 1 : 0);
+    for (std::size_t i = 0; i < edges; ++i) {
+      std::size_t j = closed ? (i + 1) % n : i + 1;
+      if (pts[i].AlmostEquals(pts[j])) {
+        throw std::runtime_error(std::format("point {} and {} are too close with {} decimals precision",
+                                             pts[i].ToWkt(), pts[j].ToWkt(), DECIMAL_PRECISION));
+      }
+    }
+  }
 
   SegmentIterator2D begin() const { return {PTS, 0, CLOSED}; }
   SegmentIterator2D end()   const {
@@ -54,7 +72,7 @@ class SegmentRange2D {
   }
   LineSegment2D operator[](std::size_t i) const {
     std::size_t j = CLOSED ? (i + 1) % PTS->size() : i + 1;
-    return LineSegment2D::Make((*PTS)[i], (*PTS)[j]);
+    return LineSegment2D((*PTS)[i], (*PTS)[j]);
   }
 
  private:

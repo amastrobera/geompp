@@ -533,7 +533,7 @@ TEST_F(Polyline3DTest, Reduce_RadialDistance_RemovesClusteredKnots) {
   // endpoints regardless of what Reduce() does, defeating the test.
   auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(0.1, 0, 0.05), g::Point3D(0.2, 0, -0.05),
                                  g::Point3D(5, 0, 5), g::Point3D(5.1, 0, 5.05), g::Point3D(10, 0, 0)});
-  auto reduced = pl.Reduce(g::PolylineDecimationStrategy::RadialDistance, 1.0);
+  auto reduced = pl.Reduce({.strategy = g::PolylineDecimationParams::Strategy::RadialDistance, .threshold = 1.0});
   ASSERT_EQ(3, reduced.Size());
   EXPECT_TRUE(reduced[0].AlmostEquals(g::Point3D(0, 0, 0)));
   EXPECT_TRUE(reduced[1].AlmostEquals(g::Point3D(5, 0, 5)));
@@ -543,7 +543,7 @@ TEST_F(Polyline3DTest, Reduce_RadialDistance_RemovesClusteredKnots) {
 TEST_F(Polyline3DTest, Reduce_RamerDouglasPeucker_KeepsPeakDiscardsShoulders) {
   auto pl = g::Polyline3D::Make(
       {g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(4, 0, 5), g::Point3D(6, 0, 0), g::Point3D(8, 0, 0)});
-  auto reduced = pl.Reduce(g::PolylineDecimationStrategy::RamerDouglasPeucker, 2.0);
+  auto reduced = pl.Reduce({.strategy = g::PolylineDecimationParams::Strategy::RamerDouglasPeucker, .threshold = 2.0});
   auto expected = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 5), g::Point3D(8, 0, 0)});
   EXPECT_EQ(expected, reduced);
 }
@@ -551,7 +551,7 @@ TEST_F(Polyline3DTest, Reduce_RamerDouglasPeucker_KeepsPeakDiscardsShoulders) {
 TEST_F(Polyline3DTest, Reduce_VisvalingamWhyatt_KeepsHighAreaVertex) {
   auto pl = g::Polyline3D::Make(
       {g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(4, 0, 5), g::Point3D(6, 0, 0), g::Point3D(8, 0, 0)});
-  auto reduced = pl.Reduce(g::PolylineDecimationStrategy::VisvalingamWhyatt, 6.0);
+  auto reduced = pl.Reduce({.strategy = g::PolylineDecimationParams::Strategy::VisvalingamWhyatt, .threshold = 6.0});
   auto expected = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 5), g::Point3D(8, 0, 0)});
   EXPECT_EQ(expected, reduced);
 }
@@ -560,11 +560,61 @@ TEST_F(Polyline3DTest, Reduce_DefaultParams_MatchesExplicitRdpHalfThreshold) {
   auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0.01), g::Point3D(2, 0, -0.01),
                                  g::Point3D(3, 0, 0), g::Point3D(4, 0, 0)});
   auto reducedDefault = pl.Reduce();
-  auto reducedExplicit = pl.Reduce(g::PolylineDecimationStrategy::RamerDouglasPeucker, 0.5);
+  auto reducedExplicit = pl.Reduce({.strategy = g::PolylineDecimationParams::Strategy::RamerDouglasPeucker, .threshold = 0.5});
   EXPECT_EQ(reducedExplicit, reducedDefault);
 
   auto expected = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0)});
   EXPECT_EQ(expected, reducedDefault);
+}
+
+// ---- Expand ---------------------------------------------------------------
+
+TEST_F(Polyline3DTest, Expand_TwoPointPolyline_ReturnsUnchanged) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 1, 1)});
+  auto expanded = pl.Expand({});
+  EXPECT_EQ(pl, expanded);
+}
+
+TEST_F(Polyline3DTest, Expand_SmoothsInnerCorner_TrimmedTangentsAppearInOutput) {
+  // len(p0,p1) == len(p2,p1) == 2, smoothness=1.0 -> max_trim=1: T0=(1,0,0), T1=(2,1,0) (same
+  // in-plane geometry as the Polyline2D case, just embedded with a z=0).
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0)});
+  auto expanded = pl.Expand({.smoothness = 1.0,
+                             .mode = g::PolylineExpansionParams::Mode::FixedSegments,
+                             .segments_per_corner = 3});
+
+  EXPECT_TRUE(expanded[0].AlmostEquals(g::Point3D(0, 0, 0)));
+  EXPECT_TRUE(expanded[expanded.Size() - 1].AlmostEquals(g::Point3D(2, 2, 0)));
+
+  bool has_t0 = false, has_t1 = false;
+  for (int i = 0; i < expanded.Size(); ++i) {
+    if (expanded[i].AlmostEquals(g::Point3D(1, 0, 0))) has_t0 = true;
+    if (expanded[i].AlmostEquals(g::Point3D(2, 1, 0))) has_t1 = true;
+  }
+  EXPECT_TRUE(has_t0);
+  EXPECT_TRUE(has_t1);
+
+  for (int i = 0; i < expanded.Size(); ++i) {
+    EXPECT_FALSE(expanded[i].AlmostEquals(g::Point3D(2, 0, 0)));
+  }
+}
+
+TEST_F(Polyline3DTest, Expand_MinSegmentLength_SkipsShortCorner_MatchesOriginal) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(0.5, 0, 0), g::Point3D(0.5, 0.5, 0)});
+  auto expanded = pl.Expand({.smoothness = 1.0, .segments_per_corner = 4, .min_segment_length = 1.0});
+  EXPECT_EQ(pl, expanded);
+}
+
+TEST_F(Polyline3DTest, Expand_MinDistanceMode_SmallerMinDistanceYieldsMorePoints) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0)});
+  auto coarse = pl.Expand({.smoothness = 1.0, .mode = g::PolylineExpansionParams::Mode::MinDistance, .min_distance = 1.0});
+  auto fine   = pl.Expand({.smoothness = 1.0, .mode = g::PolylineExpansionParams::Mode::MinDistance, .min_distance = 0.5});
+  EXPECT_LT(coarse.Size(), fine.Size());
+}
+
+TEST_F(Polyline3DTest, Expand_InvalidSegmentsPerCorner_Throws) {
+  auto pl = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 2, 0)});
+  EXPECT_THROW(pl.Expand({.segments_per_corner = 0}), std::invalid_argument);
 }
 
 }  // namespace geompp_tests

@@ -40,18 +40,26 @@ class Polyline2D {
   /// that case). So please check IsSimple() before running this.
   Polygon2D ConvexHull();
 
-  /// @brief Reduces the polyline to one with less vertices
-  /// @param strategy decimation strategy
-  ///         - RadialDistance (brute force) -> O(N). Linear vertex reduction (the distance between each vertex smaller
-  ///                                                 than threshold)
-  ///         - RamerDouglasPeucker -> O(N.LogN) to O(N^2). Given ponts P1,P2,P3, the distance of P2 from P1->P3 segment
-  ///                                                       should be smaller than a threshold.
-  ///         - VisvalingamWhyatt -> O(N.LogN) to O(N^2). Given ponts P1,P2,P3, the area of the triangle P1-P2-P3
-  ///                                                     should be smaller than a threshold.
-  /// @param threshold
-  /// @return
-  Polyline2D Reduce(PolylineDecimationStrategy strategy = PolylineDecimationStrategy::RamerDouglasPeucker,
-                    double threshold = 0.5) const;
+  /// @brief Reduces the polyline to one with fewer vertices.
+  /// @param settings bundles the decimation strategy and its threshold — see PolylineDecimationParams and
+  /// PolylineDecimationParams::Strategy for the per-strategy behavior and Big-O. Defaults to
+  /// `{RamerDouglasPeucker, 0.5}`, so `Reduce()` with no arguments keeps working.
+  /// @return A copy of this polyline with fewer vertices.
+  Polyline2D Reduce(PolylineDecimationParams const& settings = PolylineDecimationParams{}) const;
+
+  /// @brief Rounds every inner corner of the polyline with a quadratic Bezier arc — the inverse
+  /// direction of Reduce(): this adds vertices rather than removing them. Each corner is delegated to
+  /// bezier_smoothing_2 independently (see PolylineExpansionParams for the per-corner controls); the
+  /// true first/last knots are never smoothed. Corners whose sampled arc collapses to a single point
+  /// (see PolylineExpansionParams::min_segment_length) are deduplicated rather than emitted as
+  /// repeated/zero-length segments.
+  /// @param settings bundles smoothness, sampling density, and the tiny-corner skip threshold.
+  /// Defaults to `{0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON}`, so `Expand()` with no arguments works.
+  /// @return A copy of this polyline with rounded corners. Unchanged if it has fewer than 3 knots
+  /// (no inner corner exists to round).
+  /// @throws std::invalid_argument if settings.mode == FixedSegments and settings.segments_per_corner < 1,
+  /// or if settings.mode == MinDistance and settings.min_distance <= 0 (propagated from bezier_smoothing_2).
+  Polyline2D Expand(PolylineExpansionParams const& settings = PolylineExpansionParams{}) const;
 
 #pragma region line operations
 

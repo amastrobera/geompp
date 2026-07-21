@@ -5460,6 +5460,67 @@ class TestDecimationFreeFunctions:
         assert len(result) == len(pts)
 
 
+# ─── bezier_smoothing_2 (min_distance / num_segments overloads) ───
+
+class TestBezierSmoothing2FreeFunction:
+    def test_min_distance_not_positive_raises(self):
+        p0, p1, p2 = geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)
+        with pytest.raises(ValueError):
+            geompp.bezier_smoothing_2(p0, p1, p2, 0.5, 0.0)
+
+    def test_num_segments_less_than_one_raises(self):
+        p0, p1, p2 = geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)
+        with pytest.raises(ValueError):
+            geompp.bezier_smoothing_2(p0, p1, p2, 0.5, 0)
+
+    def test_endpoints_are_trimmed_tangents(self):
+        # len1 == len2 == 2, smoothness=1.0 -> max_trim=1: T0=(1,0), T1=(2,1)
+        p0, p1, p2 = geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)
+        result = geompp.bezier_smoothing_2(p0, p1, p2, 1.0, 1.0)
+        assert result[0].almost_equals(geompp.Point2D(1, 0))
+        assert result[-1].almost_equals(geompp.Point2D(2, 1))
+
+    def test_num_segments_overload_produces_exact_point_count(self):
+        p0, p1, p2 = geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)
+        result = geompp.bezier_smoothing_2(p0, p1, p2, 1.0, 3)
+        assert len(result) == 4
+
+    def test_smoothness_zero_collapses_to_corner(self):
+        p0, p1, p2 = geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)
+        result = geompp.bezier_smoothing_2(p0, p1, p2, 0.0, 0.5)
+        assert all(p.almost_equals(p1) for p in result)
+
+    def test_coincident_p0_p1_no_nan_collapses_to_corner(self):
+        p1, p2 = geompp.Point2D(1, 1), geompp.Point2D(3, 1)
+        result = geompp.bezier_smoothing_2(p1, p1, p2, 0.5, 0.1)
+        for p in result:
+            assert not math.isnan(p.x)
+            assert not math.isnan(p.y)
+            assert p.almost_equals(p1)
+
+    def test_point3d_overload(self):
+        p0 = geompp.Point3D(0, 0, 0)
+        p1 = geompp.Point3D(2, 0, 0)
+        p2 = geompp.Point3D(2, 2, 0)
+        result = geompp.bezier_smoothing_2(p0, p1, p2, 1.0, 1.0)
+        assert result[0].almost_equals(geompp.Point3D(1, 0, 0))
+        assert result[-1].almost_equals(geompp.Point3D(2, 1, 0))
+
+
+class TestPolylineDecimationParams:
+    def test_defaults(self):
+        p = geompp.PolylineDecimationParams()
+        assert p.strategy == geompp.PolylineDecimationStrategy.RamerDouglasPeucker
+        assert p.threshold == 0.5
+
+    def test_explicit_construction_and_readwrite(self):
+        p = geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.VisvalingamWhyatt, 2.0)
+        assert p.strategy == geompp.PolylineDecimationStrategy.VisvalingamWhyatt
+        assert p.threshold == 2.0
+        p.threshold = 3.5
+        assert p.threshold == 3.5
+
+
 class TestPolyline2DReduce:
     def test_two_point_polyline_returns_unchanged(self):
         pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 1)])
@@ -5471,7 +5532,7 @@ class TestPolyline2DReduce:
         # endpoints regardless of what reduce() does, defeating the test.
         pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(0.1, 0.05), geompp.Point2D(0.2, -0.05),
                                      geompp.Point2D(5, 5), geompp.Point2D(5.1, 5.05), geompp.Point2D(10, 0)])
-        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RadialDistance, 1.0)
+        reduced = pl.reduce(geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.RadialDistance, 1.0))
         assert reduced.size() == 3
         assert reduced[0].almost_equals(geompp.Point2D(0, 0))
         assert reduced[1].almost_equals(geompp.Point2D(5, 5))
@@ -5480,14 +5541,14 @@ class TestPolyline2DReduce:
     def test_ramer_douglas_peucker(self):
         pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(4, 5),
                                      geompp.Point2D(6, 0), geompp.Point2D(8, 0)])
-        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 2.0)
+        reduced = pl.reduce(geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 2.0))
         expected = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 5), geompp.Point2D(8, 0)])
         assert reduced.almost_equals(expected)
 
     def test_visvalingam_whyatt(self):
         pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(4, 5),
                                      geompp.Point2D(6, 0), geompp.Point2D(8, 0)])
-        reduced = pl.reduce(geompp.PolylineDecimationStrategy.VisvalingamWhyatt, 6.0)
+        reduced = pl.reduce(geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.VisvalingamWhyatt, 6.0))
         expected = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 5), geompp.Point2D(8, 0)])
         assert reduced.almost_equals(expected)
 
@@ -5495,7 +5556,7 @@ class TestPolyline2DReduce:
         pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0.01), geompp.Point2D(2, -0.01),
                                      geompp.Point2D(3, 0), geompp.Point2D(4, 0)])
         reduced_default = pl.reduce()
-        reduced_explicit = pl.reduce(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 0.5)
+        reduced_explicit = pl.reduce(geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 0.5))
         assert reduced_default.almost_equals(reduced_explicit)
         expected = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(4, 0)])
         assert reduced_default.almost_equals(expected)
@@ -5513,7 +5574,7 @@ class TestPolyline3DReduce:
         pl = geompp.Polyline3D.make(
             [geompp.Point3D(0, 0, 0), geompp.Point3D(0.1, 0, 0.05), geompp.Point3D(0.2, 0, -0.05),
              geompp.Point3D(5, 0, 5), geompp.Point3D(5.1, 0, 5.05), geompp.Point3D(10, 0, 0)])
-        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RadialDistance, 1.0)
+        reduced = pl.reduce(geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.RadialDistance, 1.0))
         assert reduced.size() == 3
         assert reduced[0].almost_equals(geompp.Point3D(0, 0, 0))
         assert reduced[1].almost_equals(geompp.Point3D(5, 0, 5))
@@ -5522,7 +5583,7 @@ class TestPolyline3DReduce:
     def test_ramer_douglas_peucker(self):
         pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(4, 0, 5),
                                      geompp.Point3D(6, 0, 0), geompp.Point3D(8, 0, 0)])
-        reduced = pl.reduce(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 2.0)
+        reduced = pl.reduce(geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.RamerDouglasPeucker, 2.0))
         expected = geompp.Polyline3D.make(
             [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 5), geompp.Point3D(8, 0, 0)])
         assert reduced.almost_equals(expected)
@@ -5530,7 +5591,102 @@ class TestPolyline3DReduce:
     def test_visvalingam_whyatt(self):
         pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(4, 0, 5),
                                      geompp.Point3D(6, 0, 0), geompp.Point3D(8, 0, 0)])
-        reduced = pl.reduce(geompp.PolylineDecimationStrategy.VisvalingamWhyatt, 6.0)
+        reduced = pl.reduce(geompp.PolylineDecimationParams(geompp.PolylineDecimationStrategy.VisvalingamWhyatt, 6.0))
         expected = geompp.Polyline3D.make(
             [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 5), geompp.Point3D(8, 0, 0)])
         assert reduced.almost_equals(expected)
+
+
+class TestPolylineExpansionParams:
+    def test_defaults(self):
+        # min_segment_length defaults to DOUBLE_EPSILON, which tracks the current DECIMAL_PRECISION
+        # (10 ** -precision) rather than a fixed constant.
+        geompp.set_decimal_precision(geompp.DP_THREE)
+        p = geompp.PolylineExpansionParams()
+        assert p.smoothness == 0.5
+        assert p.mode == geompp.PolylineExpansionMode.FixedSegments
+        assert p.segments_per_corner == 4
+        assert p.min_distance == 0.1
+        assert p.min_segment_length == pytest.approx(10 ** -geompp.DP_THREE)
+
+    def test_explicit_construction_and_readwrite(self):
+        p = geompp.PolylineExpansionParams(smoothness=1.0, mode=geompp.PolylineExpansionMode.MinDistance,
+                                           min_distance=0.2, min_segment_length=0.05)
+        assert p.smoothness == 1.0
+        assert p.mode == geompp.PolylineExpansionMode.MinDistance
+        assert p.min_distance == 0.2
+        assert p.min_segment_length == 0.05
+        p.segments_per_corner = 10
+        assert p.segments_per_corner == 10
+
+
+class TestPolylineExpansionFreeFunction:
+    def test_two_point_input_returns_unchanged(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 1)]
+        result = geompp.polyline_expansion(pts, geompp.PolylineExpansionParams())
+        assert len(result) == 2
+        assert result[0].almost_equals(pts[0])
+        assert result[1].almost_equals(pts[1])
+
+    def test_smooths_inner_corner(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)]
+        settings = geompp.PolylineExpansionParams(smoothness=1.0, segments_per_corner=3)
+        result = geompp.polyline_expansion(pts, settings)
+        assert result[0].almost_equals(geompp.Point2D(0, 0))
+        assert result[-1].almost_equals(geompp.Point2D(2, 2))
+        assert any(p.almost_equals(geompp.Point2D(1, 0)) for p in result)
+        assert any(p.almost_equals(geompp.Point2D(2, 1)) for p in result)
+
+    def test_multiple_corners_each_uses_its_own_original_knots(self):
+        # Regression guard: p0/p1 for each corner must come from the original input, not from the
+        # already-built output — see the C++ test of the same name for the full rationale. Two
+        # consecutive right-angle corners sharing a length-2 edge, smoothness=1.0, so both corners'
+        # trims meet exactly at the shared edge's midpoint (2, 1), deduplicated to one occurrence.
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2), geompp.Point2D(0, 2)]
+        settings = geompp.PolylineExpansionParams(smoothness=1.0, segments_per_corner=3)
+        result = geompp.polyline_expansion(pts, settings)
+        assert result[0].almost_equals(geompp.Point2D(0, 0))
+        assert result[-1].almost_equals(geompp.Point2D(0, 2))
+        midpoint_count = sum(1 for p in result if p.almost_equals(geompp.Point2D(2, 1)))
+        assert midpoint_count == 1
+        assert any(p.almost_equals(geompp.Point2D(1, 2)) for p in result)
+
+    def test_min_segment_length_skips_short_corner(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(0.5, 0), geompp.Point2D(0.5, 0.5)]
+        settings = geompp.PolylineExpansionParams(smoothness=1.0, segments_per_corner=4, min_segment_length=1.0)
+        result = geompp.polyline_expansion(pts, settings)
+        assert len(result) == len(pts)
+        for a, b in zip(result, pts):
+            assert a.almost_equals(b)
+
+
+class TestPolyline2DExpand:
+    def test_default_params_work(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)])
+        expanded = pl.expand()
+        assert expanded.size() >= pl.size()
+
+    def test_invalid_segments_per_corner_raises(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)])
+        with pytest.raises(ValueError):
+            pl.expand(geompp.PolylineExpansionParams(segments_per_corner=0))
+
+    def test_min_distance_mode_smaller_min_distance_yields_more_points(self):
+        pl = geompp.Polyline2D.make([geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 2)])
+        coarse = pl.expand(geompp.PolylineExpansionParams(
+            smoothness=1.0, mode=geompp.PolylineExpansionMode.MinDistance, min_distance=1.0))
+        fine = pl.expand(geompp.PolylineExpansionParams(
+            smoothness=1.0, mode=geompp.PolylineExpansionMode.MinDistance, min_distance=0.5))
+        assert coarse.size() < fine.size()
+
+
+class TestPolyline3DExpand:
+    def test_default_params_work(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(2, 2, 0)])
+        expanded = pl.expand()
+        assert expanded.size() >= pl.size()
+
+    def test_invalid_segments_per_corner_raises(self):
+        pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(2, 2, 0)])
+        with pytest.raises(ValueError):
+            pl.expand(geompp.PolylineExpansionParams(segments_per_corner=0))

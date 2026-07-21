@@ -4946,6 +4946,85 @@ Test("VwDecimation_ThresholdBelowAllAreas_KeepsAllPoints", () => {
   Eq(pts.Count, result.Count, 0);
 });
 
+// ── BezierSmoothing2 (GeomUtil.BezierSmoothing2: MinDistance / NumSegments overloads) ─
+Console.WriteLine("\nBezierSmoothing2 (free function)");
+
+Test("BezierSmoothing2_MinDistanceNotPositive_Throws", () => {
+  var p0 = new Point2D(0, 0); var p1 = new Point2D(2, 0); var p2 = new Point2D(2, 2);
+  bool threw = false;
+  try { GeomUtil.BezierSmoothing2(p0, p1, p2, 0.5, 0.0); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected throw for min_distance <= 0");
+});
+
+Test("BezierSmoothing2_NumSegmentsLessThanOne_Throws", () => {
+  var p0 = new Point2D(0, 0); var p1 = new Point2D(2, 0); var p2 = new Point2D(2, 2);
+  bool threw = false;
+  try { GeomUtil.BezierSmoothing2(p0, p1, p2, 0.5, 0); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected throw for num_segments < 1");
+});
+
+Test("BezierSmoothing2_EndpointsAreTrimmedTangents", () => {
+  // len1 == len2 == 2, smoothness=1.0 -> max_trim=1: T0=(1,0), T1=(2,1)
+  var p0 = new Point2D(0, 0); var p1 = new Point2D(2, 0); var p2 = new Point2D(2, 2);
+  var result = new List<Point2D>(GeomUtil.BezierSmoothing2(p0, p1, p2, 1.0, 1.0));
+  IsTrue(result[0].AlmostEquals(new Point2D(1, 0)));
+  IsTrue(result[result.Count - 1].AlmostEquals(new Point2D(2, 1)));
+});
+
+Test("BezierSmoothing2_NumSegments_ProducesExactPointCount", () => {
+  var p0 = new Point2D(0, 0); var p1 = new Point2D(2, 0); var p2 = new Point2D(2, 2);
+  var result = new List<Point2D>(GeomUtil.BezierSmoothing2(p0, p1, p2, 1.0, 3));
+  Eq(4, result.Count, 0);
+});
+
+Test("BezierSmoothing2_SmoothnessZero_CollapsesToCorner", () => {
+  var p0 = new Point2D(0, 0); var p1 = new Point2D(2, 0); var p2 = new Point2D(2, 2);
+  var result = new List<Point2D>(GeomUtil.BezierSmoothing2(p0, p1, p2, 0.0, 0.5));
+  foreach (var p in result) IsTrue(p.AlmostEquals(p1));
+});
+
+Test("BezierSmoothing2_CoincidentP0P1_NoNaNCollapsesToCorner", () => {
+  var p1 = new Point2D(1, 1); var p2 = new Point2D(3, 1);
+  var result = new List<Point2D>(GeomUtil.BezierSmoothing2(p1, p1, p2, 0.5, 0.1));
+  foreach (var p in result) {
+    IsFalse(double.IsNaN(p.X));
+    IsFalse(double.IsNaN(p.Y));
+    IsTrue(p.AlmostEquals(p1));
+  }
+});
+
+Test("BezierSmoothing2_Point3D_EndpointsAreTrimmedTangents", () => {
+  var p0 = new Point3D(0, 0, 0); var p1 = new Point3D(2, 0, 0); var p2 = new Point3D(2, 2, 0);
+  var result = new List<Point3D>(GeomUtil.BezierSmoothing2(p0, p1, p2, 1.0, 1.0));
+  IsTrue(result[0].AlmostEquals(new Point3D(1, 0, 0)));
+  IsTrue(result[result.Count - 1].AlmostEquals(new Point3D(2, 1, 0)));
+});
+
+Test("BezierSmoothing2_MinSegmentLength_SkipsWholeCornerWhenBothSidesShort", () => {
+  var p0 = new Point2D(0, 0); var p1 = new Point2D(0.5, 0); var p2 = new Point2D(0.5, 0.5);
+  var result = new List<Point2D>(GeomUtil.BezierSmoothing2(p0, p1, p2, 1.0, 4, 1.0));
+  foreach (var p in result) IsTrue(p.AlmostEquals(p1));
+});
+
+// ── PolylineDecimationParams ─────────────────────────────────────────────────
+Console.WriteLine("\nPolylineDecimationParams");
+
+Test("PolylineDecimationParams_Defaults", () => {
+  var p = new PolylineDecimationParams();
+  IsTrue(p.Strategy == PolylineDecimationStrategy.RamerDouglasPeucker);
+  Eq(0.5, p.Threshold);
+});
+
+Test("PolylineDecimationParams_ExplicitConstructionAndReadWrite", () => {
+  var p = new PolylineDecimationParams(PolylineDecimationStrategy.VisvalingamWhyatt, 2.0);
+  IsTrue(p.Strategy == PolylineDecimationStrategy.VisvalingamWhyatt);
+  Eq(2.0, p.Threshold);
+  p.Threshold = 3.5;
+  Eq(3.5, p.Threshold);
+});
+
 // ── Polyline2D.Reduce ─────────────────────────────────────────────────────────
 Console.WriteLine("\nPolyline2D.Reduce");
 
@@ -4960,7 +5039,7 @@ Test("Polyline2D_Reduce_RadialDistance", () => {
   // endpoints regardless of what Reduce() does, defeating the test.
   var pl = Polyline2D.Make(new Point2D[] {
     new(0, 0), new(0.1, 0.05), new(0.2, -0.05), new(5, 5), new(5.1, 5.05), new(10, 0) });
-  var reduced = pl.Reduce(PolylineDecimationStrategy.RadialDistance, 1.0);
+  var reduced = pl.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.RadialDistance, 1.0));
   Eq(3, reduced.Size(), 0);
   IsTrue(reduced[0].AlmostEquals(new Point2D(0, 0)));
   IsTrue(reduced[1].AlmostEquals(new Point2D(5, 5)));
@@ -4969,14 +5048,14 @@ Test("Polyline2D_Reduce_RadialDistance", () => {
 
 Test("Polyline2D_Reduce_RamerDouglasPeucker", () => {
   var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(4, 5), new(6, 0), new(8, 0) });
-  var reduced = pl.Reduce(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0);
+  var reduced = pl.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0));
   var expected = Polyline2D.Make(new Point2D[] { new(0, 0), new(4, 5), new(8, 0) });
   IsTrue(reduced.AlmostEquals(expected));
 });
 
 Test("Polyline2D_Reduce_VisvalingamWhyatt", () => {
   var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(4, 5), new(6, 0), new(8, 0) });
-  var reduced = pl.Reduce(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0);
+  var reduced = pl.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0));
   var expected = Polyline2D.Make(new Point2D[] { new(0, 0), new(4, 5), new(8, 0) });
   IsTrue(reduced.AlmostEquals(expected));
 });
@@ -4985,7 +5064,7 @@ Test("Polyline2D_Reduce_DefaultParams_MatchesExplicitRdpHalfThreshold", () => {
   var pl = Polyline2D.Make(new Point2D[] {
     new(0, 0), new(1, 0.01), new(2, -0.01), new(3, 0), new(4, 0) });
   var reducedDefault = pl.Reduce();
-  var reducedExplicit = pl.Reduce(PolylineDecimationStrategy.RamerDouglasPeucker, 0.5);
+  var reducedExplicit = pl.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.RamerDouglasPeucker, 0.5));
   IsTrue(reducedDefault.AlmostEquals(reducedExplicit));
   var expected = Polyline2D.Make(new Point2D[] { new(0, 0), new(4, 0) });
   IsTrue(reducedDefault.AlmostEquals(expected));
@@ -5005,7 +5084,7 @@ Test("Polyline3D_Reduce_RadialDistance", () => {
   // endpoints regardless of what Reduce() does, defeating the test.
   var pl = Polyline3D.Make(new Point3D[] {
     new(0, 0, 0), new(0.1, 0, 0.05), new(0.2, 0, -0.05), new(5, 0, 5), new(5.1, 0, 5.05), new(10, 0, 0) });
-  var reduced = pl.Reduce(PolylineDecimationStrategy.RadialDistance, 1.0);
+  var reduced = pl.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.RadialDistance, 1.0));
   Eq(3, reduced.Size(), 0);
   IsTrue(reduced[0].AlmostEquals(new Point3D(0, 0, 0)));
   IsTrue(reduced[1].AlmostEquals(new Point3D(5, 0, 5)));
@@ -5015,7 +5094,7 @@ Test("Polyline3D_Reduce_RadialDistance", () => {
 Test("Polyline3D_Reduce_RamerDouglasPeucker", () => {
   var pl = Polyline3D.Make(new Point3D[] {
     new(0, 0, 0), new(2, 0, 0), new(4, 0, 5), new(6, 0, 0), new(8, 0, 0) });
-  var reduced = pl.Reduce(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0);
+  var reduced = pl.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0));
   var expected = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 5), new(8, 0, 0) });
   IsTrue(reduced.AlmostEquals(expected));
 });
@@ -5023,9 +5102,97 @@ Test("Polyline3D_Reduce_RamerDouglasPeucker", () => {
 Test("Polyline3D_Reduce_VisvalingamWhyatt", () => {
   var pl = Polyline3D.Make(new Point3D[] {
     new(0, 0, 0), new(2, 0, 0), new(4, 0, 5), new(6, 0, 0), new(8, 0, 0) });
-  var reduced = pl.Reduce(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0);
+  var reduced = pl.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0));
   var expected = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 5), new(8, 0, 0) });
   IsTrue(reduced.AlmostEquals(expected));
+});
+
+// ── PolylineExpansionParams ────────────────────────────────────────────────────
+Console.WriteLine("\nPolylineExpansionParams");
+
+Test("PolylineExpansionParams_Defaults", () => {
+  var p = new PolylineExpansionParams();
+  Eq(0.5, p.Smoothness);
+  IsTrue(p.Mode == PolylineExpansionMode.FixedSegments);
+  Eq(4, p.SegmentsPerCorner, 0);
+  Eq(0.1, p.MinDistance);
+});
+
+Test("PolylineExpansionParams_ExplicitConstructionAndReadWrite", () => {
+  var p = new PolylineExpansionParams(1.0, PolylineExpansionMode.MinDistance, 4, 0.2, 0.05);
+  Eq(1.0, p.Smoothness);
+  IsTrue(p.Mode == PolylineExpansionMode.MinDistance);
+  Eq(0.2, p.MinDistance);
+  Eq(0.05, p.MinSegmentLength);
+  p.SegmentsPerCorner = 10;
+  Eq(10, p.SegmentsPerCorner, 0);
+});
+
+// ── PolylineExpansion (free function) ──────────────────────────────────────────
+Console.WriteLine("\nPolylineExpansion (free function)");
+
+Test("PolylineExpansion_TwoPointInput_ReturnsUnchanged", () => {
+  var pts = new List<Point2D> { new(0, 0), new(1, 1) };
+  var result = new List<Point2D>(GeomUtil.PolylineExpansion(pts, new PolylineExpansionParams()));
+  Eq(2, result.Count, 0);
+  IsTrue(result[0].AlmostEquals(pts[0]));
+  IsTrue(result[1].AlmostEquals(pts[1]));
+});
+
+Test("PolylineExpansion_MultipleCorners_EachCornerUsesItsOwnOriginalKnots", () => {
+  // Regression guard: p0/p1 for each corner must come from the original input, not the already-built
+  // output — see the C++/Python test of the same name for the full rationale.
+  var pts = new List<Point2D> { new(0, 0), new(2, 0), new(2, 2), new(0, 2) };
+  var settings = new PolylineExpansionParams(1.0, PolylineExpansionMode.FixedSegments, 3, 0.1, 1e-6);
+  var result = new List<Point2D>(GeomUtil.PolylineExpansion(pts, settings));
+  IsTrue(result[0].AlmostEquals(new Point2D(0, 0)));
+  IsTrue(result[result.Count - 1].AlmostEquals(new Point2D(0, 2)));
+  int midpointCount = 0;
+  bool hasCorner2T1 = false;
+  foreach (var p in result) {
+    if (p.AlmostEquals(new Point2D(2, 1))) midpointCount++;
+    if (p.AlmostEquals(new Point2D(1, 2))) hasCorner2T1 = true;
+  }
+  Eq(1, midpointCount, 0);
+  IsTrue(hasCorner2T1);
+});
+
+// ── Polyline2D.Expand / Polyline3D.Expand ──────────────────────────────────────
+Console.WriteLine("\nPolyline2D.Expand / Polyline3D.Expand");
+
+Test("Polyline2D_Expand_DefaultParams_Work", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(2, 2) });
+  var expanded = pl.Expand();
+  IsTrue(expanded.Size() >= pl.Size());
+});
+
+Test("Polyline2D_Expand_InvalidSegmentsPerCorner_Throws", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(2, 2) });
+  bool threw = false;
+  try { pl.Expand(new PolylineExpansionParams(0.5, PolylineExpansionMode.FixedSegments, 0, 0.1, 1e-6)); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected throw for segments_per_corner < 1");
+});
+
+Test("Polyline2D_Expand_MinDistanceMode_SmallerMinDistanceYieldsMorePoints", () => {
+  var pl = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(2, 2) });
+  var coarse = pl.Expand(new PolylineExpansionParams(1.0, PolylineExpansionMode.MinDistance, 4, 1.0, 1e-6));
+  var fine = pl.Expand(new PolylineExpansionParams(1.0, PolylineExpansionMode.MinDistance, 4, 0.5, 1e-6));
+  IsTrue(coarse.Size() < fine.Size());
+});
+
+Test("Polyline3D_Expand_DefaultParams_Work", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(2, 0, 0), new(2, 2, 0) });
+  var expanded = pl.Expand();
+  IsTrue(expanded.Size() >= pl.Size());
+});
+
+Test("Polyline3D_Expand_InvalidSegmentsPerCorner_Throws", () => {
+  var pl = Polyline3D.Make(new Point3D[] { new(0, 0, 0), new(2, 0, 0), new(2, 2, 0) });
+  bool threw = false;
+  try { pl.Expand(new PolylineExpansionParams(0.5, PolylineExpansionMode.FixedSegments, 0, 0.1, 1e-6)); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected throw for segments_per_corner < 1");
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

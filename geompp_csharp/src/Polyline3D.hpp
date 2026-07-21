@@ -37,9 +37,15 @@ public:
     bool     IsConvex();
     Polyline3D^ ConvexHull();
 
-    // Returns a copy of this polyline with fewer vertices, per the given PolylineDecimationStrategy.
+    // Returns a copy of this polyline with fewer vertices, per the given PolylineDecimationParams.
     Polyline3D^ Reduce();
-    Polyline3D^ Reduce(PolylineDecimationStrategy strategy, double threshold);
+    Polyline3D^ Reduce(PolylineDecimationParams^ settings);
+
+    // Returns a copy of this polyline with every inner corner rounded by a quadratic Bezier arc, per
+    // the given PolylineExpansionParams. The inverse direction of Reduce(): adds vertices rather than
+    // removing them.
+    Polyline3D^ Expand();
+    Polyline3D^ Expand(PolylineExpansionParams^ settings);
 
     Polygon3D^  ToPolygon();
     double   DistanceTo(Point3D^ point);

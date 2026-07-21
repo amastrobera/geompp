@@ -37,9 +37,18 @@ Free functions
     dist_decimation(points, threshold)
     rdp_decimation(points, threshold)
     vw_decimation(points, threshold)
+    bezier_smoothing_2(p0, p1, p2, smoothness, min_distance, min_segment_length=DOUBLE_EPSILON)
+    bezier_smoothing_2(p0, p1, p2, smoothness, num_segments, min_segment_length=DOUBLE_EPSILON)
 
 Polyline decimation:
     PolylineDecimationStrategy (RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt)
+    PolylineDecimationParams(strategy=RamerDouglasPeucker, threshold=0.5)
+
+Polyline expansion (corner rounding — the inverse of decimation):
+    PolylineExpansionMode (FixedSegments, MinDistance)
+    PolylineExpansionParams(smoothness=0.5, mode=FixedSegments, segments_per_corner=4,
+                             min_distance=0.1, min_segment_length=DOUBLE_EPSILON)
+    polyline_expansion(points, settings)
 
 Precision
 ---------
@@ -124,9 +133,15 @@ from ._geompp import (  # noqa: F401
     tangents_to,
     # polyline decimation
     PolylineDecimationStrategy,
+    PolylineDecimationParams,
     dist_decimation,
     rdp_decimation,
     vw_decimation,
+    bezier_smoothing_2,
+    # polyline expansion
+    PolylineExpansionMode,
+    PolylineExpansionParams,
+    polyline_expansion,
 )
 
 __version__ = "1.0.0"
@@ -149,5 +164,7 @@ __all__ = [
     "ExtremePoints2D", "ExtremePoints3D", "find_extreme_points", "distance_to",
     "PolygonTangents2D", "PolygonTangents3D", "tangents_to",
     "ProjectionType", "View2D",
-    "PolylineDecimationStrategy", "dist_decimation", "rdp_decimation", "vw_decimation",
+    "PolylineDecimationStrategy", "PolylineDecimationParams", "dist_decimation", "rdp_decimation", "vw_decimation",
+    "bezier_smoothing_2",
+    "PolylineExpansionMode", "PolylineExpansionParams", "polyline_expansion",
 ]

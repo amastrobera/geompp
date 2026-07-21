@@ -18,6 +18,7 @@ ref class Polygon2D;
 ref class Polygon3D;
 ref class Line2D;
 ref class Line3D;
+ref class PolylineExpansionParams;
 
 // The two vertices of a 2D shape extreme (least / greatest projection) along a direction.
 public ref class ExtremePoints2D sealed {
@@ -117,6 +118,38 @@ public:
         System::Collections::Generic::List<Point2D^>^ points, double threshold);
     static System::Collections::Generic::IEnumerable<Point3D^>^ VwDecimation(
         System::Collections::Generic::List<Point3D^>^ points, double threshold);
+
+    // BezierSmoothing2 — rounds the corner at p1 with a quadratic Bezier arc tangent to p0-p1 and
+    // p1-p2. smoothness in [0,1] controls how much of the shorter adjacent edge is trimmed into
+    // the tangent points. Two overloads: one samples roughly minDistance apart, the other takes
+    // an exact numSegments (+1 points in the result either way). The 4-arg forms use the native
+    // default (DOUBLE_EPSILON) for minSegmentLength; the 6-arg forms let the caller override it —
+    // an adjacent edge at or below it isn't trimmed into (both at or below: the corner stays sharp).
+    static System::Collections::Generic::IEnumerable<Point2D^>^ BezierSmoothing2(
+        Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, double minDistance);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ BezierSmoothing2(
+        Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, double minDistance);
+    static System::Collections::Generic::IEnumerable<Point2D^>^ BezierSmoothing2(
+        Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, int numSegments);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ BezierSmoothing2(
+        Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, int numSegments);
+    static System::Collections::Generic::IEnumerable<Point2D^>^ BezierSmoothing2(
+        Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, double minDistance, double minSegmentLength);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ BezierSmoothing2(
+        Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, double minDistance, double minSegmentLength);
+    static System::Collections::Generic::IEnumerable<Point2D^>^ BezierSmoothing2(
+        Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, int numSegments, double minSegmentLength);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ BezierSmoothing2(
+        Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, int numSegments, double minSegmentLength);
+
+    // PolylineExpansion — the lower-level building block behind Polyline2D.Expand() / Polyline3D.Expand():
+    // rounds every inner corner of a raw point list with a quadratic Bezier arc, per the given
+    // PolylineExpansionParams. Call directly when you want to round a point list without constructing
+    // a Polyline first.
+    static System::Collections::Generic::IEnumerable<Point2D^>^ PolylineExpansion(
+        System::Collections::Generic::List<Point2D^>^ points, PolylineExpansionParams^ settings);
+    static System::Collections::Generic::IEnumerable<Point3D^>^ PolylineExpansion(
+        System::Collections::Generic::List<Point3D^>^ points, PolylineExpansionParams^ settings);
 
     // PCA — principal axes of a 3D point cloud via Jacobi eigendecomposition.
     static CoordinateFrame^ PrincipalAxes(System::Collections::Generic::List<Point3D^>^ points);

@@ -1276,23 +1276,29 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; 8. Polyline Decimation</b></summary>
+<summary><b> &nbsp; 8. Polyline operations</b></summary>
 
 <details closed>
-<summary><b> &nbsp; &nbsp; 8.1 Reduce a polyline</b></summary>
+<summary><b> &nbsp; &nbsp; 8.1 Decimation / reduction</b></summary>
 
-  `Polyline2D::Reduce(strategy, threshold)` and `Polyline3D::Reduce(strategy, threshold)` return a
-  copy of the polyline with fewer vertices, per a `PolylineDecimationStrategy`:
+  `Polyline2D::Reduce(settings)` and `Polyline3D::Reduce(settings)` return a copy of the polyline with
+  fewer vertices, per a `PolylineDecimationParams` bundling a `PolylineDecimationParams::Strategy` and
+  a `threshold`:
 
   - `RadialDistance` — O(n) brute-force pass: drops a vertex if it's closer than `threshold` to the
-    last kept vertex.
+    last *kept* vertex. Cheapest and least accurate — good as a fast noise-clustering pre-pass, not as
+    the sole strategy when shape fidelity matters.
   - `RamerDouglasPeucker` — O(n log n) to O(n²): recursively drops vertices closer than `threshold`
-    to the chord spanning their segment; the vertex farthest from the chord is kept and the polyline
-    is split there.
-  - `VisvalingamWhyatt` — O(n log n) to O(n²): repeatedly drops the vertex forming the
-    smallest-area triangle with its neighbors, while that area stays below `threshold`.
+    to the chord spanning their segment. Given points P1, P2, P3, drops P2 when its perpendicular
+    distance from the P1-P3 chord is below `threshold`; otherwise keeps P2 and recurses on both
+    halves. Best general-purpose choice — preserves the vertices that most define the polyline's shape.
+  - `VisvalingamWhyatt` — O(n log n) to O(n²): repeatedly drops the vertex forming the smallest-area
+    triangle with its neighbors, while that area stays below `threshold`, then re-evaluates the
+    neighbors. Tends to preserve visually significant features (sharp spikes) better than
+    `RadialDistance` while being similarly simple to reason about.
 
-  Both parameters are optional and default to `RamerDouglasPeucker` with `threshold = 0.5`.
+  `settings` is optional and defaults to `{RamerDouglasPeucker, 0.5}`, so `Reduce()` with no arguments
+  keeps working.
 
   ```cpp
   namespace g = geompp;
@@ -1302,10 +1308,10 @@ A quick list of code examples per topic is provided here.
   auto spike = g::Polyline2D::Make(
       {g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(4, 5), g::Point2D(6, 0), g::Point2D(8, 0)});
 
-  auto rdp = spike.Reduce(g::PolylineDecimationStrategy::RamerDouglasPeucker, 2.0);
+  auto rdp = spike.Reduce({.strategy = g::PolylineDecimationParams::Strategy::RamerDouglasPeucker, .threshold = 2.0});
   GEOMPP_LOG(INFO) << "RamerDouglasPeucker (" << spike.Size() << " -> " << rdp.Size() << "): " << rdp.ToWkt();
 
-  auto vw = spike.Reduce(g::PolylineDecimationStrategy::VisvalingamWhyatt, 6.0);
+  auto vw = spike.Reduce({.strategy = g::PolylineDecimationParams::Strategy::VisvalingamWhyatt, .threshold = 6.0});
   GEOMPP_LOG(INFO) << "VisvalingamWhyatt   (" << spike.Size() << " -> " << vw.Size() << "): " << vw.ToWkt();
 
   // a noisy path: tight clusters of near-duplicate points around two real vertices. Note the clusters
@@ -1314,7 +1320,7 @@ A quick list of code examples per topic is provided here.
   auto noisy = g::Polyline2D::Make(
       {g::Point2D(0, 0), g::Point2D(0.1, 0.05), g::Point2D(0.2, -0.05),
        g::Point2D(5, 5), g::Point2D(5.1, 5.05), g::Point2D(10, 0)});
-  auto radial = noisy.Reduce(g::PolylineDecimationStrategy::RadialDistance, 1.0);
+  auto radial = noisy.Reduce({.strategy = g::PolylineDecimationParams::Strategy::RadialDistance, .threshold = 1.0});
   GEOMPP_LOG(INFO) << "RadialDistance      (" << noisy.Size() << " -> " << radial.Size() << "): " << radial.ToWkt();
   ```
 
@@ -1331,6 +1337,106 @@ A quick list of code examples per topic is provided here.
   when you want to decimate a raw point list without constructing a `Polyline` first.
 
 </details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 8.2 Corner smoothing with Bezier curve</b></summary>
+
+  `bezier_smoothing_2(p0, p1, p2, smoothness, min_distance_or_num_segments)` rounds the corner at
+  `p1` with a quadratic Bezier arc tangent to `p0-p1` and `p1-p2`. `smoothness` in `[0, 1]` controls
+  how much of the shorter adjacent edge is trimmed into the arc's tangent points (`0` leaves the
+  corner sharp, `1` trims half of the shorter edge). Two overloads control how densely the arc is
+  sampled — resolved by the type of the last argument, not a shared parameter:
+
+  - a `double` **min_distance** samples roughly that far apart, however many points that takes.
+  - an `int` **num_segments** samples exactly that many segments (`num_segments + 1` points),
+    regardless of the arc's length.
+
+  ```cpp
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  auto p0 = g::Point2D(0, 0);
+  auto p1 = g::Point2D(2, 0);
+  auto p2 = g::Point2D(2, 2);
+
+  // density-based: samples roughly min_distance apart
+  auto by_distance = g::bezier_smoothing_2(p0, p1, p2, /*smoothness=*/1.0, /*min_distance=*/0.5);
+  GEOMPP_LOG(INFO) << "by min_distance (" << by_distance.size() << " points)";
+
+  // count-based: samples an exact number of segments, regardless of arc length
+  auto by_count = g::bezier_smoothing_2(p0, p1, p2, /*smoothness=*/1.0, /*num_segments=*/3);
+  GEOMPP_LOG(INFO) << "by num_segments (" << by_count.size() << " points)";
+  for (auto const& pt : by_count) {
+    GEOMPP_LOG(INFO) << "  " << pt.ToWkt();
+  }
+  ```
+
+  will print out
+
+  ```bash
+  by min_distance (4 points)
+  by num_segments (4 points)
+    POINT (1 0)
+    POINT (1.556 0.111)
+    POINT (1.889 0.444)
+    POINT (2 1)
+  ```
+
+  The first and last sampled points are always the trimmed tangent points (`(1, 0)` and `(2, 1)`
+  here), not `p1` itself — `p1` is replaced by the arc, unless `smoothness` is `0` (every sample
+  collapses to `p1`, a sharp corner). `bezier_smoothing_2` is templated over `PointT` and works the
+  same way for `Point3D`.
+
+  A 6th, optional `min_segment_length` parameter (default `DOUBLE_EPSILON`) skips trimming on a side
+  whose adjacent edge is at or below that length — that tangent point falls back to `p1` instead. If
+  *both* adjacent edges are that short, the whole corner collapses to `p1` (no curve), which is the
+  mechanism `Polyline::Expand()` (next) uses to leave tiny/noisy corners sharp.
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 8.3 Expand / smooth a polyline</b></summary>
+
+  `Polyline2D::Expand(settings)` / `Polyline3D::Expand(settings)` — the inverse of `Reduce()` — round
+  every *inner* corner with a quadratic Bezier arc, via `PolylineExpansionParams`:
+
+  - `smoothness`, `mode` (`FixedSegments` / `MinDistance`), `segments_per_corner`, `min_distance` —
+    same meaning as the matching `bezier_smoothing_2` parameters, applied to every corner.
+  - `min_segment_length` — forwarded to `bezier_smoothing_2` for every corner; a corner whose adjacent
+    edges are both that short stays sharp instead of being rounded.
+
+  `settings` is optional and defaults to `{0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON}`.
+
+  ```cpp
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // a right-angle path with two consecutive corners
+  auto path = g::Polyline2D::Make(
+      {g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)});
+
+  auto rounded = path.Expand({.smoothness = 1.0, .segments_per_corner = 3});
+  GEOMPP_LOG(INFO) << "Expand (" << path.Size() << " -> " << rounded.Size() << "): " << rounded.ToWkt();
+  ```
+
+  will print out
+
+  ```bash
+  Expand (4 -> 9): LINESTRING (0 0, 1 0, 1.556 0.111, 1.889 0.444, 2 1, 1.889 1.556, 1.556 1.889, 1 2, 0 2)
+  ```
+
+  Each of the two inner corners (`(2, 0)` and `(2, 2)`) is replaced by its own trimmed-tangent arc; the
+  two arcs share a tangent point exactly at the shared edge's midpoint `(2, 1)` (each corner's trim is
+  capped at half of its shared edge), collapsed to one point rather than duplicated. `Expand()` delegates
+  to the free function `polyline_expansion(points, settings)`, which rounds a raw point list the same
+  way without constructing a `Polyline` first.
+
+</details>
+
+Here is an example of polyline reduction / expansion in jupyter notebook 
+
+
+![polyline_ops_examples](etc/polyline_changes_py.png)
 
 </details>
 
@@ -2511,33 +2617,38 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; 8. Polyline Decimation</b></summary>
+<summary><b> &nbsp; 8. Polyline operations</b></summary>
 
 <details closed>
-<summary><b> &nbsp; &nbsp; 8.1 Reduce a polyline</b></summary>
+<summary><b> &nbsp; &nbsp; 8.1 Decimation / reduction</b></summary>
 
-  `Polyline2D.Reduce(strategy, threshold)` and `Polyline3D.Reduce(strategy, threshold)` return a
-  copy of the polyline with fewer vertices, per a `PolylineDecimationStrategy`:
+  `Polyline2D.Reduce(settings)` and `Polyline3D.Reduce(settings)` return a copy of the polyline with
+  fewer vertices, per a `PolylineDecimationParams` bundling a `PolylineDecimationStrategy` and a
+  `Threshold`:
 
-  - `RadialDistance` — O(n) brute-force pass: drops a vertex if it's closer than `threshold` to the
-    last kept vertex.
-  - `RamerDouglasPeucker` — O(n log n) to O(n²): recursively drops vertices closer than `threshold`
-    to the chord spanning their segment; the vertex farthest from the chord is kept and the polyline
-    is split there.
-  - `VisvalingamWhyatt` — O(n log n) to O(n²): repeatedly drops the vertex forming the
-    smallest-area triangle with its neighbors, while that area stays below `threshold`.
+  - `RadialDistance` — O(n) brute-force pass: drops a vertex if it's closer than `Threshold` to the
+    last *kept* vertex. Cheapest and least accurate — good as a fast noise-clustering pre-pass, not as
+    the sole strategy when shape fidelity matters.
+  - `RamerDouglasPeucker` — O(n log n) to O(n²): recursively drops vertices closer than `Threshold`
+    to the chord spanning their segment. Given points P1, P2, P3, drops P2 when its perpendicular
+    distance from the P1-P3 chord is below `Threshold`; otherwise keeps P2 and recurses on both
+    halves. Best general-purpose choice — preserves the vertices that most define the polyline's shape.
+  - `VisvalingamWhyatt` — O(n log n) to O(n²): repeatedly drops the vertex forming the smallest-area
+    triangle with its neighbors, while that area stays below `Threshold`, then re-evaluates the
+    neighbors. Tends to preserve visually significant features (sharp spikes) better than
+    `RadialDistance` while being similarly simple to reason about.
 
-  `Reduce()` also has a no-argument overload defaulting to `RamerDouglasPeucker` with
-  `threshold = 0.5`.
+  `Reduce()` also has a no-argument overload, and `PolylineDecimationParams`'s own parameterless
+  constructor defaults to `RamerDouglasPeucker` with `Threshold = 0.5` — so both behave identically.
 
   ```csharp
   // a triangular "spike" on an otherwise straight path
   var spike = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(4, 5), new(6, 0), new(8, 0) });
 
-  var rdp = spike.Reduce(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0);
+  var rdp = spike.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.RamerDouglasPeucker, 2.0));
   Console.WriteLine($"RamerDouglasPeucker ({spike.Size()} -> {rdp.Size()}): {rdp.ToWkt()}");
 
-  var vw = spike.Reduce(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0);
+  var vw = spike.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.VisvalingamWhyatt, 6.0));
   Console.WriteLine($"VisvalingamWhyatt   ({spike.Size()} -> {vw.Size()}): {vw.ToWkt()}");
 
   // a noisy path: tight clusters of near-duplicate points around two real vertices. Note the clusters
@@ -2545,7 +2656,7 @@ A quick list of code examples per topic is provided here.
   // construction time, so a flat clustered dataset would already collapse before Reduce() runs.
   var noisy = Polyline2D.Make(new Point2D[] {
     new(0, 0), new(0.1, 0.05), new(0.2, -0.05), new(5, 5), new(5.1, 5.05), new(10, 0) });
-  var radial = noisy.Reduce(PolylineDecimationStrategy.RadialDistance, 1.0);
+  var radial = noisy.Reduce(new PolylineDecimationParams(PolylineDecimationStrategy.RadialDistance, 1.0));
   Console.WriteLine($"RadialDistance      ({noisy.Size()} -> {radial.Size()}): {radial.ToWkt()}");
   ```
 
@@ -2562,6 +2673,98 @@ A quick list of code examples per topic is provided here.
   constructing a `Polyline` first.
 
 </details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 8.2 Corner smoothing with Bezier curve</b></summary>
+
+  `GeomUtil.BezierSmoothing2(p0, p1, p2, smoothness, minDistanceOrNumSegments)` rounds the corner at
+  `p1` with a quadratic Bezier arc tangent to `p0-p1` and `p1-p2`. `smoothness` in `[0, 1]` controls
+  how much of the shorter adjacent edge is trimmed into the arc's tangent points (`0` leaves the
+  corner sharp, `1` trims half of the shorter edge). Two overloads control how densely the arc is
+  sampled — resolved by the type of the last argument, not a shared parameter:
+
+  - a `double` **minDistance** samples roughly that far apart, however many points that takes.
+  - an `int` **numSegments** samples exactly that many segments (`numSegments + 1` points),
+    regardless of the arc's length.
+
+  ```csharp
+  var p0 = new Point2D(0, 0);
+  var p1 = new Point2D(2, 0);
+  var p2 = new Point2D(2, 2);
+
+  // density-based: samples roughly minDistance apart
+  var byDistance = new List<Point2D>(GeomUtil.BezierSmoothing2(p0, p1, p2, smoothness: 1.0, minDistance: 0.5));
+  Console.WriteLine($"by minDistance ({byDistance.Count} points)");
+
+  // count-based: samples an exact number of segments, regardless of arc length
+  var byCount = new List<Point2D>(GeomUtil.BezierSmoothing2(p0, p1, p2, smoothness: 1.0, numSegments: 3));
+  Console.WriteLine($"by numSegments ({byCount.Count} points)");
+  foreach (var pt in byCount) {
+    Console.WriteLine($"  {pt.ToWkt()}");
+  }
+  ```
+
+  ```
+  by minDistance (4 points)
+  by numSegments (4 points)
+    POINT (1 0)
+    POINT (1.556 0.111)
+    POINT (1.889 0.444)
+    POINT (2 1)
+  ```
+
+  The first and last sampled points are always the trimmed tangent points (`(1, 0)` and `(2, 1)`
+  here), not `p1` itself — `p1` is replaced by the arc, unless `smoothness` is `0` (every sample
+  collapses to `p1`, a sharp corner). `BezierSmoothing2` is overloaded for `Point2D` and `Point3D`.
+
+  A `minSegmentLength` overload (default `DOUBLE_EPSILON` when omitted) skips trimming on a side whose
+  adjacent edge is at or below that length — that tangent point falls back to `p1` instead. If *both*
+  adjacent edges are that short, the whole corner collapses to `p1` (no curve), which is the mechanism
+  `Polyline.Expand()` (next) uses to leave tiny/noisy corners sharp.
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 8.3 Expand / smooth a polyline</b></summary>
+
+  `Polyline2D.Expand(settings)` / `Polyline3D.Expand(settings)` — the inverse of `Reduce()` — round
+  every *inner* corner with a quadratic Bezier arc, via `PolylineExpansionParams`:
+
+  - `Smoothness`, `Mode` (`FixedSegments` / `MinDistance`), `SegmentsPerCorner`, `MinDistance` — same
+    meaning as the matching `BezierSmoothing2` parameters, applied to every corner.
+  - `MinSegmentLength` — forwarded to `BezierSmoothing2` for every corner; a corner whose adjacent
+    edges are both that short stays sharp instead of being rounded.
+
+  `Expand()` also has a no-argument overload, matching `PolylineExpansionParams`'s own parameterless
+  constructor defaults.
+
+  ```csharp
+  // a right-angle path with two consecutive corners
+  var path = Polyline2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(2, 2), new(0, 2) });
+
+  var settings = new PolylineExpansionParams(1.0, PolylineExpansionMode.FixedSegments, 3, 0.1, 1e-6);
+  var rounded = path.Expand(settings);
+  Console.WriteLine($"Expand ({path.Size()} -> {rounded.Size()}): {rounded.ToWkt()}");
+  ```
+
+  ```
+  Expand (4 -> 9): LINESTRING (0 0, 1 0, 1.556 0.111, 1.889 0.444, 2 1, 1.889 1.556, 1.556 1.889, 1 2, 0 2)
+  ```
+
+  Each of the two inner corners (`(2, 0)` and `(2, 2)`) is replaced by its own trimmed-tangent arc; the
+  two arcs share a tangent point exactly at the shared edge's midpoint `(2, 1)` (each corner's trim is
+  capped at half of its shared edge), collapsed to one point rather than duplicated. `Expand()`
+  dispatches to the static `GeomUtil.PolylineExpansion(points, settings)` method that does the actual
+  work — call it directly when you want to round a raw point list without constructing a `Polyline`.
+
+</details>
+
+
+Here is an example of polyline reduction / expansion in jupyter notebook 
+
+
+![polyline_ops_examples](etc/polyline_changes_py.png)
+
 
 </details>
 
@@ -3734,23 +3937,29 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; 8. Polyline Decimation</b></summary>
+<summary><b> &nbsp; 8. Polyline operations</b></summary>
 
 <details closed>
-<summary><b> &nbsp; &nbsp; 8.1 Reduce a polyline</b></summary>
+<summary><b> &nbsp; &nbsp; 8.1 Decimation / reduction</b></summary>
 
-  `Polyline2D.reduce(strategy, threshold)` and `Polyline3D.reduce(strategy, threshold)` return a
-  copy of the polyline with fewer vertices, per a `PolylineDecimationStrategy`:
+  `Polyline2D.reduce(settings)` and `Polyline3D.reduce(settings)` return a copy of the polyline with
+  fewer vertices, per a `PolylineDecimationParams` bundling a `PolylineDecimationStrategy` and a
+  `threshold`:
 
   - `RadialDistance` — O(n) brute-force pass: drops a vertex if it's closer than `threshold` to the
-    last kept vertex.
+    last *kept* vertex. Cheapest and least accurate — good as a fast noise-clustering pre-pass, not as
+    the sole strategy when shape fidelity matters.
   - `RamerDouglasPeucker` — O(n log n) to O(n²): recursively drops vertices closer than `threshold`
-    to the chord spanning their segment; the vertex farthest from the chord is kept and the polyline
-    is split there.
-  - `VisvalingamWhyatt` — O(n log n) to O(n²): repeatedly drops the vertex forming the
-    smallest-area triangle with its neighbors, while that area stays below `threshold`.
+    to the chord spanning their segment. Given points P1, P2, P3, drops P2 when its perpendicular
+    distance from the P1-P3 chord is below `threshold`; otherwise keeps P2 and recurses on both
+    halves. Best general-purpose choice — preserves the vertices that most define the polyline's shape.
+  - `VisvalingamWhyatt` — O(n log n) to O(n²): repeatedly drops the vertex forming the smallest-area
+    triangle with its neighbors, while that area stays below `threshold`, then re-evaluates the
+    neighbors. Tends to preserve visually significant features (sharp spikes) better than
+    `RadialDistance` while being similarly simple to reason about.
 
-  Both parameters are optional and default to `RamerDouglasPeucker` with `threshold = 0.5`.
+  `settings` is optional; `reduce()` with no arguments and `reduce(g.PolylineDecimationParams())`
+  behave identically, both defaulting to `RamerDouglasPeucker` with `threshold = 0.5`.
 
   ```python
   import geompp as g
@@ -3760,10 +3969,10 @@ A quick list of code examples per topic is provided here.
   spike = g.Polyline2D.make([
       g.Point2D(0, 0), g.Point2D(2, 0), g.Point2D(4, 5), g.Point2D(6, 0), g.Point2D(8, 0)])
 
-  rdp = spike.reduce(g.PolylineDecimationStrategy.RamerDouglasPeucker, 2.0)
+  rdp = spike.reduce(g.PolylineDecimationParams(strategy=g.PolylineDecimationStrategy.RamerDouglasPeucker, threshold=2.0))
   print(f"RamerDouglasPeucker ({spike.size()} -> {rdp.size()}): {rdp.to_wkt()}")
 
-  vw = spike.reduce(g.PolylineDecimationStrategy.VisvalingamWhyatt, 6.0)
+  vw = spike.reduce(g.PolylineDecimationParams(strategy=g.PolylineDecimationStrategy.VisvalingamWhyatt, threshold=6.0))
   print(f"VisvalingamWhyatt   ({spike.size()} -> {vw.size()}): {vw.to_wkt()}")
 
   # a noisy path: tight clusters of near-duplicate points around two real vertices. Note the clusters
@@ -3772,7 +3981,7 @@ A quick list of code examples per topic is provided here.
   noisy = g.Polyline2D.make([
       g.Point2D(0, 0), g.Point2D(0.1, 0.05), g.Point2D(0.2, -0.05),
       g.Point2D(5, 5), g.Point2D(5.1, 5.05), g.Point2D(10, 0)])
-  radial = noisy.reduce(g.PolylineDecimationStrategy.RadialDistance, 1.0)
+  radial = noisy.reduce(g.PolylineDecimationParams(strategy=g.PolylineDecimationStrategy.RadialDistance, threshold=1.0))
   print(f"RadialDistance      ({noisy.size()} -> {radial.size()}): {radial.to_wkt()}")
   ```
 
@@ -3788,6 +3997,104 @@ A quick list of code examples per topic is provided here.
   directly when you want to decimate a raw point list without constructing a `Polyline` first.
 
 </details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 8.2 Corner smoothing with Bezier curve</b></summary>
+
+  `bezier_smoothing_2(p0, p1, p2, smoothness, min_distance_or_num_segments)` rounds the corner at
+  `p1` with a quadratic Bezier arc tangent to `p0-p1` and `p1-p2`. `smoothness` in `[0, 1]` controls
+  how much of the shorter adjacent edge is trimmed into the arc's tangent points (`0` leaves the
+  corner sharp, `1` trims half of the shorter edge). Two overloads control how densely the arc is
+  sampled — resolved by the type of the last argument, not a shared parameter:
+
+  - a `float` **min_distance** samples roughly that far apart, however many points that takes.
+  - an `int` **num_segments** samples exactly that many segments (`num_segments + 1` points),
+    regardless of the arc's length.
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  p0 = g.Point2D(0, 0)
+  p1 = g.Point2D(2, 0)
+  p2 = g.Point2D(2, 2)
+
+  # density-based: samples roughly min_distance apart
+  by_distance = g.bezier_smoothing_2(p0, p1, p2, 1.0, 0.5)
+  print(f"by min_distance ({len(by_distance)} points)")
+
+  # count-based: samples an exact number of segments, regardless of arc length
+  by_count = g.bezier_smoothing_2(p0, p1, p2, 1.0, 3)
+  print(f"by num_segments ({len(by_count)} points)")
+  for pt in by_count:
+      print(f"  {pt.to_wkt()}")
+  ```
+
+  ```
+  by min_distance (4 points)
+  by num_segments (4 points)
+    POINT (1 0)
+    POINT (1.556 0.111)
+    POINT (1.889 0.444)
+    POINT (2 1)
+  ```
+
+  The first and last sampled points are always the trimmed tangent points (`(1, 0)` and `(2, 1)`
+  here), not `p1` itself — `p1` is replaced by the arc, unless `smoothness` is `0` (every sample
+  collapses to `p1`, a sharp corner). `bezier_smoothing_2` is bound for both `Point2D` and `Point3D`.
+
+  A keyword-only `min_segment_length` argument (default `DOUBLE_EPSILON`) skips trimming on a side
+  whose adjacent edge is at or below that length — that tangent point falls back to `p1` instead. If
+  *both* adjacent edges are that short, the whole corner collapses to `p1` (no curve), which is the
+  mechanism `Polyline.expand()` (next) uses to leave tiny/noisy corners sharp.
+
+</details>
+
+<details closed>
+<summary><b> &nbsp; &nbsp; 8.3 Expand / smooth a polyline</b></summary>
+
+  `Polyline2D.expand(settings)` / `Polyline3D.expand(settings)` — the inverse of `reduce()` — round
+  every *inner* corner with a quadratic Bezier arc, via `PolylineExpansionParams`:
+
+  - `smoothness`, `mode` (`FixedSegments` / `MinDistance`), `segments_per_corner`, `min_distance` —
+    same meaning as the matching `bezier_smoothing_2` parameters, applied to every corner.
+  - `min_segment_length` — forwarded to `bezier_smoothing_2` for every corner; a corner whose adjacent
+    edges are both that short stays sharp instead of being rounded.
+
+  `settings` is optional; `expand()` with no arguments and `expand(g.PolylineExpansionParams())` behave
+  identically, both defaulting to `{0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON}`.
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  # a right-angle path with two consecutive corners
+  path = g.Polyline2D.make([
+      g.Point2D(0, 0), g.Point2D(2, 0), g.Point2D(2, 2), g.Point2D(0, 2)])
+
+  settings = g.PolylineExpansionParams(smoothness=1.0, segments_per_corner=3)
+  rounded = path.expand(settings)
+  print(f"Expand ({path.size()} -> {rounded.size()}): {rounded.to_wkt()}")
+  ```
+
+  ```
+  Expand (4 -> 9): LINESTRING (0 0, 1 0, 1.556 0.111, 1.889 0.444, 2 1, 1.889 1.556, 1.556 1.889, 1 2, 0 2)
+  ```
+
+  Each of the two inner corners (`(2, 0)` and `(2, 2)`) is replaced by its own trimmed-tangent arc; the
+  two arcs share a tangent point exactly at the shared edge's midpoint `(2, 1)` (each corner's trim is
+  capped at half of its shared edge), collapsed to one point rather than duplicated. `expand()`
+  dispatches to the free function `polyline_expansion(points, settings)`, which rounds a raw point list
+  the same way without constructing a `Polyline` first.
+
+</details>
+
+
+Here is an example of polyline reduction / expansion in jupyter notebook 
+
+
+![polyline_ops_examples](etc/polyline_changes_py.png)
+
 
 </details>
 

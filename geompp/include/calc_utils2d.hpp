@@ -175,6 +175,81 @@ class SweepLine2D {
                                              // by geometric y at SWEEP_X; lower_bound gives O(log n) search
 };
 
+bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b);  // true if a and b share a First()/Last()
+
+/// @brief Hooks invoked during the Shamos-Hoey sweep (see run_shamos_hoey). Both hooks return true to stop the
+/// sweep immediately (short-circuit), false to keep scanning.
+/// OnStart fires once a segment becomes active (its LEFT event). OnIntersection fires whenever two active,
+/// non-endpoint-sharing neighbors on the sweep line are found to cross (checked at both LEFT and RIGHT events).
+template <typename Visitor, typename Segments>
+concept ShamosHoeyVisitor2D = requires(Visitor& v, typename SweepLine2D<Segments>::IdSegPair const& seg) {
+  { v.OnStart(seg) }
+  ->std::convertible_to<bool>;
+  { v.OnIntersection(seg, seg) }
+  ->std::convertible_to<bool>;
+};
+
+/// @brief The Shamos-Hoey sweep, generalized with a visitor so callers can implement different algorithms
+/// (existence check, counting, collection, ...) on top of the same O(n log n) neighbor-adjacency scan.
+/// @param segments list of segments (can be generic list of segments or segments of the polygon)
+/// @param visitor  called at each LEFT event (OnStart) and at each detected neighbor crossing (OnIntersection);
+/// the sweep stops as soon as either hook returns true.
+/// @returns true if the sweep was stopped early by the visitor, false if the whole queue was drained.
+/// @throws less than 2 segments arguments, or algorithm based throw logic
+template <SegmentList Segments, typename Visitor>
+requires ShamosHoeyVisitor2D<Visitor, Segments> bool run_shamos_hoey(Segments const& segments, Visitor& visitor) {
+  if (segments.size() < 2) {
+    throw std::invalid_argument("provided less than 2 segments, cannot check for intersections");
+  }
+
+  EventQueue2D event_queue(segments);
+  SweepLine2D<Segments> sweep_line(segments);
+
+  while (!event_queue.Empty()) {
+    auto event_opt = event_queue.Pop();
+    if (!event_opt.has_value()) {
+      throw std::logic_error("Event queue is unexpectedly empty");
+    }
+    auto event = event_opt.value();
+
+    sweep_line.SetX(event.Point.x());
+
+    std::size_t seg_id = event.SegmentId;
+
+    if (event.Type == EventType2D::LEFT) {
+      auto triplet = sweep_line.Add(seg_id);
+      if (!triplet.Segment) {
+        throw std::logic_error("Could not find the segment corresponding to the LEFT event in the sweep line");
+      }
+
+      if (visitor.OnStart(*triplet.Segment)) {
+        return true;
+      }
+
+      if (triplet.Above && !shares_endpoint(triplet.Segment->Seg, triplet.Above->Seg) &&
+          intersect(triplet.Segment->Seg, triplet.Above->Seg) &&
+          visitor.OnIntersection(*triplet.Segment, *triplet.Above)) {
+        return true;
+      }
+      if (triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Segment->Seg) &&
+          intersect(triplet.Below->Seg, triplet.Segment->Seg) &&
+          visitor.OnIntersection(*triplet.Below, *triplet.Segment)) {
+        return true;
+      }
+
+    } else if (event.Type == EventType2D::RIGHT) {
+      auto triplet = sweep_line.Remove(seg_id);
+
+      if (triplet.Above && triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Above->Seg) &&
+          intersect(triplet.Below->Seg, triplet.Above->Seg) && visitor.OnIntersection(*triplet.Below, *triplet.Above)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 /// @brief Intersection of two infinite lines defined by two points each, returning parametric values.
 /// @param p0, p1            Two points on the first line.
 /// @param other_p0, other_p1  Two points on the second line.
@@ -184,7 +259,8 @@ class SweepLine2D {
 std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
                                          Point2D const& other_p1, double& sc, double& tc);
 
-/// @brief the Shamos-Hoey algorithm for checking polygon simplicity (no self-intersections)
+/// @brief the Shamos-Hoey algorithm for checking polygon simplicity (no self-intersections).
+/// Implemented as run_shamos_hoey() with a visitor that stops at the first crossing found.
 /// @param segments list of segments (can be generic list of segments or segments of the polygon)
 /// @returns true - if any intersection exists
 /// @throws less than 2 segments arguments, or algorithm based throw logic
@@ -201,11 +277,184 @@ struct IntersectionEvent2D {
   bool operator==(IntersectionEvent2D const& other) const;
 };
 
+/// @brief Hooks invoked during the Bentley-Ottmann sweep (see run_bentley_ottmann). Both hooks return true to
+/// stop the sweep immediately (short-circuit), false to keep scanning.
+/// OnStart fires once a segment becomes active (its LEFT event). OnIntersection fires once per confirmed
+/// crossing between two segments — possibly several times for the same point when 3+ segments meet there;
+/// the visitor owns whatever deduplication/collection it needs.
+template <typename Visitor, typename Segments>
+concept BentleyOttmannVisitor2D = requires(Visitor& v, typename SweepLine2D<Segments>::IdSegPair const& seg,
+                                           IntersectionEvent2D const& hit) {
+  { v.OnStart(seg) }
+  ->std::convertible_to<bool>;
+  { v.OnIntersection(hit) }
+  ->std::convertible_to<bool>;
+};
+
+/// @brief The Bentley-Ottmann sweep, generalized with a visitor so callers can implement different algorithms
+/// (collection, counting, early-exit, ...) on top of the same O((n+k) log n) crossing-detection scan.
+/// @param segments list of segments (can be generic list of segments or segments of the polygon)
+/// @param visitor  called at each LEFT event (OnStart) and at each confirmed crossing (OnIntersection); the
+/// sweep stops as soon as either hook returns true.
+/// @returns true if the sweep was stopped early by the visitor, false if the whole queue was drained.
+/// @throws less than 2 segments arguments, or algorithm based throw logic
+template <SegmentList Segments, typename Visitor>
+requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Segments const& segments,
+                                                                             Visitor& visitor) {
+  if (segments.size() < 2) {
+    throw std::invalid_argument("less than 2 segments provided, cannot check for intersections");
+  }
+
+  EventQueue2D event_queue(segments);
+  SweepLine2D<Segments> sweep_line(segments);
+
+  while (!event_queue.Empty()) {
+    auto event_opt = event_queue.Pop();
+    if (!event_opt.has_value()) {
+      throw std::logic_error("Event queue is unexpectedly empty");
+    }
+    auto event = event_opt.value();
+
+    // Advance SWEEP_X only for non-intersection events.
+    // For INTERSECTION events the handler's own Remove→SetX(x+ε)→Add cycle advances SWEEP_X past
+    // the crossing.  Advancing here would land exactly on the crossing x, where both segments have
+    // equal y and the tiebreaker (id1 < id2) gives the wrong pre-crossing adjacency order, causing
+    // Get() to mis-navigate the set and the adjacency check to fail spuriously.
+    if (event.Type != EventType2D::INTERSECTION) {
+      if (compare(sweep_line.GetX(), event.Point.x()) < 0) {
+        sweep_line.SetX(event.Point.x());
+      }
+    }
+
+    if (event.Type == EventType2D::LEFT) {
+      auto elem = sweep_line.Add(event.SegmentId);
+      if (!elem.Segment) {
+        throw std::logic_error("Could not add the segment corresponding to the LEFT event in the sweep line");
+      }
+
+      if (visitor.OnStart(*elem.Segment)) {
+        return true;
+      }
+
+      if (elem.Above && !shares_endpoint(elem.Segment->Seg, elem.Above->Seg)) {
+        if (auto inter_p = elem.Segment->Seg.Intersection(elem.Above->Seg)) {
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Segment->Id, elem.Above->Id});
+        }
+      }
+
+      if (elem.Below && !shares_endpoint(elem.Below->Seg, elem.Segment->Seg)) {
+        if (auto inter_p = elem.Below->Seg.Intersection(elem.Segment->Seg)) {
+          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Below->Id, elem.Segment->Id});
+        }
+      }
+
+    } else if (event.Type == EventType2D::RIGHT) {
+      auto elem = sweep_line.Get(event.SegmentId);
+      if (!elem.Segment) {  // impossible at this stage
+        throw std::logic_error("Could not find the segment corresponding to the RIGHT event in the sweep line");
+      }
+
+      auto above_elem = elem.Above;
+      auto below_elem = elem.Below;
+
+      sweep_line.Remove(event.SegmentId);  // automatically resets the above/below neighbours of the segment being
+                                           // removed to the new neighbours after removal
+
+      if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
+        if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
+          auto inter_event = Event2D{EventType2D::INTERSECTION, inter_p.value(), below_elem->Id, above_elem->Id};
+          if (!event_queue.Contains(inter_event)) {
+            event_queue.Push(inter_event);
+          }
+        }
+      }
+
+    } else if (event.Type == EventType2D::INTERSECTION) {
+      std::size_t seg1_id = event.SegmentId;
+      std::size_t seg2_id = event.InterSegmentId.value();  // guaranteed from the logic above (and .value()
+                                                           // automatically throws std::bad_optional_access if empty)
+
+      auto inter_event = IntersectionEvent2D{event.Point, {seg1_id, seg2_id}};
+
+      if (visitor.OnIntersection(inter_event)) {
+        return true;
+      }
+
+      // in the logic LEFT, and RIGHT I have guaranteed to always have seg1 < seg2 in Event{INTERSECTION, seg1, seg2}
+      // at this point: segB < seg1 < seg2 < segA
+
+      // in order to move the segments (seg1 -> up, seg2 -> down) we have to
+      // (1) Remove them
+      // (2) SetX
+      // (3) Add them back in the queue
+      // (4) check the new above/below intersections
+      // ... here we go.
+
+      // Skip the swap if this crossing is already behind the sweep line.  This happens with concurrent
+      // intersections: the first pair advances sweep_x to x+ε; all subsequent pairs at the same x are
+      // already in the past and must not be re-swapped (doing so would cycle back to already-processed
+      // pairs and loop indefinitely).
+      if (inter_event.Point.x() < sweep_line.GetX()) {
+        continue;
+      }
+
+      // verify seg1 and seg2 are still adjacent — a stale event (queued before another segment was inserted
+      // between them) must be skipped to avoid corrupting sweep line order
+      auto seg1_check = sweep_line.Get(seg1_id);
+      if (!seg1_check.Segment || !seg1_check.Above || seg1_check.Above->Id != seg2_id) {
+        continue;
+      }
+
+      // (1) Remove segments (save the neighbors for later)
+      sweep_line.Remove(seg1_id);
+      sweep_line.Remove(seg2_id);
+
+      // (2) set X to a bigger value (according to the decimal precision)
+      if (compare(sweep_line.GetX(), inter_event.Point.x()) <= 0) {
+        sweep_line.SetX(inter_event.Point.x() + DOUBLE_EPSILON);
+      }
+
+      // (3) add the segments back
+      auto new_seg1 = sweep_line.Add(seg1_id);
+      if (!new_seg1.Segment) {
+        throw std::logic_error("Could not add the segment corresponding NEW SEG1 in the sweep line");
+      }
+      auto new_seg2 = sweep_line.Add(seg2_id);
+      if (!new_seg2.Segment) {
+        throw std::logic_error("Could not add the segment corresponding NEW SEG2 in the sweep line");
+      }
+
+      // (4) check the new above/below intersections
+      // now : segB < seg2 < seg1 < segA
+      if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
+        if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg1.Segment->Id, new_seg1.Above->Id};
+          if (!event_queue.Contains(inter_ev)) {
+            event_queue.Push(inter_ev);
+          }
+        }
+      }
+
+      if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
+        if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg2.Below->Id, new_seg2.Segment->Id};
+          if (!event_queue.Contains(inter_ev)) {
+            event_queue.Push(inter_ev);
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 /// @brief the Bentley-Ottmann algorithm for finding all intersection points among a set of segments
 /// @param segments list of segments (can be generic list of segments or segments of the polygon)
 /// @returns list of intersection points - in sorted order bottom-left to top-right (the intersecting 2+ segment IDs are
 /// also reported)
 /// @throws less than 2 segments arguments, or algorithm based throw logic
+/// Implemented as run_bentley_ottmann() with a visitor that collects every crossing found.
 template <SegmentList Segments>
 std::vector<IntersectionEvent2D> find_intersections(Segments const& segments);
 
@@ -450,5 +699,79 @@ Points vw_decimation(Points const& points, double threshold);
 
 extern template std::vector<Point2D> vw_decimation(std::vector<Point2D> const&, double threshold);
 extern template std::vector<Point3D> vw_decimation(std::vector<Point3D> const&, double threshold);
+
+/// @brief Rounds the corner at p1 with a quadratic Bezier arc tangent to p0-p1 and p1-p2, density-sampled.
+/// The tangent points are trimmed in from p1 by up to `smoothness` fraction of the shorter adjacent edge,
+/// then the arc between them is sampled roughly `min_distance` apart (see bezier_trimmed_tangents /
+/// sample_quadratic_bezier in calc_utils2d.cpp). p1 itself is not part of the result (it is replaced by the
+/// arc) unless `smoothness` is 0, in which case every sample collapses to p1 (no smoothing).
+/// @param p0 point before the corner.
+/// @param p1 the corner being smoothed.
+/// @param p2 point after the corner.
+/// @param smoothness in [0, 1]: fraction of the shorter adjacent edge (p0-p1 or p1-p2) to trim into tangent
+/// points. 0 leaves the corner sharp (every sample collapses to p1); 1 trims half of the shorter edge.
+/// @param min_distance target spacing between consecutive sampled points along the arc.
+/// @param min_segment_length skip trimming on a side whose adjacent edge (p0-p1 or p1-p2) is at or below
+/// this length — that tangent point collapses to p1 instead (same fallback as the exact-zero-length guard).
+/// Defaults to DOUBLE_EPSILON (matching PolylineExpansionParams::min_segment_length and this codebase's
+/// usual epsilon-parameter default), so an edge indistinguishable from zero at the current
+/// DECIMAL_PRECISION is never trimmed into, without the caller having to opt in. Note the effective
+/// threshold is `min_segment_length + DOUBLE_EPSILON`, not exactly `min_segment_length` — the internal
+/// `compare()` used for the check has its own DOUBLE_EPSILON-wide tolerance band on top of whatever value
+/// is passed here. If *both* adjacent edges are at or below it, the whole corner collapses to p1 (no
+/// curve at all — every sample is p1), giving the caller a way to skip smoothing tiny/noisy corners
+/// entirely (pass 0.0 to only skip on an edge that's truly, exactly zero-length).
+/// @returns points sampled from the tangent point near p0 to the tangent point near p2, inclusive.
+/// @throws std::invalid_argument if min_distance <= 0.
+template <typename PointT>
+std::vector<PointT> bezier_smoothing_2(PointT p0, PointT p1, PointT p2, double smoothness, double min_distance,
+                                       double min_segment_length = DOUBLE_EPSILON);
+
+extern template std::vector<Point2D> bezier_smoothing_2(Point2D p0, Point2D p1, Point2D p2, double smoothness,
+                                                        double min_distance, double min_segment_length);
+extern template std::vector<Point3D> bezier_smoothing_2(Point3D p0, Point3D p1, Point3D p2, double smoothness,
+                                                        double min_distance, double min_segment_length);
+
+/// @brief Same as bezier_smoothing_2(p0, p1, p2, smoothness, min_distance), but takes an exact sample count
+/// instead of a distance-derived one. Kept as a distinct overload rather than a parameter that reinterprets
+/// min_distance — the two controls don't share a unit or a precedence rule (see the design note in
+/// calc_utils2d.cpp). Note: a bare `int` argument always resolves here and a bare `double` always resolves
+/// to the min_distance overload (exact type match beats either implicit conversion); any other numeric type
+/// (e.g. std::size_t) is ambiguous between the two and requires an explicit cast at the call site.
+/// @param num_segments number of segments to divide the arc into; the result has num_segments + 1 points.
+/// @param min_segment_length see the min_distance overload — same skip-trim/skip-corner behavior and
+/// DOUBLE_EPSILON default.
+/// @returns num_segments + 1 points sampled evenly from the tangent point near p0 to the tangent point near p2.
+/// @throws std::invalid_argument if num_segments < 1.
+template <typename PointT>
+std::vector<PointT> bezier_smoothing_2(PointT p0, PointT p1, PointT p2, double smoothness, int num_segments,
+                                       double min_segment_length = DOUBLE_EPSILON);
+
+extern template std::vector<Point2D> bezier_smoothing_2(Point2D p0, Point2D p1, Point2D p2, double smoothness,
+                                                        int num_segments, double min_segment_length);
+extern template std::vector<Point3D> bezier_smoothing_2(Point3D p0, Point3D p1, Point3D p2, double smoothness,
+                                                        int num_segments, double min_segment_length);
+
+/// @brief Rounds every inner corner of @p input (index 1 through size()-2) with a quadratic Bezier arc via
+/// bezier_smoothing_2 — the shared implementation behind Polyline2D::Expand() / Polyline3D::Expand(). The
+/// true first/last points of @p input are always preserved unsmoothed. p0/p1/p2 for each corner are always
+/// read from @p input directly, never from the output already built up: bezier_smoothing_2's trim is
+/// bounded by the *true* adjacent edge lengths (each corner's trim is independently capped at half of its
+/// shared edge with a neighbor, so adjacent corners' arcs can touch but never cross), and substituting an
+/// already-trimmed output point would both shrink that apparent edge length (under-trimming) and stop p1
+/// from being the actual corner vertex being rounded.
+/// @param input the knots to round; must have at least 1 point (0 and 1-point input is a no-op).
+/// @param settings bundles smoothness, sampling density, and the tiny-corner skip threshold. Defaults to
+/// `{0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON}`.
+/// @returns @p input with every inner corner replaced by its rounded arc; consecutive duplicate points
+/// (e.g. from a corner fully skipped via min_segment_length) are collapsed to one.
+template <typename PointT>
+std::vector<PointT> polyline_expansion(std::vector<PointT> const& input,
+                                       PolylineExpansionParams const& settings = PolylineExpansionParams{});
+
+extern template std::vector<Point2D> polyline_expansion(std::vector<Point2D> const& input,
+                                                        PolylineExpansionParams const& settings);
+extern template std::vector<Point3D> polyline_expansion(std::vector<Point3D> const& input,
+                                                        PolylineExpansionParams const& settings);
 
 }  // namespace geompp

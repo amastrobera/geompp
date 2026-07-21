@@ -106,6 +106,13 @@ class LineSegment2D {
 #pragma endregion
 
  private:
+  // Trusted to construct LineSegment2D from consecutive points without the AlmostEquals degeneracy check that
+  // Make() does: both validate their whole backing point list once, up front, in their own constructor —
+  // repeating that check on every operator[]/operator*() access (as they would through Make()) would be
+  // redundant, since that's exactly what a sweep line does hundreds of times over the same points.
+  friend class SegmentIterator2D;
+  friend class SegmentRange2D;
+
   Point2D P0, P1;
 
   LineSegment2D(Point2D const& p0, Point2D const& p1);
