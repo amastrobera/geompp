@@ -2072,7 +2072,7 @@ std::vector<PointT> sample_quadratic_bezier(PointT const& T0, PointT const& p1, 
     //      PointT pt = T0 * (u * u) + p1 * (2.0 * u * t) + T1 * (t * t);      with u = 1 - t
     PointT a = lerp(T0, p1, t);
     PointT b = lerp(p1, T1, t);
-    PointT pt = lerp(a, b t);
+    PointT pt = lerp(a, b, t);
 
     result.push_back(pt);
   }

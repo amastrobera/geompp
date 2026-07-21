@@ -79,6 +79,11 @@ public:
     static bool AreCCW(System::Collections::Generic::List<Point3D^>^ points, Plane^ refPlane);
     static bool AreCW (System::Collections::Generic::List<Point3D^>^ points, Plane^ refPlane);
 
+    // Lerp — linear interpolation between two points: p0 + t * (p1 - p0). Not clamped — t outside
+    // [0, 1] extrapolates past p0/p1.
+    static Point2D^ Lerp(Point2D^ p0, Point2D^ p1, double t);
+    static Point3D^ Lerp(Point3D^ p0, Point3D^ p1, double t);
+
     // Segment-set intersection.
     // HasIntersections — Shamos–Hoey: true if any two of the segments intersect.
     static bool HasIntersections(System::Collections::Generic::List<LineSegment2D^>^ segments);

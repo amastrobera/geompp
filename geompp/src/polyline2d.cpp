@@ -208,7 +208,7 @@ Point2D Polyline2D::Interpolate(double pct) const {
 
     if (compare(target, len_to_i + len_i) <= 0) {
       double pct_i = (target - len_to_i) / len_i;
-      return KNOTS[i] + pct_i * (KNOTS[i + 1] - KNOTS[i]);
+      return lerp(KNOTS[i], KNOTS[i + 1], pct_i);
     }
 
     len_to_i += len_i;

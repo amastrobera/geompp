@@ -240,6 +240,18 @@ TEST_F(Point2DTest, Average) {
   ASSERT_EQ(g::Point2D(3.0 / pts.size(), -5.0 / pts.size()), g::average(pts));
 }
 
+TEST_F(Point2DTest, Lerp) {
+  g::Point2D p0(0, 0), p1(10, 20);
+
+  EXPECT_EQ(p0, g::lerp(p0, p1, 0.0));
+  EXPECT_EQ(p1, g::lerp(p0, p1, 1.0));
+  EXPECT_EQ(g::Point2D(5, 10), g::lerp(p0, p1, 0.5));
+
+  // not clamped: t outside [0, 1] extrapolates
+  EXPECT_EQ(g::Point2D(-10, -20), g::lerp(p0, p1, -1.0));
+  EXPECT_EQ(g::Point2D(20, 40), g::lerp(p0, p1, 2.0));
+}
+
 TEST_F(Point2DTest, FromVector) {
   // explicit construction from a vector copies x/y components
   auto v = g::Vector2D(3.0, -4.5);

@@ -71,6 +71,14 @@ bool GeomUtil::AreCW(System::Collections::Generic::List<Point3D^>^ points, Plane
     return geompp::are_cw(native, opt);
 }
 
+Point2D^ GeomUtil::Lerp(Point2D^ p0, Point2D^ p1, double t) {
+    return gcnew Point2D(new geompp::Point2D(geompp::lerp(*p0->_native, *p1->_native, t)));
+}
+
+Point3D^ GeomUtil::Lerp(Point3D^ p0, Point3D^ p1, double t) {
+    return gcnew Point3D(new geompp::Point3D(geompp::lerp(*p0->_native, *p1->_native, t)));
+}
+
 bool GeomUtil::HasIntersections(System::Collections::Generic::List<LineSegment2D^>^ segments) {
     return geompp::has_intersections(ToNativeSegments(segments));
 }

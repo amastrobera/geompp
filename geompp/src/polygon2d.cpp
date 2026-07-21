@@ -355,7 +355,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Line2D const& 
   // if they exist, they are guaranteed to be of even number, sorted, non duplicated
   // and also te < tl, for each pair te = t(i), tl = t(i+1)
 
-  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+  auto eval = [&](double t) { return lerp(p0, p1, t); };
 
   std::vector<LineSegment2D> segs;
   for (auto const& [te, tl] : intervals) {
@@ -376,7 +376,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Ray2D const& r
   // if they exist, they are guaranteed to be of even number, sorted, non duplicated
   // and also te < tl, for each pair te = t(i), tl = t(i+1)
 
-  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+  auto eval = [&](double t) { return lerp(p0, p1, t); };
 
   std::vector<LineSegment2D> intersection_list;
 
@@ -423,7 +423,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
   // if they exist, they are guaranteed to be of even number, sorted, non duplicated
   // and also te < tl, for each pair te = t(i), tl = t(i+1)
 
-  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+  auto eval = [&](double t) { return lerp(p0, p1, t); };
 
   std::vector<LineSegment2D> intersection_list;
 

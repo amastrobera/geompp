@@ -82,7 +82,7 @@ Point2D LineSegment2D::Interpolate(double pct) const {
     return P1;
   }
 
-  return P0 + pct * (P1 - P0);
+  return lerp(P0, P1, pct);
 }
 
 bool LineSegment2D::IsLeft(Point2D const& p) const {

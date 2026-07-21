@@ -3492,6 +3492,21 @@ class TestFreeFunctions:
         avg = geompp.average(pts)
         assert approx(avg.x, 1.0)
 
+    def test_lerp_2d(self):
+        p0, p1 = geompp.Point2D(0, 0), geompp.Point2D(10, 20)
+        assert approx(geompp.lerp(p0, p1, 0.0).x, 0.0)
+        assert approx(geompp.lerp(p0, p1, 1.0).x, 10.0)
+        mid = geompp.lerp(p0, p1, 0.5)
+        assert approx(mid.x, 5.0) and approx(mid.y, 10.0)
+        # not clamped: t outside [0, 1] extrapolates
+        far = geompp.lerp(p0, p1, 2.0)
+        assert approx(far.x, 20.0) and approx(far.y, 40.0)
+
+    def test_lerp_3d(self):
+        p0, p1 = geompp.Point3D(0, 0, 0), geompp.Point3D(10, 20, 30)
+        mid = geompp.lerp(p0, p1, 0.5)
+        assert approx(mid.x, 5.0) and approx(mid.y, 10.0) and approx(mid.z, 15.0)
+
     def test_linear_combination_2d(self):
         pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 0)]
         result = geompp.linear_combination(pts, [0.0, 1.0])

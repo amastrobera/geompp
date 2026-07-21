@@ -188,9 +188,7 @@ std::vector<Point3D> convex_hull(std::vector<Point3D> const& points, std::option
 }
 
 Point3D lerp(Point3D const& P0, Point3D const& P1, double t) {
-  // rewriting
-  // P(t) = (1 - t) * P0 + t * P1;
-  // wihout the point addition (operator+ is deleted)
+  // P(t) = (1 - t) * P0 + t * P1, rewritten without summing two points (operator+(Point3D, Point3D) is deleted)
   return P0 + t * (P1 - P0);
 }
 

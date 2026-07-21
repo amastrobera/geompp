@@ -1,16 +1,16 @@
 # Test Coverage Report
 
-_Last updated: 2026-07-10_
+_Last updated: 2026-07-21_
 
 ## Overall
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (total) | ~421 | Excluding copy/move ctors, dtors, `operator<<`, `operator=` |
+| Public methods (total) | ~437 | Excluding copy/move ctors, dtors, `operator<<`, `operator=`. +16: `Polygon2D`/`Polygon3D` boolean ops (`Union`/`Intersection`/`Difference`/`Xor`/`Intersects`), `clip()`, `View2D::xyz` (×2), `lerp` (×2) |
 | Stubs (`throw "not implemented"`) | 10 | Listed per class below |
-| C++ explicit tests | ~531 | At least one `TEST_F` exercises the method |
-| Python explicit tests | ~238 | At least one `test_*` function calls the method |
-| C# explicit tests | ~244 | At least one test in `Program.cs` exercises the method |
+| C++ explicit tests | ~580 | At least one `TEST_F` exercises the method |
+| Python explicit tests | ~240 | At least one `test_*` function calls the method |
+| C# explicit tests | ~246 | At least one test in `Program.cs` exercises the method |
 
 ---
 
@@ -20,8 +20,8 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 
 | Class | C++ tested | Py tested | CS tested | Stubs ★ | Notable gaps ○ |
 |-------|-----------|----------|----------|---------|----------------|
-| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py); new `Point2D(Vector2D)` ctor covered all three; new `is_left` / `is_right` / `convex_hull` free fns tested in all three languages |
-| `Point3D` | ✓ all key | ✓ most | ✓ most | — | new `Point3D(Vector3D)` ctor covered all three |
+| `Point2D` | ✓ all key | ✓ most | ✓ most | — | `linear_combination` (Py); new `Point2D(Vector2D)` ctor covered all three; new `is_left` / `is_right` / `convex_hull` free fns tested in all three languages; new `lerp` free fn tested in all three |
+| `Point3D` | ✓ all key | ✓ most | ✓ most | — | new `Point3D(Vector3D)` ctor covered all three; new `lerp` free fn tested in all three |
 | `Vector2D` | ✓ most | ✓ most | ✓ partial | — | Many arithmetic operators (both) |
 | `Vector3D` | ✓ most | ✓ most | ✓ most | — | Many arithmetic operators (both); `IsParallel` (C++) |
 | `Line2D` | ✓ most | ✓ partial | ✓ most | — | `Intersects`/`Intersection` ×`Ray2D`, ×`Segment2D` (Py) |
@@ -32,11 +32,12 @@ Key: **★** = stub (not yet implemented) · **○** = implemented, no explicit 
 | `LineSegment3D` | ✓ all key | ○ thin | ○ thin | — | `First`, `Last`, `AlmostEquals`, `Location`, `Interpolate`, `Contains`, all `Intersects`/`Intersection` (Py) |
 | `Polyline2D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location` (Py); new `ConvexHull()` (Melkman) tested in all three; new `Reduce(strategy, threshold)` (all 3 strategies + default-params equivalence) tested in all three |
 | `Polyline3D` | ✓ all key | ✓ partial | ✓ partial | — | `ProjectOnto` (C++); `DistanceTo`, `Location`, `Interpolate`, most `Intersects`/`Intersection` (Py); new `Reduce(strategy, threshold)` (all 3 strategies) tested in all three; default-params equivalence has a C++ test only |
-| `Polygon2D` | ✓ all key | ✓ all key | ✓ most | `DistanceTo(Point2D)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); `IsSimple()` and `ConvexHull()` tested in all three; `Intersection(×Line/Ray/Seg)` now implemented and tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&`; free `distance_to(Polygon2D, Line2D)` (convex O(log n) + non-convex O(n), holes ignored) now implemented and tested in all three languages |
-| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo(Point3D)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&`; `Intersection(×Line/Ray/Seg)` is implemented (not a stub — corrected from a stale mark) and tested in Python/C#, but has no dedicated C++ `TEST_F` yet; free `distance_to(Polygon3D, Line3D)` (coplanar, parallel-offset via Pythagorean combination, and skew via an exact per-edge quadratic boundary scan) now implemented and tested in all three languages |
+| `Polygon2D` | ✓ all key | ✓ all key | ✓ most | `DistanceTo(Point2D)` ★ | `ToWkt`/`FromWkt`, `ToFile`/`FromFile`, `AlmostEquals` (Py); `IsSimple()` and `ConvexHull()` tested in all three; `Intersection(×Line/Ray/Seg)` now implemented and tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&`; free `distance_to(Polygon2D, Line2D)` (convex O(log n) + non-convex O(n), holes ignored) now implemented and tested in all three languages; new `Union`/`Intersection(Polygon2D)`/`Difference`/`Xor`/`Intersects(Polygon2D)` (general map-overlay boolean ops, holes + self-intersection + collinear-overlapping-edges tolerant) tested in **C++ only** — no Python/C# bindings yet |
+| `Polygon3D` | ✓ core | ✓ core | ✓ partial | `DistanceTo(Point3D)` ★ | Same as Polygon2D (Py); new `ConvexHull()` and `IsSimple()` tested in all three; new `HasHoles()`/`Holes()` tested in all three; `ToPoints()` now returns `const&`; `Intersection(×Line/Ray/Seg)` is implemented (not a stub — corrected from a stale mark) and tested in Python/C#, but has no dedicated C++ `TEST_F` yet; free `distance_to(Polygon3D, Line3D)` (coplanar, parallel-offset via Pythagorean combination, and skew via an exact per-edge quadratic boundary scan) now implemented and tested in all three languages; new `Union`/`Difference`/`Xor`/`Intersects(Polygon3D)` (coplanar-only, throws otherwise) and `Intersection(Polygon3D)` (returns polygons when coplanar, chord segments when the planes cross, `nullopt` when parallel-distinct) tested in **C++ only** — no Python/C# bindings yet |
 | `Triangle2D` | ✓ most | ✓ partial | ✓ partial | `DistanceTo` ★ `Intersects(△)` ★ `Intersection(△)` ★ | `AlmostEquals`, `ToPolygon`, `ToAxis`, `Location`, all `Intersection` (Py) |
 | `Triangle3D` | ✓ most | ✓ most | ✓ most | `DistanceTo` ★ | new `Intersection(×Plane/△)` and the existing `Intersection(×Line/Ray/Seg)` are covered in all three languages |
-| `Plane` | ✓ all key | ✓ all key | ✓ most | — | `Intersection(Triangle3D)` now delegates to the symmetric `Triangle3D::Intersection(Plane)` (no stub remaining) |
+| `Plane` | ✓ all key | ✓ all key | ✓ most | — | `Intersection(Triangle3D)` now delegates to the symmetric `Triangle3D::Intersection(Plane)` (no stub remaining); fixed `AlmostEquals` comparing the coplanarity dot product against `epsilon` itself instead of against zero with `epsilon` as tolerance — regression-tested with a custom epsilon |
+| `View2D` | ✓ all key | — | — | — | `XY`/`YZ`/`ZX` gained an optional plane-offset parameter; new `xyz()` (inverse projection, exact for `OnPlane`/`Custom` and the offset-taking axis views) tested in C++ only — internal/helper type, not bound to Python or C# |
 | `BBox2D` | ✓ most | ✓ partial | — | — | `BBox2D(Polyline2D)`, `BBox2D(Polygon2D)` (C++); most ctors (Py) |
 | `BBox3D` | ✓ all key | ○ thin | — | — | `min`, `max`, `Contains`, all shape ctors (Py) |
 | `WktParser` | ✓ core | ✓ partial | ✓ most | — | Multi-geometry `FromWkt` round-trip (Py) |

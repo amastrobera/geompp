@@ -90,6 +90,14 @@ void bind_free_functions(py::module_& m) {
           [](const std::vector<geompp::Point3D>& pts) { return geompp::average(pts); },
           "points"_a, "Arithmetic mean of 3D points.");
 
+    m.def("lerp",
+          [](const geompp::Point2D& p0, const geompp::Point2D& p1, double t) { return geompp::lerp(p0, p1, t); },
+          "p0"_a, "p1"_a, "t"_a, "Linear interpolation between two 2D points. Not clamped — t outside [0, 1] extrapolates.");
+
+    m.def("lerp",
+          [](const geompp::Point3D& p0, const geompp::Point3D& p1, double t) { return geompp::lerp(p0, p1, t); },
+          "p0"_a, "p1"_a, "t"_a, "Linear interpolation between two 3D points. Not clamped — t outside [0, 1] extrapolates.");
+
     m.def("centroid",
           [](const std::vector<geompp::Point2D>& pts) { return geompp::centroid(pts); },
           "points"_a, "Centroid of a 2D polygon. Throws if the points have zero area.");

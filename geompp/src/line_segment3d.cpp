@@ -83,7 +83,7 @@ Point3D LineSegment3D::Interpolate(double pct) const {
     return P1;
   }
 
-  return P0 + pct * (P1 - P0);
+  return lerp(P0, P1, pct);
 }
 
 double LineSegment3D::DistanceTo(Point3D const& point) const { return (point - ProjectOnto(point)).Length(); }

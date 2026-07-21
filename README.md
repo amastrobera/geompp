@@ -124,10 +124,10 @@
 
   | Metric | Count | Notes |
   |--------|-------|-------|
-  | Public methods | ~405 | Excl. ctors/dtors/operators |
-  | C++ tested | ~361 | ~89% |
-  | Python tested | ~216 | ~53% |
-  | C# tested | ~221 | ~55% |
+  | Public methods | ~421 | Excl. ctors/dtors/operators |
+  | C++ tested | ~410 | ~97% |
+  | Python tested | ~218 | ~52% |
+  | C# tested | ~223 | ~53% |
   | Stubs (not yet impl.) | 10 | Polygon2D/3D::DistanceTo; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
 
 

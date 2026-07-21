@@ -1137,6 +1137,21 @@ Test("AreCCW_CWSquare_False", () => {
   IsFalse(pts.AreCCW(), "CW square must return false");
 });
 
+Test("Lerp_Point2D_Midpoint", () => {
+  var p0 = new Point2D(0, 0);
+  var p1 = new Point2D(10, 20);
+  IsTrue(GeomUtil.Lerp(p0, p1, 0.0).AlmostEquals(p0));
+  IsTrue(GeomUtil.Lerp(p0, p1, 1.0).AlmostEquals(p1));
+  IsTrue(GeomUtil.Lerp(p0, p1, 0.5).AlmostEquals(new Point2D(5, 10)));
+});
+
+Test("Lerp_Point3D_ExtrapolatesPastEndpoints", () => {
+  var p0 = new Point3D(0, 0, 0);
+  var p1 = new Point3D(10, 20, 30);
+  IsTrue(GeomUtil.Lerp(p0, p1, -1.0).AlmostEquals(new Point3D(-10, -20, -30)));
+  IsTrue(GeomUtil.Lerp(p0, p1, 2.0).AlmostEquals(new Point3D(20, 40, 60)));
+});
+
 Test("AreCW_CWSquare_True", () => {
   var pts = new List<Point3D> {
     new Point3D(0,0,0), new Point3D(0,1,0),
