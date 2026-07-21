@@ -740,14 +740,20 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Point2D con
 /// @brief finds the tangents from a polygon to another
 PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D const& other);
 
-/// @brief Clips @p subject against @p clipper, returning the area both loops share (their set
+/// @brief Clips @p subject_loop against @p clipper_loop, returning the area both loops share (their set
 /// intersection) — the classic "clip a subject polygon by a window polygon" operation, for callers who
-/// have raw point loops rather than Polygon2D instances (no holes, no CCW/CW requirement on input).
+/// have raw point loops rather than Polygon2D/Polygon3D instances (no holes, no CCW/CW requirement on
+/// input). Works for both Point2D and Point3D loops.
 ///
 /// @param clipper_loop  The clip region's vertices, in order. Last point must NOT repeat the first —
 /// the loop is treated as implicitly closed (an edge connects the last vertex back to the first).
 /// @param subject_loop  The subject's vertices, same "implicitly closed, no repeated first point"
 /// convention.
+/// @pre For Point3D input, @p clipper_loop and @p subject_loop must be coplanar — clipping is a set
+/// intersection of two flat regions, which only means something on a single shared plane (the plane is
+/// fitted from @p subject_loop's first three points). Not applicable to Point2D (already native 2D).
+/// @throws std::invalid_argument if @p subject_loop has fewer than 3 points, or (Point3D only) if
+/// @p clipper_loop is not coplanar with @p subject_loop.
 /// @returns Every ring of the intersection, CCW outer rings and CW hole rings mixed in one flat list
 /// (an intersection of two hole-less loops can still have a hole — e.g. two overlapping "L" shapes can
 /// intersect into a shape with a hole in the middle — so the caller must be prepared for that; group by
@@ -757,8 +763,11 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D c
 /// Uses the same general planar-arrangement engine as Polygon2D::Intersection(Polygon2D) — no special
 /// case for convex clippers (a convex-only caller could use the simpler/faster Sutherland-Hodgman
 /// algorithm instead, but that's a different algorithm, not offered here).
-std::vector<std::vector<Point2D>> clip(std::vector<Point2D> const& clipper_loop,
-                                       std::vector<Point2D> const& subject_loop);
+template <PointContainer Points>
+std::vector<Points> clip(Points const& clipper_loop, Points const& subject_loop);
+
+extern template std::vector<std::vector<Point2D>> clip(std::vector<Point2D> const&, std::vector<Point2D> const&);
+extern template std::vector<std::vector<Point3D>> clip(std::vector<Point3D> const&, std::vector<Point3D> const&);
 
 template <PointContainer Points>
 Points dist_decimation(Points const& points, double threshold);

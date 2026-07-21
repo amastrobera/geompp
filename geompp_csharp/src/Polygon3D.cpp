@@ -179,6 +179,10 @@ bool Polygon3D::Intersects(LineSegment3D^ segment) {
     return _native->Intersects(*segment->_native);
 }
 
+bool Polygon3D::Intersects(Polygon3D^ other) {
+    return _native->Intersects(*other->_native);
+}
+
 // ── Intersection ──────────────────────────────────────────────────────────────
 
 Point3D^ Polygon3D::Intersection(Line3D^ line) {
@@ -203,6 +207,50 @@ Point3D^ Polygon3D::Intersection(LineSegment3D^ segment) {
         return nullptr;
     }
     return gcnew Point3D(new geompp::Point3D(result.value()));
+}
+
+System::Object^ Polygon3D::Intersection(Polygon3D^ other) {
+    auto result = _native->Intersection(*other->_native);
+    if (!result.has_value()) {
+        return nullptr;
+    }
+    auto& val = result.value();
+    if (std::holds_alternative<std::vector<geompp::Polygon3D>>(val)) {
+        auto const& polys = std::get<std::vector<geompp::Polygon3D>>(val);
+        auto arr = gcnew array<Polygon3D^>(static_cast<int>(polys.size()));
+        for (int i = 0; i < static_cast<int>(polys.size()); ++i) {
+            arr[i] = gcnew Polygon3D(new geompp::Polygon3D(polys[i]));
+        }
+        return arr;
+    }
+    auto const& segs = std::get<std::vector<geompp::LineSegment3D>>(val);
+    auto arr = gcnew array<LineSegment3D^>(static_cast<int>(segs.size()));
+    for (int i = 0; i < static_cast<int>(segs.size()); ++i) {
+        arr[i] = gcnew LineSegment3D(new geompp::LineSegment3D(segs[i]));
+    }
+    return arr;
+}
+
+// ── Boolean operations ────────────────────────────────────────────────────────
+
+static array<Polygon3D^>^ polys3d_to_managed(std::vector<geompp::Polygon3D> const& native) {
+    auto arr = gcnew array<Polygon3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Polygon3D(new geompp::Polygon3D(native[i]));
+    }
+    return arr;
+}
+
+array<Polygon3D^>^ Polygon3D::Union(Polygon3D^ other) {
+    return polys3d_to_managed(_native->Union(*other->_native));
+}
+
+array<Polygon3D^>^ Polygon3D::Difference(Polygon3D^ other) {
+    return polys3d_to_managed(_native->Difference(*other->_native));
+}
+
+array<Polygon3D^>^ Polygon3D::Xor(Polygon3D^ other) {
+    return polys3d_to_managed(_native->Xor(*other->_native));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

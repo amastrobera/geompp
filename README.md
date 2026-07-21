@@ -23,9 +23,29 @@
   
   ![geometry picture 3d](etc/intersections_projections_3d.png)
 
+
+  ## Available in multiple languages and platforms
+
+  - C++ 20 and above
+
+  - Python ([view](./geompp_python/README.md))
+
+    | Platform | versions |
+    |---|---|
+    | Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
+    | Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
+
+  
+  - C# ([view](./geompp_csharp/README.md))
+
+    | Platform | .Net | .Net Framework |
+    |---|---|---|
+    | Windows x64  | 8 · 9 · 10 | 4.8 |
+
+
   ## What it provides
 
-  ### Primitives
+  ### Classes
 
   Both 2D and 3D variants are available for all core types:
 
@@ -46,7 +66,7 @@
   | `Plane`        | A flat surface in 3D defined by a point and a normal     |
   | `View2D`       | A class that converts a 3D point into 2D quicker than plane|
 
-  ### Algorithms: an overview
+  ### Algorithm overview
 
   Each primitive supports a consistent set of spatial operations where applicable:
 
@@ -69,25 +89,42 @@
 
   Return types are often `optional` and sometimes `optional<variant<...>>` so callers can match on the exact geometry produced by an intersection without casting.
 
-  ### Available in multiple languages
+  ### Free functions
 
-  - C++ 20 and above
+  In addition to the methods on each class, these free functions in `namespace geompp` operate directly
+  on point lists / segment lists (no need to construct a class instance first):
 
-  - Python ([view](./geompp_python/README.md))
-
-    | Platform | versions |
-    |---|---|
-    | Linux x86_64 | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
-    | Windows x64  | 3.8 · 3.9 · 3.10 · 3.11 · 3.12 · 3.13 · 3.14 |
-
+  | Function | Description |
+  |---|---|
+  | `are_collinear(p1, p2, p3)` | Three points on the same line |
+  | `remove_consecutive_duplicates(points)` | Drop consecutive duplicate points |
+  | `remove_duplicates(points)` | Drop duplicate points |
+  | `remove_collinear(points)` | Drop collinear intermediate points |
+  | `linear_combination(points, weights)` | Weighted sum |
+  | `average(points)` | Arithmetic mean |
+  | `lerp(p0, p1, t)` | Linear interpolation between two points — `P0 + t*(P1-P0)`, not clamped |
+  | `centroid(points[, plane])` | Centroid of a polygon (3D: plane auto-detected if omitted) |
+  | `signed_area(points[, plane])` | Signed area — positive if CCW, negative if CW |
+  | `are_ccw(points[, ref_plane])` | Counter-clockwise winding (2D or 3D) |
+  | `are_cw(points[, ref_plane])` | Clockwise winding (2D or 3D) |
+  | `are_coplanar(points)` | List of `Point3D` on the same plane |
+  | `closest_world_plane_to(points)` | XY / YZ / ZX world plane nearest to the point cloud |
+  | `has_intersections(segments)` | Shamos–Hoey: `true` if any two segments in a `LineSegment2D` list cross |
+  | `find_intersections(segments)` | Bentley–Ottmann: every crossing point among a set of segments, sorted left-to-right |
+  | `convex_hull(points[, normal])` | Andrew's monotone chain: convex hull, returned in CCW order (3D: normal auto-detected if omitted) |
+  | `clip(clipper_loop, subject_loop)` | Set intersection of two point loops — 2D natively, 3D if coplanar (map-overlay engine, same as `Polygon::Intersection`) |
+  | `dist_decimation(points, threshold)` | O(n) radial-distance point decimation |
+  | `rdp_decimation(points, threshold)` | Ramer–Douglas–Peucker point decimation |
+  | `vw_decimation(points, threshold)` | Visvalingam–Whyatt point decimation |
+  | `bezier_smoothing_2(p0, p1, p2, smoothness, min_distance\|num_segments[, min_segment_length])` | Rounds one polyline corner with a quadratic Bezier arc |
+  | `polyline_expansion(points, settings)` | Rounds every inner corner of a point list (the engine behind `Polyline::Expand()`) |
+  | `principal_axes(points)` | PCA on a point cloud: returns a `CoordinateFrame` (`.x` primary, `.y` secondary, `.z` best-fit normal) |
+  | `principal_normal(points)` | Best-fit plane normal (PCA eigenvector with smallest eigenvalue) |
+  | `principal_direction(points)` | Dominant direction (PCA eigenvector with largest eigenvalue) |
+  | `find_extreme_points(polygon, line)` | The two polygon vertices least/greatest projected along a line's direction |
+  | `distance_to(polygon, line)` | Distance from a polygon to a line (zero if they intersect) |
+  | `tangents_to(polygon, point_or_polygon)` | Tangent segments from a point to a polygon, or common outer tangents between two polygons |
   
-  - C# ([view](./geompp_csharp/README.md))
-
-    | Platform | .Net | .Net Framework |
-    |---|---|---|
-    | Windows x64  | 8 · 9 · 10 | 4.8 |
-  
-
   ### Serialization
 
   All primitives support:
@@ -96,8 +133,7 @@
 
   ### Precision
 
-  Floating-point comparisons use a thread-local `DECIMAL_PRECISION` constant via `AlmostEquals()`
-  methods, making the library robust against rounding errors while remaining configurable per thread.
+  Floating-point comparisons use a thread-local `DECIMAL_PRECISION` constant via `AlmostEquals()` methods, making the library robust against rounding errors while remaining configurable per thread.
 
 
   ### How to use it
@@ -106,7 +142,7 @@
 
   A quick list of code examples per topic is provided here.
 
-  👉 [View Full Code Examples](./code_examples_per_topic.md)
+  👉 [View Code Examples](./code_examples_per_topic.md)
 
 
   ## Roadmap
@@ -125,9 +161,9 @@
   | Metric | Count | Notes |
   |--------|-------|-------|
   | Public methods | ~421 | Excl. ctors/dtors/operators |
-  | C++ tested | ~410 | ~97% |
-  | Python tested | ~218 | ~52% |
-  | C# tested | ~223 | ~53% |
+  | C++ tested | ~415 | ~99% |
+  | Python tested | ~235 | ~56% |
+  | C# tested | ~231 | ~55% |
   | Stubs (not yet impl.) | 10 | Polygon2D/3D::DistanceTo; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
 
 

@@ -98,6 +98,25 @@ void bind_free_functions(py::module_& m) {
           [](const geompp::Point3D& p0, const geompp::Point3D& p1, double t) { return geompp::lerp(p0, p1, t); },
           "p0"_a, "p1"_a, "t"_a, "Linear interpolation between two 3D points. Not clamped — t outside [0, 1] extrapolates.");
 
+    // ── polygon clipping ──────────────────────────────────────────────────────────────────────
+    m.def("clip",
+          [](const std::vector<geompp::Point2D>& clipper_loop, const std::vector<geompp::Point2D>& subject_loop) {
+              return geompp::clip(clipper_loop, subject_loop);
+          },
+          "clipper_loop"_a, "subject_loop"_a,
+          "Set intersection of two 2D point loops (no holes, last point != first — implicitly closed). "
+          "Returns every ring of the result (CCW outers and CW holes mixed in one flat list — even "
+          "hole-less input can produce a holed intersection).");
+
+    m.def("clip",
+          [](const std::vector<geompp::Point3D>& clipper_loop, const std::vector<geompp::Point3D>& subject_loop) {
+              return geompp::clip(clipper_loop, subject_loop);
+          },
+          "clipper_loop"_a, "subject_loop"_a,
+          "Set intersection of two 3D point loops lying on the same plane (fitted from subject_loop's "
+          "first three points). Raises if clipper_loop isn't coplanar with subject_loop. Returns every "
+          "ring of the result, same flat-list convention as the 2D overload.");
+
     m.def("centroid",
           [](const std::vector<geompp::Point2D>& pts) { return geompp::centroid(pts); },
           "points"_a, "Centroid of a 2D polygon. Throws if the points have zero area.");

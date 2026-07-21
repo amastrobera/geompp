@@ -913,6 +913,10 @@ Point2D interior_sample_point(std::vector<Point2D> const& ring) {
     normal = -normal;  // interior is to the right for a CW ring
   }
   Point2D mid = LineSegment2D::Make(p0, p1).Interpolate(0.5);
+  // Same reasoning as classify_and_orient's floor: winding_number()'s own comparisons use the current
+  // DOUBLE_EPSILON as their tolerance, so this nudge must stay comfortably larger than it or the sample
+  // point reads as "on the boundary" instead of "definitely inside." Requires DOUBLE_EPSILON to stay
+  // small relative to the ring's own scale — same assumption this codebase's comparisons always make.
   double eps = std::max(best_len * 0.01, DOUBLE_EPSILON * 10);
   return mid + normal * eps;
 }
@@ -932,6 +936,16 @@ std::vector<LineSegment2D> classify_and_orient(std::vector<LineSegment2D> const&
     Vector2D dir = (seg.Last() - seg.First()).Normalize();
     Vector2D normal = dir.Perp();
     Point2D mid = seg.Interpolate(0.5);
+    // The floor here is NOT a leftover default — it's required. polygon_contains() below tests each
+    // sample via compare(y1, py) etc. using the *current* DOUBLE_EPSILON as ITS OWN tolerance, so a
+    // nudge smaller than DOUBLE_EPSILON gets swallowed as "on the boundary" rather than read as
+    // definitely inside/outside (verified: at DECIMAL_PRECISION loosened enough that DOUBLE_EPSILON
+    // exceeds a fixed nudge, polygon_contains reported points outside the shape as inside it). So the
+    // nudge must stay comfortably larger than DOUBLE_EPSILON, same implicit assumption this codebase's
+    // comparisons always make: DOUBLE_EPSILON is expected to be small relative to the geometry's own
+    // scale. If a caller loosens precision to be comparable to their polygons' edge lengths, no nudge
+    // can simultaneously clear DOUBLE_EPSILON and stay local to the edge — classification becomes
+    // unreliable at that point, which is a real limit of this probe-based approach, not a formula bug.
     double eps = std::max(seg.Length() * 0.01, DOUBLE_EPSILON * 10);
     Point2D left_pt = mid + normal * eps;
     Point2D right_pt = mid + normal * (-eps);
@@ -1776,20 +1790,66 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D c
           LineSegment2D::Make(polygon[LR_poly_i], other[LR_other_i])};
 }
 
-std::vector<std::vector<Point2D>> clip(std::vector<Point2D> const& clipper_loop,
-                                       std::vector<Point2D> const& subject_loop) {
-  auto groups = detail::boolean_op(subject_loop, {}, clipper_loop, {}, detail::BooleanOp::Intersection);
+template <PointContainer Points>
+std::vector<Points> clip(Points const& clipper_loop, Points const& subject_loop) {
+  using PointT = typename Points::value_type;
 
-  std::vector<std::vector<Point2D>> rings;
+  // View2D has no copy-assignment (its defaulted move constructor suppresses it), so the branch below
+  // is built via a single initializing return rather than default-construct-then-reassign.
+  View2D view = [&]() -> View2D {
+    if constexpr (std::is_same_v<PointT, Point3D>) {
+      if (subject_loop.size() < 3) {
+        throw std::invalid_argument("clip: subject_loop needs at least 3 points to establish a plane");
+      }
+      Points combined = subject_loop;
+      combined.insert(combined.end(), clipper_loop.begin(), clipper_loop.end());
+      if (!are_coplanar(combined)) {
+        throw std::invalid_argument("clip: clipper_loop and subject_loop must be coplanar for Point3D input");
+      }
+      return View2D::OnPlane(Plane::From3Points(subject_loop[0], subject_loop[1], subject_loop[2]));
+    } else {
+      return View2D::XY();
+    }
+  }();
+
+  auto project = [&](Points const& ring) {
+    std::vector<Point2D> out;
+    out.reserve(ring.size());
+    for (auto const& p : ring) {
+      out.push_back(Point2D(view.x(p), view.y(p)));
+    }
+    return out;
+  };
+
+  auto unproject = [&](std::vector<Point2D> const& ring2d) {
+    Points out;
+    out.reserve(ring2d.size());
+    for (auto const& p : ring2d) {
+      if constexpr (std::is_same_v<PointT, Point3D>) {
+        out.push_back(view.xyz(p));
+      } else {
+        out.push_back(p);
+      }
+    }
+    return out;
+  };
+
+  auto groups =
+      detail::boolean_op(project(subject_loop), {}, project(clipper_loop), {}, detail::BooleanOp::Intersection);
+
+  std::vector<Points> rings;
   rings.reserve(groups.size() * 2);
   for (auto& [outer, holes] : groups) {
-    rings.push_back(std::move(outer));
+    rings.push_back(unproject(outer));
     for (auto& hole : holes) {
-      rings.push_back(std::move(hole));
+      rings.push_back(unproject(hole));
     }
   }
   return rings;
 }
+
+template std::vector<std::vector<Point2D>> clip(std::vector<Point2D> const&, std::vector<Point2D> const&);
+template std::vector<std::vector<Point3D>> clip(std::vector<Point3D> const&, std::vector<Point3D> const&);
 
 namespace {
 

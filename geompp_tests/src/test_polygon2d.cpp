@@ -630,6 +630,34 @@ TEST_F(Polygon2DTest, Union_OverlappingSquares) {
   EXPECT_FALSE(result[0].HasHoles());
 }
 
+TEST_F(Polygon2DTest, Union_WithExactSelfCopy_DuplicateEdgesHandledCorrectly) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(1.0, result[0].Area(), 1e-6);
+}
+
+// DECIMAL_PRECISION loosened enough to become comparable to the geometry's own edge length breaks
+// classification no matter how the internal nudge is computed — polygon_contains()'s own comparisons
+// use the same DOUBLE_EPSILON as their tolerance, so a nudge that clears it can't also stay local to a
+// unit-scale edge. This isn't something a formula fixes; DOUBLE_EPSILON must stay small relative to
+// the operands' own scale, same assumption every AlmostEquals-based comparison in this codebase makes.
+// Demonstrated instead on 100-unit-scale geometry, where a "loosened" epsilon of 0.1 is still <<1% of
+// the polygon's own size and classification stays reliable.
+TEST_F(Polygon2DTest, Union_LoosePrecision_ReliableWhenEpsilonStaysSmallRelativeToScale) {
+  auto a = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(100, 0), g::Point2D(100, 100), g::Point2D(0, 100)});
+  auto b = g::Polygon2D::Make(
+      {g::Point2D(50, 50), g::Point2D(150, 50), g::Point2D(150, 150), g::Point2D(50, 150)});
+
+  g::DECIMAL_PRECISION = 1;  // epsilon = 0.1 — still 0.0001% of this geometry's 100-unit scale
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(17500.0, result[0].Area(), 1e-3);
+}
+
 TEST_F(Polygon2DTest, Intersection_OverlappingSquares) {
   auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   auto b = g::Polygon2D::Make({g::Point2D(0.5, 0.5), g::Point2D(1.5, 0.5), g::Point2D(1.5, 1.5), g::Point2D(0.5, 1.5)});
@@ -775,6 +803,77 @@ TEST_F(Polygon2DTest, Intersects_Polygon_OverlappingAndDisjoint) {
 
   EXPECT_TRUE(a.Intersects(overlapping));
   EXPECT_FALSE(a.Intersects(disjoint));
+}
+
+// ── Self-intersecting operands ──────────────────────────────────────────────
+//
+// A symmetric bowtie ((0,0),(1,0),(0,1),(1,1)) cancels to exactly zero net signed area, so
+// Polygon2D::Make() (which requires positive/CCW signed area) rejects it — it never got a boolean-op
+// test in the original design pass. This asymmetric bowtie ((0,0),(4,0),(0,1),(1,1)) has the same
+// single self-crossing (between edges (4,0)-(0,1) and (1,1)-(0,0), at (0.8, 0.8)) but unequal lobes,
+// giving a nonzero net area (1.5) that Make() accepts — closing that gap.
+//
+// Rather than hand-deriving the bowtie's exact occupied area, these tests cross-validate the boolean
+// engine's nonzero-winding classification against Polygon2D::Simplify() — this codebase's own already
+// -trusted decomposition of a self-intersecting ring into non-overlapping simple pieces. If a clip
+// polygon fully contains the bowtie, Intersection(clip) must recover exactly the same total area as
+// summing Simplify()'s pieces, and Union(clip) must collapse to exactly the clip polygon.
+
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_IsNotSimple) {
+  auto bowtie = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  EXPECT_FALSE(bowtie.IsSimple());
+  EXPECT_NEAR(1.5, bowtie.Area(), 1e-6);
+}
+
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_Intersects_ContainingSquare) {
+  auto bowtie = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  auto containing =
+      g::Polygon2D::Make({g::Point2D(-1, -1), g::Point2D(5, -1), g::Point2D(5, 5), g::Point2D(-1, 5)});
+  auto disjoint = g::Polygon2D::Make({g::Point2D(10, 10), g::Point2D(11, 10), g::Point2D(11, 11), g::Point2D(10, 11)});
+
+  EXPECT_TRUE(bowtie.Intersects(containing));
+  EXPECT_FALSE(bowtie.Intersects(disjoint));
+}
+
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_Union_WithContainingSquare_CollapsesToSquare) {
+  auto bowtie = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  auto containing =
+      g::Polygon2D::Make({g::Point2D(-1, -1), g::Point2D(5, -1), g::Point2D(5, 5), g::Point2D(-1, 5)});
+
+  auto result = bowtie.Union(containing);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(containing.Area(), result[0].Area(), 1e-6);
+  EXPECT_FALSE(result[0].HasHoles());
+}
+
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_Intersection_WithContainingSquare_MatchesSimplifyTotalArea) {
+  auto bowtie = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  auto containing =
+      g::Polygon2D::Make({g::Point2D(-1, -1), g::Point2D(5, -1), g::Point2D(5, 5), g::Point2D(-1, 5)});
+
+  auto simplified = bowtie.Simplify();
+  double simplify_total_area = 0.0;
+  for (auto const& piece : simplified) {
+    simplify_total_area += piece.Area();
+  }
+  ASSERT_GT(simplify_total_area, 0.0);
+
+  auto result = bowtie.Intersection(containing);
+  double intersection_total_area = 0.0;
+  for (auto const& piece : result) {
+    intersection_total_area += piece.Area();
+  }
+  EXPECT_NEAR(simplify_total_area, intersection_total_area, 1e-6);
+}
+
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_Difference_WithContainingSquare_IsEmpty) {
+  auto bowtie = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  auto containing =
+      g::Polygon2D::Make({g::Point2D(-1, -1), g::Point2D(5, -1), g::Point2D(5, 5), g::Point2D(-1, 5)});
+
+  // bowtie is fully inside containing, so there's nothing of bowtie left outside it
+  auto result = bowtie.Difference(containing);
+  EXPECT_TRUE(result.empty());
 }
 
 #pragma endregion

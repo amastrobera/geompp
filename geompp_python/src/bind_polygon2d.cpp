@@ -42,12 +42,27 @@ void bind_polygon2d(py::module_& m) {
              [](const geompp::Polygon2D& p, const geompp::Ray2D& r) { return p.Intersects(r); }, "ray"_a)
         .def("intersects",
              [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) { return p.Intersects(s); }, "segment"_a)
+        .def("intersects",
+             [](const geompp::Polygon2D& p, const geompp::Polygon2D& other) { return p.Intersects(other); }, "other"_a,
+             "True if this polygon shares any area (or boundary) with other.")
         .def("intersection",
              [](const geompp::Polygon2D& p, const geompp::Line2D& l) -> py::object { return opt_to_py(p.Intersection(l)); }, "line"_a)
         .def("intersection",
              [](const geompp::Polygon2D& p, const geompp::Ray2D& r) -> py::object { return opt_to_py(p.Intersection(r)); }, "ray"_a)
         .def("intersection",
              [](const geompp::Polygon2D& p, const geompp::LineSegment2D& s) -> py::object { return opt_to_py(p.Intersection(s)); }, "segment"_a)
+        .def("intersection",
+             [](const geompp::Polygon2D& p, const geompp::Polygon2D& other) { return p.Intersection(other); }, "other"_a,
+             "Set intersection with another polygon. Returns a list of Polygon2D (zero or more disjoint pieces).")
+        .def("union",
+             [](const geompp::Polygon2D& p, const geompp::Polygon2D& other) { return p.Union(other); }, "other"_a,
+             "Set union with another polygon. Returns a list of Polygon2D (a disjoint pair yields more than one).")
+        .def("difference",
+             [](const geompp::Polygon2D& p, const geompp::Polygon2D& other) { return p.Difference(other); }, "other"_a,
+             "Set difference (self minus other). Returns a list of Polygon2D.")
+        .def("xor",
+             [](const geompp::Polygon2D& p, const geompp::Polygon2D& other) { return p.Xor(other); }, "other"_a,
+             "Symmetric difference (area covered by exactly one of the two polygons). Returns a list of Polygon2D.")
         .def("__len__",     &geompp::Polygon2D::Size)
         .def("__getitem__", [](const geompp::Polygon2D& p, int i) -> geompp::Point2D {
             if (i < 0) {

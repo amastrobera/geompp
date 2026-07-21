@@ -79,6 +79,38 @@ Point3D^ GeomUtil::Lerp(Point3D^ p0, Point3D^ p1, double t) {
     return gcnew Point3D(new geompp::Point3D(geompp::lerp(*p0->_native, *p1->_native, t)));
 }
 
+System::Collections::Generic::IEnumerable<System::Collections::Generic::List<Point2D^>^>^ GeomUtil::Clip(
+    System::Collections::Generic::List<Point2D^>^ clipperLoop,
+    System::Collections::Generic::List<Point2D^>^ subjectLoop) {
+    auto rings = geompp::clip(ToNativePoints2D(clipperLoop), ToNativePoints2D(subjectLoop));
+
+    auto result = gcnew System::Collections::Generic::List<System::Collections::Generic::List<Point2D^>^>();
+    for (auto const& ring : rings) {
+        auto managedRing = gcnew System::Collections::Generic::List<Point2D^>();
+        for (auto const& p : ring) {
+            managedRing->Add(gcnew Point2D(new geompp::Point2D(p)));
+        }
+        result->Add(managedRing);
+    }
+    return result;
+}
+
+System::Collections::Generic::IEnumerable<System::Collections::Generic::List<Point3D^>^>^ GeomUtil::Clip(
+    System::Collections::Generic::List<Point3D^>^ clipperLoop,
+    System::Collections::Generic::List<Point3D^>^ subjectLoop) {
+    auto rings = geompp::clip(ToNative(clipperLoop), ToNative(subjectLoop));
+
+    auto result = gcnew System::Collections::Generic::List<System::Collections::Generic::List<Point3D^>^>();
+    for (auto const& ring : rings) {
+        auto managedRing = gcnew System::Collections::Generic::List<Point3D^>();
+        for (auto const& p : ring) {
+            managedRing->Add(gcnew Point3D(new geompp::Point3D(p)));
+        }
+        result->Add(managedRing);
+    }
+    return result;
+}
+
 bool GeomUtil::HasIntersections(System::Collections::Generic::List<LineSegment2D^>^ segments) {
     return geompp::has_intersections(ToNativeSegments(segments));
 }

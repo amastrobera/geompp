@@ -4,7 +4,9 @@
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
+#include "point3d.hpp"
 #include "polygon2d.hpp"
+#include "polygon3d.hpp"
 #include "segment_iterator2d.hpp"
 
 #include <gtest/gtest.h>
@@ -1116,6 +1118,67 @@ TEST_F(CalcUtils2DTest, Clip_SubjectFullyInsideClipper_ReturnsSubject) {
   ASSERT_EQ(1u, rings.size());
   auto poly = g::Polygon2D::Make(rings[0]);
   EXPECT_NEAR(4.0, poly.Area(), 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Clip_Point3D_CoplanarOverlappingSquares_ReturnsIntersectionArea) {
+  std::vector<g::Point3D> clipper{g::Point3D(0.5, 0.5, 0), g::Point3D(1.5, 0.5, 0), g::Point3D(1.5, 1.5, 0),
+                                  g::Point3D(0.5, 1.5, 0)};
+  std::vector<g::Point3D> subject{g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0),
+                                  g::Point3D(0, 1, 0)};
+
+  auto rings = g::clip(clipper, subject);
+  ASSERT_EQ(1u, rings.size());
+  auto poly = g::Polygon3D::Make(rings[0]);
+  EXPECT_NEAR(0.25, poly.Area(), 1e-6);
+  // result must actually lie in the shared z=0 plane, not just have the right area
+  for (auto const& p : rings[0]) {
+    EXPECT_NEAR(0.0, p.z(), 1e-9);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Clip_Point3D_NonXYPlane_ReturnsIntersectionArea) {
+  // Both loops on the plane y=2 (a "vertical wall"), overlapping in a 1x1 square.
+  std::vector<g::Point3D> clipper{g::Point3D(0.5, 2, 0.5), g::Point3D(1.5, 2, 0.5), g::Point3D(1.5, 2, 1.5),
+                                  g::Point3D(0.5, 2, 1.5)};
+  std::vector<g::Point3D> subject{g::Point3D(0, 2, 0), g::Point3D(1, 2, 0), g::Point3D(1, 2, 1),
+                                  g::Point3D(0, 2, 1)};
+
+  auto rings = g::clip(clipper, subject);
+  ASSERT_EQ(1u, rings.size());
+  // Don't route through Polygon3D::Make here: its CCW check locks orientation to match the closest
+  // *canonical* world-plane normal (see are_ccw/closest_world_plane_to), not just "some consistent
+  // winding" — a ring whose natural winding follows the input order can legitimately fail that even
+  // though the ring itself (area, plane) is correct. Check the geometry directly instead.
+  EXPECT_NEAR(0.25, std::abs(g::signed_area(rings[0])), 1e-6);
+  for (auto const& p : rings[0]) {
+    EXPECT_NEAR(2.0, p.y(), 1e-9);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Clip_Point3D_Disjoint_ReturnsEmpty) {
+  std::vector<g::Point3D> clipper{g::Point3D(5, 5, 0), g::Point3D(6, 5, 0), g::Point3D(6, 6, 0),
+                                  g::Point3D(5, 6, 0)};
+  std::vector<g::Point3D> subject{g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0),
+                                  g::Point3D(0, 1, 0)};
+
+  auto rings = g::clip(clipper, subject);
+  EXPECT_TRUE(rings.empty());
+}
+
+TEST_F(CalcUtils2DTest, Clip_Point3D_NonCoplanar_Throws) {
+  std::vector<g::Point3D> clipper{g::Point3D(0, 0, 0), g::Point3D(0, 1, 0), g::Point3D(0, 1, 1),
+                                  g::Point3D(0, 0, 1)};
+  std::vector<g::Point3D> subject{g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0),
+                                  g::Point3D(0, 1, 0)};
+
+  EXPECT_THROW(g::clip(clipper, subject), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Clip_Point3D_TooFewSubjectPoints_Throws) {
+  std::vector<g::Point3D> clipper{g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)};
+  std::vector<g::Point3D> subject{g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)};
+
+  EXPECT_THROW(g::clip(clipper, subject), std::invalid_argument);
 }
 
 }  // namespace geompp_tests

@@ -1455,6 +1455,42 @@ class TestPolygon2DIntersection:
         assert sq.intersects(geompp.LineSegment2D.make(geompp.Point2D(-0.5, 0.5), geompp.Point2D(1.5, 0.5)))
         assert not sq.intersects(geompp.LineSegment2D.make(geompp.Point2D(-2, 0.5), geompp.Point2D(-0.5, 0.5)))
 
+    # ── Polygon2D boolean ops ───────────────────────────────────────────────
+
+    @pytest.fixture
+    def overlapping(self):
+        return geompp.Polygon2D.make([
+            geompp.Point2D(0.5, 0.5), geompp.Point2D(1.5, 0.5),
+            geompp.Point2D(1.5, 1.5), geompp.Point2D(0.5, 1.5),
+        ])
+
+    def test_intersects_polygon(self, sq, overlapping):
+        assert sq.intersects(overlapping)
+        disjoint = geompp.Polygon2D.make([
+            geompp.Point2D(5, 5), geompp.Point2D(6, 5), geompp.Point2D(6, 6), geompp.Point2D(5, 6),
+        ])
+        assert not sq.intersects(disjoint)
+
+    def test_union(self, sq, overlapping):
+        result = sq.union(overlapping)
+        assert len(result) == 1
+        assert abs(result[0].area() - 1.75) < 1e-6
+
+    def test_intersection_polygon(self, sq, overlapping):
+        result = sq.intersection(overlapping)
+        assert len(result) == 1
+        assert abs(result[0].area() - 0.25) < 1e-6
+
+    def test_difference(self, sq, overlapping):
+        result = sq.difference(overlapping)
+        assert len(result) == 1
+        assert abs(result[0].area() - 0.75) < 1e-6
+
+    def test_xor(self, sq, overlapping):
+        result = sq.xor(overlapping)
+        assert len(result) == 1
+        assert result[0].has_holes()
+
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
@@ -1865,6 +1901,70 @@ class TestPolygon3DIntersection:
         result = yz.intersection(geompp.Line3D.make(geompp.Point3D(-1, 0.5, 0.5), geompp.Point3D(1, 0.5, 0.5)))
         assert result is not None
         assert result.almost_equals(geompp.Point3D(0, 0.5, 0.5))
+
+    # ── Polygon3D boolean ops (Polygon3D operand) ───────────────────────────
+
+    def _overlapping(self):
+        return geompp.Polygon3D.make([
+            geompp.Point3D(0.5, 0.5, 0), geompp.Point3D(1.5, 0.5, 0),
+            geompp.Point3D(1.5, 1.5, 0), geompp.Point3D(0.5, 1.5, 0),
+        ])
+
+    def test_intersects_polygon_coplanar(self):
+        assert self._sq().intersects(self._overlapping())
+
+    def test_union_coplanar(self):
+        result = self._sq().union(self._overlapping())
+        assert len(result) == 1
+        assert abs(result[0].area() - 1.75) < 1e-6
+
+    def test_difference_coplanar(self):
+        result = self._sq().difference(self._overlapping())
+        assert len(result) == 1
+        assert abs(result[0].area() - 0.75) < 1e-6
+
+    def test_xor_coplanar(self):
+        result = self._sq().xor(self._overlapping())
+        assert len(result) == 1
+        assert result[0].has_holes()
+
+    def test_union_not_coplanar_raises(self):
+        wall = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+            geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
+        ])
+        with pytest.raises(Exception):
+            self._sq().union(wall)
+
+    def test_intersection_polygon_coplanar_returns_polygons(self):
+        result = self._sq().intersection(self._overlapping())
+        assert result is not None
+        assert isinstance(result, list)
+        assert isinstance(result[0], geompp.Polygon3D)
+        assert abs(result[0].area() - 0.25) < 1e-6
+
+    def test_intersection_polygon_planes_crossing_returns_segments(self):
+        a = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ])
+        b = geompp.Polygon3D.make([
+            geompp.Point3D(1, 2, 3), geompp.Point3D(3, 2, 3),
+            geompp.Point3D(3, 2, -1), geompp.Point3D(1, 2, -1),
+        ])
+        result = a.intersection(b)
+        assert result is not None
+        assert isinstance(result, list)
+        assert isinstance(result[0], geompp.LineSegment3D)
+        assert len(result) == 1
+
+    def test_intersection_polygon_parallel_distinct_returns_none(self):
+        a = self._sq()
+        b = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 5), geompp.Point3D(1, 0, 5),
+            geompp.Point3D(1, 1, 5), geompp.Point3D(0, 1, 5),
+        ])
+        assert a.intersection(b) is None
 
 
 # ─── Free function centroid (3D) ─────────────────────────────────────────────
@@ -3506,6 +3606,39 @@ class TestFreeFunctions:
         p0, p1 = geompp.Point3D(0, 0, 0), geompp.Point3D(10, 20, 30)
         mid = geompp.lerp(p0, p1, 0.5)
         assert approx(mid.x, 5.0) and approx(mid.y, 10.0) and approx(mid.z, 15.0)
+
+    def test_clip_2d_overlapping_squares(self):
+        clipper = [geompp.Point2D(0.5, 0.5), geompp.Point2D(1.5, 0.5),
+                   geompp.Point2D(1.5, 1.5), geompp.Point2D(0.5, 1.5)]
+        subject = [geompp.Point2D(0, 0), geompp.Point2D(1, 0),
+                   geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        rings = geompp.clip(clipper, subject)
+        assert len(rings) == 1
+        poly = geompp.Polygon2D.make(rings[0])
+        assert approx(poly.area(), 0.25)
+
+    def test_clip_2d_disjoint_returns_empty(self):
+        clipper = [geompp.Point2D(5, 5), geompp.Point2D(6, 5), geompp.Point2D(6, 6), geompp.Point2D(5, 6)]
+        subject = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        assert geompp.clip(clipper, subject) == []
+
+    def test_clip_3d_coplanar_overlapping_squares(self):
+        clipper = [geompp.Point3D(0.5, 0.5, 0), geompp.Point3D(1.5, 0.5, 0),
+                   geompp.Point3D(1.5, 1.5, 0), geompp.Point3D(0.5, 1.5, 0)]
+        subject = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+                   geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)]
+        rings = geompp.clip(clipper, subject)
+        assert len(rings) == 1
+        poly = geompp.Polygon3D.make(rings[0])
+        assert approx(poly.area(), 0.25)
+
+    def test_clip_3d_non_coplanar_raises(self):
+        clipper = [geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+                   geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1)]
+        subject = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+                   geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)]
+        with pytest.raises(Exception):
+            geompp.clip(clipper, subject)
 
     def test_linear_combination_2d(self):
         pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 0)]

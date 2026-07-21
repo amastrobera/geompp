@@ -51,11 +51,25 @@ public:
     bool Intersects(Line3D^ line);
     bool Intersects(Ray3D^ ray);
     bool Intersects(LineSegment3D^ segment);
+    // Area overlap when coplanar, or a genuine strike-through (shared segment on the two planes'
+    // common line) when not.
+    bool Intersects(Polygon3D^ other);
 
     // Intersection — optional<variant<Point3D>> → Point3D^ (nullptr = no intersection)
     Point3D^ Intersection(Line3D^ line);
     Point3D^ Intersection(Ray3D^ ray);
     Point3D^ Intersection(LineSegment3D^ segment);
+
+    // Intersection — optional<variant<vector<Polygon3D>, vector<LineSegment3D>>>
+    //   null                  → no shared point
+    //   array<Polygon3D^>^    → coplanar: set intersection of the two areas
+    //   array<LineSegment3D^> → planes cross: the chord(s) where both bounded regions cover the shared line
+    System::Object^ Intersection(Polygon3D^ other);
+
+    // Boolean operations — coplanar only; throws if GetPlane() doesn't match other's.
+    array<Polygon3D^>^ Union(Polygon3D^ other);
+    array<Polygon3D^>^ Difference(Polygon3D^ other);
+    array<Polygon3D^>^ Xor(Polygon3D^ other);
 
     // Operator
     static bool operator==(Polygon3D^ lhs, Polygon3D^ rhs);

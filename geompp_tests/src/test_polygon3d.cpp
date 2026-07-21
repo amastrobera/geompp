@@ -796,6 +796,42 @@ TEST_F(Polygon3DTest, Union_NotCoplanar_Throws) {
   EXPECT_THROW(a.Xor(b), std::logic_error);
 }
 
+// Coplanarity checks (Plane::AlmostEquals, called with its default epsilon = DOUBLE_EPSILON) already
+// respect whatever DECIMAL_PRECISION the caller sets beforehand — no dedicated tolerance parameter is
+// needed on Union/Difference/Xor/Intersection/Intersects, since C++ default arguments are evaluated
+// fresh at each call, not baked in once.
+TEST_F(Polygon3DTest, Union_NearlyCoplanar_TinyOffsetWithinDefaultPrecision) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto b = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0.0001), g::Point3D(1, 0, 0.0001), g::Point3D(1, 1, 0.0001), g::Point3D(0, 1, 0.0001)});
+
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(1.0, result[0].Area(), 1e-6);
+}
+
+// Coplanarity checks (Plane::AlmostEquals, called with its default epsilon = DOUBLE_EPSILON) already
+// respect whatever DECIMAL_PRECISION the caller sets beforehand — no dedicated tolerance parameter is
+// needed on Union/Difference/Xor/Intersection/Intersects, since C++ default arguments are evaluated
+// fresh at each call, not baked in once. Uses 100-unit-scale geometry so the loosened epsilon (0.1)
+// stays small relative to the polygons' own size — see Polygon2D's
+// Union_LoosePrecision_ReliableWhenEpsilonStaysSmallRelativeToScale for why that headroom matters.
+TEST_F(Polygon3DTest, Union_NearlyCoplanar_LooseEpsilonAllowsIt) {
+  auto a = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(100, 0, 0), g::Point3D(100, 100, 0), g::Point3D(0, 100, 0)});
+  // b's plane is offset by 0.05 from a's — beyond default precision (DP_THREE, epsilon 0.001), within a
+  // looser one, and negligible next to this geometry's 100-unit scale.
+  auto b = g::Polygon3D::Make({g::Point3D(50, 50, 0.05), g::Point3D(150, 50, 0.05), g::Point3D(150, 150, 0.05),
+                               g::Point3D(50, 150, 0.05)});
+
+  EXPECT_THROW(a.Union(b), std::logic_error);  // default precision: 0.05 > 0.001, rejected
+
+  g::DECIMAL_PRECISION = 1;  // epsilon = 0.1 > 0.05, still tiny next to the 100-unit scale
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(17500.0, result[0].Area(), 1e-3);
+}
+
 TEST_F(Polygon3DTest, Intersects_Polygon_Coplanar) {
   auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
   auto overlapping = g::Polygon3D::Make(

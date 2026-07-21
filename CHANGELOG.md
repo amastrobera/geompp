@@ -15,14 +15,14 @@ Each release covers all three packages at the same version:
 
 > C++ library — tagged `v0.15.0` · C# / NuGet — tagged `csharp-v0.15.0` · Python / PyPI — tagged `python-v0.15.0`
 
-> Polygon boolean operations (`Union`/`Intersection`/`Difference`/`Xor`) for `Polygon2D` and `Polygon3D`, a `clip()` free function for raw point loops, `View2D` unprojection (`xyz()`), and a `lerp()` free function now backing every hand-rolled two-point interpolation in the codebase.
+> Polygon boolean operations (`Union`/`Intersection`/`Difference`/`Xor`) for `Polygon2D` and `Polygon3D`, a `clip()` free function templated over `Point2D`/`Point3D` for raw point loops, `View2D` unprojection (`xyz()`), and a `lerp()` free function now backing every hand-rolled two-point interpolation in the codebase — all bound in Python and C# (Python bindings added but unverified in the authoring environment; see note below).
 
 ### Added
 
 **C++ core**
 - `Polygon2D::Union/Intersection/Difference/Xor(Polygon2D const&)` — general map-overlay boolean ops: merges both operands' edges into one segment pool, splits at every crossing (`split_segments_at_crossings`, Bentley-Ottmann via `find_intersections`), classifies each surviving split segment by sampling just left/right of it and testing winding-number membership in each operand, keeps only segments where the op's truth table differs left-vs-right, traces the survivors into closed rings, and groups them into `{outer, holes}` via a containment forest. Handles holes and self-intersecting operands with no special-casing (the classification is a nonzero-winding test, well-defined either way), and correctly produces a hole when one operand is fully nested inside the other with no shared boundary.
 - `Polygon2D::Intersects(Polygon2D const&)` — `!Intersection(other).empty()`.
-- `clip(clipper_loop, subject_loop)` (`calc_utils2d.hpp`) — the same engine for raw `vector<Point2D>` loops (no holes), for callers who don't have a `Polygon2D`. Returns a flat list of rings since even hole-less inputs can produce a holed intersection.
+- `clip<Points>(clipper_loop, subject_loop)` (`calc_utils2d.hpp`) — templated over `PointContainer`, so it works on raw `vector<Point2D>` and `vector<Point3D>` loops alike (no holes), for callers who don't have a `Polygon2D`/`Polygon3D`. The `Point3D` instantiation fits a plane from `subject_loop`'s first three points (`Plane::From3Points`), requires `clipper_loop` to be coplanar with it (`std::invalid_argument` otherwise), projects both via `View2D::OnPlane`, and unprojects the result via `xyz()`. Returns a flat list of rings since even hole-less inputs can produce a holed intersection.
 - `detail::split_segments_at_crossings` now also splits collinear, partially-overlapping segment pairs at their shared sub-segment's endpoints via `LineSegment2D::Overlap` — `find_intersections` alone only reports single-point crossings, since `LineSegment2D::Intersection` returns `nullopt` for parallel input. Shared by `simplify_rings()`, so `Polygon2D::Simplify()` picks up the same fix for self-intersecting polygons with collinear overlaps.
 - `View2D::XY(double z=0)` / `YZ(double x=0)` / `ZX(double y=0)` — optional offset parameter (stored in a new `PLANE_OFFSET` member) so these canned axis views can represent any axis-aligned-but-offset plane, not just the ones through the origin.
 - `View2D::xyz(Point2D const&)` / `xyz(double, double)` — inverse of `x()`/`y()`/`xy()`: reconstructs the 3D point a view-space `(x, y)` corresponds to. Exact for `OnPlane()`/`Custom` and the offset-taking `XY(z)`/`YZ(x)`/`ZX(y)`; not meant for the bare dominant-axis-approximation views some 3D algorithms use internally.
@@ -33,21 +33,28 @@ Each release covers all three packages at the same version:
 
 **Python bindings**
 - `lerp(p0, p1, t)` — bound for both `Point2D` and `Point3D`.
+- `clip(clipper_loop, subject_loop)` — bound for both `Point2D` and `Point3D` loops.
+- `Polygon2D.union/intersection/difference/xor(other)`, `Polygon2D.intersects(other)`.
+- `Polygon3D.union/difference/xor(other)`, `Polygon3D.intersects(other)`, `Polygon3D.intersection(other)` (via the existing generic `opt_variant_to_py` helper — no new binding infrastructure needed).
 
 **C# bindings**
 - `GeomUtil.Lerp(Point2D^, Point2D^, double)` / `(Point3D^, Point3D^, double)`.
+- `GeomUtil.Clip(List<Point2D^>^, List<Point2D^>^)` / `(List<Point3D^>^, List<Point3D^>^)`.
+- `Polygon2D.Union/Intersection/Difference/Xor(Polygon2D^)`, `Polygon2D.Intersects(Polygon2D^)`.
+- `Polygon3D.Union/Difference/Xor(Polygon3D^)`, `Polygon3D.Intersects(Polygon3D^)`, `Polygon3D.Intersection(Polygon3D^)` (returns `System::Object^`: `array<Polygon3D^>^`, `array<LineSegment3D^>^`, or `null`, matching the existing `Plane.Intersection(Triangle3D)` variant-unpacking pattern).
 
 ### Fixed
 
 - `Plane::AlmostEquals` — the coplanarity check compared the origins' dot product against `epsilon` itself (using `compare()`'s own default tolerance) instead of comparing it against zero using `epsilon` as the tolerance, so a custom (non-default) `epsilon` could reject two exactly-coincident planes, and even default-epsilon calls rejected coplanar origins with a small dot product of the "wrong" sign. Previously masked in the common case by a since-removed redundant `Origin.AlmostEquals(...)` branch that short-circuited true whenever the two origins happened to be the same point.
+- `sample_quadratic_bezier`'s De Casteljau step had a typo (`lerp(a, b t)`, missing a comma) that failed to compile. Never released; caught immediately since nothing downstream could build. Fixed; the construction itself (`a = lerp(T0,p1,t)`, `b = lerp(p1,T1,t)`, `pt = lerp(a,b,t)`) was already mathematically correct.
 
 ### Tests
 
-- `test_polygon2d.cpp` / `test_polygon3d.cpp` / `test_calc_utils2d.cpp`: `Union_*`/`Intersection_*`/`Difference_*`/`Xor_*` (overlapping, nested-non-touching, disjoint, with holes, collinear-overlapping-edges), `Intersects_Polygon_*`, `Clip_*`, `Intersection_Polygon_PlanesCrossing_*` (returns segment / bounds miss / parallel-distinct).
+- `test_polygon2d.cpp` / `test_polygon3d.cpp` / `test_calc_utils2d.cpp`: `Union_*`/`Intersection_*`/`Difference_*`/`Xor_*` (overlapping, nested-non-touching, disjoint, with holes, collinear-overlapping-edges), `Intersects_Polygon_*`, `Clip_*` (2D and 3D: coplanar, non-axis-aligned plane, disjoint, non-coplanar throw, too-few-points throw), `Intersection_Polygon_PlanesCrossing_*` (returns segment / bounds miss / parallel-distinct).
 - `test_view2d.cpp`: offset-constructor projection/unprojection round-trips.
 - `test_plane.cpp`: `AlmostEquals` with a custom epsilon against exactly- and nearly-coplanar origins.
 - `test_point2d.cpp` / `test_point3d.cpp`: `Lerp` — endpoints, midpoint, extrapolation past `t=0`/`t=1`.
-- `test_geompp.py`, `Program.cs`: `Lerp` coverage matching the C++ suite.
+- `test_geompp.py`, `Program.cs`: `Lerp`/`Clip`/polygon boolean-op coverage matching the C++ suite. **C# verified (735/735 passing)**; Python tests written to the same pattern as the existing suite but **not run** — a fresh `pip install --no-build-isolation -e ./geompp_python` in this session's sandbox hit a network restriction on CMake's FetchContent (glog) that blocked configuring an isolated build, unrelated to the binding code itself.
 
 ---
 
