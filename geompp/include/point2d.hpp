@@ -57,6 +57,8 @@ Point2D average(std::vector<Point2D> const& points);
 
 std::vector<Point2D> convex_hull(std::vector<Point2D> const& points);
 
+Point2D lerp(Point2D const& P0, Point2D const& P1, double t);
+
 #pragma endregion
 
 #pragma region Operators Overloading

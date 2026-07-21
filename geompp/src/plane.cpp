@@ -42,10 +42,8 @@ bool Plane::AlmostEquals(Plane const& other, double epsilon) const {
   return (
       // same normal (same winding order CCW or CW)
       Normal.AlmostEquals(other.Normal, epsilon) &&
-      // and, either equal origins
-      (Origin.AlmostEquals(other.Origin, epsilon) ||
-       // or on the same plane
-       compare(Normal.Dot(Origin - other.Origin), epsilon) == 0));
+      // and origins on the same plane
+      compare(Normal.Dot(Origin - other.Origin), epsilon) == 0);
 }
 
 Plane& Plane::operator=(Plane const& other) {

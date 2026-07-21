@@ -55,6 +55,8 @@ Point3D average(std::vector<Point3D> const& points);
 
 std::vector<Point3D> convex_hull(std::vector<Point3D> const& points, std::optional<Vector3D> normal = std::nullopt);
 
+Point3D lerp(Point3D const& P0, Point3D const& P1, double t);
+
 #pragma endregion
 
 #pragma region Operators Overloading

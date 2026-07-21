@@ -341,6 +341,8 @@ bool Polygon2D::Intersects(Ray2D const& ray) const { return Intersection(ray).ha
 
 bool Polygon2D::Intersects(LineSegment2D const& segment) const { return Intersection(segment).has_value(); }
 
+bool Polygon2D::Intersects(Polygon2D const& other) const { return !Intersection(other).empty(); }
+
 std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Line2D const& line) const {
   auto const& p0 = line.First();
   auto const& p1 = line.Last();
@@ -469,6 +471,41 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
   }
 
   return std::nullopt;
+}
+
+#pragma endregion
+
+#pragma region Boolean Operations
+
+namespace {
+
+std::vector<Polygon2D> run_boolean_op(Polygon2D const& a, Polygon2D const& b, detail::BooleanOp op) {
+  auto groups = detail::boolean_op(a.Perimeter(), a.Holes(), b.Perimeter(), b.Holes(), op);
+
+  std::vector<Polygon2D> result;
+  result.reserve(groups.size());
+  for (auto const& [outer, holes] : groups) {
+    result.push_back(Polygon2D::Make(outer, holes));
+  }
+  return result;
+}
+
+}  // namespace
+
+std::vector<Polygon2D> Polygon2D::Union(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Union);
+}
+
+std::vector<Polygon2D> Polygon2D::Intersection(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Intersection);
+}
+
+std::vector<Polygon2D> Polygon2D::Difference(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Difference);
+}
+
+std::vector<Polygon2D> Polygon2D::Xor(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Xor);
 }
 
 #pragma endregion

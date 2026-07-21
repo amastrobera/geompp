@@ -617,4 +617,166 @@ TEST_F(Polygon2DTest, Intersects_Segment_True_And_False) {
   EXPECT_FALSE(sq.Intersects(g::LineSegment2D::Make(g::Point2D(-2, 0.5), g::Point2D(-0.5, 0.5))));
 }
 
+#pragma region Boolean Operations
+
+// Two unit squares overlapping diagonally in a 0.5x0.5 corner: A = [0,1]x[0,1], B = [0.5,1.5]x[0.5,1.5].
+TEST_F(Polygon2DTest, Union_OverlappingSquares) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(0.5, 0.5), g::Point2D(1.5, 0.5), g::Point2D(1.5, 1.5), g::Point2D(0.5, 1.5)});
+
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(1.75, result[0].Area(), 1e-6);
+  EXPECT_FALSE(result[0].HasHoles());
+}
+
+TEST_F(Polygon2DTest, Intersection_OverlappingSquares) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(0.5, 0.5), g::Point2D(1.5, 0.5), g::Point2D(1.5, 1.5), g::Point2D(0.5, 1.5)});
+
+  auto result = a.Intersection(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(0.25, result[0].Area(), 1e-6);
+  for (auto const& p : result[0].Perimeter()) {
+    EXPECT_GE(p.x(), 0.5 - 1e-6);
+    EXPECT_LE(p.x(), 1.0 + 1e-6);
+  }
+}
+
+TEST_F(Polygon2DTest, Difference_OverlappingSquares) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(0.5, 0.5), g::Point2D(1.5, 0.5), g::Point2D(1.5, 1.5), g::Point2D(0.5, 1.5)});
+
+  auto result = a.Difference(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(0.75, result[0].Area(), 1e-6);
+  EXPECT_FALSE(result[0].HasHoles());
+}
+
+TEST_F(Polygon2DTest, Xor_OverlappingSquares) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(0.5, 0.5), g::Point2D(1.5, 0.5), g::Point2D(1.5, 1.5), g::Point2D(0.5, 1.5)});
+
+  auto result = a.Xor(b);
+  // The overlap sits strictly inside the union (it never touches the union's outer boundary), so the
+  // symmetric difference is one connected piece with the overlap punched out as a hole — not two
+  // disjoint pieces.
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(1.5, result[0].Area(), 1e-6);
+  ASSERT_TRUE(result[0].HasHoles());
+  EXPECT_EQ(1u, result[0].Holes().size());
+}
+
+// B is strictly inside A with no shared boundary — the case a naive face-classification approach
+// (without per-edge classification) would silently get wrong.
+TEST_F(Polygon2DTest, Difference_NestedNonTouching_ProducesHole) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(10, 10), g::Point2D(0, 10)});
+  auto b = g::Polygon2D::Make({g::Point2D(4, 4), g::Point2D(6, 4), g::Point2D(6, 6), g::Point2D(4, 6)});
+
+  auto result = a.Difference(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_TRUE(result[0].HasHoles());
+  ASSERT_EQ(1u, result[0].Holes().size());
+  EXPECT_NEAR(100.0 - 4.0, result[0].Area(), 1e-6);
+  EXPECT_FALSE(result[0].Contains(g::Point2D(5, 5)));   // inside the cut-out hole
+  EXPECT_TRUE(result[0].Contains(g::Point2D(1, 1)));    // inside the remaining donut
+}
+
+TEST_F(Polygon2DTest, Intersection_NestedNonTouching_EqualsInner) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(10, 10), g::Point2D(0, 10)});
+  auto b = g::Polygon2D::Make({g::Point2D(4, 4), g::Point2D(6, 4), g::Point2D(6, 6), g::Point2D(4, 6)});
+
+  auto result = a.Intersection(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(4.0, result[0].Area(), 1e-6);
+  EXPECT_FALSE(result[0].HasHoles());
+}
+
+TEST_F(Polygon2DTest, Union_NestedNonTouching_EqualsOuter) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(10, 10), g::Point2D(0, 10)});
+  auto b = g::Polygon2D::Make({g::Point2D(4, 4), g::Point2D(6, 4), g::Point2D(6, 6), g::Point2D(4, 6)});
+
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(100.0, result[0].Area(), 1e-6);
+  EXPECT_FALSE(result[0].HasHoles());
+}
+
+// A's right edge (x=1, y:0..1) and B's left edge (x=0.5, y:0..1) are collinear with each polygon's own
+// bottom/top edges over the shared range — the two squares share a *portion* of their y=0 and y=1
+// edges (collinear, partially overlapping), not just crossing transversally.
+TEST_F(Polygon2DTest, Intersection_CollinearOverlappingEdges) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(0.5, 0), g::Point2D(1.5, 0), g::Point2D(1.5, 1), g::Point2D(0.5, 1)});
+
+  auto result = a.Intersection(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(0.5, result[0].Area(), 1e-6);
+  for (auto const& p : result[0].Perimeter()) {
+    EXPECT_GE(p.x(), 0.5 - 1e-6);
+    EXPECT_LE(p.x(), 1.0 + 1e-6);
+  }
+}
+
+TEST_F(Polygon2DTest, Union_CollinearOverlappingEdges) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(0.5, 0), g::Point2D(1.5, 0), g::Point2D(1.5, 1), g::Point2D(0.5, 1)});
+
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(1.5, result[0].Area(), 1e-6);
+  EXPECT_FALSE(result[0].HasHoles());
+}
+
+// Two fully disjoint squares.
+TEST_F(Polygon2DTest, Union_Disjoint_ProducesTwoPolygons) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(5, 5), g::Point2D(6, 5), g::Point2D(6, 6), g::Point2D(5, 6)});
+
+  auto result = a.Union(b);
+  ASSERT_EQ(2u, result.size());
+  EXPECT_NEAR(2.0, result[0].Area() + result[1].Area(), 1e-6);
+}
+
+TEST_F(Polygon2DTest, Intersection_Disjoint_ProducesNothing) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(5, 5), g::Point2D(6, 5), g::Point2D(6, 6), g::Point2D(5, 6)});
+
+  auto result = a.Intersection(b);
+  EXPECT_TRUE(result.empty());
+}
+
+TEST_F(Polygon2DTest, Difference_Disjoint_ReturnsWholeSubject) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(5, 5), g::Point2D(6, 5), g::Point2D(6, 6), g::Point2D(5, 6)});
+
+  auto result = a.Difference(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(1.0, result[0].Area(), 1e-6);
+}
+
+// Subject already has a hole; clip overlaps only the solid part (not the hole).
+TEST_F(Polygon2DTest, Intersection_SubjectWithHole) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(10, 10), g::Point2D(0, 10)},
+                              {{g::Point2D(4, 4), g::Point2D(4, 6), g::Point2D(6, 6), g::Point2D(6, 4)}});
+  auto b = g::Polygon2D::Make({g::Point2D(-1, -1), g::Point2D(2, -1), g::Point2D(2, 2), g::Point2D(-1, 2)});
+
+  auto result = a.Intersection(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(4.0, result[0].Area(), 1e-6);  // overlap of B=[-1,2]x[-1,2] with A's outer square is [0,2]x[0,2]
+  EXPECT_FALSE(result[0].HasHoles());
+}
+
+TEST_F(Polygon2DTest, Intersects_Polygon_OverlappingAndDisjoint) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto overlapping =
+      g::Polygon2D::Make({g::Point2D(0.5, 0.5), g::Point2D(1.5, 0.5), g::Point2D(1.5, 1.5), g::Point2D(0.5, 1.5)});
+  auto disjoint = g::Polygon2D::Make({g::Point2D(5, 5), g::Point2D(6, 5), g::Point2D(6, 6), g::Point2D(5, 6)});
+
+  EXPECT_TRUE(a.Intersects(overlapping));
+  EXPECT_FALSE(a.Intersects(disjoint));
+}
+
+#pragma endregion
+
 }  // namespace geompp_tests

@@ -752,4 +752,113 @@ TEST_F(Polygon3DTest, Intersection_Line_NonXYPlane) {
   EXPECT_TRUE(result->AlmostEquals(g::Point3D(0, 0.5, 0.5)));
 }
 
+#pragma region Boolean Operations (Coplanar)
+
+TEST_F(Polygon3DTest, Union_CoplanarOverlappingSquares) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto b = g::Polygon3D::Make(
+      {g::Point3D(0.5, 0.5, 0), g::Point3D(1.5, 0.5, 0), g::Point3D(1.5, 1.5, 0), g::Point3D(0.5, 1.5, 0)});
+
+  auto result = a.Union(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_NEAR(1.75, result[0].Area(), 1e-6);
+}
+
+TEST_F(Polygon3DTest, Intersection_Polygon_CoplanarOverlappingSquares) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto b = g::Polygon3D::Make(
+      {g::Point3D(0.5, 0.5, 0), g::Point3D(1.5, 0.5, 0), g::Point3D(1.5, 1.5, 0), g::Point3D(0.5, 1.5, 0)});
+
+  auto result = a.Intersection(b);
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(std::holds_alternative<std::vector<g::Polygon3D>>(*result));
+  auto const& polys = std::get<std::vector<g::Polygon3D>>(*result);
+  ASSERT_EQ(1u, polys.size());
+  EXPECT_NEAR(0.25, polys[0].Area(), 1e-6);
+}
+
+TEST_F(Polygon3DTest, Difference_CoplanarNestedNonTouching_ProducesHole) {
+  auto a = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(10, 0, 0), g::Point3D(10, 10, 0), g::Point3D(0, 10, 0)});
+  auto b = g::Polygon3D::Make({g::Point3D(4, 4, 0), g::Point3D(6, 4, 0), g::Point3D(6, 6, 0), g::Point3D(4, 6, 0)});
+
+  auto result = a.Difference(b);
+  ASSERT_EQ(1u, result.size());
+  EXPECT_TRUE(result[0].HasHoles());
+  EXPECT_NEAR(100.0 - 4.0, result[0].Area(), 1e-6);
+}
+
+TEST_F(Polygon3DTest, Union_NotCoplanar_Throws) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto b = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(0, 1, 0), g::Point3D(0, 1, 1), g::Point3D(0, 0, 1)});
+  EXPECT_THROW(a.Union(b), std::logic_error);
+  EXPECT_THROW(a.Difference(b), std::logic_error);
+  EXPECT_THROW(a.Xor(b), std::logic_error);
+}
+
+TEST_F(Polygon3DTest, Intersects_Polygon_Coplanar) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto overlapping = g::Polygon3D::Make(
+      {g::Point3D(0.5, 0.5, 0), g::Point3D(1.5, 0.5, 0), g::Point3D(1.5, 1.5, 0), g::Point3D(0.5, 1.5, 0)});
+  auto disjoint =
+      g::Polygon3D::Make({g::Point3D(5, 5, 0), g::Point3D(6, 5, 0), g::Point3D(6, 6, 0), g::Point3D(5, 6, 0)});
+
+  EXPECT_TRUE(a.Intersects(overlapping));
+  EXPECT_FALSE(a.Intersects(disjoint));
+}
+
+#pragma endregion
+
+#pragma region Boolean Operations (Non-Coplanar)
+
+TEST_F(Polygon3DTest, Intersection_Polygon_PlanesCrossing_ReturnsSegment) {
+  // A lies flat on z=0, spanning x:0..4, y:0..4.
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  // B is a vertical "wall" on the plane y=2, spanning x:1..3, z:-1..3 — it slices through A.
+  auto b = g::Polygon3D::Make(
+      {g::Point3D(1, 2, 3), g::Point3D(3, 2, 3), g::Point3D(3, 2, -1), g::Point3D(1, 2, -1)});
+
+  auto result = a.Intersection(b);
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(std::holds_alternative<std::vector<g::LineSegment3D>>(*result));
+  auto const& segs = std::get<std::vector<g::LineSegment3D>>(*result);
+  ASSERT_EQ(1u, segs.size());
+
+  // The shared chord lies at y=2, z=0, x in [1, 3] (where both bounded regions cover the shared line).
+  bool matches_forward =
+      segs[0].First().AlmostEquals(g::Point3D(1, 2, 0)) && segs[0].Last().AlmostEquals(g::Point3D(3, 2, 0));
+  bool matches_reverse =
+      segs[0].First().AlmostEquals(g::Point3D(3, 2, 0)) && segs[0].Last().AlmostEquals(g::Point3D(1, 2, 0));
+  EXPECT_TRUE(matches_forward || matches_reverse);
+}
+
+TEST_F(Polygon3DTest, Intersects_Polygon_PlanesCrossing) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto b = g::Polygon3D::Make(
+      {g::Point3D(1, 2, 3), g::Point3D(3, 2, 3), g::Point3D(3, 2, -1), g::Point3D(1, 2, -1)});
+  EXPECT_TRUE(a.Intersects(b));
+}
+
+TEST_F(Polygon3DTest, Intersection_Polygon_PlanesCrossing_ButBoundsMiss_ReturnsNullopt) {
+  // Same crossing planes as above, but B's x-range (10..12) never overlaps A's (0..4) along the shared line.
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)});
+  auto b = g::Polygon3D::Make(
+      {g::Point3D(10, 2, 3), g::Point3D(12, 2, 3), g::Point3D(12, 2, -1), g::Point3D(10, 2, -1)});
+
+  auto result = a.Intersection(b);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_FALSE(a.Intersects(b));
+}
+
+TEST_F(Polygon3DTest, Intersection_Polygon_ParallelDistinctPlanes_ReturnsNullopt) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto b = g::Polygon3D::Make({g::Point3D(0, 0, 5), g::Point3D(1, 0, 5), g::Point3D(1, 1, 5), g::Point3D(0, 1, 5)});
+
+  auto result = a.Intersection(b);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_FALSE(a.Intersects(b));
+}
+
+#pragma endregion
+
 }  // namespace geompp_tests

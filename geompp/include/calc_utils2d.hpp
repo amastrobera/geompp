@@ -458,6 +458,40 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
 template <SegmentList Segments>
 std::vector<IntersectionEvent2D> find_intersections(Segments const& segments);
 
+/// @brief Splits every segment in @p segs at each crossing point Bentley-Ottmann finds among them, so
+/// that no two segments in the result cross except at shared endpoints. Also splits collinear,
+/// partially-overlapping segment pairs at their shared sub-segment's endpoints (via
+/// LineSegment2D::Overlap) — a case find_intersections doesn't cover, since LineSegment2D::Intersection
+/// returns nullopt for parallel input. Shared by simplify_rings() and boolean_op() — the step that turns
+/// an arbitrary segment soup into one ready for half-edge face tracing.
+std::vector<LineSegment2D> split_segments_at_crossings(std::vector<LineSegment2D> const& segs);
+
+enum class BooleanOp { Union, Intersection, Difference, Xor };
+
+/// @brief Set-theoretic boolean operation (union/intersection/difference/xor) between two polygons, each
+/// given as an outer ring + hole rings, all already in 2D.
+///
+/// Internally merges both operands' edges into one segment pool, splits at every crossing
+/// (split_segments_at_crossings), then classifies each surviving split segment individually: sample a
+/// point just to its left and just to its right (a small nudge along the segment's normal), test both
+/// samples for winding-number membership in subject and in clip, and apply @p op's truth table to each
+/// side. A segment survives only where that truth-table result actually differs left vs. right — i.e.
+/// where the segment is a genuine boundary of the result — and is kept oriented so the "in" side is on
+/// its left. The survivors are then traced (half-edge walk, same angular rule as simplify_rings' face
+/// tracer) into closed rings, and grouped into outer/hole pairs via a containment test.
+///
+/// This handles holes and self-intersecting operands with no special-casing: holes are just additional
+/// input rings, self-intersections resolve the same way subject/clip crossings do (the winding-number
+/// membership test is already well-defined for self-intersecting input), and an operand fully containing
+/// the other with no shared boundary still produces a correct hole — the per-segment classification
+/// doesn't depend on the two operands' edges ever touching, unlike a face-then-classify approach would.
+///
+/// @returns each disjoint result component as {outer ring, hole rings}, in no particular order. Empty if
+/// the operation produces no area (e.g. Intersection of disjoint polygons).
+std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> boolean_op(
+    std::vector<Point2D> const& subj_outer, std::vector<std::vector<Point2D>> const& subj_holes,
+    std::vector<Point2D> const& clip_outer, std::vector<std::vector<Point2D>> const& clip_holes, BooleanOp op);
+
 struct MinBoundingRectResult {
   double u_axis_x, u_axis_y;  // unit edge direction (in View2D space)
   double v_axis_x, v_axis_y;  // CCW perpendicular (in View2D space)
@@ -515,6 +549,23 @@ bool is_convex(Points const& vertices, View2D const& view);
 extern template bool is_convex(std::vector<Point2D> const&, View2D const&);
 extern template bool is_convex(std::vector<Point3D> const&, View2D const&);
 
+/// @brief Flattens a ring set (outer + holes) into a raw 2D segment list, each vertex projected through
+/// @p view. Shared by simplify_rings() and boolean_op() — the common first step before any crossing
+/// detection happens.
+/// @param outer  Outer ring vertices (Point2D or Point3D).
+/// @param holes  Inner ring vertices (same type as outer).
+/// @param view   Projects each point to 2D x/y coordinates.
+template <PointContainer Points>
+std::vector<LineSegment2D> collect_ring_segments(Points const& outer, std::vector<Points> const& holes,
+                                                 View2D const& view);
+
+extern template std::vector<LineSegment2D> collect_ring_segments(std::vector<Point2D> const&,
+                                                                  std::vector<std::vector<Point2D>> const&,
+                                                                  View2D const&);
+extern template std::vector<LineSegment2D> collect_ring_segments(std::vector<Point3D> const&,
+                                                                  std::vector<std::vector<Point3D>> const&,
+                                                                  View2D const&);
+
 /// @brief Decomposes polygon rings into simple closed rings via half-edge face tracing.
 /// Projects each point through @p view, builds 2D segments internally, finds all crossings
 /// (Bentley-Ottmann), splits at those points, and returns one ring per bounded face.
@@ -548,6 +599,13 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
 std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
     std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
     bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view);
+
+/// @brief Concrete Point3D wrapper for compute_parametric_intersection_intervals — same reasoning as
+/// compute_intersection_intervals_2d. Used for a line coplanar with the polygon (e.g. the shared line
+/// between two non-coplanar polygons' planes, when computing where they strike through each other).
+std::vector<std::pair<double, double>> compute_intersection_intervals_3d(
+    std::vector<Point3D> const& outer_coplanar_ccw, std::vector<std::vector<Point3D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point3D const& line_p0, Point3D const& line_p1, View2D const& view);
 
 /// @brief Point-on-edge perimeter test projected through a View2D.
 /// Works for both 2D (View2D::XY()) and 3D (dominant-axis view) rings.
@@ -681,6 +739,26 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Point2D con
 
 /// @brief finds the tangents from a polygon to another
 PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D const& other);
+
+/// @brief Clips @p subject against @p clipper, returning the area both loops share (their set
+/// intersection) — the classic "clip a subject polygon by a window polygon" operation, for callers who
+/// have raw point loops rather than Polygon2D instances (no holes, no CCW/CW requirement on input).
+///
+/// @param clipper_loop  The clip region's vertices, in order. Last point must NOT repeat the first —
+/// the loop is treated as implicitly closed (an edge connects the last vertex back to the first).
+/// @param subject_loop  The subject's vertices, same "implicitly closed, no repeated first point"
+/// convention.
+/// @returns Every ring of the intersection, CCW outer rings and CW hole rings mixed in one flat list
+/// (an intersection of two hole-less loops can still have a hole — e.g. two overlapping "L" shapes can
+/// intersect into a shape with a hole in the middle — so the caller must be prepared for that; group by
+/// signed_area()/orientation and nesting the same way simplify_rings()'s caller would). Empty if the
+/// loops don't overlap.
+///
+/// Uses the same general planar-arrangement engine as Polygon2D::Intersection(Polygon2D) — no special
+/// case for convex clippers (a convex-only caller could use the simpler/faster Sutherland-Hodgman
+/// algorithm instead, but that's a different algorithm, not offered here).
+std::vector<std::vector<Point2D>> clip(std::vector<Point2D> const& clipper_loop,
+                                       std::vector<Point2D> const& subject_loop);
 
 template <PointContainer Points>
 Points dist_decimation(Points const& points, double threshold);

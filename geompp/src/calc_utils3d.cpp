@@ -427,17 +427,19 @@ double distance_to(Polygon3D const& polygon, Line3D const& line) {
 
 namespace {
 
-// Cheapest View2D that can represent `plane`: one of the fast world-plane views when it matches exactly,
-// otherwise the plane's own (Custom) basis. Mirrors the selection distance_to(Polygon3D, Line3D) makes above.
+// Cheapest View2D that can represent `plane`: one of the fast world-plane views when `plane` is parallel
+// to that world plane (whatever its offset — e.g. z = 5 still qualifies for XY), otherwise the plane's own
+// (Custom) basis. Mirrors the selection distance_to(Polygon3D, Line3D) makes above. Subsumes the old
+// exact-through-origin check (Plane::XY() etc.): that's just the offset = 0 case of the same test.
 View2D view_for_plane(Plane const& plane) {
-  if (plane == Plane::XY()) {
-    return View2D::XY();
+  if (plane.normal().IsParallel(Vector3D::BasisZ())) {
+    return View2D::XY(plane.origin().z());
   }
-  if (plane == Plane::YZ()) {
-    return View2D::YZ();
+  if (plane.normal().IsParallel(Vector3D::BasisX())) {
+    return View2D::YZ(plane.origin().x());
   }
-  if (plane == Plane::ZX()) {
-    return View2D::ZX();
+  if (plane.normal().IsParallel(Vector3D::BasisY())) {
+    return View2D::ZX(plane.origin().y());
   }
   return View2D::OnPlane(plane);
 }

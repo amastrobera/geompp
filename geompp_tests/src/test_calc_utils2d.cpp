@@ -1085,4 +1085,37 @@ TEST_F(CalcUtils2DTest, PolylineExpansion_MinSegmentLength_SkipsShortCorner_Matc
   }
 }
 
+// --------------------------------------------------------------------------------------------------
+// clip()
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils2DTest, Clip_OverlappingSquares_ReturnsIntersectionArea) {
+  std::vector<g::Point2D> clipper{g::Point2D(0.5, 0.5), g::Point2D(1.5, 0.5), g::Point2D(1.5, 1.5),
+                                  g::Point2D(0.5, 1.5)};
+  std::vector<g::Point2D> subject{g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)};
+
+  auto rings = g::clip(clipper, subject);
+  ASSERT_EQ(1u, rings.size());
+  auto poly = g::Polygon2D::Make(rings[0]);
+  EXPECT_NEAR(0.25, poly.Area(), 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Clip_Disjoint_ReturnsEmpty) {
+  std::vector<g::Point2D> clipper{g::Point2D(5, 5), g::Point2D(6, 5), g::Point2D(6, 6), g::Point2D(5, 6)};
+  std::vector<g::Point2D> subject{g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)};
+
+  auto rings = g::clip(clipper, subject);
+  EXPECT_TRUE(rings.empty());
+}
+
+TEST_F(CalcUtils2DTest, Clip_SubjectFullyInsideClipper_ReturnsSubject) {
+  std::vector<g::Point2D> clipper{g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(10, 10), g::Point2D(0, 10)};
+  std::vector<g::Point2D> subject{g::Point2D(4, 4), g::Point2D(6, 4), g::Point2D(6, 6), g::Point2D(4, 6)};
+
+  auto rings = g::clip(clipper, subject);
+  ASSERT_EQ(1u, rings.size());
+  auto poly = g::Polygon2D::Make(rings[0]);
+  EXPECT_NEAR(4.0, poly.Area(), 1e-6);
+}
+
 }  // namespace geompp_tests

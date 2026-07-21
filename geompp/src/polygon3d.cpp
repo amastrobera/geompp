@@ -493,6 +493,143 @@ std::optional<Point3D> Polygon3D::Intersection(LineSegment3D const& segment) con
   return intersection_point;
 }
 
+namespace {
+
+// Coplanar-only engine shared by Union/Difference/Xor and the coplanar branch of Intersection(): project
+// both operands onto their common plane via View2D::OnPlane (exact and invertible, see View2D::xyz()),
+// run the same 2D boolean_op engine Polygon2D uses, then lift each result ring's vertices back to 3D.
+std::vector<Polygon3D> run_boolean_op_3d(Polygon3D const& a, Polygon3D const& b, detail::BooleanOp op) {
+  if (!a.GetPlane().AlmostEquals(b.GetPlane())) {
+    throw std::logic_error("Polygon3D boolean operations require both polygons to be coplanar");
+  }
+
+  auto view = View2D::OnPlane(a.GetPlane());
+
+  auto project = [&](std::vector<Point3D> const& ring) {
+    std::vector<Point2D> out;
+    out.reserve(ring.size());
+    for (auto const& p : ring) {
+      out.push_back(Point2D(view.x(p), view.y(p)));
+    }
+    return out;
+  };
+  auto project_holes = [&](std::vector<std::vector<Point3D>> const& holes) {
+    std::vector<std::vector<Point2D>> out;
+    out.reserve(holes.size());
+    for (auto const& hole : holes) {
+      out.push_back(project(hole));
+    }
+    return out;
+  };
+
+  auto groups = detail::boolean_op(project(a.Perimeter()), project_holes(a.Holes()), project(b.Perimeter()),
+                                   project_holes(b.Holes()), op);
+
+  auto unproject = [&](std::vector<Point2D> const& ring) {
+    std::vector<Point3D> out;
+    out.reserve(ring.size());
+    for (auto const& p : ring) {
+      out.push_back(view.xyz(p));
+    }
+    return out;
+  };
+
+  std::vector<Polygon3D> result;
+  result.reserve(groups.size());
+  for (auto const& [outer, holes] : groups) {
+    std::vector<std::vector<Point3D>> holes3d;
+    holes3d.reserve(holes.size());
+    for (auto const& hole : holes) {
+      holes3d.push_back(unproject(hole));
+    }
+    result.push_back(Polygon3D::Make(unproject(outer), holes3d));
+  }
+  return result;
+}
+
+}  // namespace
+
+bool Polygon3D::Intersects(Polygon3D const& other) const {
+  auto result = Intersection(other);
+  if (!result.has_value()) {
+    return false;
+  }
+  return std::visit([](auto const& alternative) { return !alternative.empty(); }, result.value());
+}
+
+std::optional<std::variant<std::vector<Polygon3D>, std::vector<LineSegment3D>>> Polygon3D::Intersection(
+    Polygon3D const& other) const {
+  if (PLANE.AlmostEquals(other.GetPlane())) {
+    auto pieces = run_boolean_op_3d(*this, other, detail::BooleanOp::Intersection);
+    if (pieces.empty()) {
+      return std::nullopt;
+    }
+    return pieces;
+  }
+
+  if (PLANE.normal().IsParallel(other.GetPlane().normal())) {
+    return std::nullopt;  // parallel and (per the check above) distinct planes never meet
+  }
+
+  // Planes cross along a line — two flat, non-coplanar regions can only share points there. Find each
+  // polygon's own parametric intervals along that shared line (each polygon supplies its own plane as
+  // the view, since the line is coplanar with both, just not the same plane for both), then intersect
+  // the two 1D interval sets.
+  auto plane_inter = PLANE.Intersection(other.GetPlane());
+  if (!plane_inter.has_value() || !std::holds_alternative<Line3D>(*plane_inter)) {
+    return std::nullopt;  // defensive — shouldn't happen once the parallel check above has passed
+  }
+  auto const& line = std::get<Line3D>(*plane_inter);
+
+  auto intervals_a = detail::view::compute_intersection_intervals_3d(VERTICES, HOLES, IS_CONVEX, line.First(),
+                                                                      line.Last(), View2D::OnPlane(PLANE));
+  auto intervals_b = detail::view::compute_intersection_intervals_3d(
+      other.Perimeter(), other.Holes(), other.IsConvex(), line.First(), line.Last(), View2D::OnPlane(other.GetPlane()));
+
+  std::vector<std::pair<double, double>> merged;
+  std::size_t i = 0, j = 0;
+  while (i < intervals_a.size() && j < intervals_b.size()) {
+    double lo = std::max(intervals_a[i].first, intervals_b[j].first);
+    double hi = std::min(intervals_a[i].second, intervals_b[j].second);
+    if (compare(lo, hi) < 0) {
+      merged.push_back({lo, hi});
+    }
+    if (compare(intervals_a[i].second, intervals_b[j].second) < 0) {
+      ++i;
+    } else {
+      ++j;
+    }
+  }
+
+  if (merged.empty()) {
+    return std::nullopt;
+  }
+
+  Vector3D dir = line.Last() - line.First();
+  std::vector<LineSegment3D> segs;
+  segs.reserve(merged.size());
+  for (auto const& [t0, t1] : merged) {
+    segs.push_back(LineSegment3D::Make(line.First() + dir * t0, line.First() + dir * t1));
+  }
+  return segs;
+}
+
+#pragma endregion
+
+#pragma region Boolean Operations
+
+std::vector<Polygon3D> Polygon3D::Union(Polygon3D const& other) const {
+  return run_boolean_op_3d(*this, other, detail::BooleanOp::Union);
+}
+
+std::vector<Polygon3D> Polygon3D::Difference(Polygon3D const& other) const {
+  return run_boolean_op_3d(*this, other, detail::BooleanOp::Difference);
+}
+
+std::vector<Polygon3D> Polygon3D::Xor(Polygon3D const& other) const {
+  return run_boolean_op_3d(*this, other, detail::BooleanOp::Xor);
+}
+
 #pragma endregion
 
 #pragma region Formatting

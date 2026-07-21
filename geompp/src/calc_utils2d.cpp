@@ -414,6 +414,71 @@ template bool has_intersections(SegmentRange2D const&);
 template std::vector<IntersectionEvent2D> find_intersections(std::vector<LineSegment2D> const&);
 template std::vector<IntersectionEvent2D> find_intersections(SegmentRange2D const&);
 
+std::vector<LineSegment2D> split_segments_at_crossings(std::vector<LineSegment2D> const& segs) {
+  // Qualified deliberately: an unqualified call would ADL onto geompp::find_intersections
+  // (segs is std::vector<LineSegment2D>, and LineSegment2D lives in geompp) and, being a
+  // non-template exact match, that overload wins over this template — silently returning
+  // std::vector<Point2D> instead of std::vector<IntersectionEvent2D>.
+  auto crossings = detail::find_intersections(segs);
+
+  // map: segment index → crossing points on that segment
+  std::map<std::size_t, std::vector<Point2D>> seg_cp;
+  for (auto const& ev : crossings) {
+    for (auto id : ev.SegmentIds) {
+      seg_cp[id].push_back(ev.Point);
+    }
+  }
+
+  // find_intersections only reports single-point crossings — LineSegment2D::Intersection returns
+  // nullopt for parallel input (no unique solution), so two collinear, partially-overlapping segments
+  // never generate a crossing event at all and would otherwise pass through unsplit. Overlap() finds
+  // the shared sub-segment directly (and already discounts a mere shared-endpoint touch, returning
+  // nullopt for that), so both its endpoints become extra split points on both segments. This is an
+  // O(n^2) pass in the segment count, separate from the O(n log n) sweep above, since collinear overlap
+  // isn't something the sweep's neighbor-adjacency check surfaces on its own.
+  for (std::size_t i = 0; i < segs.size(); ++i) {
+    for (std::size_t j = i + 1; j < segs.size(); ++j) {
+      if (shares_endpoint(segs[i], segs[j])) {
+        continue;
+      }
+      if (auto overlap = segs[i].Overlap(segs[j])) {
+        seg_cp[i].push_back(overlap->First());
+        seg_cp[i].push_back(overlap->Last());
+        seg_cp[j].push_back(overlap->First());
+        seg_cp[j].push_back(overlap->Last());
+      }
+    }
+  }
+
+  std::vector<LineSegment2D> split;
+  split.reserve(segs.size() + crossings.size() * 2);
+  for (std::size_t i = 0; i < segs.size(); ++i) {
+    auto it = seg_cp.find(i);
+    if (it == seg_cp.end()) {
+      split.push_back(segs[i]);
+      continue;
+    }
+    // sort crossing points by parameter t along this segment
+    std::vector<Point2D> cps = it->second;
+    std::sort(cps.begin(), cps.end(),
+              [&](Point2D const& a, Point2D const& b) { return segs[i].Location(a) < segs[i].Location(b); });
+    cps.erase(std::unique(cps.begin(), cps.end(), [](Point2D const& a, Point2D const& b) { return a.AlmostEquals(b); }),
+              cps.end());
+
+    Point2D prev = segs[i].First();
+    for (auto const& cp : cps) {
+      if (!prev.AlmostEquals(cp)) {
+        split.push_back(LineSegment2D::Make(prev, cp));
+      }
+      prev = cp;
+    }
+    if (!prev.AlmostEquals(segs[i].Last())) {
+      split.push_back(LineSegment2D::Make(prev, segs[i].Last()));
+    }
+  }
+  return split;
+}
+
 // Everything in namespace view projects points through a View2D before operating on them.
 // Grouped together since they all share that one dependency.
 namespace view {
@@ -636,17 +701,14 @@ std::vector<std::size_t> convex_hull_indices(std::vector<Point2D> const& points)
 namespace view {
 
 template <PointContainer Points>
-std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vector<Points> const& holes,
+std::vector<LineSegment2D> collect_ring_segments(Points const& outer, std::vector<Points> const& holes,
                                                  View2D const& view) {
-  // --- Stage 1: project rings to 2D segments ---
   std::vector<LineSegment2D> segs;
-  {
-    int n = static_cast<int>(std::ranges::size(outer));
-    segs.reserve(n);
-    for (int i = 0; i < n; ++i) {
-      segs.emplace_back(LineSegment2D::Make(Point2D(view.x(outer[i]), view.y(outer[i])),
-                                            Point2D(view.x(outer[(i + 1) % n]), view.y(outer[(i + 1) % n]))));
-    }
+  int n = static_cast<int>(std::ranges::size(outer));
+  segs.reserve(n);
+  for (int i = 0; i < n; ++i) {
+    segs.emplace_back(LineSegment2D::Make(Point2D(view.x(outer[i]), view.y(outer[i])),
+                                          Point2D(view.x(outer[(i + 1) % n]), view.y(outer[(i + 1) % n]))));
   }
   for (auto const& hole : holes) {
     int nh = static_cast<int>(std::ranges::size(hole));
@@ -655,52 +717,24 @@ std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vecto
                                             Point2D(view.x(hole[(i + 1) % nh]), view.y(hole[(i + 1) % nh]))));
     }
   }
+  return segs;
+}
+
+template std::vector<LineSegment2D> collect_ring_segments(std::vector<Point2D> const&,
+                                                          std::vector<std::vector<Point2D>> const&, View2D const&);
+template std::vector<LineSegment2D> collect_ring_segments(std::vector<Point3D> const&,
+                                                          std::vector<std::vector<Point3D>> const&, View2D const&);
+
+template <PointContainer Points>
+std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vector<Points> const& holes,
+                                                 View2D const& view) {
+  auto segs = collect_ring_segments(outer, holes, view);
 
   if (segs.size() < 3) {
     throw std::invalid_argument("simplify_rings: need at least 3 segments");
   }
 
-  // --- Stage 2: split every segment at its crossing points ---
-  // Qualified deliberately: an unqualified call would ADL onto geompp::find_intersections
-  // (segs is std::vector<LineSegment2D>, and LineSegment2D lives in geompp) and, being a
-  // non-template exact match, that overload wins over this template — silently returning
-  // std::vector<Point2D> instead of std::vector<IntersectionEvent2D>.
-  auto crossings = detail::find_intersections(segs);
-
-  // map: segment index → crossing points on that segment
-  std::map<std::size_t, std::vector<Point2D>> seg_cp;
-  for (auto const& ev : crossings) {
-    for (auto id : ev.SegmentIds) {
-      seg_cp[id].push_back(ev.Point);
-    }
-  }
-
-  std::vector<LineSegment2D> split;
-  split.reserve(segs.size() + crossings.size() * 2);
-  for (std::size_t i = 0; i < segs.size(); ++i) {
-    auto it = seg_cp.find(i);
-    if (it == seg_cp.end()) {
-      split.push_back(segs[i]);
-      continue;
-    }
-    // sort crossing points by parameter t along this segment
-    std::vector<Point2D> cps = it->second;
-    std::sort(cps.begin(), cps.end(),
-              [&](Point2D const& a, Point2D const& b) { return segs[i].Location(a) < segs[i].Location(b); });
-    cps.erase(std::unique(cps.begin(), cps.end(), [](Point2D const& a, Point2D const& b) { return a.AlmostEquals(b); }),
-              cps.end());
-
-    Point2D prev = segs[i].First();
-    for (auto const& cp : cps) {
-      if (!prev.AlmostEquals(cp)) {
-        split.push_back(LineSegment2D::Make(prev, cp));
-      }
-      prev = cp;
-    }
-    if (!prev.AlmostEquals(segs[i].Last())) {
-      split.push_back(LineSegment2D::Make(prev, segs[i].Last()));
-    }
-  }
+  auto split = split_segments_at_crossings(segs);
 
   // --- Stage 3: build planar graph, trace half-edge faces ---
 
@@ -839,6 +873,260 @@ int winding_number(std::vector<Point2D> const& vertices, Point2D const& p) {
     }
   }
   return wn;
+}
+
+namespace {
+
+bool select_face(BooleanOp op, bool in_subj, bool in_clip) {
+  switch (op) {
+    case BooleanOp::Union:
+      return in_subj || in_clip;
+    case BooleanOp::Intersection:
+      return in_subj && in_clip;
+    case BooleanOp::Difference:
+      return in_subj && !in_clip;
+    case BooleanOp::Xor:
+      return in_subj != in_clip;
+  }
+  throw std::logic_error("invalid BooleanOp");
+}
+
+// A point guaranteed to sit just inside a simple ring, robust to concavity: nudges off the longest
+// edge's midpoint (longest for numerical safety) along the interior-side normal, using CCW/CW to know
+// which side "interior" is.
+Point2D interior_sample_point(std::vector<Point2D> const& ring) {
+  int n = static_cast<int>(ring.size());
+  int best_i = 0;
+  double best_len = -1.0;
+  for (int i = 0; i < n; ++i) {
+    double len = ring[i].DistanceTo(ring[(i + 1) % n]);
+    if (len > best_len) {
+      best_len = len;
+      best_i = i;
+    }
+  }
+  Point2D const& p0 = ring[best_i];
+  Point2D const& p1 = ring[(best_i + 1) % n];
+  Vector2D dir = (p1 - p0).Normalize();
+  Vector2D normal = dir.Perp();  // left normal — interior side for a CCW ring
+  if (!are_ccw(ring)) {
+    normal = -normal;  // interior is to the right for a CW ring
+  }
+  Point2D mid = LineSegment2D::Make(p0, p1).Interpolate(0.5);
+  double eps = std::max(best_len * 0.01, DOUBLE_EPSILON * 10);
+  return mid + normal * eps;
+}
+
+// Classifies each split segment by sampling just left/right of its midpoint and keeps only the ones
+// where op's truth table differs left vs. right (a genuine boundary of the result), oriented so the
+// selected side ends up on the left.
+std::vector<LineSegment2D> classify_and_orient(std::vector<LineSegment2D> const& split,
+                                               std::vector<Point2D> const& subj_outer,
+                                               std::vector<std::vector<Point2D>> const& subj_holes,
+                                               std::vector<Point2D> const& clip_outer,
+                                               std::vector<std::vector<Point2D>> const& clip_holes, BooleanOp op) {
+  std::vector<LineSegment2D> result;
+  result.reserve(split.size());
+
+  for (auto const& seg : split) {
+    Vector2D dir = (seg.Last() - seg.First()).Normalize();
+    Vector2D normal = dir.Perp();
+    Point2D mid = seg.Interpolate(0.5);
+    double eps = std::max(seg.Length() * 0.01, DOUBLE_EPSILON * 10);
+    Point2D left_pt = mid + normal * eps;
+    Point2D right_pt = mid + normal * (-eps);
+
+    bool left_in_subj = view::polygon_contains(subj_outer, subj_holes, View2D::XY(), left_pt.x(), left_pt.y());
+    bool left_in_clip = view::polygon_contains(clip_outer, clip_holes, View2D::XY(), left_pt.x(), left_pt.y());
+    bool right_in_subj = view::polygon_contains(subj_outer, subj_holes, View2D::XY(), right_pt.x(), right_pt.y());
+    bool right_in_clip = view::polygon_contains(clip_outer, clip_holes, View2D::XY(), right_pt.x(), right_pt.y());
+
+    bool left_sel = select_face(op, left_in_subj, left_in_clip);
+    bool right_sel = select_face(op, right_in_subj, right_in_clip);
+
+    if (left_sel == right_sel) {
+      continue;  // not a boundary of the result — either fully inside or fully outside on both sides
+    }
+    result.push_back(left_sel ? seg : seg.Reversed());
+  }
+  return result;
+}
+
+// Half-edge walk over a DIRECTED edge set (unlike simplify_rings' tracer, each surviving edge here
+// contributes only the one direction classify_and_orient chose, so the walk can never backtrack along
+// it). Same angular "next half-edge in this face" rule, restricted to each vertex's outgoing edges.
+std::vector<std::vector<Point2D>> trace_directed_boundary(std::vector<LineSegment2D> const& directed_edges) {
+  double scale = std::pow(10.0, static_cast<double>(DECIMAL_PRECISION));
+  auto vkey = [scale](Point2D const& p) -> std::pair<long long, long long> {
+    return {llround(p.x() * scale), llround(p.y() * scale)};
+  };
+
+  std::map<std::pair<long long, long long>, int> vid_map;
+  std::vector<Point2D> verts;
+  auto get_vid = [&](Point2D const& p) -> int {
+    auto k = vkey(p);
+    auto it = vid_map.find(k);
+    if (it != vid_map.end()) {
+      return it->second;
+    }
+    int id = static_cast<int>(verts.size());
+    vid_map[k] = id;
+    verts.push_back(p);
+    return id;
+  };
+
+  std::vector<std::pair<int, int>> directed;
+  directed.reserve(directed_edges.size());
+  for (auto const& seg : directed_edges) {
+    directed.push_back({get_vid(seg.First()), get_vid(seg.Last())});
+  }
+
+  std::vector<std::vector<int>> adj(verts.size());
+  for (auto const& [a, b] : directed) {
+    adj[a].push_back(b);
+  }
+
+  int nv = static_cast<int>(verts.size());
+  std::vector<std::vector<double>> adj_angles(nv);
+  for (int v = 0; v < nv; ++v) {
+    std::sort(adj[v].begin(), adj[v].end(), [&](int a, int b) {
+      double ax = verts[a].x() - verts[v].x(), ay = verts[a].y() - verts[v].y();
+      double bx = verts[b].x() - verts[v].x(), by = verts[b].y() - verts[v].y();
+      return std::atan2(ay, ax) < std::atan2(by, bx);
+    });
+    adj_angles[v].resize(adj[v].size());
+    for (int k = 0; k < static_cast<int>(adj[v].size()); ++k) {
+      adj_angles[v][k] = std::atan2(verts[adj[v][k]].y() - verts[v].y(), verts[adj[v][k]].x() - verts[v].x());
+    }
+  }
+
+  std::set<std::pair<int, int>> used;
+  std::vector<std::vector<Point2D>> rings;
+
+  for (int u = 0; u < nv; ++u) {
+    for (int v0 : adj[u]) {
+      if (used.count({u, v0})) {
+        continue;
+      }
+
+      std::vector<Point2D> ring;
+      int cur_from = u, cur_to = v0;
+
+      while (true) {
+        auto edge = std::make_pair(cur_from, cur_to);
+        if (used.count(edge)) {
+          break;
+        }
+        used.insert(edge);
+        ring.push_back(verts[cur_from]);
+
+        double rev_angle = std::atan2(verts[cur_from].y() - verts[cur_to].y(), verts[cur_from].x() - verts[cur_to].x());
+
+        auto const& angles = adj_angles[cur_to];
+        auto const& nbrs = adj[cur_to];
+        int deg = static_cast<int>(nbrs.size());
+        int next_to = -1;
+
+        if (deg > 0) {
+          auto it = std::upper_bound(angles.begin(), angles.end(), rev_angle);
+          next_to = (it == angles.end()) ? nbrs[0] : nbrs[static_cast<int>(it - angles.begin())];
+        }
+
+        if (next_to == -1) {
+          break;
+        }
+        cur_from = cur_to;
+        cur_to = next_to;
+      }
+
+      if (ring.size() >= 3) {
+        rings.push_back(std::move(ring));
+      }
+    }
+  }
+  return rings;
+}
+
+// Groups traced rings into {outer, holes} via a containment forest: a ring's immediate parent is the
+// smallest-area other ring whose interior contains its sample point. Even-depth CCW rings are genuine
+// outer boundaries; odd-depth CW rings are holes of their immediate (even-depth) parent. This works
+// regardless of whether an outer and its hole ever share an edge — nesting is a geometric test, not a
+// graph-connectivity one — which is exactly what's needed when one operand fully contains the other
+// with no shared boundary.
+std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> package_result_rings(
+    std::vector<std::vector<Point2D>> const& rings) {
+  int n = static_cast<int>(rings.size());
+  std::vector<Point2D> sample;
+  sample.reserve(n);
+  std::vector<double> abs_area(n);
+  for (int i = 0; i < n; ++i) {
+    sample.push_back(interior_sample_point(rings[i]));
+    abs_area[i] = std::abs(signed_area(rings[i]));
+  }
+
+  std::vector<int> parent(n, -1);
+  for (int i = 0; i < n; ++i) {
+    double best_area = std::numeric_limits<double>::infinity();
+    for (int j = 0; j < n; ++j) {
+      if (i == j || abs_area[j] <= abs_area[i]) {
+        continue;  // a valid parent must strictly enclose i, so it must be strictly larger
+      }
+      if (winding_number(rings[j], sample[i]) != 0 && abs_area[j] < best_area) {
+        parent[i] = j;
+        best_area = abs_area[j];
+      }
+    }
+  }
+
+  std::vector<int> depth(n, -1);
+  for (int i = 0; i < n; ++i) {
+    if (depth[i] != -1) {
+      continue;
+    }
+    std::vector<int> chain;
+    int cur = i;
+    while (cur != -1 && depth[cur] == -1) {
+      chain.push_back(cur);
+      cur = parent[cur];
+    }
+    int base_depth = (cur == -1) ? 0 : depth[cur] + 1;
+    for (int k = static_cast<int>(chain.size()) - 1; k >= 0; --k) {
+      depth[chain[k]] = base_depth + (static_cast<int>(chain.size()) - 1 - k);
+    }
+  }
+
+  std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> result;
+  std::map<int, std::size_t> outer_index;
+  for (int i = 0; i < n; ++i) {
+    if (depth[i] % 2 == 0 && are_ccw(rings[i])) {
+      outer_index[i] = result.size();
+      result.push_back({rings[i], {}});
+    }
+  }
+  for (int i = 0; i < n; ++i) {
+    if (depth[i] % 2 == 1 && !are_ccw(rings[i])) {
+      auto it = outer_index.find(parent[i]);
+      if (it != outer_index.end()) {
+        result[it->second].second.push_back(rings[i]);
+      }
+    }
+  }
+  return result;
+}
+
+}  // namespace
+
+std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> boolean_op(
+    std::vector<Point2D> const& subj_outer, std::vector<std::vector<Point2D>> const& subj_holes,
+    std::vector<Point2D> const& clip_outer, std::vector<std::vector<Point2D>> const& clip_holes, BooleanOp op) {
+  auto segs = view::collect_ring_segments(subj_outer, subj_holes, View2D::XY());
+  auto clip_segs = view::collect_ring_segments(clip_outer, clip_holes, View2D::XY());
+  segs.insert(segs.end(), clip_segs.begin(), clip_segs.end());
+
+  auto split = split_segments_at_crossings(segs);
+  auto directed = classify_and_orient(split, subj_outer, subj_holes, clip_outer, clip_holes, op);
+  auto rings = trace_directed_boundary(directed);
+  return package_result_rings(rings);
 }
 
 namespace view {
@@ -1122,6 +1410,13 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
 std::vector<std::pair<double, double>> compute_intersection_intervals_2d(
     std::vector<Point2D> const& outer_coplanar_ccw, std::vector<std::vector<Point2D>> const& holes_coplanar_cw,
     bool is_convex_input, Point2D const& line_p0, Point2D const& line_p1, View2D const& view) {
+  return compute_parametric_intersection_intervals(outer_coplanar_ccw, holes_coplanar_cw, is_convex_input, line_p0,
+                                                   line_p1, view);
+}
+
+std::vector<std::pair<double, double>> compute_intersection_intervals_3d(
+    std::vector<Point3D> const& outer_coplanar_ccw, std::vector<std::vector<Point3D>> const& holes_coplanar_cw,
+    bool is_convex_input, Point3D const& line_p0, Point3D const& line_p1, View2D const& view) {
   return compute_parametric_intersection_intervals(outer_coplanar_ccw, holes_coplanar_cw, is_convex_input, line_p0,
                                                    line_p1, view);
 }
@@ -1481,6 +1776,21 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D c
           LineSegment2D::Make(polygon[LR_poly_i], other[LR_other_i])};
 }
 
+std::vector<std::vector<Point2D>> clip(std::vector<Point2D> const& clipper_loop,
+                                       std::vector<Point2D> const& subject_loop) {
+  auto groups = detail::boolean_op(subject_loop, {}, clipper_loop, {}, detail::BooleanOp::Intersection);
+
+  std::vector<std::vector<Point2D>> rings;
+  rings.reserve(groups.size() * 2);
+  for (auto& [outer, holes] : groups) {
+    rings.push_back(std::move(outer));
+    for (auto& hole : holes) {
+      rings.push_back(std::move(hole));
+    }
+  }
+  return rings;
+}
+
 namespace {
 
 // made in order to avoid the use of std::sqrt()
@@ -1760,9 +2070,9 @@ std::vector<PointT> sample_quadratic_bezier(PointT const& T0, PointT const& p1, 
     // we can't sum up points (geometrically non sense) so we rewrite the Bernstein-form blend as nested lerps
     // (De Casteljau's algorithm for a quadratic Bezier — mathematically identical to the desired:
     //      PointT pt = T0 * (u * u) + p1 * (2.0 * u * t) + T1 * (t * t);      with u = 1 - t
-    PointT a = T0 + (p1 - T0) * t;  // lerp(T0, p1, t)
-    PointT b = p1 + (T1 - p1) * t;  // lerp(p1, T1, t)
-    PointT pt = a + (b - a) * t;    // lerp(a, b, t)
+    PointT a = lerp(T0, p1, t);
+    PointT b = lerp(p1, T1, t);
+    PointT pt = lerp(a, b t);
 
     result.push_back(pt);
   }
@@ -1828,8 +2138,8 @@ std::vector<PointT> polyline_expansion(std::vector<PointT> const& input, Polylin
   // repeated reallocation as output grows, not exact.
   if (n >= 2) {
     std::size_t points_per_corner = settings.mode == PolylineExpansionParams::Mode::FixedSegments
-        ? static_cast<std::size_t>(std::max(settings.segments_per_corner, 1)) + 1
-        : 4;
+                                        ? static_cast<std::size_t>(std::max(settings.segments_per_corner, 1)) + 1
+                                        : 4;
     output.reserve(2 + (n - 2) * points_per_corner);
   }
 

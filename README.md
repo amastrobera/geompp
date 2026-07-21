@@ -44,32 +44,34 @@
   | `BRect2D`      | Minimum oriented bounding rectangle (rotating calipers) |
   | `BPrism3D`     | Minimum oriented bounding prism (PCA + rotating calipers) |
   | `Plane`        | A flat surface in 3D defined by a point and a normal     |
+  | `View2D`       | A class that converts a 3D point into 2D quicker than plane|
 
-  ### Operations
+  ### Algorithms: an overview
 
   Each primitive supports a consistent set of spatial operations where applicable:
 
   - **Containment** — does a shape contain a given point?
-  - **Intersection** — do two shapes strike through each other, and what is the resulting geometry?
-  - **Overlap** — do two shapes have a portion in common, and what is the resulting geometry?
-  - **Touch** — do two shapes have a point in common, and which is it?w
-  - **Distance** — closest distance from a point to a shape
-  - **Projection** — project a point onto a line, segment, or plane
-  - **Interpolation** — retrieve a point at parameter `t` along a segment or polyline
-  - **Location** — find the parameter `t` for a point already on a shape
-  - **Area / Perimeter / Centroid** — geometric properties for closed shapes
-  - **Signed area** — encodes orientation (clockwise vs. counter-clockwise in 2D, surface normal
-  direction in 3D)
+  - **Intersection** — do two shapes strike through each other, and what is the resulting geometry? It is also possible to use a free function `find_intersections()` on a free set of segments. The definition of this operation changes from 2D to 3D, check it out. 
+  - **Overlap** — do two shapes have a portion in common, and what is the resulting geometry? The definition of this operation changes from 2D to 3D, check it out. 
+  - **Touch** — do two shapes have a point in common, and which is it? The definition of this operation changes from 2D to 3D, check it out. 
+  - **Distance** — closest distance from a point to a shape. 
+  - **Plane operations** — projection of a point from 3D to 2D, and re-projection from 2D to 3D. In addition to the `Plane` class, a special class called `View2D` is capable of making quicker transitions from 3D to 2D, of one of the 3 world planes (XY, YZ, ZX) or a custom plane, which comes handy for re-using our algorithms (as well as yours). 
+  - **Interpolation / Location** — retrieve a point at parameter `t` along a segment or polyline, and - as opposite operation - find the parameter `t` for a point already on a shape. 
+  - **Area / Perimeter / Centroid** — geometric properties for closed shapes. 
+  - **Signed area** — encodes orientation (clockwise vs. counter-clockwise in 2D, surface normal direction in 3D)
   - **Simplicity / self-intersection** — `Polygon2D::IsSimple()` and the free functions `has_intersections(segments)` (Shamos–Hoey, boolean) / `find_intersections(segments)` (Bentley–Ottmann, returns every crossing point)
   - **Convex hull** — `convex_hull(points)` (`point2d.hpp`) — Andrew's monotone chain, returns hull vertices in CCW order
   - **Planar operations** — `View2D` maps 3D points to 2D scalars via `x()` / `y()` getters. Particularly efficient when streaming large containers of 3D points into 2D algorithms: calling `view.x(p)` and `view.y(p)` per element avoids allocating an intermediate `Point2D` container.
-  - **Bounding containers** — tight-fitting containers around point clouds.
+  - **Bounding containers** — tight-fitting containers around point clouds. Available in different varieties (axis-aligned bounding box, bounding ball, minimal oriented rectangle, convex-hull)
+  - **Polyline operations** — given a `Polyline` it is possible to `Reduce()` it (or `Extend()` it) according to several decimation (or smoothing) algorithms. It is also possible to use the free functions `polyline_extension()` and `xxx_decimation()` (different algorithms available) for a list of consecutive points not into a polyline data-structure. 
+  - **Polygon boolean operations** — Intersection, Union, Difference and Xor (either or) between two polygons are possible. One polygon clips the other with map-overlay method. 
+  - **Point cloud operations** — Principal Component Analysis (PCA) function `principal_axes()` helps you find the empirical 3 directive axis of a list of points in space. 
 
-  Return types are often `std::optional<std::variant<...>>` so callers can match on the exact geometry produced by an intersection without casting.
+  Return types are often `optional` and sometimes `optional<variant<...>>` so callers can match on the exact geometry produced by an intersection without casting.
 
   ### Available in multiple languages
 
-  - C++ 20
+  - C++ 20 and above
 
   - Python ([view](./geompp_python/README.md))
 
@@ -105,26 +107,6 @@
   A quick list of code examples per topic is provided here.
 
   👉 [View Full Code Examples](./code_examples_per_topic.md)
-  
-
-  ## geom_viewer — interactive geometry visualizer (WIP)
-
-  `geom_viewer` is a companion OpenGL application intended to let you see and interact with geometric
-  data produced by the library.
-
-  **Current state:**
-  - Opens a window and renders 2D points and line segments loaded from `.lsv` geometry files
-  - Coordinates are normalized to the viewport automatically
-
-  **Planned features:**
-  - Camera controls (pan / zoom via keyboard)
-  - An input box to type in new geometry on the fly (e.g. paste a WKT string)
-  - Key binding to delete selected geometry from the scene
-
-  The goal is a lightweight debugging and demonstration tool — not a full-featured CAD viewer, but
-  enough to visually inspect what the library computes.
-
-  **Stack:** GLFW 3, GLEW, OpenGL 3.3 Core Profile.
 
 
   ## Roadmap
@@ -133,9 +115,9 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), basic OpenGL viewer, [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; extreme points, polygon tangents, polyline decimation |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; polygon extreme points along a line, polygon tangents; polyline decimation, Bezier corner smoothing, polyline expansion; polygon clipping; boolean operations (union, intersection, difference); |
   | Next | TBC |
-  | Backlog | adjacency, polygon clipping; boolean operations (union, intersection, difference); definition of "non-planar polygon" or PolyMesh, triangulation/polygonization, graphic geometry viewer (may be on another repo)|
+  | Backlog | adjacency, definition of "non-planar polygon" or PolyMesh, triangulation/polygonization|
 
 
   This is the summary of the current test coverage. More on [test coverage](./test_coverage_report.md).
