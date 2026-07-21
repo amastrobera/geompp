@@ -78,9 +78,16 @@ Polyline3D^ Polyline3D::Reduce() {
     return gcnew Polyline3D(new geompp::Polyline3D(_native->Reduce()));
 }
 
-Polyline3D^ Polyline3D::Reduce(PolylineDecimationStrategy strategy, double threshold) {
-    return gcnew Polyline3D(new geompp::Polyline3D(
-        _native->Reduce(static_cast<geompp::PolylineDecimationStrategy>(strategy), threshold)));
+Polyline3D^ Polyline3D::Reduce(PolylineDecimationParams^ settings) {
+    return gcnew Polyline3D(new geompp::Polyline3D(_native->Reduce(settings->ToNative())));
+}
+
+Polyline3D^ Polyline3D::Expand() {
+    return gcnew Polyline3D(new geompp::Polyline3D(_native->Expand()));
+}
+
+Polyline3D^ Polyline3D::Expand(PolylineExpansionParams^ settings) {
+    return gcnew Polyline3D(new geompp::Polyline3D(_native->Expand(settings->ToNative())));
 }
 
 Polygon3D^ Polyline3D::ToPolygon() {

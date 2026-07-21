@@ -70,13 +70,53 @@ Polygon2D^ Polyline2D::ConvexHull() {
     return gcnew Polygon2D(new geompp::Polygon2D(_native->ConvexHull()));
 }
 
+PolylineDecimationParams::PolylineDecimationParams()
+    : _strategy(PolylineDecimationStrategy::RamerDouglasPeucker), _threshold(0.5) {}
+
+PolylineDecimationParams::PolylineDecimationParams(PolylineDecimationStrategy strategy, double threshold)
+    : _strategy(strategy), _threshold(threshold) {}
+
+geompp::PolylineDecimationParams PolylineDecimationParams::ToNative() {
+    geompp::PolylineDecimationParams native;
+    native.strategy = static_cast<geompp::PolylineDecimationParams::Strategy>(_strategy);
+    native.threshold = _threshold;
+    return native;
+}
+
 Polyline2D^ Polyline2D::Reduce() {
     return gcnew Polyline2D(new geompp::Polyline2D(_native->Reduce()));
 }
 
-Polyline2D^ Polyline2D::Reduce(PolylineDecimationStrategy strategy, double threshold) {
-    return gcnew Polyline2D(new geompp::Polyline2D(
-        _native->Reduce(static_cast<geompp::PolylineDecimationStrategy>(strategy), threshold)));
+Polyline2D^ Polyline2D::Reduce(PolylineDecimationParams^ settings) {
+    return gcnew Polyline2D(new geompp::Polyline2D(_native->Reduce(settings->ToNative())));
+}
+
+PolylineExpansionParams::PolylineExpansionParams()
+    : _smoothness(0.5), _mode(PolylineExpansionMode::FixedSegments), _segmentsPerCorner(4),
+      _minDistance(0.1), _minSegmentLength(static_cast<double>(geompp::DOUBLE_EPSILON)) {}
+
+PolylineExpansionParams::PolylineExpansionParams(double smoothness, PolylineExpansionMode mode,
+                                                  int segmentsPerCorner, double minDistance,
+                                                  double minSegmentLength)
+    : _smoothness(smoothness), _mode(mode), _segmentsPerCorner(segmentsPerCorner),
+      _minDistance(minDistance), _minSegmentLength(minSegmentLength) {}
+
+geompp::PolylineExpansionParams PolylineExpansionParams::ToNative() {
+    geompp::PolylineExpansionParams native;
+    native.smoothness = _smoothness;
+    native.mode = static_cast<geompp::PolylineExpansionParams::Mode>(_mode);
+    native.segments_per_corner = _segmentsPerCorner;
+    native.min_distance = _minDistance;
+    native.min_segment_length = _minSegmentLength;
+    return native;
+}
+
+Polyline2D^ Polyline2D::Expand() {
+    return gcnew Polyline2D(new geompp::Polyline2D(_native->Expand()));
+}
+
+Polyline2D^ Polyline2D::Expand(PolylineExpansionParams^ settings) {
+    return gcnew Polyline2D(new geompp::Polyline2D(_native->Expand(settings->ToNative())));
 }
 
 double Polyline2D::DistanceTo(Point2D^ point) {

@@ -65,11 +65,11 @@ double min_sweep_x(Segments const& segments) {
   return min_x;
 }
 
+}  // namespace
+
 bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b) {
   return a.First() == b.First() || a.First() == b.Last() || a.Last() == b.First() || a.Last() == b.Last();
 }
-
-}  // namespace
 
 std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
                                          Point2D const& other_p1, double& sc, double& tc) {
@@ -345,215 +345,55 @@ double SweepLine2D<Segments>::GetX() const {
 
 // ------- free functions -------
 
+namespace {
+
+// Visitor for has_intersections(): stops the Shamos-Hoey sweep at the first crossing found; ignores
+// segments simply becoming active (a plain existence check has nothing to do on OnStart).
+struct FirstIntersectionVisitor2D {
+  bool OnStart(auto const&) { return false; }
+  bool OnIntersection(auto const&, auto const&) { return true; }
+};
+
+// Visitor for find_intersections(): collects every confirmed crossing, merging segment ids into a single
+// IntersectionEvent2D when 3+ segments cross at the same point (rather than emitting several 2-id events for
+// that one point). Never stops the sweep early — it needs every crossing.
+struct CollectIntersectionsVisitor2D {
+  std::set<IntersectionEvent2D> Output;
+
+  bool OnStart(auto const&) { return false; }
+
+  bool OnIntersection(IntersectionEvent2D const& hit) {
+    auto it = Output.find(hit);
+    if (it == Output.end()) {
+      Output.insert(hit);
+      return false;
+    }
+    // are const so they must be extracted, modified, and re-inserted; also `vector::contains` doesn't exist
+    IntersectionEvent2D updated = *it;
+    Output.erase(it);
+    for (auto id : hit.SegmentIds) {
+      if (std::find(updated.SegmentIds.begin(), updated.SegmentIds.end(), id) == updated.SegmentIds.end()) {
+        updated.SegmentIds.push_back(id);
+      }
+    }
+    Output.insert(std::move(updated));
+    return false;
+  }
+};
+
+}  // namespace
+
 template <SegmentList Segments>
 bool has_intersections(Segments const& segments) {
-  if (segments.size() < 2) {
-    throw std::invalid_argument("provided less than 2 segments, cannot check for intersections");
-  }
-
-  EventQueue2D event_queue(segments);
-  SweepLine2D<Segments> sweep_line(segments);
-
-  while (!event_queue.Empty()) {
-    auto event_opt = event_queue.Pop();
-    if (!event_opt.has_value()) {
-      throw std::logic_error("Event queue is unexpectedly empty");
-    }
-    auto event = event_opt.value();
-
-    // set the sweepline X
-    sweep_line.SetX(event.Point.x());
-
-    std::size_t seg_id = event.SegmentId;
-
-    if (event.Type == EventType2D::LEFT) {
-      auto triplet = sweep_line.Add(seg_id);
-      if (!triplet.Segment) {
-        throw std::logic_error("Could not find the segment corresponding to the LEFT event in the sweep line");
-      }
-
-      if ((triplet.Above && !shares_endpoint(triplet.Segment->Seg, triplet.Above->Seg) &&
-           intersect(triplet.Segment->Seg, triplet.Above->Seg)) ||
-          (triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Segment->Seg) &&
-           intersect(triplet.Below->Seg, triplet.Segment->Seg))) {
-        return true;
-      }
-
-    } else if (event.Type == EventType2D::RIGHT) {
-      auto triplet = sweep_line.Remove(event.SegmentId);
-
-      if (triplet.Above && triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Above->Seg) &&
-          intersect(triplet.Below->Seg, triplet.Above->Seg)) {
-        return true;
-      }
-    }
-  }
-
-  return false;  // no intersections found
+  FirstIntersectionVisitor2D visitor;
+  return run_shamos_hoey(segments, visitor);
 }
 
 template <SegmentList Segments>
 std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
-  if (segments.size() < 2) {
-    throw std::invalid_argument("less than 2 segments provided, cannot check for intersections");
-  }
-
-  EventQueue2D event_queue(segments);
-  SweepLine2D<Segments> sweep_line(segments);
-
-  std::set<IntersectionEvent2D> output_list;
-
-  while (!event_queue.Empty()) {
-    auto event_opt = event_queue.Pop();
-    if (!event_opt.has_value()) {
-      throw std::logic_error("Event queue is unexpectedly empty");
-    }
-    auto event = event_opt.value();
-
-    // Advance SWEEP_X only for non-intersection events.
-    // For INTERSECTION events the handler's own Remove→SetX(x+ε)→Add cycle advances SWEEP_X past
-    // the crossing.  Advancing here would land exactly on the crossing x, where both segments have
-    // equal y and the tiebreaker (id1 < id2) gives the wrong pre-crossing adjacency order, causing
-    // Get() to mis-navigate the set and the adjacency check to fail spuriously.
-    if (event.Type != EventType2D::INTERSECTION) {
-      if (compare(sweep_line.GetX(), event.Point.x()) < 0) {
-        sweep_line.SetX(event.Point.x());
-      }
-    }
-
-    if (event.Type == EventType2D::LEFT) {
-      auto elem = sweep_line.Add(event.SegmentId);
-      if (!elem.Segment) {
-        throw std::logic_error("Could not add the segment corresponding to the LEFT event in the sweep line");
-      }
-
-      if (elem.Above && !shares_endpoint(elem.Segment->Seg, elem.Above->Seg)) {
-        if (auto inter_p = elem.Segment->Seg.Intersection(elem.Above->Seg)) {
-          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Segment->Id, elem.Above->Id});
-        }
-      }
-
-      if (elem.Below && !shares_endpoint(elem.Below->Seg, elem.Segment->Seg)) {
-        if (auto inter_p = elem.Below->Seg.Intersection(elem.Segment->Seg)) {
-          event_queue.Push(Event2D{EventType2D::INTERSECTION, inter_p.value(), elem.Below->Id, elem.Segment->Id});
-        }
-      }
-
-    } else if (event.Type == EventType2D::RIGHT) {
-      auto elem = sweep_line.Get(event.SegmentId);
-      if (!elem.Segment) {  // impossible at this stage
-        throw std::logic_error("Could not find the segment corresponding to the RIGHT event in the sweep line");
-      }
-
-      auto above_elem = elem.Above;
-      auto below_elem = elem.Below;
-
-      sweep_line.Remove(event.SegmentId);  // automatically resets the above/below neighbours of the segment being
-                                           // removed to the new neighbours after removal
-
-      if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
-        if (auto inter_p = above_elem->Seg.Intersection(below_elem->Seg)) {
-          auto inter_event = Event2D{EventType2D::INTERSECTION, inter_p.value(), below_elem->Id, above_elem->Id};
-          if (!event_queue.Contains(inter_event)) {
-            event_queue.Push(inter_event);
-          }
-        }
-      }
-
-    } else if (event.Type == EventType2D::INTERSECTION) {
-      std::size_t seg1_id = event.SegmentId;
-      std::size_t seg2_id = event.InterSegmentId.value();  // guaranteed from the logic above (and .value()
-                                                           // automatically throws std::bad_optional_access if empty)
-
-      // save the intersection event to the output list
-      auto inter_event = IntersectionEvent2D{event.Point, {seg1_id, seg2_id}};
-
-      // are const so they must be extracted, modified, and re-inserted; also `vector::contains` doesn't exist
-      auto it = output_list.find(inter_event);
-      if (it != output_list.end()) {
-        // avoid duplicates in the output list: increase the number of intersecting segments on the same point, rather
-        // than increasing the number of (equal) points with 2 segments
-        IntersectionEvent2D updated = *it;
-        output_list.erase(it);
-        if (std::find(updated.SegmentIds.begin(), updated.SegmentIds.end(), seg1_id) == updated.SegmentIds.end()) {
-          updated.SegmentIds.push_back(seg1_id);
-        }
-        if (std::find(updated.SegmentIds.begin(), updated.SegmentIds.end(), seg2_id) == updated.SegmentIds.end()) {
-          updated.SegmentIds.push_back(seg2_id);
-        }
-        output_list.insert(std::move(updated));
-
-      } else {
-        output_list.emplace(inter_event);
-      }
-
-      // in the logic LEFT, and RIGHT I have guaranteed to always have seg1 < seg2 in Event{INTERSECTION, seg1, seg2}
-      // at this point: segB < seg1 < seg2 < segA
-
-      // in order to move the segments (seg1 -> up, seg2 -> down) we have to
-      // (1) Remove them
-      // (2) SetX
-      // (3) Add them back in the queue
-      // (4) check the new above/below intersections
-      // ... here we go.
-
-      // Skip the swap if this crossing is already behind the sweep line.  This happens with concurrent
-      // intersections: the first pair advances sweep_x to x+ε; all subsequent pairs at the same x are
-      // already in the past and must not be re-swapped (doing so would cycle back to already-processed
-      // pairs and loop indefinitely).
-      if (inter_event.Point.x() < sweep_line.GetX()) {
-        continue;
-      }
-
-      // verify seg1 and seg2 are still adjacent — a stale event (queued before another segment was inserted
-      // between them) must be skipped to avoid corrupting sweep line order
-      auto seg1_check = sweep_line.Get(seg1_id);
-      if (!seg1_check.Segment || !seg1_check.Above || seg1_check.Above->Id != seg2_id) {
-        continue;
-      }
-
-      // (1) Remove segments (save the neighbors for later)
-      sweep_line.Remove(seg1_id);
-      sweep_line.Remove(seg2_id);
-
-      // (2) set X to a bigger value (according to the decimal precision)
-      if (compare(sweep_line.GetX(), inter_event.Point.x()) <= 0) {
-        sweep_line.SetX(inter_event.Point.x() + DOUBLE_EPSILON);
-      }
-
-      // (3) add the segments back
-      auto new_seg1 = sweep_line.Add(seg1_id);
-      if (!new_seg1.Segment) {
-        throw std::logic_error("Could not add the segment corresponding NEW SEG1 in the sweep line");
-      }
-      auto new_seg2 = sweep_line.Add(seg2_id);
-      if (!new_seg2.Segment) {
-        throw std::logic_error("Could not add the segment corresponding NEW SEG2 in the sweep line");
-      }
-
-      // (4) check the new above/below intersections
-      // now : segB < seg2 < seg1 < segA
-      if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
-        if (auto inter_p = new_seg1.Segment->Seg.Intersection(new_seg1.Above->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg1.Segment->Id, new_seg1.Above->Id};
-          if (!event_queue.Contains(inter_ev)) {
-            event_queue.Push(inter_ev);
-          }
-        }
-      }
-
-      if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
-        if (auto inter_p = new_seg2.Below->Seg.Intersection(new_seg2.Segment->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, inter_p.value(), new_seg2.Below->Id, new_seg2.Segment->Id};
-          if (!event_queue.Contains(inter_ev)) {
-            event_queue.Push(inter_ev);
-          }
-        }
-      }
-    }
-  }
-
-  return std::vector<IntersectionEvent2D>(output_list.begin(), output_list.end());
+  CollectIntersectionsVisitor2D visitor;
+  run_bentley_ottmann(segments, visitor);
+  return std::vector<IntersectionEvent2D>(visitor.Output.begin(), visitor.Output.end());
 }
 
 // explicit instantiations — emit the templated members/functions for each concrete SegmentList the driver uses.
@@ -1662,7 +1502,7 @@ Points dist_decimation(Points const& points, double threshold) {
 
   double threshold2 = threshold * threshold;
 
-  for (size_t i = 1; i < points.size() - 1; ++i) {
+  for (std::size_t i = 1; i < points.size() - 1; ++i) {
     if (compare(distance2(points[i], result.back()), threshold2) > 0) {
       result.push_back(points[i]);
     }
@@ -1772,7 +1612,7 @@ namespace {
 // A lighter tracker: Just stores the area and the vertex index for the heap
 struct HeapEntry {
   double area;
-  size_t index;
+  std::size_t index;
 
   // std::priority_queue is a max-heap by default;
   // greater-than operator turns it into a min-heap
@@ -1788,8 +1628,8 @@ struct HeapEntry {
 
 // To handle topology, we STILL need to track current neighbors
 struct Topology {
-  size_t prev;
-  size_t next;
+  std::size_t prev;
+  std::size_t next;
   double current_area;
 };
 
@@ -1816,9 +1656,9 @@ Points vw_decimation(Points const& points, double threshold) {
   std::priority_queue<HeapEntry, std::vector<HeapEntry>, std::greater<HeapEntry>> min_heap;
 
   // 1. Initialize topology and heap
-  for (size_t i = 0; i < n; ++i) {
-    line[i].prev = (i == 0) ? std::numeric_limits<size_t>::max() : i - 1;
-    line[i].next = (i == n - 1) ? std::numeric_limits<size_t>::max() : i + 1;
+  for (std::size_t i = 0; i < n; ++i) {
+    line[i].prev = (i == 0) ? std::numeric_limits<std::size_t>::max() : i - 1;
+    line[i].next = (i == n - 1) ? std::numeric_limits<std::size_t>::max() : i + 1;
 
     if (i == 0 || i == n - 1) {
       line[i].current_area = std::numeric_limits<double>::infinity();
@@ -1842,25 +1682,25 @@ Points vw_decimation(Points const& points, double threshold) {
       break;
     }
 
-    size_t p = line[idx].prev;
-    size_t nxt = line[idx].next;
+    std::size_t p = line[idx].prev;
+    std::size_t nxt = line[idx].next;
 
     // Bypass the current vertex in our topology chain
-    if (p != std::numeric_limits<size_t>::max()) {
+    if (p != std::numeric_limits<std::size_t>::max()) {
       line[p].next = nxt;
     }
-    if (nxt != std::numeric_limits<size_t>::max()) {
+    if (nxt != std::numeric_limits<std::size_t>::max()) {
       line[nxt].prev = p;
     }
 
     // Update neighbor 'p' and push a fresh copy to the heap
-    if (p != std::numeric_limits<size_t>::max() && line[p].prev != std::numeric_limits<size_t>::max()) {
+    if (p != std::numeric_limits<std::size_t>::max() && line[p].prev != std::numeric_limits<std::size_t>::max()) {
       line[p].current_area = square_area2(points[line[p].prev], points[p], points[line[p].next]);
       min_heap.push({line[p].current_area, p});
     }
 
     // Update neighbor 'nxt' and push a fresh copy to the heap
-    if (nxt != std::numeric_limits<size_t>::max() && line[nxt].next != std::numeric_limits<size_t>::max()) {
+    if (nxt != std::numeric_limits<std::size_t>::max() && line[nxt].next != std::numeric_limits<std::size_t>::max()) {
       line[nxt].current_area = square_area2(points[line[nxt].prev], points[nxt], points[line[nxt].next]);
       min_heap.push({line[nxt].current_area, nxt});
     }
@@ -1868,8 +1708,8 @@ Points vw_decimation(Points const& points, double threshold) {
 
   // 3. Build output path
   Points result;
-  size_t curr = 0;
-  while (curr != std::numeric_limits<size_t>::max()) {
+  std::size_t curr = 0;
+  while (curr != std::numeric_limits<std::size_t>::max()) {
     result.push_back(points[curr]);
     curr = line[curr].next;
   }
@@ -1878,5 +1718,156 @@ Points vw_decimation(Points const& points, double threshold) {
 
 template std::vector<Point2D> vw_decimation(std::vector<Point2D> const&, double threshold);
 template std::vector<Point3D> vw_decimation(std::vector<Point3D> const&, double threshold);
+
+namespace {
+
+// Steps 1-2 shared by both bezier_smoothing_2 overloads: clamp smoothness into a trim fraction and compute
+// the trimmed tangent points T0/T1. Kept as a single source of truth so the degeneracy guard below only has
+// to be gotten right once.
+template <typename PointT>
+std::pair<PointT, PointT> bezier_trimmed_tangents(PointT const& p0, PointT const& p1, PointT const& p2,
+                                                  double smoothness, double min_segment_length) {
+  // clamp the input values: transforming user input [0,1] into maths input [0,0.5]
+  double internal_k = std::clamp(smoothness * 0.5, 0.0, 1.0);
+  double k = std::clamp(internal_k, 0.0, 0.5);
+
+  double len1 = p0.DistanceTo(p1);
+  double len2 = p2.DistanceTo(p1);
+  double max_trim = std::min(len1, len2) * k;
+
+  // A zero-length incoming/outgoing edge (p0 == p1 or p2 == p1) has no direction to trim along:
+  // Normalize() on a zero vector returns NaN, and NaN * 0 is still NaN (not 0), so falling through
+  // to the general formula would silently poison T0/T1 (and therefore the whole sampled curve) with
+  // NaN. Fall back to "no trim on that side" instead — T0/T1 degenerate to the corner point itself,
+  // which is exactly what max_trim = 0 already means geometrically. min_segment_length generalizes
+  // this from "exactly zero" to "at or below a caller-chosen length", so callers can also skip
+  // trimming (or, if both sides are short, skip the whole corner) on edges that are merely tiny
+  // rather than perfectly degenerate.
+  PointT T0 = compare(len1, min_segment_length) <= 0 ? p1 : p1 + (p0 - p1).Normalize() * max_trim;
+  PointT T1 = compare(len2, min_segment_length) <= 0 ? p1 : p1 + (p2 - p1).Normalize() * max_trim;
+  return {T0, T1};
+}
+
+// Step 5 shared by both bezier_smoothing_2 overloads: sample the quadratic Bezier curve
+// B(t) = (1-t)^2 * T0 + 2(1-t)t * p1 + t^2 * T1 at num_segments + 1 evenly spaced parameter values.
+template <typename PointT>
+std::vector<PointT> sample_quadratic_bezier(PointT const& T0, PointT const& p1, PointT const& T1, int num_segments) {
+  std::vector<PointT> result;
+  result.reserve(num_segments + 1);
+
+  for (int i = 0; i <= num_segments; ++i) {
+    double t = static_cast<double>(i) / num_segments;
+    // we can't sum up points (geometrically non sense) so we rewrite the Bernstein-form blend as nested lerps
+    // (De Casteljau's algorithm for a quadratic Bezier — mathematically identical to the desired:
+    //      PointT pt = T0 * (u * u) + p1 * (2.0 * u * t) + T1 * (t * t);      with u = 1 - t
+    PointT a = T0 + (p1 - T0) * t;  // lerp(T0, p1, t)
+    PointT b = p1 + (T1 - p1) * t;  // lerp(p1, T1, t)
+    PointT pt = a + (b - a) * t;    // lerp(a, b, t)
+
+    result.push_back(pt);
+  }
+
+  return result;
+}
+
+}  // namespace
+
+template <typename PointT>
+std::vector<PointT> bezier_smoothing_2(PointT p0, PointT p1, PointT p2, double smoothness, double min_distance,
+                                       double min_segment_length) {
+  // min_distance is a sampling interval we later divide by — unlike a threshold that's only ever
+  // squared/compared (see dist_decimation), 0 or negative here means dividing by zero/negative and
+  // casting an out-of-range double to int, which is undefined behavior. There is no sane fallback
+  // value, so reject it outright.
+  if (compare(min_distance, 0.0) <= 0) {
+    throw std::invalid_argument("bezier_smoothing_2: min_distance must be > 0");
+  }
+
+  auto [T0, T1] = bezier_trimmed_tangents(p0, p1, p2, smoothness, min_segment_length);
+
+  // Estimate curve arc length, then pick enough samples to honor min_distance.
+  double approx_length = (T0.DistanceTo(p1) + p1.DistanceTo(T1) + T0.DistanceTo(T1)) / 2.0;
+  int num_segments = std::max(1, static_cast<int>(std::floor(approx_length / min_distance)));
+
+  return sample_quadratic_bezier(T0, p1, T1, num_segments);
+}
+
+template std::vector<Point2D> bezier_smoothing_2(Point2D p0, Point2D p1, Point2D p2, double smoothness,
+                                                 double min_distance, double min_segment_length);
+template std::vector<Point3D> bezier_smoothing_2(Point3D p0, Point3D p1, Point3D p2, double smoothness,
+                                                 double min_distance, double min_segment_length);
+
+template <typename PointT>
+std::vector<PointT> bezier_smoothing_2(PointT p0, PointT p1, PointT p2, double smoothness, int num_segments,
+                                       double min_segment_length) {
+  // Exact-count overload: num_segments is the caller's direct choice, not a value derived from curve
+  // length, so it gets its own precondition instead of being reconciled against min_distance.
+  if (num_segments < 1) {
+    throw std::invalid_argument("bezier_smoothing_2: num_segments must be >= 1");
+  }
+
+  auto [T0, T1] = bezier_trimmed_tangents(p0, p1, p2, smoothness, min_segment_length);
+
+  return sample_quadratic_bezier(T0, p1, T1, num_segments);
+}
+
+template std::vector<Point2D> bezier_smoothing_2(Point2D p0, Point2D p1, Point2D p2, double smoothness,
+                                                 int num_segments, double min_segment_length);
+template std::vector<Point3D> bezier_smoothing_2(Point3D p0, Point3D p1, Point3D p2, double smoothness,
+                                                 int num_segments, double min_segment_length);
+
+template <typename PointT>
+std::vector<PointT> polyline_expansion(std::vector<PointT> const& input, PolylineExpansionParams const& settings) {
+  std::vector<PointT> output;
+  // Skips a point that would be a zero-length segment from the last one already in output — both a
+  // corner fully skipped via min_segment_length (T0 == T1 == p1, so every one of its samples is the
+  // same point) and, in principle, two adjacent corners' arcs meeting exactly at a shared edge's
+  // midpoint (bezier_smoothing_2's trim is capped at half of each adjacent edge, so adjacent arcs can
+  // touch but never cross) would otherwise hand Polyline2D::Make() consecutive duplicate points, which
+  // it rejects as a degenerate (zero-length) segment.
+  auto append_unique = [&output](PointT const& p) {
+    if (output.empty() || !output.back().AlmostEquals(p)) {
+      output.push_back(p);
+    }
+  };
+
+  // 1. Start with the very first point
+  append_unique(input[0]);
+
+  // 2. Loop over every INNER corner (index 1 through N-2). p0/p1/p2 always come from the ORIGINAL
+  // input, never from the growing output buffer — see the doc comment in calc_utils2d.hpp for why
+  // that matters (it's what keeps adjacent corners' trims from ever exceeding their shared edge).
+  std::size_t n = input.size();
+  for (std::size_t i = 1; i < n - 1; ++i) {
+    PointT const& p0 = input[i - 1];
+    PointT const& p1 = input[i];  // The corner point
+    PointT const& p2 = input[i + 1];
+
+    std::vector<PointT> curve;
+    // Generate the Bézier curve points between T_entry and T_exit
+    if (settings.mode == PolylineExpansionParams::Mode::FixedSegments) {
+      curve = bezier_smoothing_2(p0, p1, p2, settings.smoothness, settings.segments_per_corner,
+                                 settings.min_segment_length);
+
+    } else if (settings.mode == PolylineExpansionParams::Mode::MinDistance) {
+      curve = bezier_smoothing_2(p0, p1, p2, settings.smoothness, settings.min_distance, settings.min_segment_length);
+    }
+
+    // Append all curve points into the output buffer
+    for (auto const& pt : curve) {
+      append_unique(pt);
+    }
+  }
+
+  // 3. Finish with the very last point
+  append_unique(input.back());
+
+  return output;
+}
+
+template std::vector<Point2D> polyline_expansion(std::vector<Point2D> const& input,
+                                                 PolylineExpansionParams const& settings);
+template std::vector<Point3D> polyline_expansion(std::vector<Point3D> const& input,
+                                                 PolylineExpansionParams const& settings);
 
 }  // namespace geompp

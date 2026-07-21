@@ -11,6 +11,45 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.14.0] - 2026-07-20
+
+> C++ library — tagged `v0.14.0` · C# / NuGet — tagged `csharp-v0.14.0` · Python / PyPI — tagged `python-v0.14.0`
+
+> Quadratic Bezier corner smoothing: `bezier_smoothing_2()` rounds a polyline corner (p0, p1, p2) with a quadratic Bezier arc (density-based or exact-count, with a tunable tiny-edge skip threshold), and `Polyline2D::Expand()` / `Polyline3D::Expand()` — the inverse of `Reduce()` — apply it to every inner corner of a polyline via a new `polyline_expansion()` free function.
+
+### Added
+
+**C++ core**
+- `bezier_smoothing_2(PointT p0, PointT p1, PointT p2, double smoothness, double min_distance, double min_segment_length = DOUBLE_EPSILON)` (`calc_utils2d.hpp`) — trims tangent points into p1 by up to `smoothness` (∈ [0,1]) fraction of the shorter adjacent edge, then samples the resulting quadratic Bezier arc via De Casteljau's algorithm at roughly `min_distance` apart. An adjacent edge at or below `min_segment_length` isn't trimmed into (that tangent point falls back to `p1`); if both are, the whole corner collapses to `p1` (no curve). Templated over `PointT`; explicit-instantiated for `Point2D`/`Point3D`. Throws `std::invalid_argument` if `min_distance <= 0`.
+- `bezier_smoothing_2(PointT p0, PointT p1, PointT p2, double smoothness, int num_segments, double min_segment_length = DOUBLE_EPSILON)` — same tangent trimming and sampling, but takes an exact segment count instead of a distance-derived one; a distinct overload rather than a parameter that reinterprets `min_distance`, since the two controls don't share a unit. Throws `std::invalid_argument` if `num_segments < 1`.
+- `PolylineExpansionParams` (`constants.hpp`) — bundles `smoothness`, a `Mode` (`FixedSegments` / `MinDistance`) mirroring `bezier_smoothing_2`'s two overloads, `segments_per_corner`, `min_distance`, and `min_segment_length`.
+- `polyline_expansion(std::vector<PointT> const& input, PolylineExpansionParams const& settings)` (`calc_utils2d.hpp`) — rounds every inner corner of a raw point list via `bezier_smoothing_2`, deduplicating consecutive points (a corner fully skipped by `min_segment_length`, or two adjacent corners' arcs meeting exactly at a shared edge's midpoint — each corner's trim is independently capped at half its shared edge, so adjacent arcs can touch but never cross) rather than emitting zero-length segments. Templated over `PointT`; explicit-instantiated for `Point2D`/`Point3D`.
+- `Polyline2D::Expand(PolylineExpansionParams const& settings = PolylineExpansionParams{})` / `Polyline3D::Expand(...)` — the inverse of `Reduce()`: adds vertices rather than removing them. Thin wrappers delegating to `polyline_expansion()`.
+
+**Python bindings**
+- `bezier_smoothing_2(p0, p1, p2, smoothness, min_distance, min_segment_length=DOUBLE_EPSILON)` and `bezier_smoothing_2(p0, p1, p2, smoothness, num_segments, min_segment_length=DOUBLE_EPSILON)` — bound for both `Point2D` and `Point3D`; overload resolution follows pybind11's no-conversion-first pass, matching the C++ int-vs-double disambiguation.
+- `PolylineExpansionMode` (`FixedSegments`, `MinDistance`), `PolylineExpansionParams(smoothness=0.5, mode=FixedSegments, segments_per_corner=4, min_distance=0.1, min_segment_length=DOUBLE_EPSILON)`, `polyline_expansion(points, settings)`.
+- `Polyline2D.expand(settings=PolylineExpansionParams())` / `Polyline3D.expand(...)`.
+
+**C# bindings**
+- `GeomUtil.BezierSmoothing2(Point2D^, Point2D^, Point2D^, double, double)` / `(..., int)` — and the `Point3D^` overloads — plus `minSegmentLength` overloads of each.
+- `PolylineExpansionMode`, `PolylineExpansionParams` (explicit-backing-field properties, matching this codebase's convention — no C++/CLI auto-properties elsewhere), `GeomUtil.PolylineExpansion(points, settings)`.
+- `Polyline2D.Expand()` / `Polyline2D.Expand(PolylineExpansionParams^)` — and the `Polyline3D` equivalents.
+
+### Fixed
+
+- A pre-release iteration of `polyline_expansion()`/`Expand()` read a corner's `p0`/`p1` back out of the *already-built* output buffer instead of the original input knots — this broke the invariant that each corner's trim is bounded by its true adjacent-edge length (adjacent corners' arcs could no longer be guaranteed to meet without crossing), and on the very first corner processed could even set `p1 == p2`. Never released; caught during validation before landing. All `p0`/`p1`/`p2` are read directly from the original knot list, unconditionally.
+- `size_t` → `std::size_t` normalized throughout `calc_utils2d.cpp`.
+
+### Tests
+
+- `test_calc_utils2d.cpp`: `BezierSmoothing2_*` — both overloads' throw paths, trimmed-tangent endpoint values (hand-verified), `smoothness=0` sharp-corner collapse, coincident-endpoint degeneracy (no NaN), exact point-count for `num_segments`, and `MinSegmentLength_*` (single-side skip, both-side skip, `DOUBLE_EPSILON` default, explicit-zero opt-out). `PolylineExpansion_*` — two-point no-op, single-corner trim, a dedicated multi-corner regression test proving each corner uses its own original knots, `min_segment_length` full-corner skip.
+- `test_polyline2d.cpp` / `test_polyline3d.cpp`: `Expand_*` — unchanged below 3 knots, trimmed-tangent endpoints, `min_segment_length` full-skip matches the original polyline exactly, `MinDistance` mode density scaling, thrown-precondition propagation from `bezier_smoothing_2`.
+- `test_geompp.py`: `TestBezierSmoothing2FreeFunction`, `TestPolylineExpansionParams`, `TestPolylineExpansionFreeFunction`, `TestPolyline2DExpand`, `TestPolyline3DExpand` — same coverage as the C++ suite, plus `Point3D` cases.
+- `Program.cs`: equivalent `BezierSmoothing2_*`, `PolylineExpansionParams_*`, `PolylineExpansion_*`, `Polyline2D_Expand_*`, `Polyline3D_Expand_*` coverage.
+
+---
+
 ## [0.13.0] - 2026-07-10
 
 > C++ library — tagged `v0.13.0` · C# / NuGet — tagged `csharp-v0.13.0` · Python / PyPI — tagged `python-v0.13.0`

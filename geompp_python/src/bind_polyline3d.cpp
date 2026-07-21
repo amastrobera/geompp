@@ -21,8 +21,13 @@ void bind_polyline3d(py::module_& m) {
         .def("is_convex",   &geompp::Polyline3D::IsConvex)
         .def("convex_hull", &geompp::Polyline3D::ConvexHull)
         .def("reduce", &geompp::Polyline3D::Reduce,
-             "strategy"_a = geompp::PolylineDecimationStrategy::RamerDouglasPeucker, "threshold"_a = 0.5,
-             "Returns a copy of this polyline with fewer vertices, per the given PolylineDecimationStrategy.")
+             "settings"_a = geompp::PolylineDecimationParams{},
+             "Returns a copy of this polyline with fewer vertices, per the given PolylineDecimationParams.")
+        .def("expand", &geompp::Polyline3D::Expand,
+             "settings"_a = geompp::PolylineExpansionParams{},
+             "Returns a copy of this polyline with every inner corner rounded by a quadratic Bezier arc, "
+             "per the given PolylineExpansionParams. The inverse direction of reduce(): adds vertices "
+             "rather than removing them.")
         .def("to_polygon",  &geompp::Polyline3D::ToPolygon)
         BIND_ALMOST_EQUALS(Polyline3D)
         BIND_SERIALIZATION(Polyline3D)

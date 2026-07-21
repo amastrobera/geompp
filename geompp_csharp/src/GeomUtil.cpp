@@ -14,6 +14,7 @@
 #include "Polygon3D.hpp"
 #include "Line2D.hpp"
 #include "Line3D.hpp"
+#include "Polyline2D.hpp"
 
 namespace GeomPP {
 
@@ -157,6 +158,110 @@ System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::VwDecimation(
 System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::VwDecimation(
     System::Collections::Generic::List<Point3D^>^ points, double threshold) {
     auto native = geompp::vw_decimation(ToNative(points), threshold);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::BezierSmoothing2(
+    Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, double minDistance) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, minDistance);
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::BezierSmoothing2(
+    Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, double minDistance) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, minDistance);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::BezierSmoothing2(
+    Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, int numSegments) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, numSegments);
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::BezierSmoothing2(
+    Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, int numSegments) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, numSegments);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::BezierSmoothing2(
+    Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, double minDistance, double minSegmentLength) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, minDistance,
+                                             minSegmentLength);
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::BezierSmoothing2(
+    Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, double minDistance, double minSegmentLength) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, minDistance,
+                                             minSegmentLength);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::BezierSmoothing2(
+    Point2D^ p0, Point2D^ p1, Point2D^ p2, double smoothness, int numSegments, double minSegmentLength) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, numSegments,
+                                             minSegmentLength);
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::BezierSmoothing2(
+    Point3D^ p0, Point3D^ p1, Point3D^ p2, double smoothness, int numSegments, double minSegmentLength) {
+    auto native = geompp::bezier_smoothing_2(*p0->_native, *p1->_native, *p2->_native, smoothness, numSegments,
+                                             minSegmentLength);
+    auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point3D(new geompp::Point3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point2D^>^ GeomUtil::PolylineExpansion(
+    System::Collections::Generic::List<Point2D^>^ points, PolylineExpansionParams^ settings) {
+    auto native = geompp::polyline_expansion(ToNativePoints2D(points), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Point2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Point2D(new geompp::Point2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Point3D^>^ GeomUtil::PolylineExpansion(
+    System::Collections::Generic::List<Point3D^>^ points, PolylineExpansionParams^ settings) {
+    auto native = geompp::polyline_expansion(ToNative(points), settings->ToNative());
     auto list = gcnew System::Collections::Generic::List<Point3D^>(static_cast<int>(native.size()));
     for (auto const& p : native) {
         list->Add(gcnew Point3D(new geompp::Point3D(p)));

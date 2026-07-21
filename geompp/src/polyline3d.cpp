@@ -348,24 +348,32 @@ Polyline3D Polyline3D::ConvexHull() const {
   return Make(hull_pts);
 }
 
-Polyline3D Polyline3D::Reduce(PolylineDecimationStrategy strategy, double threshold) const {
-  switch (strategy) {
-    case PolylineDecimationStrategy::RadialDistance:
-      return Make(dist_decimation(KNOTS, threshold));
+Polyline3D Polyline3D::Reduce(PolylineDecimationParams const& settings) const {
+  switch (settings.strategy) {
+    case PolylineDecimationParams::Strategy::RadialDistance:
+      return Make(dist_decimation(KNOTS, settings.threshold));
 
-    case PolylineDecimationStrategy::VisvalingamWhyatt: {
+    case PolylineDecimationParams::Strategy::VisvalingamWhyatt: {
       // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
-      auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
-      return Make(vw_decimation(clean_points, threshold));
+      auto clean_points = dist_decimation(KNOTS, settings.threshold * 0.1);
+      return Make(vw_decimation(clean_points, settings.threshold));
     }
 
-    case PolylineDecimationStrategy::RamerDouglasPeucker: {
+    case PolylineDecimationParams::Strategy::RamerDouglasPeucker: {
       // Best practice: Run a fast radial pass to wipe out noise first, then run RDP
-      auto clean_points = dist_decimation(KNOTS, threshold * 0.1);
-      return Make(rdp_decimation(clean_points, threshold));
+      auto clean_points = dist_decimation(KNOTS, settings.threshold * 0.1);
+      return Make(rdp_decimation(clean_points, settings.threshold));
     }
   }
   throw std::logic_error("unknown strategy in polyline3d::reduce");
+}
+
+Polyline3D Polyline3D::Expand(PolylineExpansionParams const& settings) const {
+  if (KNOTS.size() < 3) {
+    return *this;
+  }
+
+  return Polyline3D::Make(polyline_expansion(KNOTS, settings));
 }
 
 Polygon3D Polyline3D::ToPolygon() const {

@@ -884,4 +884,205 @@ TEST_F(CalcUtils2DTest, VwDecimation_ThresholdBelowAllAreas_KeepsAllPoints) {
   }
 }
 
+// ---- bezier_smoothing_2 (min_distance overload) ------------------------------
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_MinDistanceNotPositive_Throws) {
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  EXPECT_THROW(g::bezier_smoothing_2(p0, p1, p2, 0.5, 0.0), std::invalid_argument);
+  EXPECT_THROW(g::bezier_smoothing_2(p0, p1, p2, 0.5, -1.0), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_EndpointsAreTrimmedTangents) {
+  // p0=(0,0), p1=(2,0), p2=(2,2): len1=len2=2, smoothness=1.0 -> k=0.5 -> max_trim=1
+  // T0 = p1 + normalize(p0-p1)*1 = (1,0);  T1 = p1 + normalize(p2-p1)*1 = (2,1)
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  auto result = g::bezier_smoothing_2(p0, p1, p2, 1.0, 1.0);
+  ASSERT_GE(result.size(), 2u);
+  EXPECT_TRUE(result.front().AlmostEquals(g::Point2D(1, 0)));
+  EXPECT_TRUE(result.back().AlmostEquals(g::Point2D(2, 1)));
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_SmallerMinDistanceYieldsMorePoints) {
+  // same corner as above: approx_length ~= 1.707, so min_distance=1.0 -> 2 points,
+  // min_distance=0.5 -> 4 points.
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  auto coarse = g::bezier_smoothing_2(p0, p1, p2, 1.0, 1.0);
+  auto fine   = g::bezier_smoothing_2(p0, p1, p2, 1.0, 0.5);
+  EXPECT_EQ(2u, coarse.size());
+  EXPECT_EQ(4u, fine.size());
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_SmoothnessZero_CollapsesToCorner) {
+  // k=0 -> max_trim=0 -> T0=T1=p1, so every sample equals the un-trimmed corner point.
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  auto result = g::bezier_smoothing_2(p0, p1, p2, 0.0, 0.5);
+  for (auto const& p : result) {
+    EXPECT_TRUE(p.AlmostEquals(p1));
+  }
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_CoincidentP0P1_NoNaNCollapsesToCorner) {
+  // p0 == p1: len1 == 0, so max_trim == 0 regardless of len2 -> both T0 and T1 degenerate to p1.
+  // Before the fix, Normalize() on the zero-length (p0-p1) produced NaN * 0 == NaN.
+  g::Point2D p1(1, 1), p2(3, 1);
+  auto result = g::bezier_smoothing_2(p1, p1, p2, 0.5, 0.1);
+  ASSERT_GE(result.size(), 1u);
+  for (auto const& p : result) {
+    EXPECT_FALSE(std::isnan(p.x()));
+    EXPECT_FALSE(std::isnan(p.y()));
+    EXPECT_TRUE(p.AlmostEquals(p1));
+  }
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_CoincidentP2P1_NoNaNCollapsesToCorner) {
+  // symmetric case: p2 == p1.
+  g::Point2D p0(3, 1), p1(1, 1);
+  auto result = g::bezier_smoothing_2(p0, p1, p1, 0.5, 0.1);
+  for (auto const& p : result) {
+    EXPECT_FALSE(std::isnan(p.x()));
+    EXPECT_FALSE(std::isnan(p.y()));
+    EXPECT_TRUE(p.AlmostEquals(p1));
+  }
+}
+
+// ---- bezier_smoothing_2 (num_segments overload) -------------------------------
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_NumSegmentsLessThanOne_Throws) {
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  EXPECT_THROW(g::bezier_smoothing_2(p0, p1, p2, 0.5, 0), std::invalid_argument);
+  EXPECT_THROW(g::bezier_smoothing_2(p0, p1, p2, 0.5, -3), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_NumSegments_ProducesExactPointCount) {
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  auto result = g::bezier_smoothing_2(p0, p1, p2, 1.0, 3);
+  ASSERT_EQ(4u, result.size());
+  EXPECT_TRUE(result.front().AlmostEquals(g::Point2D(1, 0)));  // T0
+  EXPECT_TRUE(result.back().AlmostEquals(g::Point2D(2, 1)));   // T1
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_NumSegments_IgnoresCurveLength) {
+  // Same corner sampled at a fixed count, regardless of how far apart that puts the points -
+  // this overload has no min_distance to honor.
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  auto result = g::bezier_smoothing_2(p0, p1, p2, 1.0, 50);
+  EXPECT_EQ(51u, result.size());
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_MinSegmentLength_SkipsTrimOnShortSideOnly) {
+  // len(p0,p1) == 0.5 (short), len(p2,p1) == 2 (normal). min_segment_length=1.0 skips trimming only
+  // on the short side: T0 falls back to p1, T1 is still computed normally from the trim formula.
+  g::Point2D p0(0, 0.5), p1(0, 0), p2(2, 0);  // p0-p1 has length 0.5
+  auto result = g::bezier_smoothing_2(p0, p1, p2, 1.0, 3, 1.0);
+  ASSERT_EQ(4u, result.size());
+  EXPECT_TRUE(result.front().AlmostEquals(p1));               // T0 == p1 (skipped)
+  EXPECT_FALSE(result.back().AlmostEquals(p1));                // T1 was trimmed normally
+  EXPECT_FALSE(result.back().AlmostEquals(p2));                // ... but not all the way to p2
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_MinSegmentLength_SkipsWholeCornerWhenBothSidesShort) {
+  // both adjacent edges have length 0.5; min_segment_length=1.0 collapses both T0 and T1 to p1, so
+  // every sample in the curve is p1 (no NaN, no curve at all).
+  g::Point2D p0(0, 0), p1(0.5, 0), p2(0.5, 0.5);
+  auto result = g::bezier_smoothing_2(p0, p1, p2, 1.0, 4, 1.0);
+  for (auto const& pt : result) {
+    EXPECT_TRUE(pt.AlmostEquals(p1));
+  }
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_MinSegmentLength_DefaultsToDoubleEpsilon) {
+  // Omitting min_segment_length uses DOUBLE_EPSILON, not 0.0 (see the doc comment for why: compare()
+  // already adds its own DOUBLE_EPSILON tolerance on top, so this is deliberately the codebase's usual
+  // epsilon-parameter default, matching PolylineExpansionParams::min_segment_length).
+  g::Point2D p0(0, 0), p1(2, 0), p2(2, 2);
+  auto with_default = g::bezier_smoothing_2(p0, p1, p2, 1.0, 3);
+  auto with_explicit_epsilon = g::bezier_smoothing_2(p0, p1, p2, 1.0, 3, g::DOUBLE_EPSILON);
+  ASSERT_EQ(with_default.size(), with_explicit_epsilon.size());
+  for (std::size_t i = 0; i < with_default.size(); ++i) {
+    EXPECT_TRUE(with_default[i].AlmostEquals(with_explicit_epsilon[i]));
+  }
+}
+
+TEST_F(CalcUtils2DTest, BezierSmoothing2_MinSegmentLength_ExplicitZero_StillSkipsExactDegenerate) {
+  // Passing 0.0 explicitly opts back into "only skip a truly, exactly zero-length edge" — p0 == p1
+  // here is always <= any non-negative min_segment_length, so this still can't regress to NaN.
+  g::Point2D p1(1, 1), p2(3, 1);
+  auto result = g::bezier_smoothing_2(p1, p1, p2, 0.5, 0.1, 0.0);
+  for (auto const& pt : result) {
+    EXPECT_FALSE(std::isnan(pt.x()));
+    EXPECT_TRUE(pt.AlmostEquals(p1));
+  }
+}
+
+// ---- polyline_expansion (free function behind Polyline2D::Expand / Polyline3D::Expand) -----------
+
+TEST_F(CalcUtils2DTest, PolylineExpansion_TwoPointInput_ReturnsUnchanged) {
+  std::vector<g::Point2D> input{g::Point2D(0, 0), g::Point2D(1, 1)};
+  auto result = g::polyline_expansion(input, {});
+  ASSERT_EQ(2u, result.size());
+  EXPECT_TRUE(result[0].AlmostEquals(input[0]));
+  EXPECT_TRUE(result[1].AlmostEquals(input[1]));
+}
+
+TEST_F(CalcUtils2DTest, PolylineExpansion_SmoothsInnerCorner_TrimmedTangentsAppearInOutput) {
+  std::vector<g::Point2D> input{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2)};
+  g::PolylineExpansionParams settings;
+  settings.smoothness = 1.0;
+  settings.segments_per_corner = 3;
+  auto result = g::polyline_expansion(input, settings);
+
+  EXPECT_TRUE(result.front().AlmostEquals(g::Point2D(0, 0)));
+  EXPECT_TRUE(result.back().AlmostEquals(g::Point2D(2, 2)));
+
+  bool has_t0 = false, has_t1 = false;
+  for (auto const& p : result) {
+    if (p.AlmostEquals(g::Point2D(1, 0))) has_t0 = true;
+    if (p.AlmostEquals(g::Point2D(2, 1))) has_t1 = true;
+  }
+  EXPECT_TRUE(has_t0);
+  EXPECT_TRUE(has_t1);
+}
+
+TEST_F(CalcUtils2DTest, PolylineExpansion_MultipleCorners_EachCornerUsesItsOwnOriginalKnots) {
+  // Two consecutive right-angle corners sharing an edge of length 2, smoothness=1.0 (k=0.5, so each
+  // corner's trim is exactly half of its shorter adjacent edge). Regression guard for a bug where
+  // p0/p1 for corner i were read back out of the *already built* output buffer instead of the
+  // original input knots: that bug would compute corner 2 (input[2]=(2,2)) using a wrong,
+  // corner-1-curve-derived "p1" instead of (2,2), producing a different (wrong) trimmed tangent on
+  // the far side of corner 2 — (1,2) below would not appear, and/or the shared-edge midpoint would
+  // not come out exactly once.
+  std::vector<g::Point2D> input{g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)};
+  g::PolylineExpansionParams settings;
+  settings.smoothness = 1.0;
+  settings.segments_per_corner = 3;
+  auto result = g::polyline_expansion(input, settings);
+
+  EXPECT_TRUE(result.front().AlmostEquals(g::Point2D(0, 0)));
+  EXPECT_TRUE(result.back().AlmostEquals(g::Point2D(0, 2)));
+
+  // corner 1's T1 and corner 2's T0 both fall exactly on the shared edge's midpoint (2,1) — trims are
+  // each capped at half of the shared edge, so they must meet there exactly, deduplicated to one point.
+  int count_midpoint = 0;
+  bool has_corner2_t1 = false;
+  for (auto const& p : result) {
+    if (p.AlmostEquals(g::Point2D(2, 1))) ++count_midpoint;
+    if (p.AlmostEquals(g::Point2D(1, 2))) has_corner2_t1 = true;
+  }
+  EXPECT_EQ(1, count_midpoint);
+  EXPECT_TRUE(has_corner2_t1);
+}
+
+TEST_F(CalcUtils2DTest, PolylineExpansion_MinSegmentLength_SkipsShortCorner_MatchesOriginal) {
+  std::vector<g::Point2D> input{g::Point2D(0, 0), g::Point2D(0.5, 0), g::Point2D(0.5, 0.5)};
+  g::PolylineExpansionParams settings;
+  settings.smoothness = 1.0;
+  settings.segments_per_corner = 4;
+  settings.min_segment_length = 1.0;
+  auto result = g::polyline_expansion(input, settings);
+  ASSERT_EQ(input.size(), result.size());
+  for (std::size_t i = 0; i < input.size(); ++i) {
+    EXPECT_TRUE(result[i].AlmostEquals(input[i])) << "index " << i;
+  }
+}
+
 }  // namespace geompp_tests
