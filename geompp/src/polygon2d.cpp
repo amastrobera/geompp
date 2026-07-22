@@ -479,8 +479,24 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
 
 namespace {
 
+// Decomposes a polygon into RingPieces for boolean_op_multi: itself (as the sole piece) if already
+// simple, or Simplify()'s pieces otherwise. Simplify() is what makes a self-intersecting operand safe for
+// source-tagged classification — it resolves the self-crossing into pieces that are each genuinely simple
+// and CCW-outer/CW-hole oriented, which a single self-intersecting ring's own traversal cannot guarantee
+// (that's precisely why classify_and_orient_source_tagged requires RingPieces rather than a raw ring).
+detail::RingPieces to_ring_pieces(Polygon2D const& p) {
+  if (p.IsSimple()) {
+    return {{p.Perimeter(), p.Holes()}};
+  }
+  detail::RingPieces pieces;
+  for (auto const& piece : p.Simplify()) {
+    pieces.push_back({piece.Perimeter(), piece.Holes()});
+  }
+  return pieces;
+}
+
 std::vector<Polygon2D> run_boolean_op(Polygon2D const& a, Polygon2D const& b, detail::BooleanOp op) {
-  auto groups = detail::boolean_op(a.Perimeter(), a.Holes(), b.Perimeter(), b.Holes(), op);
+  auto groups = detail::boolean_op_multi(to_ring_pieces(a), to_ring_pieces(b), op);
 
   std::vector<Polygon2D> result;
   result.reserve(groups.size());

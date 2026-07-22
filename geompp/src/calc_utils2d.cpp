@@ -1151,6 +1151,167 @@ std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> 
   return result;
 }
 
+// A split fragment tagged with which operand's piece it came from. Meaningful only when every piece of
+// both operands is simple and CCW-outer/CW-hole oriented (RingPieces' contract): under that convention a
+// fragment's own-operand interior is always on its left, so classification never needs to probe it — only
+// the OTHER operand needs a sample point, on each side.
+struct SourceTaggedSegment {
+  LineSegment2D Seg;
+  bool FromSubject;
+};
+
+// Same crossing-split logic as split_segments_at_crossings, but over two operand segment pools kept
+// separate so every output fragment can be tagged with its origin. Crossings are still found across the
+// COMBINED pool in one sweep (subject-clip crossings are exactly what boolean ops care about), matching
+// boolean_op's arrangement exactly — this only adds provenance to the result.
+std::vector<SourceTaggedSegment> split_segments_at_crossings_tagged(std::vector<LineSegment2D> const& subj_segs,
+                                                                     std::vector<LineSegment2D> const& clip_segs) {
+  std::vector<LineSegment2D> segs = subj_segs;
+  segs.insert(segs.end(), clip_segs.begin(), clip_segs.end());
+  std::size_t const subj_count = subj_segs.size();
+
+  auto crossings = detail::find_intersections(segs);
+
+  std::map<std::size_t, std::vector<Point2D>> seg_cp;
+  for (auto const& ev : crossings) {
+    for (auto id : ev.SegmentIds) {
+      seg_cp[id].push_back(ev.Point);
+    }
+  }
+
+  std::vector<SourceTaggedSegment> split;
+  split.reserve(segs.size() + crossings.size() * 2);
+  for (std::size_t i = 0; i < segs.size(); ++i) {
+    bool from_subj = i < subj_count;
+    auto it = seg_cp.find(i);
+    if (it == seg_cp.end()) {
+      split.push_back({segs[i], from_subj});
+      continue;
+    }
+    std::vector<Point2D> cps = it->second;
+    std::sort(cps.begin(), cps.end(),
+              [&](Point2D const& a, Point2D const& b) { return segs[i].Location(a) < segs[i].Location(b); });
+    cps.erase(std::unique(cps.begin(), cps.end(), [](Point2D const& a, Point2D const& b) { return a.AlmostEquals(b); }),
+              cps.end());
+
+    Point2D prev = segs[i].First();
+    for (auto const& cp : cps) {
+      if (!prev.AlmostEquals(cp)) {
+        split.push_back({LineSegment2D::Make(prev, cp), from_subj});
+      }
+      prev = cp;
+    }
+    if (!prev.AlmostEquals(segs[i].Last())) {
+      split.push_back({LineSegment2D::Make(prev, segs[i].Last()), from_subj});
+    }
+  }
+  return split;
+}
+
+// Removes internal seams: two fragments, same operand, exact reverses of each other (coincident edge
+// shared by two of that operand's OWN pieces — e.g. two Simplify() faces touching along a whole edge, not
+// just a point). Both sides of such a seam are interior to the operand, so it contributes nothing to any
+// boolean op and must vanish before classify_and_orient_source_tagged trusts "own side = always interior".
+// Without this, two same-operand pieces sharing an edge would each claim that edge as their own boundary,
+// wrongly promoting an internal seam to a result boundary.
+void cancel_coincident_same_operand_pairs(std::vector<SourceTaggedSegment>& segs) {
+  double scale = std::pow(10.0, static_cast<double>(DECIMAL_PRECISION));
+  auto vkey = [scale](Point2D const& p) -> std::pair<long long, long long> {
+    return {llround(p.x() * scale), llround(p.y() * scale)};
+  };
+  using PKey = std::pair<long long, long long>;
+
+  std::multimap<std::pair<PKey, PKey>, std::size_t> groups;
+  for (std::size_t i = 0; i < segs.size(); ++i) {
+    PKey a = vkey(segs[i].Seg.First()), b = vkey(segs[i].Seg.Last());
+    groups.insert({a < b ? std::make_pair(a, b) : std::make_pair(b, a), i});
+  }
+
+  std::vector<bool> cancelled(segs.size(), false);
+  for (auto it = groups.begin(); it != groups.end();) {
+    auto range_end = groups.upper_bound(it->first);
+    std::vector<std::size_t> idxs;
+    for (auto j = it; j != range_end; ++j) {
+      idxs.push_back(j->second);
+    }
+    for (std::size_t a = 0; a < idxs.size(); ++a) {
+      if (cancelled[idxs[a]]) {
+        continue;
+      }
+      for (std::size_t b = a + 1; b < idxs.size(); ++b) {
+        if (cancelled[idxs[b]]) {
+          continue;
+        }
+        auto const& sa = segs[idxs[a]];
+        auto const& sb = segs[idxs[b]];
+        if (sa.FromSubject == sb.FromSubject && vkey(sa.Seg.First()) == vkey(sb.Seg.Last()) &&
+            vkey(sa.Seg.Last()) == vkey(sb.Seg.First())) {
+          cancelled[idxs[a]] = cancelled[idxs[b]] = true;
+          break;
+        }
+      }
+    }
+    it = range_end;
+  }
+
+  std::vector<SourceTaggedSegment> kept;
+  kept.reserve(segs.size());
+  for (std::size_t i = 0; i < segs.size(); ++i) {
+    if (!cancelled[i]) {
+      kept.push_back(std::move(segs[i]));
+    }
+  }
+  segs = std::move(kept);
+}
+
+bool piece_set_contains(RingPieces const& pieces, double px, double py) {
+  for (auto const& [outer, holes] : pieces) {
+    if (view::polygon_contains(outer, holes, View2D::XY(), px, py)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Source-tagged counterpart of classify_and_orient: the segment's own-operand side is known outright
+// (true on the left, false on the right — the CCW-outer/CW-hole convention every RingPieces entry is
+// required to satisfy), so only the OTHER operand needs probing, left and right. Half the polygon_contains
+// calls of classify_and_orient, and the own side no longer depends on the nudge epsilon at all.
+std::vector<LineSegment2D> classify_and_orient_source_tagged(std::vector<SourceTaggedSegment> const& split,
+                                                              RingPieces const& subj_pieces,
+                                                              RingPieces const& clip_pieces, BooleanOp op) {
+  std::vector<LineSegment2D> result;
+  result.reserve(split.size());
+
+  for (auto const& ts : split) {
+    auto const& seg = ts.Seg;
+    Vector2D dir = (seg.Last() - seg.First()).Normalize();
+    Vector2D normal = dir.Perp();
+    Point2D mid = seg.Interpolate(0.5);
+    double eps = std::max(seg.Length() * 0.01, DOUBLE_EPSILON * 10);
+    Point2D left_pt = mid + normal * eps;
+    Point2D right_pt = mid + normal * (-eps);
+
+    RingPieces const& other_pieces = ts.FromSubject ? clip_pieces : subj_pieces;
+    bool left_in_other = piece_set_contains(other_pieces, left_pt.x(), left_pt.y());
+    bool right_in_other = piece_set_contains(other_pieces, right_pt.x(), right_pt.y());
+
+    bool left_in_subj = ts.FromSubject ? true : left_in_other;
+    bool left_in_clip = ts.FromSubject ? left_in_other : true;
+    bool right_in_subj = ts.FromSubject ? false : right_in_other;
+    bool right_in_clip = ts.FromSubject ? right_in_other : false;
+
+    bool left_sel = select_face(op, left_in_subj, left_in_clip);
+    bool right_sel = select_face(op, right_in_subj, right_in_clip);
+
+    if (left_sel == right_sel) {
+      continue;
+    }
+    result.push_back(left_sel ? seg : seg.Reversed());
+  }
+  return result;
+}
+
 }  // namespace
 
 std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> boolean_op(
@@ -1162,6 +1323,24 @@ std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> 
 
   auto split = split_segments_at_crossings(segs);
   auto directed = classify_and_orient(split, subj_outer, subj_holes, clip_outer, clip_holes, op);
+  auto rings = trace_directed_boundary(directed);
+  return package_result_rings(rings);
+}
+
+RingPieces boolean_op_multi(RingPieces const& subj_pieces, RingPieces const& clip_pieces, BooleanOp op) {
+  std::vector<LineSegment2D> subj_segs, clip_segs;
+  for (auto const& [outer, holes] : subj_pieces) {
+    auto s = view::collect_ring_segments(outer, holes, View2D::XY());
+    subj_segs.insert(subj_segs.end(), s.begin(), s.end());
+  }
+  for (auto const& [outer, holes] : clip_pieces) {
+    auto s = view::collect_ring_segments(outer, holes, View2D::XY());
+    clip_segs.insert(clip_segs.end(), s.begin(), s.end());
+  }
+
+  auto split = split_segments_at_crossings_tagged(subj_segs, clip_segs);
+  cancel_coincident_same_operand_pairs(split);
+  auto directed = classify_and_orient_source_tagged(split, subj_pieces, clip_pieces, op);
   auto rings = trace_directed_boundary(directed);
   return package_result_rings(rings);
 }

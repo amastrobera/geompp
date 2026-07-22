@@ -512,6 +512,29 @@ std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> 
     std::vector<Point2D> const& subj_outer, std::vector<std::vector<Point2D>> const& subj_holes,
     std::vector<Point2D> const& clip_outer, std::vector<std::vector<Point2D>> const& clip_holes, BooleanOp op);
 
+/// @brief One operand of boolean_op_multi: a list of pieces, each already SIMPLE and correctly oriented
+/// (CCW outer ring, CW hole rings) — what Polygon2D::Simplify() returns for a self-intersecting polygon,
+/// or the polygon itself (as the sole piece) when it's already simple.
+using RingPieces = std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>>;
+
+/// @brief Multi-piece, source-tagged variant of boolean_op. Where boolean_op takes one (possibly
+/// self-intersecting) outer+holes ring per operand and classifies every split segment by probing BOTH
+/// operands left and right, this version requires each operand pre-decomposed into simple, correctly
+/// oriented pieces (see RingPieces) — which resolves a self-intersecting operand's ambiguity of "which
+/// side is interior" BEFORE classification, rather than during it. That buys an exactness/cost win: a
+/// split segment's own-operand side is then known outright from the CCW-outer/CW-hole convention (no
+/// probe needed), so classification only ever probes the OTHER operand, left and right — half the probes
+/// of boolean_op, and no dependency on the nudge epsilon for the segment's own side. A same-operand
+/// internal seam (two of one operand's pieces touching along a whole shared edge, not just a point) is
+/// cancelled before classification so the "own side is always interior" assumption stays valid regardless
+/// of how many pieces an operand decomposes into.
+///
+/// Subject to the same missed-crossing sweep limitation as boolean_op (see its docs) — this only changes
+/// how surviving segments are classified, not the crossing detection upstream of it.
+///
+/// @returns each disjoint result component as {outer ring, hole rings}, in no particular order.
+RingPieces boolean_op_multi(RingPieces const& subj_pieces, RingPieces const& clip_pieces, BooleanOp op);
+
 struct MinBoundingRectResult {
   double u_axis_x, u_axis_y;  // unit edge direction (in View2D space)
   double v_axis_x, v_axis_y;  // CCW perpendicular (in View2D space)

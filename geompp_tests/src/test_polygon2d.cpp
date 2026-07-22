@@ -878,9 +878,67 @@ TEST_F(Polygon2DTest, SelfIntersectingBowtie_Difference_WithContainingSquare_IsE
   EXPECT_TRUE(result.empty());
 }
 
+namespace {
+double bowtie_test_area_sum(std::vector<g::Polygon2D> const& pieces) {
+  double a = 0.0;
+  for (auto const& p : pieces) {
+    a += p.Area();
+  }
+  return a;
+}
+}  // namespace
+
+// Same as SelfIntersectingBowtie_Intersection_WithContainingSquare_MatchesSimplifyTotalArea but with the
+// self-intersecting operand on the CLIP side instead of the subject side — boolean_op_multi decomposes
+// both operands via to_ring_pieces, so this must be symmetric; nothing in the existing bowtie tests
+// exercised the clip-side path (all had the bowtie as `this`).
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_AsClip_Intersection_WithContainingSquare_MatchesSimplifyTotalArea) {
+  auto bowtie = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  auto containing =
+      g::Polygon2D::Make({g::Point2D(-1, -1), g::Point2D(5, -1), g::Point2D(5, 5), g::Point2D(-1, 5)});
+
+  double simplify_total_area = bowtie_test_area_sum(bowtie.Simplify());
+  ASSERT_GT(simplify_total_area, 0.0);
+
+  double intersection_total_area = bowtie_test_area_sum(containing.Intersection(bowtie));
+  EXPECT_NEAR(simplify_total_area, intersection_total_area, 1e-6);
+}
+
+// The clip-side counterpart of SelfIntersectingBowtie_Difference_WithContainingSquare_IsEmpty: containing
+// minus the (fully-inside) bowtie must leave exactly containing's area minus the bowtie's occupied area.
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_AsClip_Difference_WithContainingSquare_MatchesRemainder) {
+  auto bowtie = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  auto containing =
+      g::Polygon2D::Make({g::Point2D(-1, -1), g::Point2D(5, -1), g::Point2D(5, 5), g::Point2D(-1, 5)});
+
+  double simplify_total_area = bowtie_test_area_sum(bowtie.Simplify());
+  double result_area = bowtie_test_area_sum(containing.Difference(bowtie));
+  EXPECT_NEAR(containing.Area() - simplify_total_area, result_area, 1e-6);
+}
+
+// Both operands self-intersecting at once: two bowties overlapping only in one lobe each. Cross-validates
+// against Simplify()'d pieces on both sides via the plain (non-self-intersecting) Polygon2D boolean ops,
+// which are already covered elsewhere.
+TEST_F(Polygon2DTest, SelfIntersectingBowtie_BothOperandsSelfIntersecting_IntersectionMatchesPiecewiseSum) {
+  auto bowtie_a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 1), g::Point2D(1, 1)});
+  auto bowtie_b = g::Polygon2D::Make(
+      {g::Point2D(3, 0), g::Point2D(7, 0), g::Point2D(3, 1), g::Point2D(4, 1)});  // bowtie_a shifted +3 in x
+
+  double piecewise = 0.0;
+  for (auto const& pa : bowtie_a.Simplify()) {
+    for (auto const& pb : bowtie_b.Simplify()) {
+      piecewise += bowtie_test_area_sum(pa.Intersection(pb));
+    }
+  }
+
+  double direct = bowtie_test_area_sum(bowtie_a.Intersection(bowtie_b));
+  EXPECT_NEAR(piecewise, direct, 1e-6);
+  EXPECT_GT(direct, 0.0);  // sanity: the two bowties do overlap (both contain part of x in [3,4])
+}
+
 #pragma endregion
 
-#pragma region Randomized invariant tests (DISABLED - document a known sweep bug)
+#pragma region Randomized invariant tests (3 DISABLED - document a known sweep bug)
 
 // These property tests generate random convex operands and assert algebraic identities that MUST hold
 // for any two polygons (inclusion-exclusion, difference-partitions-subject, xor-as-symmetric-difference,
@@ -895,10 +953,18 @@ TEST_F(Polygon2DTest, SelfIntersectingBowtie_Difference_WithContainingSquare_IsE
 // boolean-op classification (it corrupts the arrangement itself) and is not specific to how edges are
 // classified — it reproduces regardless.
 //
-// These are DISABLED (googletest DISABLED_ prefix) because they fail against the current engine. They are
-// kept as executable documentation of the bug and as ready-made regression guards for whoever fixes the
-// sweep — run them with --gtest_also_run_disabled_tests. Fixing the sweep's missed-crossing case is
-// tracked as future work; it is a core-algorithm change out of scope for the change that added them.
+// boolean_op was since rewritten around Polygon2D::Simplify() + source-tagged classification (see
+// boolean_op_multi / classify_and_orient_source_tagged in calc_utils2d.cpp) — a different fix, for a
+// different bug (self-intersecting-operand orientation, not this sweep issue). It happened to make the
+// engine robust enough that Randomized_InclusionExclusion and Randomized_XorMatchesSymmetricDifference
+// below now pass consistently and have been promoted out of DISABLED_. The remaining three — the
+// DifferencePartitionsSubject invariant, the ResultsAreSimple invariant, and the MissedCrossing repro
+// itself — still fail: they reproduce the same missed-crossing symptom (a whole component's worth of area
+// unaccounted for, or a non-simple result piece), unchanged by the classification rewrite. That's expected
+// — the rewrite doesn't touch find_intersections. They stay DISABLED (googletest DISABLED_ prefix) as
+// executable documentation of the bug and ready-made regression guards for whoever fixes the sweep — run
+// them with --gtest_also_run_disabled_tests. Fixing the sweep's missed-crossing case is tracked as future
+// work; it is a core-algorithm change out of scope for the classification rewrite that left them disabled.
 
 namespace {
 
@@ -968,7 +1034,7 @@ TEST_F(Polygon2DTest, DISABLED_BooleanOp_MissedCrossing) {
 }
 
 // area(A ∪ B) + area(A ∩ B) == area(A) + area(B), for every random operand pair (inclusion-exclusion).
-TEST_F(Polygon2DTest, DISABLED_Randomized_InclusionExclusion) {
+TEST_F(Polygon2DTest, Randomized_InclusionExclusion) {
   std::mt19937 rng(12345);
   for (int trial = 0; trial < 300; ++trial) {
     auto a = random_convex_polygon(rng);
@@ -999,7 +1065,7 @@ TEST_F(Polygon2DTest, DISABLED_Randomized_DifferencePartitionsSubject) {
 }
 
 // area(A xor B) == area(A) + area(B) - 2*area(A ∩ B), for every random operand pair.
-TEST_F(Polygon2DTest, DISABLED_Randomized_XorMatchesSymmetricDifference) {
+TEST_F(Polygon2DTest, Randomized_XorMatchesSymmetricDifference) {
   std::mt19937 rng(24680);
   for (int trial = 0; trial < 300; ++trial) {
     auto a = random_convex_polygon(rng);
