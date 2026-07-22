@@ -1,5 +1,6 @@
 #include "utils.hpp"
 
+#include "constants.hpp"
 #include "plane.hpp"
 #include "point2d.hpp"
 #include "point3d.hpp"
@@ -250,6 +251,40 @@ TEST_F(UtilsTest, SignedArea_ConsistentWithAreCCW) {
 
   EXPECT_EQ(g::are_ccw(ccw), g::signed_area(ccw) > 0);
   EXPECT_EQ(g::are_cw(cw),   g::signed_area(cw)  < 0);
+}
+
+TEST_F(UtilsTest, ScopedPrecision_RestoresOnScopeExit) {
+  g::DECIMAL_PRECISION = g::DP_THREE;
+  {
+    g::ScopedPrecision sp(1);
+    EXPECT_EQ(1, g::DECIMAL_PRECISION);
+  }
+  EXPECT_EQ(g::DP_THREE, g::DECIMAL_PRECISION);
+}
+
+TEST_F(UtilsTest, ScopedPrecision_RestoresOnException) {
+  g::DECIMAL_PRECISION = g::DP_THREE;
+  try {
+    g::ScopedPrecision sp(6);
+    EXPECT_EQ(6, g::DECIMAL_PRECISION);
+    throw std::runtime_error("unwind past the guard");
+  } catch (...) {
+  }
+  EXPECT_EQ(g::DP_THREE, g::DECIMAL_PRECISION);
+}
+
+TEST_F(UtilsTest, ScopedPrecision_NestsAndRestoresEachLevel) {
+  g::DECIMAL_PRECISION = g::DP_THREE;
+  {
+    g::ScopedPrecision outer(6);
+    EXPECT_EQ(6, g::DECIMAL_PRECISION);
+    {
+      g::ScopedPrecision inner(1);
+      EXPECT_EQ(1, g::DECIMAL_PRECISION);
+    }
+    EXPECT_EQ(6, g::DECIMAL_PRECISION);  // inner restored to what outer had set, not to DP_THREE
+  }
+  EXPECT_EQ(g::DP_THREE, g::DECIMAL_PRECISION);
 }
 
 }  // namespace geompp_tests

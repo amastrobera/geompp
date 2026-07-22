@@ -922,6 +922,13 @@ Point2D interior_sample_point(std::vector<Point2D> const& ring) {
 // Classifies each split segment by sampling just left/right of its midpoint and keeps only the ones
 // where op's truth table differs left vs. right (a genuine boundary of the result), oriented so the
 // selected side ends up on the left.
+//
+// NOTE (known limitation): this — like any classifier here — depends on split having no crossing in a
+// fragment's interior. find_intersections' Bentley-Ottmann sweep is known to occasionally MISS a genuine
+// segment crossing (see the DISABLED_Randomized_* property tests and DISABLED_BooleanOp_MissedCrossing
+// repro in test_polygon2d.cpp), which leaves a fragment straddling the other operand's boundary; the
+// midpoint sample then classifies the whole straddling fragment by one side, dropping the part on the
+// other. That's a sweep bug upstream of here, not a classification bug — tracked for a future fix.
 std::vector<LineSegment2D> classify_and_orient(std::vector<LineSegment2D> const& split,
                                                std::vector<Point2D> const& subj_outer,
                                                std::vector<std::vector<Point2D>> const& subj_holes,
@@ -934,16 +941,11 @@ std::vector<LineSegment2D> classify_and_orient(std::vector<LineSegment2D> const&
     Vector2D dir = (seg.Last() - seg.First()).Normalize();
     Vector2D normal = dir.Perp();
     Point2D mid = seg.Interpolate(0.5);
-    // The floor here is NOT a leftover default — it's required. polygon_contains() below tests each
-    // sample via compare(y1, py) etc. using the *current* DOUBLE_EPSILON as ITS OWN tolerance, so a
-    // nudge smaller than DOUBLE_EPSILON gets swallowed as "on the boundary" rather than read as
-    // definitely inside/outside (verified: at DECIMAL_PRECISION loosened enough that DOUBLE_EPSILON
-    // exceeds a fixed nudge, polygon_contains reported points outside the shape as inside it). So the
-    // nudge must stay comfortably larger than DOUBLE_EPSILON, same implicit assumption this codebase's
-    // comparisons always make: DOUBLE_EPSILON is expected to be small relative to the geometry's own
-    // scale. If a caller loosens precision to be comparable to their polygons' edge lengths, no nudge
-    // can simultaneously clear DOUBLE_EPSILON and stay local to the edge — classification becomes
-    // unreliable at that point, which is a real limit of this probe-based approach, not a formula bug.
+    // The floor must stay comfortably larger than DOUBLE_EPSILON: polygon_contains() below tests each
+    // sample using the current DOUBLE_EPSILON as ITS tolerance, so a nudge smaller than that reads as
+    // "on the boundary" rather than definitely inside/outside. This requires DOUBLE_EPSILON to be small
+    // relative to the geometry's own scale — the same assumption every AlmostEquals-based comparison in
+    // this codebase makes.
     double eps = std::max(seg.Length() * 0.01, DOUBLE_EPSILON * 10);
     Point2D left_pt = mid + normal * eps;
     Point2D right_pt = mid + normal * (-eps);
@@ -1066,14 +1068,37 @@ std::vector<std::vector<Point2D>> trace_directed_boundary(std::vector<LineSegmen
 // graph-connectivity one — which is exactly what's needed when one operand fully contains the other
 // with no shared boundary.
 std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> package_result_rings(
-    std::vector<std::vector<Point2D>> const& rings) {
+    std::vector<std::vector<Point2D>> const& raw_rings) {
+  // Raw shoelace (no remove_collinear, so it never throws on a near-degenerate ring) — used both to
+  // filter out zero-area slivers and to size rings for nesting. A boolean op can legitimately produce a
+  // sliver ring at a grazing contact; it contributes no area and isn't a valid Polygon2D, so drop it
+  // here rather than letting signed_area()/Make() throw downstream.
+  auto raw_signed_area = [](std::vector<Point2D> const& r) {
+    double a = 0.0;
+    int m = static_cast<int>(r.size());
+    for (int i = 0; i < m; ++i) {
+      auto const& p = r[i];
+      auto const& q = r[(i + 1) % m];
+      a += p.x() * q.y() - q.x() * p.y();
+    }
+    return 0.5 * a;
+  };
+
+  std::vector<std::vector<Point2D>> rings;
+  rings.reserve(raw_rings.size());
+  for (auto const& r : raw_rings) {
+    if (r.size() >= 3 && std::abs(raw_signed_area(r)) > DOUBLE_EPSILON) {
+      rings.push_back(r);
+    }
+  }
+
   int n = static_cast<int>(rings.size());
   std::vector<Point2D> sample;
   sample.reserve(n);
   std::vector<double> abs_area(n);
   for (int i = 0; i < n; ++i) {
     sample.push_back(interior_sample_point(rings[i]));
-    abs_area[i] = std::abs(signed_area(rings[i]));
+    abs_area[i] = std::abs(raw_signed_area(rings[i]));
   }
 
   std::vector<int> parent(n, -1);

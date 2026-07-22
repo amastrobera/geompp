@@ -495,11 +495,16 @@ enum class BooleanOp { Union, Intersection, Difference, Xor };
 /// its left. The survivors are then traced (half-edge walk, same angular rule as simplify_rings' face
 /// tracer) into closed rings, and grouped into outer/hole pairs via a containment test.
 ///
-/// This handles holes and self-intersecting operands with no special-casing: holes are just additional
-/// input rings, self-intersections resolve the same way subject/clip crossings do (the winding-number
-/// membership test is already well-defined for self-intersecting input), and an operand fully containing
-/// the other with no shared boundary still produces a correct hole — the per-segment classification
-/// doesn't depend on the two operands' edges ever touching, unlike a face-then-classify approach would.
+/// Handles holes and self-intersecting operands (the winding-number membership test is well-defined for
+/// self-intersecting input), and an operand fully containing the other with no shared boundary still
+/// produces a correct hole.
+///
+/// KNOWN LIMITATION: correctness depends on split having placed a vertex at every crossing. The
+/// underlying Bentley-Ottmann sweep (find_intersections) occasionally MISSES a genuine crossing on
+/// certain configurations, which leaves a fragment straddling the other operand's boundary and corrupts
+/// the result (a whole component may be dropped). This is rare but catastrophic when it hits; it is a
+/// sweep bug upstream of the classification. See the DISABLED_Randomized_* property tests and the
+/// DISABLED_BooleanOp_MissedCrossing repro in test_polygon2d.cpp, which document it for a future fix.
 ///
 /// @returns each disjoint result component as {outer ring, hole rings}, in no particular order. Empty if
 /// the operation produces no area (e.g. Intersection of disjoint polygons).

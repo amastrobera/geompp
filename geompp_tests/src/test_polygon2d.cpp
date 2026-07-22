@@ -10,6 +10,8 @@
 
 #include <gtest/gtest.h>
 #include <filesystem>
+#include <random>
+#include <cmath>
 
 namespace g = geompp;
 namespace fs = std::filesystem;
@@ -874,6 +876,162 @@ TEST_F(Polygon2DTest, SelfIntersectingBowtie_Difference_WithContainingSquare_IsE
   // bowtie is fully inside containing, so there's nothing of bowtie left outside it
   auto result = bowtie.Difference(containing);
   EXPECT_TRUE(result.empty());
+}
+
+#pragma endregion
+
+#pragma region Randomized invariant tests (DISABLED - document a known sweep bug)
+
+// These property tests generate random convex operands and assert algebraic identities that MUST hold
+// for any two polygons (inclusion-exclusion, difference-partitions-subject, xor-as-symmetric-difference,
+// results-are-simple). They found a real, previously-invisible bug: on rare configurations (~1 in a few
+// hundred random convex pairs, even well-conditioned ones) a boolean op drops a whole result component,
+// grossly violating these identities.
+//
+// Root cause (traced to a concrete repro — see DISABLED_BooleanOp_MissedCrossing below): the shared
+// Bentley-Ottmann sweep behind find_intersections() occasionally MISSES a genuine segment crossing. The
+// split step then leaves a fragment straddling the other operand's boundary, so classification labels
+// its whole length by one side and the component on the other side is lost. This is upstream of the
+// boolean-op classification (it corrupts the arrangement itself) and is not specific to how edges are
+// classified — it reproduces regardless.
+//
+// These are DISABLED (googletest DISABLED_ prefix) because they fail against the current engine. They are
+// kept as executable documentation of the bug and as ready-made regression guards for whoever fixes the
+// sweep — run them with --gtest_also_run_disabled_tests. Fixing the sweep's missed-crossing case is
+// tracked as future work; it is a core-algorithm change out of scope for the change that added them.
+
+namespace {
+
+// Sum of the areas of every result piece (a boolean op can return 0, 1, or several disjoint polygons).
+double total_area(std::vector<g::Polygon2D> const& pieces) {
+  double a = 0.0;
+  for (auto const& p : pieces) {
+    a += p.Area();
+  }
+  return a;
+}
+
+// A random convex polygon: convex hull of a handful of random points in a disk. Retries until the hull
+// is a non-degenerate polygon (>= 3 vertices, area above a floor) so callers always get a valid operand.
+//
+// Coordinates are integers on a large (~1000-unit) grid. That keeps the operands *well-conditioned* at
+// the default DOUBLE_EPSILON (0.001): edges and their crossings are separated by whole units, far above
+// precision, so these tests exercise the classification engine's correctness on genuinely-distinct
+// geometry rather than its behaviour on sub-precision near-coincidences (features closer together than
+// DOUBLE_EPSILON are inherently ambiguous — resolving them robustly needs integer-coordinate snapping, a
+// separate concern from the classification logic these invariants check).
+g::Polygon2D random_convex_polygon(std::mt19937& rng) {
+  std::uniform_real_distribution<double> center(200.0, 800.0);
+  std::uniform_real_distribution<double> radius(60.0, 220.0);
+  std::uniform_int_distribution<int> count(4, 9);
+  std::uniform_real_distribution<double> unit(-1.0, 1.0);
+
+  for (int attempt = 0; attempt < 100; ++attempt) {
+    double cx = center(rng), cy = center(rng), r = radius(rng);
+    int n = count(rng);
+    std::vector<g::Point2D> pts;
+    pts.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      pts.emplace_back(cx + r * unit(rng), cy + r * unit(rng));
+    }
+    auto hull = g::convex_hull(pts);
+    if (hull.size() < 3) {
+      continue;
+    }
+    try {
+      auto poly = g::Polygon2D::Make(hull);
+      if (poly.Area() > 100.0) {
+        return poly;
+      }
+    } catch (...) {
+      // near-degenerate hull rejected by Make (collinear within precision) — just retry
+    }
+  }
+  // Deterministic fallback so a test never hangs on a pathological RNG streak.
+  return g::Polygon2D::Make(
+      {g::Point2D(300, 300), g::Point2D(500, 300), g::Point2D(500, 500), g::Point2D(300, 500)});
+}
+
+}  // namespace
+
+// Minimal deterministic reproducer distilled from the random search: triangle A is cut by polygon B into
+// two regions, but find_intersections misses the crossing where A's right edge meets B's top edge near
+// (502.4, 769.5) — verified analytically, the two input segments do intersect (parameters t=0.695 /
+// s=0.017, both in [0,1]). A's apex region above B is dropped, so A = (A∩B) + (A∖B) fails by ~35%.
+TEST_F(Polygon2DTest, DISABLED_BooleanOp_MissedCrossing) {
+  auto a = g::Polygon2D::Make({g::Point2D(283.1, 512.9), g::Point2D(442.383, 503.65), g::Point2D(528.794, 886.229)});
+  auto b = g::Polygon2D::Make({g::Point2D(208.163, 554.974), g::Point2D(505.699, 631.724), g::Point2D(536.867, 686.903),
+                               g::Point2D(541.017, 694.355), g::Point2D(507.474, 772.836)});
+  double inter = total_area(a.Intersection(b));
+  double diff = total_area(a.Difference(b));
+  EXPECT_NEAR(a.Area(), inter + diff, 1e-3 * a.Area());  // currently fails: a whole difference piece is dropped
+}
+
+// area(A ∪ B) + area(A ∩ B) == area(A) + area(B), for every random operand pair (inclusion-exclusion).
+TEST_F(Polygon2DTest, DISABLED_Randomized_InclusionExclusion) {
+  std::mt19937 rng(12345);
+  for (int trial = 0; trial < 300; ++trial) {
+    auto a = random_convex_polygon(rng);
+    auto b = random_convex_polygon(rng);
+
+    double union_area = total_area(a.Union(b));
+    double inter_area = total_area(a.Intersection(b));
+    double tol = 1e-4 * (a.Area() + b.Area());
+
+    EXPECT_NEAR(union_area + inter_area, a.Area() + b.Area(), tol)
+        << "inclusion-exclusion violated at trial " << trial;
+  }
+}
+
+// area(A) == area(A ∩ B) + area(A \ B), for every random operand pair.
+TEST_F(Polygon2DTest, DISABLED_Randomized_DifferencePartitionsSubject) {
+  std::mt19937 rng(6789);
+  for (int trial = 0; trial < 300; ++trial) {
+    auto a = random_convex_polygon(rng);
+    auto b = random_convex_polygon(rng);
+
+    double inter_area = total_area(a.Intersection(b));
+    double diff_area = total_area(a.Difference(b));
+    double tol = 1e-4 * a.Area();
+
+    EXPECT_NEAR(a.Area(), inter_area + diff_area, tol) << "A != (A∩B) + (A∖B) at trial " << trial;
+  }
+}
+
+// area(A xor B) == area(A) + area(B) - 2*area(A ∩ B), for every random operand pair.
+TEST_F(Polygon2DTest, DISABLED_Randomized_XorMatchesSymmetricDifference) {
+  std::mt19937 rng(24680);
+  for (int trial = 0; trial < 300; ++trial) {
+    auto a = random_convex_polygon(rng);
+    auto b = random_convex_polygon(rng);
+
+    double xor_area = total_area(a.Xor(b));
+    double inter_area = total_area(a.Intersection(b));
+    double tol = 1e-4 * (a.Area() + b.Area());
+
+    EXPECT_NEAR(xor_area, a.Area() + b.Area() - 2.0 * inter_area, tol)
+        << "xor area mismatch at trial " << trial;
+  }
+}
+
+// Every ring a boolean op emits must itself be a simple polygon — the op must never produce a
+// self-intersecting result, whatever the inputs' overlap.
+TEST_F(Polygon2DTest, DISABLED_Randomized_ResultsAreSimple) {
+  std::mt19937 rng(1357);
+  for (int trial = 0; trial < 200; ++trial) {
+    auto a = random_convex_polygon(rng);
+    auto b = random_convex_polygon(rng);
+
+    for (auto const& piece : a.Union(b)) {
+      EXPECT_TRUE(piece.IsSimple()) << "non-simple Union piece at trial " << trial;
+    }
+    for (auto const& piece : a.Intersection(b)) {
+      EXPECT_TRUE(piece.IsSimple()) << "non-simple Intersection piece at trial " << trial;
+    }
+    for (auto const& piece : a.Difference(b)) {
+      EXPECT_TRUE(piece.IsSimple()) << "non-simple Difference piece at trial " << trial;
+    }
+  }
 }
 
 #pragma endregion

@@ -13,11 +13,11 @@ void bind_view2d(py::module_& m) {
         "Projects 3D points onto a 2D coordinate system via x() / y() getters.\n"
         "Particularly useful when streaming large containers of Point3D into 2D algorithms:\n"
         "call view.x(p) and view.y(p) instead of constructing a whole Point2D per element.")
-        .def_static("xy",       &geompp::View2D::XY,
+        .def_static("xy",       &geompp::View2D::XY, "z_offset"_a = 0.0,
                     "Axis-aligned projection: x→x, y→y (drops z).")
-        .def_static("yz",       &geompp::View2D::YZ,
+        .def_static("yz",       &geompp::View2D::YZ, "x_offset"_a = 0.0,
                     "Axis-aligned projection: y→x, z→y (drops x).")
-        .def_static("zx",       &geompp::View2D::ZX,
+        .def_static("zx",       &geompp::View2D::ZX, "y_offset"_a = 0.0,
                     "Axis-aligned projection: z→x, x→y (drops y).")
         .def_static("on_plane", &geompp::View2D::OnPlane, "plane"_a,
                     "Custom projection onto a Plane: (p-origin)·axis_u → x, (p-origin)·axis_v → y.")
