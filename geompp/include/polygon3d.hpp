@@ -33,6 +33,11 @@ class Polygon3D {
   bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
+
+  /// @brief Same convention as Polygon2D::Area(): holes are always simple (Make() rejects a
+  /// self-intersecting hole outright) so their contribution is a direct O(1)-per-hole shoelace sum; the
+  /// outer ring, if also simple, makes the whole thing O(n), otherwise it's decomposed at O(n log n) into
+  /// its real bounded faces and their (plane-aware, not merely 2D-projected) areas summed.
   double Area() const;
   double PerimeterSize() const;
   bool IsSimple() const;

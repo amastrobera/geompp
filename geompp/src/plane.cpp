@@ -193,17 +193,37 @@ bool operator==(Plane const& lhs, Plane const& rhs) { return lhs.AlmostEquals(rh
 
 #pragma region Collection Operations
 
+namespace {
+// Newell's method (M. Newell, Utah — the standard industry technique for a robust polygon normal):
+// accumulates a per-edge contribution across EVERY edge of the ring, rather than trusting a single triple
+// of points to define it. No single vertex (reflex, near-collinear, or otherwise) can dominate the
+// result, unlike building the normal from just points[0..2] — for an exactly-planar, non-degenerate input
+// the two agree exactly, but Newell's stays well-conditioned on inputs where a single arbitrary triple
+// might not (see are_coplanar()'s call site).
+Vector3D newell_normal(std::vector<Point3D> const& points) {
+  double nx = 0.0, ny = 0.0, nz = 0.0;
+  std::size_t n = points.size();
+  for (std::size_t i = 0; i < n; ++i) {
+    auto const& p0 = points[i];
+    auto const& p1 = points[(i + 1) % n];
+    nx += (p0.y() - p1.y()) * (p0.z() + p1.z());
+    ny += (p0.z() - p1.z()) * (p0.x() + p1.x());
+    nz += (p0.x() - p1.x()) * (p0.y() + p1.y());
+  }
+  return Vector3D(nx, ny, nz);
+}
+}  // namespace
+
 bool are_coplanar(std::vector<Point3D> const& points) {
   auto unique_points = remove_collinear(points);
   if (unique_points.size() < 4) {
     return true;
   }
 
-  // avoid building a plane and making a constructor
-  auto normal = (unique_points[1] - unique_points[0]).Cross(unique_points[2] - unique_points[0]);
+  auto normal = newell_normal(unique_points);
 
-  // if normal and Pi-P0 are not orthogonal, then the point is not in the plane defined by P0, P1 and P2
-  for (int i = 3; i < unique_points.size(); ++i) {
+  // if normal and Pi-P0 are not orthogonal, then the point is not in the plane the rest of the ring defines
+  for (std::size_t i = 1; i < unique_points.size(); ++i) {
     if (compare(normal.Dot(unique_points[i] - unique_points[0]), 0) != 0) {
       return false;
     }

@@ -11,6 +11,7 @@
 #include <optional>
 #include <queue>
 #include <ranges>
+#include <set>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -160,6 +161,34 @@ class SweepLine2D {
   /// warning log if seg_id not found
   SweepLineElement2D Remove(std::size_t seg_id);
 
+  struct ReverseRunResult2D {
+    bool Ok = false;                    // false: seg_ids were not found contiguously adjacent (stale event,
+                                        // caller should skip) — every other field is nullopt when false
+    std::optional<IdSegPair> NewTop;    // the run's new topmost segment (== the run's old bottommost)
+    std::optional<IdSegPair> NewBottom; // the run's new bottommost segment (== the run's old topmost)
+    std::optional<IdSegPair> AboveRun;  // neighbor above the whole run — unmoved by the reversal
+    std::optional<IdSegPair> BelowRun;  // neighbor below the whole run — unmoved by the reversal
+  };
+
+  /// @brief Reverses, in place, the contiguous run of currently-active segments named by @p seg_ids — the
+  /// O(1)-per-swap replacement for the old Remove/SetX(x+eps)/Add cycle used to react to a confirmed
+  /// crossing. A 2-element @p seg_ids is the common pairwise-crossing case (equivalent to swapping two
+  /// adjacent elements); 3+ elements handles several segments meeting at exactly one point in a single
+  /// reversal instead of a cascade of pairwise swaps that could desync mid-cascade (reversing [A,B,C] to
+  /// [C,B,A] realizes all three pairwise crossings (A,B), (B,C), and (A,C) at once — the pairs (A,B) and
+  /// (B,C) were already tested when they first became adjacent, so no pair inside the run needs retesting,
+  /// only the two new outer pairs this call reports via AboveRun/BelowRun).
+  /// Locates the run with exactly ONE comparator-driven lookup (for an arbitrary anchor id from @p
+  /// seg_ids), then expands outward by direct vector indexing (no further comparator calls) to confirm the
+  /// rest of @p seg_ids occupy the immediately-adjacent slots. Every id in @p seg_ids is already active
+  /// (unlike Add(), which places a segment the comparator has never seen before), so the anchor lookup's
+  /// existing exact-id fallback (see Get()) makes this safe even if SWEEP_X has gone stale relative to the
+  /// true post-crossing arrangement: the comparator can only fail to find the anchor (triggering the
+  /// linear-scan fallback), never report a wrong id as a match, since ids are unique in ACTIVE_SEGMENTS.
+  /// @param seg_ids the ids expected to form one contiguous run, in any order; must have size() >= 2.
+  /// @throws std::invalid_argument if seg_ids.size() < 2.
+  ReverseRunResult2D ReverseRun(std::vector<std::size_t> const& seg_ids);
+
   /// @brief adjusts the current sweep x coordinate to a desired value, and lets the algorithms continue
   /// @param val usually the X of the next_event in the EventQueue.Pop() or the current X + EPSILON
   void SetX(double val);
@@ -167,6 +196,12 @@ class SweepLine2D {
   double GetX() const;
 
  private:
+  // Locates seg_id's current index in ACTIVE_SEGMENTS via lower_bound (comparator at current SWEEP_X),
+  // falling back to a linear scan if the comparator doesn't land exactly on seg_id. Since ids are unique,
+  // an exact match from lower_bound is always trustworthy regardless of whether SWEEP_X / the comparator's
+  // ordering is currently a perfect fit for the whole vector — the fallback is what makes that safe.
+  std::optional<std::size_t> FindIndex(std::size_t seg_id) const;
+
   double SWEEP_X;
 
   Segments const* PTR_SEGMENTS;  // bound from `Segments const&`, so the pointee is const
@@ -177,23 +212,32 @@ class SweepLine2D {
 
 bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b);  // true if a and b share a First()/Last()
 
-/// @brief Hooks invoked during the Shamos-Hoey sweep (see run_shamos_hoey). Both hooks return true to stop the
-/// sweep immediately (short-circuit), false to keep scanning.
-/// OnStart fires once a segment becomes active (its LEFT event). OnIntersection fires whenever two active,
-/// non-endpoint-sharing neighbors on the sweep line are found to cross (checked at both LEFT and RIGHT events).
+/// @brief Hooks invoked during the Shamos-Hoey sweep (see run_shamos_hoey). OnStart/OnIntersection return
+/// true to stop the sweep immediately (short-circuit), false to keep scanning.
+/// OnStart fires once a segment becomes active (its LEFT event). IsIntersecting supplies the actual
+/// segment-pair predicate the sweep uses to decide whether two segments that just became adjacent in the
+/// sweep-line status count as intersecting at all — mirroring BentleyOttmannVisitor2D's TestPair, this is
+/// entirely the visitor's call, including whatever it decides about segments that merely share an endpoint
+/// (most visitors will want to exclude those via shares_endpoint(), but the algorithm no longer forces
+/// that choice). OnIntersection fires whenever IsIntersecting returns true for a checked pair (checked at
+/// both LEFT and RIGHT events).
 template <typename Visitor, typename Segments>
 concept ShamosHoeyVisitor2D = requires(Visitor& v, typename SweepLine2D<Segments>::IdSegPair const& seg) {
   { v.OnStart(seg) }
+  ->std::convertible_to<bool>;
+  { v.IsIntersecting(seg.Seg, seg.Seg) }
   ->std::convertible_to<bool>;
   { v.OnIntersection(seg, seg) }
   ->std::convertible_to<bool>;
 };
 
 /// @brief The Shamos-Hoey sweep, generalized with a visitor so callers can implement different algorithms
-/// (existence check, counting, collection, ...) on top of the same O(n log n) neighbor-adjacency scan.
+/// (existence check, counting, collection, ...) and different segment-pair predicates on top of the same
+/// O(n log n) neighbor-adjacency scan.
 /// @param segments list of segments (can be generic list of segments or segments of the polygon)
-/// @param visitor  called at each LEFT event (OnStart) and at each detected neighbor crossing (OnIntersection);
-/// the sweep stops as soon as either hook returns true.
+/// @param visitor  called at each LEFT event (OnStart), for each newly-adjacent pair (IsIntersecting), and
+/// at each confirmed intersection (OnIntersection); the sweep stops as soon as OnStart or OnIntersection
+/// returns true.
 /// @returns true if the sweep was stopped early by the visitor, false if the whole queue was drained.
 /// @throws less than 2 segments arguments, or algorithm based throw logic
 template <SegmentList Segments, typename Visitor>
@@ -226,13 +270,11 @@ requires ShamosHoeyVisitor2D<Visitor, Segments> bool run_shamos_hoey(Segments co
         return true;
       }
 
-      if (triplet.Above && !shares_endpoint(triplet.Segment->Seg, triplet.Above->Seg) &&
-          intersect(triplet.Segment->Seg, triplet.Above->Seg) &&
+      if (triplet.Above && visitor.IsIntersecting(triplet.Segment->Seg, triplet.Above->Seg) &&
           visitor.OnIntersection(*triplet.Segment, *triplet.Above)) {
         return true;
       }
-      if (triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Segment->Seg) &&
-          intersect(triplet.Below->Seg, triplet.Segment->Seg) &&
+      if (triplet.Below && visitor.IsIntersecting(triplet.Below->Seg, triplet.Segment->Seg) &&
           visitor.OnIntersection(*triplet.Below, *triplet.Segment)) {
         return true;
       }
@@ -240,8 +282,8 @@ requires ShamosHoeyVisitor2D<Visitor, Segments> bool run_shamos_hoey(Segments co
     } else if (event.Type == EventType2D::RIGHT) {
       auto triplet = sweep_line.Remove(seg_id);
 
-      if (triplet.Above && triplet.Below && !shares_endpoint(triplet.Below->Seg, triplet.Above->Seg) &&
-          intersect(triplet.Below->Seg, triplet.Above->Seg) && visitor.OnIntersection(*triplet.Below, *triplet.Above)) {
+      if (triplet.Above && triplet.Below && visitor.IsIntersecting(triplet.Below->Seg, triplet.Above->Seg) &&
+          visitor.OnIntersection(*triplet.Below, *triplet.Above)) {
         return true;
       }
     }
@@ -292,7 +334,10 @@ struct IntersectionEvent2D {
 /// nothing asymptotically: still the same O((n+k) log n) the sweep already guarantees for crossings,
 /// since two collinear overlapping segments are necessarily adjacent in the sweep-line ordering
 /// throughout their shared x-range (same argument that makes the crossing case correct in the first
-/// place).
+/// place). TestPair is called for EVERY newly-adjacent pair, including ones that share an endpoint — the
+/// algorithm no longer filters those out itself (see shares_endpoint()); a visitor that wants the usual
+/// "adjacent-in-the-polygon, not a real crossing" exclusion calls shares_endpoint() inside its own
+/// TestPair, same as CollectIntersectionsVisitor2D does.
 template <typename Visitor, typename Segments>
 concept BentleyOttmannVisitor2D = requires(Visitor& v, typename SweepLine2D<Segments>::IdSegPair const& seg,
                                            IntersectionEvent2D const& hit) {
@@ -351,13 +396,13 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
         return true;
       }
 
-      if (elem.Above && !shares_endpoint(elem.Segment->Seg, elem.Above->Seg)) {
+      if (elem.Above) {
         for (auto const& pt : visitor.TestPair(elem.Segment->Seg, elem.Above->Seg)) {
           event_queue.Push(Event2D{EventType2D::INTERSECTION, pt, elem.Segment->Id, elem.Above->Id});
         }
       }
 
-      if (elem.Below && !shares_endpoint(elem.Below->Seg, elem.Segment->Seg)) {
+      if (elem.Below) {
         for (auto const& pt : visitor.TestPair(elem.Below->Seg, elem.Segment->Seg)) {
           event_queue.Push(Event2D{EventType2D::INTERSECTION, pt, elem.Below->Id, elem.Segment->Id});
         }
@@ -375,7 +420,7 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
       sweep_line.Remove(event.SegmentId);  // automatically resets the above/below neighbours of the segment being
                                            // removed to the new neighbours after removal
 
-      if (above_elem && below_elem && !shares_endpoint(above_elem->Seg, below_elem->Seg)) {
+      if (above_elem && below_elem) {
         for (auto const& pt : visitor.TestPair(above_elem->Seg, below_elem->Seg)) {
           auto inter_event = Event2D{EventType2D::INTERSECTION, pt, below_elem->Id, above_elem->Id};
           if (!event_queue.Contains(inter_event)) {
@@ -385,74 +430,83 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
       }
 
     } else if (event.Type == EventType2D::INTERSECTION) {
-      std::size_t seg1_id = event.SegmentId;
-      std::size_t seg2_id = event.InterSegmentId.value();  // guaranteed from the logic above (and .value()
-                                                           // automatically throws std::bad_optional_access if empty)
+      // Same-point INTERSECTION events sort together (Event2D::operator< orders by point before type), so
+      // every queued intersection at this exact point is already contiguous at the front of the queue.
+      // Gather them all before touching the sweep line: 2 segments crossing gives exactly one (below,
+      // above) pair; 3+ segments meeting at one point give the several adjacent pairs whose ids' union is
+      // the whole run — reacting to them one at a time (the old Remove/SetX/Add cascade) is what could
+      // desync mid-cascade, since resolving the first pair changes adjacency for the rest.
+      std::vector<std::pair<std::size_t, std::size_t>> pairs_here;  // each is (below_id, above_id)
+      std::set<std::size_t> ids_here;
 
-      auto inter_event = IntersectionEvent2D{event.Point, {seg1_id, seg2_id}};
+      auto collect = [&](Event2D const& ev) {
+        std::size_t below_id = ev.SegmentId;
+        std::size_t above_id = ev.InterSegmentId.value();  // guaranteed by construction of INTERSECTION events
+        pairs_here.emplace_back(below_id, above_id);
+        ids_here.insert(below_id);
+        ids_here.insert(above_id);
+      };
+      collect(event);
 
-      if (visitor.OnIntersection(inter_event)) {
-        return true;
+      while (true) {
+        auto next = event_queue.Top();
+        if (!next || next->Type != EventType2D::INTERSECTION || !(next->Point == event.Point)) {
+          break;
+        }
+        collect(event_queue.Pop().value());
       }
 
-      // in the logic LEFT, and RIGHT I have guaranteed to always have seg1 < seg2 in Event{INTERSECTION, seg1, seg2}
-      // at this point: segB < seg1 < seg2 < segA
+      for (auto const& [below_id, above_id] : pairs_here) {
+        if (visitor.OnIntersection(IntersectionEvent2D{event.Point, {below_id, above_id}})) {
+          return true;
+        }
+      }
 
-      // in order to move the segments (seg1 -> up, seg2 -> down) we have to
-      // (1) Remove them
-      // (2) SetX
-      // (3) Add them back in the queue
-      // (4) check the new above/below intersections
-      // ... here we go.
-
-      // Skip the swap if this crossing is already behind the sweep line.  This happens with concurrent
-      // intersections: the first pair advances sweep_x to x+ε; all subsequent pairs at the same x are
-      // already in the past and must not be re-swapped (doing so would cycle back to already-processed
-      // pairs and loop indefinitely).
-      if (inter_event.Point.x() < sweep_line.GetX()) {
+      // A pair can be rediscovered here even though it already crossed: TestPair is purely geometric (two
+      // non-parallel segments have exactly one crossing, full stop — it has no notion of "already
+      // resolved"), and a later reversal elsewhere in the run can put two already-crossed segments back
+      // into direct adjacency, so the "new outer pair" test below re-finds their old crossing point. Reject
+      // anything behind where the sweep has already reached: this is the same guard the old Remove/SetX
+      // (x+ε)/Add cycle got for free by construction (a stale crossing's x could never be ahead of the just
+      // -advanced sweep), now made explicit since nothing here calls SetX on the hot path anymore.
+      if (compare(event.Point.x(), sweep_line.GetX()) < 0) {
         continue;
       }
 
-      // verify seg1 and seg2 are still adjacent — a stale event (queued before another segment was inserted
-      // between them) must be skipped to avoid corrupting sweep line order
-      auto seg1_check = sweep_line.Get(seg1_id);
-      if (!seg1_check.Segment || !seg1_check.Above || seg1_check.Above->Id != seg2_id) {
+      // Reverse the whole run in one O(run size) positional swap — no comparator consulted at the
+      // crossing x, so no risk of the tie-break picking the wrong slot right where two segments' y-values
+      // are equal. A false Ok means the run isn't (or is no longer) contiguous — a stale event from before
+      // some other segment was inserted between them — so it's skipped, same as the old adjacency check
+      // did for the pairwise case.
+      std::vector<std::size_t> run(ids_here.begin(), ids_here.end());
+      if (run.size() < 2) {
+        continue;
+      }
+      auto swap_result = sweep_line.ReverseRun(run);
+      if (!swap_result.Ok) {
         continue;
       }
 
-      // (1) Remove segments (save the neighbors for later)
-      sweep_line.Remove(seg1_id);
-      sweep_line.Remove(seg2_id);
-
-      // (2) set X to a bigger value (according to the decimal precision)
-      if (compare(sweep_line.GetX(), inter_event.Point.x()) <= 0) {
-        sweep_line.SetX(inter_event.Point.x() + DOUBLE_EPSILON);
+      // Advance past this point so a later rediscovery of an already-applied crossing (see above) gets
+      // rejected by the guard at the top of this branch instead of re-swapping and looping forever.
+      if (compare(sweep_line.GetX(), event.Point.x()) < 0) {
+        sweep_line.SetX(event.Point.x());
       }
 
-      // (3) add the segments back
-      auto new_seg1 = sweep_line.Add(seg1_id);
-      if (!new_seg1.Segment) {
-        throw std::logic_error("Could not add the segment corresponding NEW SEG1 in the sweep line");
-      }
-      auto new_seg2 = sweep_line.Add(seg2_id);
-      if (!new_seg2.Segment) {
-        throw std::logic_error("Could not add the segment corresponding NEW SEG2 in the sweep line");
-      }
-
-      // (4) check the new above/below intersections
-      // now : segB < seg2 < seg1 < segA
-      if (new_seg1.Above && !shares_endpoint(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
-        for (auto const& pt : visitor.TestPair(new_seg1.Segment->Seg, new_seg1.Above->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, pt, new_seg1.Segment->Id, new_seg1.Above->Id};
+      // Only the two new OUTER pairs need testing: every pair inside the run was already adjacent (and
+      // therefore already tested) before the reversal, just in the opposite order.
+      if (swap_result.AboveRun) {
+        for (auto const& pt : visitor.TestPair(swap_result.NewTop->Seg, swap_result.AboveRun->Seg)) {
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, pt, swap_result.NewTop->Id, swap_result.AboveRun->Id};
           if (!event_queue.Contains(inter_ev)) {
             event_queue.Push(inter_ev);
           }
         }
       }
 
-      if (new_seg2.Below && !shares_endpoint(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
-        for (auto const& pt : visitor.TestPair(new_seg2.Below->Seg, new_seg2.Segment->Seg)) {
-          auto inter_ev = Event2D{EventType2D::INTERSECTION, pt, new_seg2.Below->Id, new_seg2.Segment->Id};
+      if (swap_result.BelowRun) {
+        for (auto const& pt : visitor.TestPair(swap_result.BelowRun->Seg, swap_result.NewBottom->Seg)) {
+          auto inter_ev = Event2D{EventType2D::INTERSECTION, pt, swap_result.BelowRun->Id, swap_result.NewBottom->Id};
           if (!event_queue.Contains(inter_ev)) {
             event_queue.Push(inter_ev);
           }
@@ -499,12 +553,15 @@ enum class BooleanOp { Union, Intersection, Difference, Xor };
 /// self-intersecting input), and an operand fully containing the other with no shared boundary still
 /// produces a correct hole.
 ///
-/// KNOWN LIMITATION: correctness depends on split having placed a vertex at every crossing. The
-/// underlying Bentley-Ottmann sweep (find_intersections) occasionally MISSES a genuine crossing on
-/// certain configurations, which leaves a fragment straddling the other operand's boundary and corrupts
-/// the result (a whole component may be dropped). This is rare but catastrophic when it hits; it is a
-/// sweep bug upstream of the classification. See the DISABLED_Randomized_* property tests and the
-/// DISABLED_BooleanOp_MissedCrossing repro in test_polygon2d.cpp, which document it for a future fix.
+/// Correctness depends on split having placed a vertex at every crossing. The underlying Bentley-Ottmann
+/// sweep (find_intersections) used to occasionally MISS a genuine crossing — SweepLine2D's crossing
+/// handler re-derived a just-swapped pair's position via the comparator at exactly the x where their
+/// y-values are equal, the one point a non-transitive tie-break could hand it a wrong slot. Fixed by
+/// SweepLine2D::ReverseRun, a direct O(1) positional swap that never consults the comparator at the
+/// crossing x. See BooleanOp_MissedCrossing in test_polygon2d.cpp for the repro and full root-cause notes;
+/// Randomized_DifferencePartitionsSubject and DISABLED_Randomized_ResultsAreSimple document the property-
+/// test fallout. The latter has one still-open, unrelated failure (a self-intersecting-operand orientation
+/// gap, not a sweep-ordering bug — see its own comment).
 ///
 /// @returns each disjoint result component as {outer ring, hole rings}, in no particular order. Empty if
 /// the operation produces no area (e.g. Intersection of disjoint polygons).
@@ -529,8 +586,8 @@ using RingPieces = std::vector<std::pair<std::vector<Point2D>, std::vector<std::
 /// cancelled before classification so the "own side is always interior" assumption stays valid regardless
 /// of how many pieces an operand decomposes into.
 ///
-/// Subject to the same missed-crossing sweep limitation as boolean_op (see its docs) — this only changes
-/// how surviving segments are classified, not the crossing detection upstream of it.
+/// Shares the same crossing-detection dependency as boolean_op (see its docs) — this only changes how
+/// surviving segments are classified, not find_intersections itself.
 ///
 /// @returns each disjoint result component as {outer ring, hole rings}, in no particular order.
 RingPieces boolean_op_multi(RingPieces const& subj_pieces, RingPieces const& clip_pieces, BooleanOp op);
@@ -611,12 +668,18 @@ extern template std::vector<LineSegment2D> collect_ring_segments(std::vector<Poi
 
 /// @brief Decomposes polygon rings into simple closed rings via half-edge face tracing.
 /// Projects each point through @p view, builds 2D segments internally, finds all crossings
-/// (Bentley-Ottmann), splits at those points, and returns one ring per bounded face.
-/// Caller classifies outers vs holes via signed_area.
+/// (Bentley-Ottmann), splits at those points, and traces one ring per face of the resulting planar
+/// arrangement — every REAL bounded piece of @p outer's (possibly self-intersecting) shape, each already
+/// oriented CCW (positive signed_area). The half-edge walk also always traces exactly one extra ring for
+/// the arrangement's unbounded "outside" face (a topological certainty, not a caller-visible edge case) —
+/// this function identifies and discards it internally (calibrated against @p outer's own projected
+/// orientation, since a view that mirrors chirality — e.g. a Y-dominant-axis View2D — flips which absolute
+/// sign means "interior"), so callers never see it and never need to re-derive this calibration themselves.
 /// @param outer  Outer ring vertices (Point2D or Point3D).
 /// @param holes  Inner ring vertices (same type as outer).
 /// @param view   Projects each point to 2D x/y coordinates.
-/// @returns Closed rings in 2D (vertex sequence; closing vertex not repeated). Must be >= 3 total edges.
+/// @returns The real interior faces only, each CCW, in 2D (vertex sequence; closing vertex not repeated).
+/// Empty if @p outer decomposes into no bounded area at all (fully degenerate/zero-area input).
 template <PointContainer Points>
 std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vector<Points> const& holes,
                                                  View2D const& view);

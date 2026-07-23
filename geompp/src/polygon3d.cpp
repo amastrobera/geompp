@@ -26,6 +26,34 @@
 
 namespace geompp {
 
+namespace {
+
+// Whether outer_plane's normal agrees with the canonical dominant-axis-positive direction
+// are_ccw(unique_points) already validated the polygon's winding against. Cheap (O(1)) rather than a
+// second are_ccw(unique_points, outer_plane) call (O(n), a full signed_area recomputation): every point in
+// unique_points is already known coplanar (checked earlier in Make()), so ANY local 3-point normal —
+// outer_plane's included — is exactly parallel or anti-parallel to that one true plane normal, never some
+// other direction. That means outer_plane and the canonical reference always share the same dominant axis;
+// only the sign can differ, so checking outer_plane's own dominant-axis component sign is sufficient.
+bool plane_matches_canonical_winding(Plane const& outer_plane) {
+  Vector3D n = outer_plane.normal();
+  Axis dax = n.DominantAxis();
+  double dominant_component = (dax == Axis::X) ? n.x() : (dax == Axis::Y) ? n.y() : n.z();
+  return compare(dominant_component, 0.0) >= 0;
+}
+
+// True only for a genuine STRICT-interior crossing (each segment struck strictly between its own two
+// endpoints, not at either one) — see Polygon2D::Make()'s identical helper (polygon2d.cpp) for the full
+// rationale: a hole touching the outer boundary at a vertex, a T-junction, or running flush along part of
+// it (collinear overlap) is a legitimate polygon-with-hole shape, not a "hole crosses outer" error.
+bool strictly_crosses(LineSegment2D const& a, LineSegment2D const& b) {
+  double sc, tc;
+  auto pt = detail::line_intersection(a.First(), a.Last(), b.First(), b.Last(), sc, tc);
+  return pt.has_value() && compare(sc, 0) > 0 && compare(sc, 1) < 0 && compare(tc, 0) > 0 && compare(tc, 1) < 0;
+}
+
+}  // namespace
+
 #pragma region Constructors
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
@@ -44,7 +72,16 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
   if (!are_ccw(unique_points)) {
     throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
+  // Plane::From3Points(unique_points[0..2]) is a LOCAL quantity — the turn pivoting at vertex 0 — which
+  // can point opposite the polygon's GLOBAL winding the are_ccw() check above just validated, whenever
+  // vertex 0 is a reflex corner. Swap which two points go into From3Points when that happens (see
+  // plane_matches_canonical_winding) — guarantees outer_plane's sign always matches the already-validated
+  // CCW winding, so downstream code (Area(), boolean ops' shared-view projection) never has to work around
+  // a possibly-wrong sign.
   auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
+  if (!plane_matches_canonical_winding(outer_plane)) {
+    outer_plane = Plane::From3Points(unique_points[0], unique_points[2], unique_points[1]);
+  }
 
   double perimeter = 0;
   int n0 = unique_points.size();
@@ -76,8 +113,25 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
   }
 
   auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
+  if (!plane_matches_canonical_winding(outer_plane)) {
+    outer_plane = Plane::From3Points(unique_points[0], unique_points[2], unique_points[1]);
+  }
+
+  Axis dax = outer_plane.normal().DominantAxis();
+  View2D hole_view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  auto project_hole = [&hole_view](std::vector<Point3D> const& ring) {
+    std::vector<LineSegment2D> segs;
+    int n = static_cast<int>(ring.size());
+    segs.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      segs.push_back(LineSegment2D::Make(Point2D(hole_view.x(ring[i]), hole_view.y(ring[i])),
+                                         Point2D(hole_view.x(ring[(i + 1) % n]), hole_view.y(ring[(i + 1) % n]))));
+    }
+    return segs;
+  };
 
   std::vector<std::vector<Point3D>> unique_holes_points;
+  std::vector<std::vector<LineSegment2D>> unique_holes_segs_2d;  // cached for the cross-hole check below
   for (auto const& hole : holes) {
     auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(hole));
 
@@ -89,6 +143,16 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
 
     if (!are_coplanar(unique_hole_points)) {
       throw std::runtime_error("cannot create polygon holes non-coplanar points");
+    }
+
+    // Checked before CW-ness, same reasoning as Polygon2D::Make(): a self-intersecting ring's winding is
+    // a degenerate notion, so it must be rejected outright rather than let a coincidentally-CW
+    // self-intersecting ring slip through as a "hole". Projected via outer_plane's dominant axis, same as
+    // IsSimple()'s own hole check (PLANE isn't set on this not-yet-constructed instance yet, but
+    // outer_plane above is the same plane it will become).
+    auto hole_segs = project_hole(unique_hole_points);
+    if (has_intersections(hole_segs)) {
+      throw std::runtime_error("cannot create polygon hole with self-intersections");
     }
 
     if (!are_cw(unique_hole_points)) {
@@ -103,6 +167,43 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
     }
 
     unique_holes_points.push_back(unique_hole_points);
+    unique_holes_segs_2d.push_back(std::move(hole_segs));
+  }
+
+  // Each hole is individually simple (checked above), but nothing yet stops two DIFFERENT holes from
+  // crossing each other — see Polygon2D::Make()'s identical check for the full rationale. Reuses the
+  // dominant-axis 2D projection already computed per hole above (unique_holes_segs_2d), rather than
+  // re-projecting, since all holes share the same outer_plane/dominant axis.
+  for (std::size_t i = 0; i < unique_holes_segs_2d.size(); ++i) {
+    for (std::size_t j = i + 1; j < unique_holes_segs_2d.size(); ++j) {
+      auto combined = unique_holes_segs_2d[i];
+      combined.insert(combined.end(), unique_holes_segs_2d[j].begin(), unique_holes_segs_2d[j].end());
+      if (has_intersections(combined)) {
+        GEOMPP_LOG(ERROR) << "invalid polygon: hole " << i << " intersects hole " << j;
+        throw std::runtime_error("cannot create polygon with intersecting holes");
+      }
+    }
+  }
+
+  // Same reasoning as Polygon2D::Make()'s identical check: the outer ring is allowed to self-intersect by
+  // design, so has_intersections() on outer+hole combined would flag its own legitimate self-crossing as a
+  // false "hole crosses outer" positive, and a plain intersect()+shares_endpoint() combo would flag a hole
+  // vertex touching mid-way along an outer edge (a T-junction) or a hole edge running flush along part of
+  // the outer boundary — both legitimate polygon-with-hole shapes, not a "strikes through" error.
+  // strictly_crosses() (above) only counts a hole edge that punches through an outer edge strictly between
+  // both segments' endpoints. Same dominant-axis 2D projection as the hole checks above.
+  if (!unique_holes_segs_2d.empty()) {
+    auto outer_segs = project_hole(unique_points);
+    for (std::size_t h = 0; h < unique_holes_segs_2d.size(); ++h) {
+      for (auto const& outer_seg : outer_segs) {
+        for (auto const& hole_seg : unique_holes_segs_2d[h]) {
+          if (strictly_crosses(outer_seg, hole_seg)) {
+            GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " intersects the outer loop";
+            throw std::runtime_error("cannot create polygon with a hole that intersects the outer loop");
+          }
+        }
+      }
+    }
   }
 
   double perimeter = 0;
@@ -159,19 +260,75 @@ bool Polygon3D::AlmostEquals(Polygon3D const& other, double epsilon) const {
 SegmentRange3D Polygon3D::ToSegments() const { return SegmentRange3D(VERTICES, true); }
 
 Point3D Polygon3D::Centroid() const {
-  Point3D cs = centroid(VERTICES, PLANE);
-  double sa = signed_area(VERTICES, PLANE);
+  Axis dax = PLANE.normal().DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
 
-  if (HOLES.empty()) {
-    return cs;
+  auto make_segs = [&view](std::vector<Point3D> const& ring) {
+    std::vector<LineSegment2D> segs;
+    segs.reserve(ring.size());
+    int n = static_cast<int>(ring.size());
+    for (int i = 0; i < n; ++i) {
+      segs.push_back(LineSegment2D::Make(Point2D(view.x(ring[i]), view.y(ring[i])),
+                                         Point2D(view.x(ring[(i + 1) % n]), view.y(ring[(i + 1) % n]))));
+    }
+    return segs;
+  };
+  bool outer_simple = !has_intersections(make_segs(VERTICES));
+
+  if (outer_simple && HOLES.empty()) {
+    // Common case, preserved as an exact shortcut: single region, no weighted average needed.
+    return centroid(VERTICES, PLANE);
   }
 
-  // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)  — hole areas are negative (CW) so they subtract
-  double total_sa = sa;
-  double wx = sa * cs.x();
-  double wy = sa * cs.y();
-  double wz = sa * cs.z();
+  // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)
+  double total_sa = 0.0;
+  double wx = 0.0;
+  double wy = 0.0;
+  double wz = 0.0;
 
+  if (outer_simple) {
+    Point3D cs = centroid(VERTICES, PLANE);
+    double sa = signed_area(VERTICES, PLANE);
+    total_sa = sa;
+    wx = sa * cs.x();
+    wy = sa * cs.y();
+    wz = sa * cs.z();
+  } else {
+    // Self-intersecting outer ring: same reasoning as Polygon2D::Centroid() — weighting by the whole
+    // ring's own raw net signed_area is wrong (opposite-winding lobes can cancel that weight, or land it
+    // near zero, making the division unstable). Decompose into the real interior faces instead (same
+    // unprojection Area()'s slow path uses — a 2D-projected area/centroid isn't correct on a tilted
+    // plane) and weight each one's own centroid by its own (plane-aware) area.
+    Point3D orig = PLANE.origin();
+    Vector3D n = PLANE.normal();
+    double d = n.x() * orig.x() + n.y() * orig.y() + n.z() * orig.z();
+    auto from2d = [&n, d, dax](Point2D const& p) -> Point3D {
+      if (dax == Axis::X) {
+        return Point3D((d - n.y() * p.x() - n.z() * p.y()) / n.x(), p.x(), p.y());
+      }
+      if (dax == Axis::Y) {
+        return Point3D(p.y(), (d - n.z() * p.x() - n.x() * p.y()) / n.y(), p.x());
+      }
+      return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
+    };
+
+    for (auto const& ring2d : detail::view::simplify_rings(VERTICES, std::vector<std::vector<Point3D>>{}, view)) {
+      std::vector<Point3D> ring3d;
+      ring3d.reserve(ring2d.size());
+      for (auto const& p : ring2d) {
+        ring3d.push_back(from2d(p));
+      }
+      double sa = std::abs(signed_area(ring3d, PLANE));
+      Point3D cs = centroid(ring3d, PLANE);
+      total_sa += sa;
+      wx += sa * cs.x();
+      wy += sa * cs.y();
+      wz += sa * cs.z();
+    }
+  }
+
+  // Holes are always individually simple (Make() rejects a self-intersecting hole outright), so this is
+  // always a direct, correct subtraction — hole areas are negative (CW), so they subtract.
   for (auto const& hole : HOLES) {
     double sa_h = signed_area(hole, PLANE);
     Point3D c_h = centroid(hole, PLANE);
@@ -185,11 +342,69 @@ Point3D Polygon3D::Centroid() const {
 }
 
 double Polygon3D::Area() const {
-  double area = signed_area(VERTICES, PLANE);  // guaranteed to be positive by construction
+  // Holes are always individually simple now — Make() rejects a self-intersecting hole outright (see its
+  // own comment) — so this direct shoelace sum is always correct however the OUTER ring turns out; holes
+  // never need decomposing or recursing into, unlike VERTICES below. O(N_holes) total.
+  double total_hole_area = 0.0;
   for (auto const& hole : HOLES) {
-    area += signed_area(hole, PLANE);  // guaranteed to be negative by construction, so we add it
+    total_hole_area += signed_area(hole, PLANE);  // guaranteed CW (negative) by Make()
   }
-  return area;
+
+  Axis dax = PLANE.normal().DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+
+  auto make_segs = [&view](std::vector<Point3D> const& ring) {
+    std::vector<LineSegment2D> segs;
+    segs.reserve(ring.size());
+    int n = static_cast<int>(ring.size());
+    for (int i = 0; i < n; ++i) {
+      segs.push_back(LineSegment2D::Make(Point2D(view.x(ring[i]), view.y(ring[i])),
+                                         Point2D(view.x(ring[(i + 1) % n]), view.y(ring[(i + 1) % n]))));
+    }
+    return segs;
+  };
+
+  if (!has_intersections(make_segs(VERTICES))) {
+    // FAST PATH: outer ring is simple too — pure O(n) shoelace, no decomposition at all.
+    return signed_area(VERTICES, PLANE) + total_hole_area;
+  }
+
+  // SLOW PATH: self-intersecting outer ring — decompose it, and ONLY it (holes are already handled
+  // above), via the same half-edge tracer Simplify() uses, at O(n log n). Not the full public
+  // Simplify()/Make() pipeline — that would also re-run hole assignment and reconstruct Polygon3D objects
+  // for no reason here, and recursing into piece.Area() would risk unbounded recursion if Simplify() ever
+  // can't fully resolve a degenerate input into simple pieces (a real, if rare, hazard — see git history).
+  //
+  // simplify_rings() works directly on the 3D VERTICES (projected via `view` internally) and returns just
+  // the real interior 2D faces, each already CCW and with the Y-dominant-projection chirality mirroring
+  // (see its own doc comment) already accounted for — no need to re-derive that here. A 2D-projected area
+  // still isn't the true 3D area on a tilted plane (foreshortening), so each interior loop is unprojected
+  // back to 3D and measured with the plane-aware signed_area(..., PLANE) instead of computing the scale
+  // factor by hand.
+  Point3D orig = PLANE.origin();
+  Vector3D n = PLANE.normal();
+  double d = n.x() * orig.x() + n.y() * orig.y() + n.z() * orig.z();
+  auto from2d = [&n, d, dax](Point2D const& p) -> Point3D {
+    if (dax == Axis::X) {
+      return Point3D((d - n.y() * p.x() - n.z() * p.y()) / n.x(), p.x(), p.y());
+    }
+    if (dax == Axis::Y) {
+      return Point3D(p.y(), (d - n.z() * p.x() - n.x() * p.y()) / n.y(), p.x());
+    }
+    return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
+  };
+
+  double outer_solid_area = 0.0;
+  for (auto const& ring2d : detail::view::simplify_rings(VERTICES, std::vector<std::vector<Point3D>>{}, view)) {
+    std::vector<Point3D> ring3d;
+    ring3d.reserve(ring2d.size());
+    for (auto const& p : ring2d) {
+      ring3d.push_back(from2d(p));
+    }
+    outer_solid_area += std::abs(signed_area(ring3d, PLANE));
+  }
+
+  return outer_solid_area + total_hole_area;  // total_hole_area is already negative — add, don't subtract
 }
 
 double Polygon3D::PerimeterSize() const { return PERIMETER; }
@@ -243,46 +458,15 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
     return Point3D(p.x(), p.y(), (d - n.x() * p.x() - n.y() * p.y()) / n.z());
   };
 
-  auto rings2d = detail::view::simplify_rings(VERTICES, HOLES, view);
-
-  // Detect whether the dominant-axis projection reverses chirality.
-  // For Y-dominant the mapping (z,x) mirrors the coordinate system, so a CCW 3D polygon
-  // projects to CW in 2D.  Check the outer ring's projected signed area to find out.
-  std::vector<Point2D> outer2d;
-  outer2d.reserve(VERTICES.size());
-  for (auto const& v : VERTICES) {
-    outer2d.emplace_back(view.x(v), view.y(v));
-  }
-  bool projection_flips = compare(signed_area(outer2d), 0.0) < 0;
-
-  // Interior faces come out CW (SA < 0) and the outer graph face CCW (SA > 0) — unless
-  // the projection flips chirality, in which case the signs are reversed.
-  // Either way, candidates must end up CCW in 2D for Polygon2D::Make / hole assignment.
-  std::vector<std::vector<Point2D>> candidates2d;
+  // simplify_rings() already returns just the real interior faces, each CCW in 2D (positive signed_area)
+  // — the single unbounded "outside" face, and the chirality calibration a Y-dominant-axis view needs
+  // (a CCW 3D polygon can project to CW in 2D — see simplify_rings()'s own doc comment), are both handled
+  // internally now. Candidates are ready to feed into Polygon2D::Make() / hole assignment as-is.
+  std::vector<std::vector<Point2D>> candidates2d = detail::view::simplify_rings(VERTICES, HOLES, view);
   std::vector<double> candidate_areas;
-  for (auto const& ring : rings2d) {
-    if (ring.size() < 3) {
-      continue;
-    }
-    try {
-      double sa = signed_area(ring);
-      bool is_interior = projection_flips ? compare(sa, 0.0) > 0 : compare(sa, 0.0) < 0;
-      if (is_interior) {
-        if (projection_flips) {
-          // Ring is already CCW in 2D (SA > 0 means CCW)
-          candidate_areas.push_back(sa);
-          candidates2d.push_back(ring);
-        } else {
-          // Ring is CW in 2D (SA < 0), flip to CCW
-          auto ccw = ring;
-          std::reverse(ccw.begin(), ccw.end());
-          candidate_areas.push_back(-sa);
-          candidates2d.push_back(std::move(ccw));
-        }
-      }
-    } catch (std::runtime_error const& e) {
-      GEOMPP_LOG(WARNING) << "Simplify: skipping degenerate ring (" << ring.size() << " pts): " << e.what();
-    }
+  candidate_areas.reserve(candidates2d.size());
+  for (auto const& ring : candidates2d) {
+    candidate_areas.push_back(signed_area(ring));
   }
 
   // Sort candidates by area descending (largest first)
@@ -495,21 +679,22 @@ std::optional<Point3D> Polygon3D::Intersection(LineSegment3D const& segment) con
 
 namespace {
 
-// Coplanar-only engine shared by Union/Difference/Xor and the coplanar branch of Intersection(): project
-// both operands onto their common plane via View2D::OnPlane (exact and invertible, see View2D::xyz()),
-// run the same 2D boolean_op engine Polygon2D uses, then lift each result ring's vertices back to 3D.
-std::vector<Polygon3D> run_boolean_op_3d(Polygon3D const& a, Polygon3D const& b, detail::BooleanOp op) {
-  if (!a.GetPlane().AlmostEquals(b.GetPlane())) {
-    throw std::logic_error("Polygon3D boolean operations require both polygons to be coplanar");
-  }
-
-  auto view = View2D::OnPlane(a.GetPlane());
-
+// Decomposes a polygon into RingPieces (projected to 2D via `view`) for boolean_op_multi: itself (as the
+// sole piece) if already simple, or Simplify()'s pieces otherwise — same reasoning as Polygon2D's
+// to_ring_pieces. Simplify() resolves a self-intersecting operand's self-crossing into pieces that are
+// each genuinely simple and CCW-outer/CW-hole oriented, which classify_and_orient_source_tagged requires
+// and a single self-intersecting ring's own traversal cannot guarantee.
+//
+// `view` is built from GetPlane() directly — Polygon3D::Make() guarantees every stored plane's normal
+// sign matches its points' validated CCW winding (checks are_ccw(points, outer_plane) against the very
+// plane it's about to store, flipping which two of the first three points go into From3Points if it
+// disagrees), so every piece's raw vertex order is guaranteed to project as CCW through it.
+detail::RingPieces to_ring_pieces_3d(Polygon3D const& p, View2D const& view) {
   auto project = [&](std::vector<Point3D> const& ring) {
     std::vector<Point2D> out;
     out.reserve(ring.size());
-    for (auto const& p : ring) {
-      out.push_back(Point2D(view.x(p), view.y(p)));
+    for (auto const& pt : ring) {
+      out.push_back(Point2D(view.x(pt), view.y(pt)));
     }
     return out;
   };
@@ -521,9 +706,34 @@ std::vector<Polygon3D> run_boolean_op_3d(Polygon3D const& a, Polygon3D const& b,
     }
     return out;
   };
+  auto add_piece = [&](Polygon3D const& piece, detail::RingPieces& out) {
+    out.push_back({project(piece.Perimeter()), project_holes(piece.Holes())});
+  };
 
-  auto groups = detail::boolean_op(project(a.Perimeter()), project_holes(a.Holes()), project(b.Perimeter()),
-                                   project_holes(b.Holes()), op);
+  detail::RingPieces pieces;
+  if (p.IsSimple()) {
+    add_piece(p, pieces);
+    return pieces;
+  }
+  for (auto const& piece : p.Simplify()) {
+    add_piece(piece, pieces);
+  }
+  return pieces;
+}
+
+// Coplanar-only engine shared by Union/Difference/Xor and the coplanar branch of Intersection(): project
+// both operands onto their common plane via View2D::OnPlane (exact and invertible, see View2D::xyz()),
+// run the same source-tagged 2D engine Polygon2D uses (boolean_op_multi — see its docs and
+// Polygon2D::to_ring_pieces in polygon2d.cpp for why the Simplify()-decomposition step matters for
+// self-intersecting operands), then lift each result ring's vertices back to 3D.
+std::vector<Polygon3D> run_boolean_op_3d(Polygon3D const& a, Polygon3D const& b, detail::BooleanOp op) {
+  if (!a.GetPlane().AlmostEquals(b.GetPlane())) {
+    throw std::logic_error("Polygon3D boolean operations require both polygons to be coplanar");
+  }
+
+  auto view = View2D::OnPlane(a.GetPlane());
+
+  auto groups = detail::boolean_op_multi(to_ring_pieces_3d(a, view), to_ring_pieces_3d(b, view), op);
 
   auto unproject = [&](std::vector<Point2D> const& ring) {
     std::vector<Point3D> out;
@@ -542,7 +752,20 @@ std::vector<Polygon3D> run_boolean_op_3d(Polygon3D const& a, Polygon3D const& b,
     for (auto const& hole : holes) {
       holes3d.push_back(unproject(hole));
     }
-    result.push_back(Polygon3D::Make(unproject(outer), holes3d));
+    // Same defensive retry as Polygon2D::run_boolean_op (polygon2d.cpp) — see its comment. Make() now
+    // rejects a self-intersecting hole outright; retry without holes rather than losing the whole piece.
+    auto outer3d = unproject(outer);
+    try {
+      result.push_back(Polygon3D::Make(outer3d, holes3d));
+    } catch (std::runtime_error const& e) {
+      GEOMPP_LOG(WARNING) << "run_boolean_op_3d: rejected a result piece's holes (" << e.what()
+                          << "); retrying without holes";
+      try {
+        result.push_back(Polygon3D::Make(outer3d));
+      } catch (std::runtime_error const& e2) {
+        GEOMPP_LOG(WARNING) << "run_boolean_op_3d: could not assemble result piece at all: " << e2.what();
+      }
+    }
   }
   return result;
 }
@@ -582,7 +805,7 @@ std::optional<std::variant<std::vector<Polygon3D>, std::vector<LineSegment3D>>> 
   auto const& line = std::get<Line3D>(*plane_inter);
 
   auto intervals_a = detail::view::compute_intersection_intervals_3d(VERTICES, HOLES, IS_CONVEX, line.First(),
-                                                                      line.Last(), View2D::OnPlane(PLANE));
+                                                                     line.Last(), View2D::OnPlane(PLANE));
   auto intervals_b = detail::view::compute_intersection_intervals_3d(
       other.Perimeter(), other.Holes(), other.IsConvex(), line.First(), line.Last(), View2D::OnPlane(other.GetPlane()));
 

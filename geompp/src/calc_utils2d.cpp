@@ -251,43 +251,53 @@ SweepLine2D<Segments>::SweepLine2D(Segments const& segments)
     : SWEEP_X(min_sweep_x(segments)), PTR_SEGMENTS(&segments) {}
 
 template <SegmentList Segments>
+std::optional<std::size_t> SweepLine2D<Segments>::FindIndex(std::size_t seg_id) const {
+  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
+  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
+
+  if (it == ACTIVE_SEGMENTS.end() || *it != seg_id) {
+    // lower_bound didn't land exactly on seg_id — either the comparator's tie-break sent it to the wrong
+    // slot, or seg_id genuinely isn't active. Since ids are unique in ACTIVE_SEGMENTS, an exact match can
+    // never be a false positive, so falling back to an O(n) linear scan whenever it ISN'T an exact match
+    // is always safe, regardless of how stale SWEEP_X is relative to the vector's true order.
+    it = std::find(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id);
+    if (it == ACTIVE_SEGMENTS.end()) {
+      return std::nullopt;
+    }
+  }
+  return static_cast<std::size_t>(std::distance(ACTIVE_SEGMENTS.begin(), it));
+}
+
+template <SegmentList Segments>
 typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(std::size_t seg_id) const {
   if (seg_id >= PTR_SEGMENTS->size()) {
     throw std::out_of_range("SegmentId is out of range of the segments list");
   }
 
-  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
-  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
-
-  if (it == ACTIVE_SEGMENTS.end() || *it != seg_id) {
-    // lower_bound failed — the vector is temporarily unsorted (e.g. concurrent
-    // intersection where multiple Remove/Add cycles leave segments misordered).
-    // Fall back to O(n) linear scan so the algorithm can continue.
-    it = std::find(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id);
-    if (it == ACTIVE_SEGMENTS.end()) {
-      GEOMPP_LOG(WARNING) << "requested a segment ID missing from the SweepLine active list";
-      return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
-    }
+  auto idx = FindIndex(seg_id);
+  if (!idx) {
+    GEOMPP_LOG(WARNING) << "requested a segment ID missing from the SweepLine active list";
+    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
   }
 
-  auto seg_elem = IdSegPair{*it, (*PTR_SEGMENTS)[*it]};
+  auto seg_elem = IdSegPair{ACTIVE_SEGMENTS[*idx], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[*idx]]};
 
   std::optional<IdSegPair> above_elem = std::nullopt;
-  auto above_iter = std::next(it);
-  if (above_iter != ACTIVE_SEGMENTS.end()) {
-    if (*above_iter >= PTR_SEGMENTS->size()) {
+  if (*idx + 1 < ACTIVE_SEGMENTS.size()) {
+    auto above_id = ACTIVE_SEGMENTS[*idx + 1];
+    if (above_id >= PTR_SEGMENTS->size()) {
       throw std::out_of_range("SegmentId (above) is out of range of the segments list");
     }
-    above_elem = IdSegPair{*above_iter, (*PTR_SEGMENTS)[*above_iter]};
+    above_elem = IdSegPair{above_id, (*PTR_SEGMENTS)[above_id]};
   }
 
   std::optional<IdSegPair> below_elem = std::nullopt;
-  if (it != ACTIVE_SEGMENTS.begin()) {
-    auto below_iter = std::prev(it);
-    if (*below_iter >= PTR_SEGMENTS->size()) {
+  if (*idx > 0) {
+    auto below_id = ACTIVE_SEGMENTS[*idx - 1];
+    if (below_id >= PTR_SEGMENTS->size()) {
       throw std::out_of_range("SegmentId (below) is out of range of the segments list");
     }
-    below_elem = IdSegPair{*below_iter, (*PTR_SEGMENTS)[*below_iter]};
+    below_elem = IdSegPair{below_id, (*PTR_SEGMENTS)[below_id]};
   }
 
   return SweepLineElement2D{seg_elem, above_elem, below_elem};
@@ -316,21 +326,68 @@ typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Remove
     throw std::out_of_range("SegmentId is out of range of the segments list");
   }
 
-  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
-  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
-
-  if (it == ACTIVE_SEGMENTS.end() || *it != seg_id) {
-    it = std::find(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id);
-    if (it == ACTIVE_SEGMENTS.end()) {
-      GEOMPP_LOG(ERROR) << "Attempted to remove a segment from the sweep line that is not active";
-      return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
-    }
+  auto idx = FindIndex(seg_id);
+  if (!idx) {
+    GEOMPP_LOG(ERROR) << "Attempted to remove a segment from the sweep line that is not active";
+    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
   }
 
   auto triplet_before_remove = Get(seg_id);
-  ACTIVE_SEGMENTS.erase(it);
+  ACTIVE_SEGMENTS.erase(ACTIVE_SEGMENTS.begin() + *idx);
 
   return SweepLineElement2D{std::nullopt, triplet_before_remove.Above, triplet_before_remove.Below};
+}
+
+template <SegmentList Segments>
+typename SweepLine2D<Segments>::ReverseRunResult2D SweepLine2D<Segments>::ReverseRun(
+    std::vector<std::size_t> const& seg_ids) {
+  if (seg_ids.size() < 2) {
+    throw std::invalid_argument("ReverseRun requires at least 2 segment ids");
+  }
+
+  auto anchor_idx = FindIndex(seg_ids.front());
+  if (!anchor_idx) {
+    return ReverseRunResult2D{};  // Ok = false: not active at all — fully stale
+  }
+
+  std::set<std::size_t> wanted(seg_ids.begin(), seg_ids.end());
+
+  // Expand outward from the anchor by direct vector indexing only — no further comparator calls — to see
+  // whether the rest of `wanted` occupies the immediately-adjacent slots. Anything less than fully
+  // contiguous means the run isn't (or is no longer) intact, so the caller should treat it as stale.
+  std::size_t lo = *anchor_idx;
+  std::size_t hi = *anchor_idx;
+  std::size_t found = 1;
+
+  while (found < wanted.size() && lo > 0 && wanted.count(ACTIVE_SEGMENTS[lo - 1]) > 0) {
+    --lo;
+    ++found;
+  }
+  while (found < wanted.size() && hi + 1 < ACTIVE_SEGMENTS.size() && wanted.count(ACTIVE_SEGMENTS[hi + 1]) > 0) {
+    ++hi;
+    ++found;
+  }
+
+  if (found != wanted.size()) {
+    return ReverseRunResult2D{};  // Ok = false: not contiguous — stale event
+  }
+
+  std::reverse(ACTIVE_SEGMENTS.begin() + static_cast<std::ptrdiff_t>(lo),
+              ACTIVE_SEGMENTS.begin() + static_cast<std::ptrdiff_t>(hi) + 1);
+
+  ReverseRunResult2D result;
+  result.Ok = true;
+  result.NewTop = IdSegPair{ACTIVE_SEGMENTS[hi], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[hi]]};
+  result.NewBottom = IdSegPair{ACTIVE_SEGMENTS[lo], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[lo]]};
+  if (lo > 0) {
+    auto id = ACTIVE_SEGMENTS[lo - 1];
+    result.BelowRun = IdSegPair{id, (*PTR_SEGMENTS)[id]};
+  }
+  if (hi + 1 < ACTIVE_SEGMENTS.size()) {
+    auto id = ACTIVE_SEGMENTS[hi + 1];
+    result.AboveRun = IdSegPair{id, (*PTR_SEGMENTS)[id]};
+  }
+  return result;
 }
 
 template <SegmentList Segments>
@@ -351,6 +408,14 @@ namespace {
 // segments simply becoming active (a plain existence check has nothing to do on OnStart).
 struct FirstIntersectionVisitor2D {
   bool OnStart(auto const&) { return false; }
+
+  // Same predicate the algorithm used to hardcode: exclude pairs that merely touch at a shared endpoint
+  // (adjacent polygon edges, not a self-intersection), then the classic orientation-sign straddle test —
+  // now the visitor's own choice, not something run_shamos_hoey forces on every caller.
+  bool IsIntersecting(LineSegment2D const& a, LineSegment2D const& b) const {
+    return !shares_endpoint(a, b) && intersect(a, b);
+  }
+
   bool OnIntersection(auto const&, auto const&) { return true; }
 };
 
@@ -362,12 +427,17 @@ struct CollectIntersectionsVisitor2D {
 
   bool OnStart(auto const&) { return false; }
 
+  // Excludes pairs that merely touch at a shared endpoint (adjacent polygon edges, not a self-
+  // intersection) — the algorithm no longer does this filtering itself, so every visitor owns the choice.
   // Intersection() alone misses collinear, partially-overlapping segments — it returns nullopt for
   // parallel input (no unique point), so two segments that merely overlap along a shared sub-interval
   // would otherwise never generate an event. Overlap() finds that shared sub-segment directly (and
   // already discounts a mere shared-endpoint touch, returning nullopt for that), so its endpoints are
   // reported the same way a transversal crossing point would be.
   std::vector<Point2D> TestPair(LineSegment2D const& a, LineSegment2D const& b) const {
+    if (shares_endpoint(a, b)) {
+      return {};
+    }
     if (auto p = a.Intersection(b)) {
       return {p.value()};
     }
@@ -838,7 +908,49 @@ std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vecto
     }
   }
 
-  return rings;
+  // Exactly one of the traced rings is the unbounded "outside" face of the planar arrangement (a
+  // topological fact — Euler's formula for a planar graph guarantees exactly one), and it's ALWAYS the
+  // one with the opposite orientation sign from the real interior faces. But WHICH absolute sign (CW vs
+  // CCW) means "interior" isn't fixed — it depends on how `outer` itself is embedded in this (view.x,
+  // view.y) space: a validly-CCW outer ring normally embeds as positive-area, making interior faces come
+  // out negative; a view that happens to mirror chirality (e.g. a Y-dominant-axis View2D for Polygon3D —
+  // see its own callers' history) flips that. Calibrated here, once, against outer's own projected sign —
+  // callers used to each duplicate this exact calibration (Polygon2D/3D::Simplify(), Polygon2D/3D::Area())
+  // — so from here on this function always returns just the real interior faces, each already flipped to
+  // positive (CCW) orientation, with the single unbounded outside face silently dropped.
+  std::vector<Point2D> outer2d;
+  {
+    int no = static_cast<int>(std::ranges::size(outer));
+    outer2d.reserve(no);
+    for (int i = 0; i < no; ++i) {
+      outer2d.emplace_back(view.x(outer[i]), view.y(outer[i]));
+    }
+  }
+  bool flipped = compare(signed_area(outer2d), 0.0) < 0;
+
+  std::vector<std::vector<Point2D>> interior_rings;
+  interior_rings.reserve(rings.size());
+  for (auto& ring : rings) {
+    // signed_area() itself calls remove_collinear() and throws if that leaves fewer than 3 unique points —
+    // a real possibility here (the half-edge walk only guarantees ring.size() >= 3 raw points, not 3+
+    // genuinely non-collinear ones e.g. a degenerate zero-area sliver traced at a near-tangent crossing).
+    // Caught per-ring (matches what every caller of this function used to do individually) so one
+    // degenerate trace doesn't take down the whole decomposition.
+    try {
+      double sa = signed_area(ring);
+      bool is_interior = flipped ? compare(sa, 0.0) > 0 : compare(sa, 0.0) < 0;
+      if (!is_interior) {
+        continue;  // the single unbounded outside face (or a degenerate zero-area trace)
+      }
+      if (!flipped) {
+        std::reverse(ring.begin(), ring.end());
+      }
+      interior_rings.push_back(std::move(ring));
+    } catch (std::runtime_error const& e) {
+      GEOMPP_LOG(WARNING) << "simplify_rings: skipping degenerate ring (" << ring.size() << " pts): " << e.what();
+    }
+  }
+  return interior_rings;
 }
 
 template std::vector<std::vector<Point2D>> simplify_rings(std::vector<Point2D> const&,
@@ -923,12 +1035,11 @@ Point2D interior_sample_point(std::vector<Point2D> const& ring) {
 // where op's truth table differs left vs. right (a genuine boundary of the result), oriented so the
 // selected side ends up on the left.
 //
-// NOTE (known limitation): this — like any classifier here — depends on split having no crossing in a
-// fragment's interior. find_intersections' Bentley-Ottmann sweep is known to occasionally MISS a genuine
-// segment crossing (see the DISABLED_Randomized_* property tests and DISABLED_BooleanOp_MissedCrossing
-// repro in test_polygon2d.cpp), which leaves a fragment straddling the other operand's boundary; the
-// midpoint sample then classifies the whole straddling fragment by one side, dropping the part on the
-// other. That's a sweep bug upstream of here, not a classification bug — tracked for a future fix.
+// NOTE: this — like any classifier here — depends on split having no crossing in a fragment's interior.
+// find_intersections' Bentley-Ottmann sweep used to occasionally MISS a genuine segment crossing (fixed via
+// SweepLine2D::ReverseRun — see BooleanOp_MissedCrossing in test_polygon2d.cpp for the root cause), which
+// would leave a fragment straddling the other operand's boundary and the midpoint sample would classify
+// the whole straddling fragment by one side, dropping the part on the other.
 std::vector<LineSegment2D> classify_and_orient(std::vector<LineSegment2D> const& split,
                                                std::vector<Point2D> const& subj_outer,
                                                std::vector<std::vector<Point2D>> const& subj_holes,
@@ -1024,6 +1135,17 @@ std::vector<std::vector<Point2D>> trace_directed_boundary(std::vector<LineSegmen
       }
 
       std::vector<Point2D> ring;
+      // vertex id -> index in `ring` where this walk first visited it. A vertex revisited mid-walk means
+      // the walk has closed a sub-loop at a pinch point — two faces that only share that one vertex (e.g.
+      // a bowtie's two lobes, or two Simplify()-decomposed pieces of the same operand touching at a
+      // corner). Without this, the walk threads straight through and merges both faces into one
+      // self-touching boundary instead of stopping there: the "next edge by angle" rule alone only stops
+      // on an already-USED EDGE, not an already-visited VERTEX, and unlike simplify_rings' undirected
+      // tracer (which always has a genuine twin half-edge to rotate from at every vertex), this directed,
+      // single-half-edge-per-boundary-edge graph has no such twin to naturally break the tie. Peel the
+      // closed portion off as its own ring and keep tracing the remainder from the repeated vertex —
+      // handles 3+-way pinches too, one peel at a time.
+      std::map<int, std::size_t> visit_pos;
       int cur_from = u, cur_to = v0;
 
       while (true) {
@@ -1032,6 +1154,24 @@ std::vector<std::vector<Point2D>> trace_directed_boundary(std::vector<LineSegmen
           break;
         }
         used.insert(edge);
+
+        auto seen = visit_pos.find(cur_from);
+        if (seen != visit_pos.end()) {
+          std::size_t const cut = seen->second;  // captured before erasing — `seen` itself is in range
+          std::vector<Point2D> sub(ring.begin() + static_cast<std::ptrdiff_t>(cut), ring.end());
+          if (sub.size() >= 3) {
+            rings.push_back(std::move(sub));
+          }
+          ring.erase(ring.begin() + static_cast<std::ptrdiff_t>(cut), ring.end());
+          for (auto vit = visit_pos.begin(); vit != visit_pos.end();) {
+            if (vit->second >= cut) {
+              vit = visit_pos.erase(vit);
+            } else {
+              ++vit;
+            }
+          }
+        }
+        visit_pos[cur_from] = ring.size();
         ring.push_back(verts[cur_from]);
 
         double rev_angle = std::atan2(verts[cur_from].y() - verts[cur_to].y(), verts[cur_from].x() - verts[cur_to].x());

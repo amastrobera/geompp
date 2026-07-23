@@ -11,8 +11,11 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cmath>
+#include <iostream>
 #include <optional>
+#include <random>
 #include <vector>
 
 namespace g  = geompp;
@@ -1120,6 +1123,38 @@ TEST_F(CalcUtils2DTest, Clip_SubjectFullyInsideClipper_ReturnsSubject) {
   EXPECT_NEAR(4.0, poly.Area(), 1e-6);
 }
 
+// Audit for the same class of bug Polygon3D::Make() had (see CHANGELOG / plane_matches_canonical_winding):
+// clip()'s Point3D path builds its View2D from Plane::From3Points(subject_loop[0], subject_loop[1],
+// subject_loop[2]) with no cross-check against a canonical winding at all — unlike Polygon3D::Make(),
+// clip() never validates or promises a CCW/CW convention on its input loops in the first place. Confirms
+// that's fine: clip()'s underlying engine (the single-ring, probe-based boolean_op) classifies inside/
+// outside via nonzero winding number, which doesn't care about absolute chirality, only that the same view
+// is used consistently for both loops — so an unlucky reflex-corner-first vertex ordering in subject_loop
+// cannot corrupt the result the way it could for Polygon3D::Make()'s stored, orientation-promising PLANE.
+TEST_F(CalcUtils2DTest, Clip_Point3D_ReflexFirstVertex_AreaStableAcrossRotation) {
+  // L-shaped hexagon with exactly one reflex corner (area 12), lifted to z=0.
+  std::vector<g::Point3D> base = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0),
+      g::Point3D(2, 2, 0), g::Point3D(2, 4, 0), g::Point3D(0, 4, 0),
+  };
+  std::vector<g::Point3D> clipper = {
+      g::Point3D(-1, -1, 0), g::Point3D(5, -1, 0), g::Point3D(5, 5, 0), g::Point3D(-1, 5, 0),
+  };
+  for (int start = 0; start < static_cast<int>(base.size()); ++start) {
+    std::vector<g::Point3D> rotated;
+    for (int i = 0; i < static_cast<int>(base.size()); ++i) {
+      rotated.push_back(base[(start + i) % base.size()]);
+    }
+    auto rings = g::clip(clipper, rotated);
+    ASSERT_EQ(1u, rings.size()) << "rotation start=" << start;
+    double total = 0.0;
+    for (auto const& ring : rings) {
+      total += std::abs(g::signed_area(ring, std::nullopt));
+    }
+    EXPECT_NEAR(12.0, total, 1e-9) << "rotation start=" << start;
+  }
+}
+
 TEST_F(CalcUtils2DTest, Clip_Point3D_CoplanarOverlappingSquares_ReturnsIntersectionArea) {
   std::vector<g::Point3D> clipper{g::Point3D(0.5, 0.5, 0), g::Point3D(1.5, 0.5, 0), g::Point3D(1.5, 1.5, 0),
                                   g::Point3D(0.5, 1.5, 0)};
@@ -1179,6 +1214,76 @@ TEST_F(CalcUtils2DTest, Clip_Point3D_TooFewSubjectPoints_Throws) {
   std::vector<g::Point3D> subject{g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)};
 
   EXPECT_THROW(g::clip(clipper, subject), std::invalid_argument);
+}
+
+// --------------------------------------------------------------------------------------------------
+// Benchmark: boolean_op (old, probe-both-sides classify_and_orient — still backs clip()) vs
+// boolean_op_multi (new, source-tagged classify_and_orient_source_tagged — backs Polygon2D's boolean
+// ops). Both are called directly here (not through Polygon2D) with SINGLE-piece, already-simple operands,
+// so the comparison isolates the classification difference: boolean_op probes both operands, left and
+// right, for every split segment (4 polygon_contains calls/segment); boolean_op_multi's own-operand side
+// is read off the CCW-outer/CW-hole convention instead (2 calls/segment, only for the OTHER operand). That
+// 4-vs-2 count is provable directly from reading classify_and_orient / classify_and_orient_source_tagged
+// (see calc_utils2d.cpp) — this benchmark exists to check whether it actually shows up in wall-clock time.
+//
+// Measured result (3 runs, Debug/unoptimized build): a wash at small sizes (~8-10 vertices/operand,
+// ratio 0.92-1.0x — boolean_op_multi's extra bookkeeping, split_segments_at_crossings_tagged's tagging
+// and cancel_coincident_same_operand_pairs' pass, roughly offsets the halved probe count there) turning
+// into a real, if noisy, 3-27% speedup for boolean_op_multi at larger sizes (~40-60 vertices/operand),
+// where polygon_contains' O(vertices) cost per probe starts to dominate. So the theoretical halving is
+// real but its practical payoff is size-dependent, not a blanket win — worth knowing before citing "half
+// the probes" as a general performance claim.
+//
+// Informational only (prints timing; no assertion on absolute wall-clock numbers, which would be flaky
+// across machines/CI) — run with --gtest_filter to see the numbers:
+// `--gtest_filter=CalcUtils2DTest.Benchmark_BooleanOpVsBooleanOpMulti`.
+TEST_F(CalcUtils2DTest, Benchmark_BooleanOpVsBooleanOpMulti) {
+  // Points near the circle's rim (not filled disk) so nearly every point survives onto the hull — a
+  // filled-disk sample's hull grows sub-linearly in point count (observed: ~18 vertices even at 2000
+  // points), which doesn't reach the polygon sizes where an O(vertices)-per-probe cost would matter.
+  auto random_convex_ring = [](std::mt19937& rng, double cx, double cy, double r, int n) {
+    std::uniform_real_distribution<double> angle(0.0, 2.0 * 3.14159265358979);
+    std::uniform_real_distribution<double> radial_jitter(0.97, 1.0);
+    std::vector<g::Point2D> pts;
+    pts.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      double a = angle(rng), rr = r * radial_jitter(rng);
+      pts.emplace_back(cx + rr * std::cos(a), cy + rr * std::sin(a));
+    }
+    return g::convex_hull(pts);
+  };
+
+  std::mt19937 rng(42);
+  for (int n : {10, 30, 80, 300}) {
+    auto subj = random_convex_ring(rng, 400.0, 400.0, 150.0, n);
+    auto clip = random_convex_ring(rng, 460.0, 460.0, 150.0, n);
+    ASSERT_GE(subj.size(), 3u);
+    ASSERT_GE(clip.size(), 3u);
+
+    gd::RingPieces subj_pieces = {{subj, {}}};
+    gd::RingPieces clip_pieces = {{clip, {}}};
+
+    int const kIterations = n > 100 ? 15 : 100;
+
+    auto t0 = std::chrono::steady_clock::now();
+    for (int i = 0; i < kIterations; ++i) {
+      auto result = gd::boolean_op(subj, {}, clip, {}, gd::BooleanOp::Intersection);
+      ASSERT_FALSE(result.empty());
+    }
+    auto t1 = std::chrono::steady_clock::now();
+    for (int i = 0; i < kIterations; ++i) {
+      auto result = gd::boolean_op_multi(subj_pieces, clip_pieces, gd::BooleanOp::Intersection);
+      ASSERT_FALSE(result.empty());
+    }
+    auto t2 = std::chrono::steady_clock::now();
+
+    double old_us = std::chrono::duration<double, std::micro>(t1 - t0).count() / kIterations;
+    double new_us = std::chrono::duration<double, std::micro>(t2 - t1).count() / kIterations;
+
+    std::cout << "n=" << n << " (subj=" << subj.size() << " clip=" << clip.size()
+              << " verts): boolean_op=" << old_us << "us  boolean_op_multi=" << new_us
+              << "us  ratio=" << (old_us / new_us) << "x\n";
+  }
 }
 
 }  // namespace geompp_tests

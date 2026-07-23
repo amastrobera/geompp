@@ -31,6 +31,15 @@ class Polygon2D {
   bool AlmostEquals(Polygon2D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange2D ToSegments() const;
   Point2D Centroid() const;
+
+  /// @brief Outer ring area minus holes. Holes are always simple (Make() rejects a self-intersecting hole
+  /// outright), so their contribution is always a direct O(1)-per-hole shoelace sum. If the outer ring is
+  /// also simple, the whole thing is O(n). If the outer ring self-intersects (e.g. a bowtie), it's
+  /// decomposed at O(n log n) into its real bounded faces (discarding the unbounded "outside" face the
+  /// decomposition also produces) and their areas summed — the total COVERED area, matching what
+  /// Intersection()/Difference()/etc. operate against (winding-number membership counts every lobe as
+  /// "inside" regardless of local winding sign), not a net/signed sum where opposite-winding lobes would
+  /// otherwise partially cancel.
   double Area() const;
   double PerimeterSize() const;
   bool IsSimple() const;  // no self-intersections, but holes are allowed
