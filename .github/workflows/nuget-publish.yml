@@ -135,12 +135,19 @@ jobs:
               "Release $version" | Set-Content notes.txt
           }
 
-      # Inject the extracted notes into the nuspec before packing
+      # Inject the extracted notes into the nuspec before packing.
+      # NuGet caps releaseNotes at 35000 chars, so truncate defensively.
       - name: Inject release notes into nuspec
         shell: pwsh
         run: |
           [xml]$nuspec = Get-Content geompp_csharp\GeomPP.nuspec
-          $nuspec.package.metadata.releaseNotes = (Get-Content notes.txt -Raw).Trim()
+          $notes = (Get-Content notes.txt -Raw).Trim()
+          # Keep only first 30000 chars to be safe
+          $maxLength = 30000
+          if ($notes.Length -gt $maxLength) {
+              $notes = $notes.Substring(0, $maxLength) + "..."
+          }
+          $nuspec.package.metadata.releaseNotes = $notes
           $nuspec.Save((Resolve-Path geompp_csharp\GeomPP.nuspec).Path)
 
       # Pack: reads GeomPP.nuspec which picks up both DLLs.
