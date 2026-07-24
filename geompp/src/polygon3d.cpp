@@ -206,6 +206,24 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
     }
   }
 
+  // Same reasoning as Polygon2D::Make()'s identical check: a hole can't strike through the outer boundary
+  // (checked above), but that alone doesn't stop it from sitting entirely outside the outer loop. A single
+  // point (the hole's first vertex) is enough, since the hole can't cross the outer boundary to get from
+  // "inside" to "outside" partway through. Both holes and outer are already confirmed coplanar with
+  // outer_plane, so this only needs the same dominant-axis 2D projection as the checks above, not a
+  // separate plane-containment test.
+  for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
+    auto const& p = unique_holes_points[h].front();
+    bool contained = detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point3D>>{}, hole_view,
+                                                     hole_view.x(p), hole_view.y(p)) ||
+                      detail::view::polygon_contains(unique_points, std::vector<std::vector<Point3D>>{}, hole_view,
+                                                      hole_view.x(p), hole_view.y(p));
+    if (!contained) {
+      GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
+      throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
+    }
+  }
+
   double perimeter = 0;
   int nh = unique_points.size();
   for (int i = 0; i < nh; ++i) {
@@ -574,7 +592,37 @@ Polygon3D Polygon3D::ConvexHull() {
 
 std::vector<Point3D> const& Polygon3D::Perimeter() const { return VERTICES; }
 
-double Polygon3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
+double Polygon3D::DistanceTo(Point3D const& point) const {
+  if (Contains(point)) {
+    return 0.0;
+  }
+
+  // Contains() already ruled out interior and on-perimeter (which also rules out off-plane points), so
+  // the closest point is somewhere on the true 3D boundary — outer ring or a hole — measured as a plain
+  // min over every edge's own DistanceTo(). No convex fast path: unlike distance_to(polygon, line)
+  // (calc_utils3d.cpp), which exploits a fixed line's direction to make the per-vertex signed distance
+  // affine and binary-searchable, distance-to-a-POINT has no such fixed direction to exploit.
+  auto ring_segments_3d = [](std::vector<Point3D> const& ring) {
+    std::vector<LineSegment3D> segs;
+    int n = static_cast<int>(ring.size());
+    segs.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      segs.push_back(LineSegment3D::Make(ring[i], ring[(i + 1) % n]));
+    }
+    return segs;
+  };
+
+  double min_dist = std::numeric_limits<double>::max();
+  for (auto const& seg : ring_segments_3d(VERTICES)) {
+    min_dist = std::min(min_dist, seg.DistanceTo(point));
+  }
+  for (auto const& hole : HOLES) {
+    for (auto const& seg : ring_segments_3d(hole)) {
+      min_dist = std::min(min_dist, seg.DistanceTo(point));
+    }
+  }
+  return min_dist;
+}
 
 #pragma region Operator Overloading
 

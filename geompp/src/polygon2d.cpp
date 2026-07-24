@@ -166,6 +166,23 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
     }
   }
 
+  // A hole's edges are already guaranteed not to strike through the outer boundary (checked above), but
+  // that alone doesn't stop a hole from sitting entirely OUTSIDE the outer loop — such a hole would pass
+  // every check so far yet describe no coherent region to remove. Checking a single point (the hole's
+  // first vertex) is enough: since the hole can't cross the outer boundary, every one of its points is on
+  // the same side of that boundary, so if the first is inside (or touching), the whole hole is.
+  for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
+    auto const& p = unique_holes_points[h].front();
+    bool contained = detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
+                                                     p.x(), p.y()) ||
+                      detail::view::polygon_contains(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
+                                                      p.x(), p.y());
+    if (!contained) {
+      GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
+      throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
+    }
+  }
+
   double perimeter = 0;
   int nh = unique_points.size();
   for (int i = 0; i < nh; ++i) {
@@ -298,7 +315,27 @@ double Polygon2D::Area() const {
 
 double Polygon2D::PerimeterSize() const { return PERIMETER; }
 
-double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
+double Polygon2D::DistanceTo(Point2D const& point) const {
+  if (Contains(point)) {
+    return 0.0;
+  }
+
+  // Contains() already ruled out interior and on-perimeter, so the closest point is somewhere on the
+  // boundary — outer ring or a hole — measured as a plain min over every edge's own DistanceTo(). No
+  // convex fast path: unlike distance_to(polygon, line) (calc_utils2d.cpp), which exploits a fixed
+  // line's perpendicular direction to make the per-vertex signed distance affine and binary-searchable,
+  // distance-to-a-POINT has no such fixed direction, so it doesn't reduce to that algorithm.
+  double min_dist = std::numeric_limits<double>::max();
+  for (auto const& seg : ring_segments(VERTICES)) {
+    min_dist = std::min(min_dist, seg.DistanceTo(point));
+  }
+  for (auto const& hole : HOLES) {
+    for (auto const& seg : ring_segments(hole)) {
+      min_dist = std::min(min_dist, seg.DistanceTo(point));
+    }
+  }
+  return min_dist;
+}
 
 bool Polygon2D::IsSimple() const {
   if (detail::has_intersections(ToSegments())) {

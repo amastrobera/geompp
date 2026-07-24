@@ -231,6 +231,17 @@ TEST_F(Polygon3DTest, WithHoles_HoleFlushAgainstOuterEdge_DoesNotThrow) {
   EXPECT_NO_THROW(g::Polygon3D::Make(outer, {hole}));
 }
 
+TEST_F(Polygon3DTest, WithHoles_HoleEntirelyOutsideOuter_Throws) {
+  // Hole never crosses or touches the outer boundary, so the strikes-through check alone lets it slip by,
+  // but it sits wholly outside the outer square (same plane, disjoint region) — must be rejected by the
+  // containment check.
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(10, 0, 0), g::Point3D(10, 10, 0), g::Point3D(0, 10, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(20, 20, 0), g::Point3D(20, 22, 0), g::Point3D(22, 22, 0), g::Point3D(22, 20, 0)};
+  EXPECT_ANY_THROW(g::Polygon3D::Make(outer, {hole}));
+}
+
 TEST_F(Polygon3DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "polygon3d.wkt").string();
@@ -516,7 +527,32 @@ TEST_F(Polygon3DTest, GetPlane_WithHoles) {
 
 TEST_F(Polygon3DTest, DistanceTo) {
   auto poly = g::Polygon3D::Make({g::Point3D(0,0,0), g::Point3D(1,0,0), g::Point3D(1,1,0), g::Point3D(0,1,0)});
-  EXPECT_ANY_THROW(poly.DistanceTo(g::Point3D(0.5, 0.5, 0)));
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point3D(0.5, 0.5, 0)), 1e-9);  // interior
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point3D(0.0, 0.5, 0)), 1e-9);  // on boundary (edge)
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point3D(1.0, 1.0, 0)), 1e-9);  // on boundary (vertex)
+  EXPECT_NEAR(1.0, poly.DistanceTo(g::Point3D(2.0, 0.5, 0)), 1e-9);  // outside in-plane, nearest edge x=1
+  EXPECT_NEAR(std::sqrt(2.0), poly.DistanceTo(g::Point3D(2.0, 2.0, 0)), 1e-9);  // outside, nearest corner
+
+  // off-plane: Contains() is false regardless of in-plane position, so this measures true 3D distance
+  // to the nearest edge/vertex — even directly above the interior, there is no "inside" shortcut, since
+  // distance is always measured to the boundary, never to a projected interior region.
+  EXPECT_NEAR(std::sqrt(1.25), poly.DistanceTo(g::Point3D(0.5, 0.5, 1.0)), 1e-9);  // above the center:
+                                                                                    // 0.5 in-plane to the
+                                                                                    // nearest edge + 1.0
+                                                                                    // perpendicular
+  EXPECT_NEAR(std::sqrt(2.0), poly.DistanceTo(g::Point3D(2.0, 0.5, 1.0)), 1e-9);  // above + outside in-plane
+}
+
+TEST_F(Polygon3DTest, DistanceTo_WithHole) {
+  // Same as Polygon2D's WithHole case, lifted into the XY plane: a point in the hole must measure to
+  // the HOLE's boundary, not the outer ring.
+  auto outer = std::vector<g::Point3D>{g::Point3D(0,0,0), g::Point3D(4,0,0), g::Point3D(4,4,0), g::Point3D(0,4,0)};
+  auto hole  = std::vector<g::Point3D>{g::Point3D(1,3,0), g::Point3D(3,3,0), g::Point3D(3,1,0), g::Point3D(1,1,0)};
+  auto poly  = g::Polygon3D::Make(outer, {hole});
+
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point3D(0.5, 0.5, 0)), 1e-9);  // in the solid region
+  EXPECT_NEAR(1.0, poly.DistanceTo(g::Point3D(2.0, 2.0, 0)), 1e-9);  // hole center
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point3D(1.0, 2.0, 0)), 1e-9);  // on the hole boundary
 }
 
 TEST_F(Polygon3DTest, Contains) {

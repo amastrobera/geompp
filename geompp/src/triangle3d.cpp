@@ -1,6 +1,7 @@
 #include "triangle3d.hpp"
 
 #include "bbox3d.hpp"
+#include "calc_utils2d.hpp"
 #include "line2d.hpp"
 #include "line3d.hpp"
 #include "line_segment2d.hpp"
@@ -85,7 +86,19 @@ bool Triangle3D::IsCCW(Vector3D const& ref_normal) const { return SignedArea(ref
 
 #pragma region line operations
 
-double Triangle3D::DistanceTo(Point3D const& point) const { throw std::runtime_error("not implemented"); }
+double Triangle3D::DistanceTo(Point3D const& point) const {
+  if (Contains(point)) {
+    return 0.0;
+  }
+
+  // Contains() already ruled out interior and on-perimeter (including any off-plane point — Location()
+  // requires ToPlane().Contains(point) first, so an off-plane point is never Contains()-true regardless
+  // of its in-plane position). The closest point is therefore always true 3D distance to the nearest of
+  // the three edges — plain min over each edge's own DistanceTo(), same approach as
+  // Polygon3D::DistanceTo (no "perpendicular distance to the flat interior" shortcut).
+  return std::min({LineSegment3D::Make(P0, P1).DistanceTo(point), LineSegment3D::Make(P1, P2).DistanceTo(point),
+                   LineSegment3D::Make(P2, P0).DistanceTo(point)});
+}
 
 std::tuple<Vector3D, Vector3D> Triangle3D::ToAxis() const { return {P1 - P0, P2 - P0}; }
 
@@ -147,6 +160,8 @@ bool Triangle3D::Intersects(Ray3D const& ray) const { return Intersection(ray).h
 bool Triangle3D::Intersects(LineSegment3D const& segment) const { return Intersection(segment).has_value(); }
 
 bool Triangle3D::Intersects(Triangle3D const& other) const { return Intersection(other).has_value(); }
+
+bool Triangle3D::Overlaps(Triangle3D const& other) const { return Overlap(other).has_value(); }
 
 bool Triangle3D::Intersects(Plane const& plane) const { return plane.Intersects(*this); }
 
@@ -307,6 +322,35 @@ Triangle3D::ReturnSet Triangle3D::Intersection(Triangle3D const& other) const {
   }
 
   throw std::runtime_error("unexpected type of intersection result");
+}
+
+Triangle3D::ReturnSet Triangle3D::Overlap(Triangle3D const& other) const {
+  auto t_plane = ToPlane();
+  auto other_plane = other.ToPlane();
+  if (!t_plane.AlmostEquals(other_plane)) {
+    return std::nullopt;
+  }
+
+  std::vector<Point3D> this_pts = {P0, P1, P2};
+  std::vector<Point3D> other_pts = {other.P0, other.P1, other.P2};
+
+  // clip()'s Point3D overload requires clipper/subject to be coplanar (guaranteed by the plane check
+  // above) and runs the general planar-arrangement boolean-intersection engine — no convex special
+  // casing needed (triangles are always convex). It drops zero-area slivers internally, so a mere touch
+  // (shared vertex or edge, no interior overlap) comes back as an empty result, not a degenerate 1- or
+  // 2-point "ring".
+  auto rings = clip(other_pts, this_pts);
+  if (rings.empty()) {
+    return std::nullopt;
+  }
+
+  // the intersection of two convex regions is itself convex and simply connected, so clip() can only
+  // ever return a single outer ring here (no holes possible).
+  auto const& ring = rings[0];
+  if (ring.size() == 3) {
+    return Triangle3D::Make(ring[0], ring[1], ring[2]);
+  }
+  return Polygon3D::Make(ring);
 }
 
 #pragma endregion

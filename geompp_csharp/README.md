@@ -128,7 +128,7 @@ You can look at the [test suite](./tests/) to see detailed usage.
 
 A quick list of code examples per topic is provided here.
 
-👉 [View Code Examples on Github](https://github.com/amastrobera/geompp/blob/master/code_examples_per_topic.md)
+👉 [Visual Documentation and Code Examples on Github](https://github.com/amastrobera/geompp/blob/master/visual_doc_and_sample_code.md)
 
 
 

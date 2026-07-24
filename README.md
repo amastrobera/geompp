@@ -21,7 +21,7 @@
   [![C# .NET](https://img.shields.io/badge/C%23_.NET-512BD4?logo=dotnet&logoColor=white)](./geompp_csharp/README.md) 
 
   
-  ![geometry picture 3d](etc/intersections_projections_3d.png)
+  ![geometry picture 3d](images/main_page.png)
 
 
   ## Available in multiple languages and platforms
@@ -142,7 +142,7 @@
 
   A quick list of code examples per topic is provided here.
 
-  👉 [View Code Examples](./code_examples_per_topic.md)
+  👉 [Visual Documentation and Code Examples](./visual_doc_and_sample_code.md)
 
 
   ## Roadmap
@@ -213,7 +213,7 @@
   ```
 
 
-  ![unit test linux](etc/unit_tests_linux.png)
+  ![unit test linux](images/unit_tests_linux.png)
 
   ### Windows
 
@@ -283,4 +283,4 @@
   - **Ctrl+Shift+B** — build the whole solution
   - **F5** — run all tests
 
-  ![unit test windows](etc/unit_tests_win_vs.png)
+  ![unit test windows](images/unit_tests_win_vs.png)

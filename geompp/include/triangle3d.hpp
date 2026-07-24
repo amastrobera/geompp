@@ -105,6 +105,13 @@ class Triangle3D {
   /// @return true if the two triangles share any point.
   bool Intersects(Triangle3D const& other) const;
 
+  /// @brief Tests whether this triangle coplanar-overlaps another triangle. See @ref Overlap for what
+  /// "overlap" means here (same-plane shared AREA), as opposed to @ref Intersects (crossing planes).
+  /// @param other The other triangle.
+  /// @return true if the two lie on the same plane and share a positive-area region (a mere touching
+  /// point or shared edge, with no area in common, does not count — see @ref Overlap).
+  bool Overlaps(Triangle3D const& other) const;
+
   /// @brief Intersection of this triangle with a line.
   /// @param line The line.
   /// @return The crossing point as Point3D, or std::nullopt if the line misses the triangle.
@@ -125,10 +132,23 @@ class Triangle3D {
   /// @return A Point3D (touches at a vertex), a LineSegment3D (cuts through interior), or std::nullopt if disjoint.
   ReturnSet Intersection(Plane const& plane) const;
 
-  /// @brief Intersection of two coplanar or skew triangles.
+  /// @brief Intersection of two triangles whose planes cross (are neither coincident nor parallel).
   /// @param other The other triangle.
-  /// @return A Point3D, LineSegment3D, or std::nullopt depending on how the two triangles meet.
+  /// @return The shared chord as a LineSegment3D where both triangles' bounded regions cover the two
+  /// planes' common line, or std::nullopt if the chord falls outside one of the triangles (or the
+  /// planes don't cross at all). For two triangles on the SAME plane, use @ref Overlap instead — this
+  /// method returns std::nullopt for coincident planes, since no such chord exists on a single plane.
   ReturnSet Intersection(Triangle3D const& other) const;
+
+  /// @brief Coplanar overlap of two triangles — the shared region when both lie on the same plane.
+  /// Complements @ref Intersection(Triangle3D const&), which only handles crossing (non-coincident)
+  /// planes and returns std::nullopt for coplanar input.
+  /// @param other The other triangle. If it does not lie on the same plane as this one, returns
+  /// std::nullopt (use @ref Intersection instead for that case).
+  /// @return The shared area as a Triangle3D or Polygon3D (whichever shape the overlap region takes),
+  /// or std::nullopt if the two lie on the same plane but share no area — a mere touching vertex or a
+  /// shared edge with no interior overlap does not count as an overlap here.
+  ReturnSet Overlap(Triangle3D const& other) const;
 
 #pragma endregion
 

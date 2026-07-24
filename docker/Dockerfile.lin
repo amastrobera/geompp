@@ -28,9 +28,9 @@ RUN pip3 install --break-system-packages scikit-build-core pybind11 pytest
 
 # Set up user
 RUN useradd --create-home --groups sudo --shell /bin/bash developer \
-    && mkdir -p /etc/sudoers.d \
-    && echo "developer ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/developer \
-    && chmod 0440 /etc/sudoers.d/developer
+    && mkdir -p /images/sudoers.d \
+    && echo "developer ALL=(ALL) NOPASSWD: ALL" > /images/sudoers.d/developer \
+    && chmod 0440 /images/sudoers.d/developer
 
 # Set the working directory and default entrypoint
 USER developer

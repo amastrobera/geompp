@@ -217,6 +217,16 @@ TEST_F(Polygon2DTest, WithHoles_HoleFlushAgainstOuterEdge_DoesNotThrow) {
   EXPECT_NO_THROW(g::Polygon2D::Make(outer, {hole}));
 }
 
+TEST_F(Polygon2DTest, WithHoles_HoleEntirelyOutsideOuter_Throws) {
+  // Hole never crosses or touches the outer boundary, so the strikes-through check alone lets it slip by,
+  // but it sits wholly outside the outer square — must be rejected by the containment check.
+  std::vector<g::Point2D> outer = {
+      g::Point2D(0, 0), g::Point2D(10, 0), g::Point2D(10, 10), g::Point2D(0, 10)};
+  std::vector<g::Point2D> hole = {
+      g::Point2D(20, 20), g::Point2D(20, 22), g::Point2D(22, 22), g::Point2D(22, 20)};
+  EXPECT_ANY_THROW(g::Polygon2D::Make(outer, {hole}));
+}
+
 TEST_F(Polygon2DTest, ToFile) {
   geompp::DECIMAL_PRECISION = 4;
   std::string path = (test_res_path / "temp" / "polygon2d.wkt").string();
@@ -372,7 +382,25 @@ TEST_F(Polygon2DTest, Perimeter_Triangle) {
 
 TEST_F(Polygon2DTest, DistanceTo) {
   auto poly = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
-  EXPECT_ANY_THROW(poly.DistanceTo(g::Point2D(0.5, 0.5)));
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point2D(0.5, 0.5)), 1e-9);  // interior
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point2D(0.0, 0.5)), 1e-9);  // on boundary (edge)
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point2D(1.0, 1.0)), 1e-9);  // on boundary (vertex)
+  EXPECT_NEAR(1.0, poly.DistanceTo(g::Point2D(2.0, 0.5)), 1e-9);  // outside, nearest edge x=1
+  EXPECT_NEAR(3.0, poly.DistanceTo(g::Point2D(0.5, -3.0)), 1e-9); // outside, nearest edge y=0
+  EXPECT_NEAR(std::sqrt(2.0), poly.DistanceTo(g::Point2D(2.0, 2.0)), 1e-9);  // outside, nearest corner
+}
+
+TEST_F(Polygon2DTest, DistanceTo_WithHole) {
+  // 4x4 square with a 2x2 hole centered inside — a point sitting in the hole must measure to the
+  // HOLE's boundary, not the outer ring (which would wrongly report 0, since Contains() is false but a
+  // naive "distance to outer ring only" would still be closer via the wrong ring).
+  auto outer = std::vector<g::Point2D>{g::Point2D(0,0), g::Point2D(4,0), g::Point2D(4,4), g::Point2D(0,4)};
+  auto hole  = std::vector<g::Point2D>{g::Point2D(1,3), g::Point2D(3,3), g::Point2D(3,1), g::Point2D(1,1)};
+  auto poly  = g::Polygon2D::Make(outer, {hole});
+
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point2D(0.5, 0.5)), 1e-9);  // in the solid region
+  EXPECT_NEAR(1.0, poly.DistanceTo(g::Point2D(2.0, 2.0)), 1e-9);  // hole center — 1 unit from any hole edge
+  EXPECT_NEAR(0.0, poly.DistanceTo(g::Point2D(1.0, 2.0)), 1e-9);  // on the hole boundary
 }
 
 TEST_F(Polygon2DTest, Contains) {
