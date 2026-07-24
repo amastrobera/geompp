@@ -159,9 +159,25 @@ TEST_F(Triangle2DTest, ToAxis) {
 }
 
 TEST_F(Triangle2DTest, DistanceTo) {
-  // DistanceTo is not yet implemented — throws
-  auto t = g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(0, 1));
-  EXPECT_ANY_THROW(t.DistanceTo(g::Point2D(0.5, 0.5)));
+  // right triangle: legs on the axes (length 4 each), hypotenuse x + y = 4
+  auto t = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 4));
+
+  // interior, on an edge, on a vertex, on the hypotenuse — all zero
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point2D(1, 1)), 1e-9);
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point2D(2, 0)), 1e-9);
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point2D(0, 0)), 1e-9);
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point2D(2, 2)), 1e-9);
+
+  // outside, perpendicular foot lands within a leg
+  EXPECT_NEAR(3.0, t.DistanceTo(g::Point2D(2, -3)), 1e-9);
+  EXPECT_NEAR(3.0, t.DistanceTo(g::Point2D(-3, 1)), 1e-9);
+
+  // outside, perpendicular foot lands within the hypotenuse
+  EXPECT_NEAR(2 * std::sqrt(2.0), t.DistanceTo(g::Point2D(4, 4)), 1e-9);
+
+  // outside, perpendicular foot falls off every edge — nearest point is a vertex
+  EXPECT_NEAR(std::sqrt(2.0), t.DistanceTo(g::Point2D(-1, -1)), 1e-9);
+  EXPECT_NEAR(std::sqrt(2.0), t.DistanceTo(g::Point2D(5, -1)), 1e-9);
 }
 
 TEST_F(Triangle2DTest, Interpolate) {
@@ -376,6 +392,64 @@ TEST_F(Triangle2DTest, IntersectionWSegment) {
   auto seg_inside = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(0, 0.5));
   ASSERT_FALSE(tri.Intersects(seg_inside));
   ASSERT_FALSE(tri.Intersection(seg_inside).has_value());
+}
+
+TEST_F(Triangle2DTest, IntersectionWTriangle) {
+  geompp::DECIMAL_PRECISION = 4;
+  // Reference right triangle: x>=0, y>=0, x+y<=4
+  auto t = g::Triangle2D::Make(g::Point2D::Zero(), g::Point2D(4, 0), g::Point2D(0, 4));
+
+  // Same-shape triangle shifted by (1,1): x>=1, y>=1, x+y<=6. The overlap region
+  // (x>=1, y>=1, x+y<=4) is itself a right triangle with vertices (1,1), (3,1), (1,3).
+  {
+    auto shifted = g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(5, 1), g::Point2D(1, 5));
+    ASSERT_TRUE(t.Intersects(shifted));
+    auto inter = t.Intersection(shifted);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Triangle2D>(*inter));
+    auto const& tri_res = std::get<g::Triangle2D>(*inter);
+    EXPECT_NEAR(2.0, tri_res.Area(), 1e-6);
+    EXPECT_TRUE(tri_res.Contains(g::Point2D(1.5, 1.5)));
+  }
+
+  // A much larger triangle fully containing t → intersection equals t itself.
+  {
+    auto huge = g::Triangle2D::Make(g::Point2D(-10, -10), g::Point2D(20, -10), g::Point2D(-10, 20));
+    ASSERT_TRUE(t.Intersects(huge));
+    auto inter = t.Intersection(huge);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Triangle2D>(*inter));
+    EXPECT_NEAR(t.Area(), std::get<g::Triangle2D>(*inter).Area(), 1e-6);
+  }
+
+  // Disjoint (far away) → no intersection.
+  {
+    auto disjoint = g::Triangle2D::Make(g::Point2D(100, 100), g::Point2D(104, 100), g::Point2D(100, 104));
+    EXPECT_FALSE(t.Intersects(disjoint));
+    EXPECT_FALSE(t.Intersection(disjoint).has_value());
+  }
+
+  // Touching only along the shared hypotenuse edge (4,0)-(0,4) — zero area in common, so this does not
+  // count as an intersection (mirrors how Intersection(Line2D) treats an all-vertices touch above).
+  {
+    auto other_half = g::Triangle2D::Make(g::Point2D(4, 0), g::Point2D(0, 4), g::Point2D(4, 4));
+    EXPECT_FALSE(t.Intersects(other_half));
+    EXPECT_FALSE(t.Intersection(other_half).has_value());
+  }
+
+  // Rotated triangle producing a quadrilateral overlap: an upside-down (CW-input, still valid — Make()
+  // does not require CCW) triangle centered on t's centroid, large enough to clip all three of t's
+  // corners off with a straight cut on each side.
+  {
+    auto rotated = g::Triangle2D::Make(g::Point2D(2, -2), g::Point2D(6, 4), g::Point2D(-2, 4));
+    ASSERT_TRUE(t.Intersects(rotated));
+    auto inter = t.Intersection(rotated);
+    ASSERT_TRUE(inter.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Polygon2D>(*inter));
+    auto const& poly = std::get<g::Polygon2D>(*inter);
+    EXPECT_GE(poly.Size(), 4u);
+    EXPECT_TRUE(poly.Contains(g::Point2D(1.3, 1.3)));  // centroid-ish, inside both triangles
+  }
 }
 
 TEST_F(Triangle2DTest, Wkt) {

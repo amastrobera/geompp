@@ -1137,6 +1137,112 @@ Test("AreCCW_CWSquare_False", () => {
   IsFalse(pts.AreCCW(), "CW square must return false");
 });
 
+Test("Lerp_Point2D_Midpoint", () => {
+  var p0 = new Point2D(0, 0);
+  var p1 = new Point2D(10, 20);
+  IsTrue(GeomUtil.Lerp(p0, p1, 0.0).AlmostEquals(p0));
+  IsTrue(GeomUtil.Lerp(p0, p1, 1.0).AlmostEquals(p1));
+  IsTrue(GeomUtil.Lerp(p0, p1, 0.5).AlmostEquals(new Point2D(5, 10)));
+});
+
+Test("Lerp_Point3D_ExtrapolatesPastEndpoints", () => {
+  var p0 = new Point3D(0, 0, 0);
+  var p1 = new Point3D(10, 20, 30);
+  IsTrue(GeomUtil.Lerp(p0, p1, -1.0).AlmostEquals(new Point3D(-10, -20, -30)));
+  IsTrue(GeomUtil.Lerp(p0, p1, 2.0).AlmostEquals(new Point3D(20, 40, 60)));
+});
+
+Test("Clip_Point2D_OverlappingSquares", () => {
+  var clipper = new List<Point2D> { new(0.5,0.5), new(1.5,0.5), new(1.5,1.5), new(0.5,1.5) };
+  var subject = new List<Point2D> { new(0,0), new(1,0), new(1,1), new(0,1) };
+  var rings = new List<List<Point2D>>(GeomUtil.Clip(clipper, subject));
+  IsTrue(rings.Count == 1, "expected 1 ring");
+  var poly = Polygon2D.Make(rings[0].ToArray());
+  IsTrue(Math.Abs(poly.Area() - 0.25) < 1e-6, "expected area 0.25");
+});
+
+Test("Clip_Point3D_CoplanarOverlappingSquares", () => {
+  var clipper = new List<Point3D> { new(0.5,0.5,0), new(1.5,0.5,0), new(1.5,1.5,0), new(0.5,1.5,0) };
+  var subject = new List<Point3D> { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) };
+  var rings = new List<List<Point3D>>(GeomUtil.Clip(clipper, subject));
+  IsTrue(rings.Count == 1, "expected 1 ring");
+  var poly = Polygon3D.Make(rings[0].ToArray());
+  IsTrue(Math.Abs(poly.Area() - 0.25) < 1e-6, "expected area 0.25");
+});
+
+Test("Clip_Point3D_NonCoplanar_Throws", () => {
+  var clipper = new List<Point3D> { new(0,0,0), new(0,1,0), new(0,1,1), new(0,0,1) };
+  var subject = new List<Point3D> { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) };
+  bool threw = false;
+  try { var _ = new List<List<Point3D>>(GeomUtil.Clip(clipper, subject)); }
+  catch { threw = true; }
+  IsTrue(threw, "expected non-coplanar clip to throw");
+});
+
+Test("Polygon2D_Union_Intersection_Difference_Xor", () => {
+  var a = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var b = Polygon2D.Make(new Point2D[] { new(0.5,0.5), new(1.5,0.5), new(1.5,1.5), new(0.5,1.5) });
+
+  IsTrue(a.Intersects(b), "overlapping squares must intersect");
+
+  var union = a.Union(b);
+  IsTrue(union.Length == 1, "expected 1 union piece");
+  IsTrue(Math.Abs(union[0].Area() - 1.75) < 1e-6, "expected union area 1.75");
+
+  var inter = a.Intersection(b);
+  IsTrue(inter.Length == 1, "expected 1 intersection piece");
+  IsTrue(Math.Abs(inter[0].Area() - 0.25) < 1e-6, "expected intersection area 0.25");
+
+  var diff = a.Difference(b);
+  IsTrue(diff.Length == 1, "expected 1 difference piece");
+  IsTrue(Math.Abs(diff[0].Area() - 0.75) < 1e-6, "expected difference area 0.75");
+
+  var xorResult = a.Xor(b);
+  IsTrue(xorResult.Length == 1, "expected 1 xor piece (connected octagon with a hole)");
+  IsTrue(xorResult[0].HasHoles(), "xor result should have a hole");
+});
+
+Test("Polygon3D_Union_Difference_Xor_Coplanar", () => {
+  var a = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  var b = Polygon3D.Make(new Point3D[] { new(0.5,0.5,0), new(1.5,0.5,0), new(1.5,1.5,0), new(0.5,1.5,0) });
+
+  IsTrue(a.Intersects(b), "overlapping coplanar squares must intersect");
+
+  var union = a.Union(b);
+  IsTrue(union.Length == 1 && Math.Abs(union[0].Area() - 1.75) < 1e-6, "expected union area 1.75");
+
+  var diff = a.Difference(b);
+  IsTrue(diff.Length == 1 && Math.Abs(diff[0].Area() - 0.75) < 1e-6, "expected difference area 0.75");
+});
+
+Test("Polygon3D_Union_NotCoplanar_Throws", () => {
+  var a = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  var b = Polygon3D.Make(new Point3D[] { new(0,0,0), new(0,1,0), new(0,1,1), new(0,0,1) });
+  bool threw = false;
+  try { a.Union(b); } catch { threw = true; }
+  IsTrue(threw, "expected non-coplanar Union to throw");
+});
+
+Test("Polygon3D_Intersection_CoplanarReturnsPolygons", () => {
+  var a = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  var b = Polygon3D.Make(new Point3D[] { new(0.5,0.5,0), new(1.5,0.5,0), new(1.5,1.5,0), new(0.5,1.5,0) });
+  var result = a.Intersection(b);
+  NotNull(result, "expected a result");
+  var polys = result as Polygon3D[];
+  NotNull(polys, "expected an array of Polygon3D");
+  IsTrue(polys!.Length == 1 && Math.Abs(polys[0].Area() - 0.25) < 1e-6, "expected 1 polygon, area 0.25");
+});
+
+Test("Polygon3D_Intersection_PlanesCrossing_ReturnsSegments", () => {
+  var a = Polygon3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) });
+  var b = Polygon3D.Make(new Point3D[] { new(1,2,3), new(3,2,3), new(3,2,-1), new(1,2,-1) });
+  var result = a.Intersection(b);
+  NotNull(result, "expected a result");
+  var segs = result as LineSegment3D[];
+  NotNull(segs, "expected an array of LineSegment3D");
+  IsTrue(segs!.Length == 1, "expected 1 chord segment");
+});
+
 Test("AreCW_CWSquare_True", () => {
   var pts = new List<Point3D> {
     new Point3D(0,0,0), new Point3D(0,1,0),
@@ -1339,6 +1445,69 @@ Test("Contains_WithHole_InsideHole_False", () => {
   var hole  = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
   var poly  = Polygon2D.Make(outer, new[] { hole });
   IsFalse(poly.Contains(new Point2D(2, 2)), "inside hole must be false");
+});
+
+Test("WithHoles_SelfIntersectingHole_Throws", () => {
+  var outer = new Point2D[] { new(0,0), new(6,0), new(6,6), new(0,6) };
+  // Bowtie hole (self-crossing): (1,1)->(3,1)->(1,3)->(3,3).
+  var bowtieHole = new Point2D[] { new(1,1), new(3,1), new(1,3), new(3,3) };
+  bool threw = false;
+  try { Polygon2D.Make(outer, new[] { bowtieHole }); } catch { threw = true; }
+  IsTrue(threw, "self-intersecting hole should throw");
+});
+
+Test("WithHoles_TwoHolesOverlap_Throws", () => {
+  var outer  = new Point2D[] { new(0,0), new(10,0), new(10,10), new(0,10) };
+  var holeA  = new Point2D[] { new(1,1), new(1,5), new(5,5), new(5,1) };
+  var holeB  = new Point2D[] { new(3,3), new(3,7), new(7,7), new(7,3) }; // overlaps holeA
+  bool threw = false;
+  try { Polygon2D.Make(outer, new[] { holeA, holeB }); } catch { threw = true; }
+  IsTrue(threw, "overlapping holes should throw");
+});
+
+Test("WithHoles_TwoHolesTouchAtVertex_DoesNotThrow", () => {
+  var outer = new Point2D[] { new(0,0), new(10,0), new(10,10), new(0,10) };
+  // Two squares touching diagonally at the single shared corner (5,5).
+  var holeA = new Point2D[] { new(3,3), new(3,5), new(5,5), new(5,3) };
+  var holeB = new Point2D[] { new(5,5), new(5,7), new(7,7), new(7,5) };
+  var poly  = Polygon2D.Make(outer, new[] { holeA, holeB });
+  Eq(2, poly.Holes().Length);
+});
+
+Test("WithHoles_TwoHolesDisjoint_DoesNotThrow", () => {
+  var outer = new Point2D[] { new(0,0), new(10,0), new(10,10), new(0,10) };
+  var holeA = new Point2D[] { new(1,1), new(1,3), new(3,3), new(3,1) };
+  var holeB = new Point2D[] { new(6,6), new(6,8), new(8,8), new(8,6) };
+  var poly  = Polygon2D.Make(outer, new[] { holeA, holeB });
+  Eq(2, poly.Holes().Length);
+});
+
+Test("WithHoles_HoleStrikesThroughOuter_Throws", () => {
+  var outer = new Point2D[] { new(0,0), new(10,0), new(10,10), new(0,10) };
+  // Hole straddles the outer boundary at x=10: half inside, half poking out.
+  var hole  = new Point2D[] { new(8,4), new(8,6), new(12,6), new(12,4) };
+  bool threw = false;
+  try { Polygon2D.Make(outer, new[] { hole }); } catch { threw = true; }
+  IsTrue(threw, "hole striking through outer boundary should throw");
+});
+
+Test("WithHoles_HoleFlushAgainstOuterEdge_DoesNotThrow", () => {
+  // Hole touches the outer boundary along a full edge, not just a vertex — a normal "notched corner"
+  // shape, must not be rejected as "striking through".
+  var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+  var hole  = new Point2D[] { new(2,2), new(2,4), new(4,4), new(4,2) };
+  var poly  = Polygon2D.Make(outer, new[] { hole });
+  Eq(1, poly.Holes().Length);
+});
+
+Test("WithHoles_HoleEntirelyOutsideOuter_Throws", () => {
+  // Hole never crosses or touches the outer boundary, so the strikes-through check alone lets it slip
+  // by, but it sits wholly outside the outer square.
+  var outer = new Point2D[] { new(0,0), new(10,0), new(10,10), new(0,10) };
+  var hole  = new Point2D[] { new(20,20), new(20,22), new(22,22), new(22,20) };
+  bool threw = false;
+  try { Polygon2D.Make(outer, new[] { hole }); } catch { threw = true; }
+  IsTrue(threw, "hole entirely outside outer boundary should throw");
 });
 
 Test("Contains_OnBoundary_True", () => {
@@ -1609,6 +1778,56 @@ Test("Contains_WithHole_InsideHole_False", () => {
   var poly  = Polygon3D.Make(outer, new[] { hole });
   IsFalse(poly.Contains(new Point3D(2, 2, 0)), "inside hole must be false");
   IsFalse(poly.Contains(new Point3D(2, 2, 1)), "above plane must be false");
+});
+
+Test("WithHoles_SelfIntersectingHole_Throws", () => {
+  var outer = new Point3D[] { new(0,0,0), new(6,0,0), new(6,6,0), new(0,6,0) };
+  var bowtieHole = new Point3D[] { new(1,1,0), new(3,1,0), new(1,3,0), new(3,3,0) };
+  bool threw = false;
+  try { Polygon3D.Make(outer, new[] { bowtieHole }); } catch { threw = true; }
+  IsTrue(threw, "self-intersecting hole should throw");
+});
+
+Test("WithHoles_TwoHolesOverlap_Throws", () => {
+  var outer  = new Point3D[] { new(0,0,0), new(10,0,0), new(10,10,0), new(0,10,0) };
+  var holeA  = new Point3D[] { new(1,1,0), new(1,5,0), new(5,5,0), new(5,1,0) };
+  var holeB  = new Point3D[] { new(3,3,0), new(3,7,0), new(7,7,0), new(7,3,0) }; // overlaps holeA
+  bool threw = false;
+  try { Polygon3D.Make(outer, new[] { holeA, holeB }); } catch { threw = true; }
+  IsTrue(threw, "overlapping holes should throw");
+});
+
+Test("WithHoles_TwoHolesTouchAtVertex_DoesNotThrow", () => {
+  var outer = new Point3D[] { new(0,0,0), new(10,0,0), new(10,10,0), new(0,10,0) };
+  var holeA = new Point3D[] { new(3,3,0), new(3,5,0), new(5,5,0), new(5,3,0) };
+  var holeB = new Point3D[] { new(5,5,0), new(5,7,0), new(7,7,0), new(7,5,0) };
+  var poly  = Polygon3D.Make(outer, new[] { holeA, holeB });
+  Eq(2, poly.Holes().Length);
+});
+
+Test("WithHoles_HoleStrikesThroughOuter_Throws", () => {
+  var outer = new Point3D[] { new(0,0,0), new(10,0,0), new(10,10,0), new(0,10,0) };
+  var hole  = new Point3D[] { new(8,4,0), new(8,6,0), new(12,6,0), new(12,4,0) };
+  bool threw = false;
+  try { Polygon3D.Make(outer, new[] { hole }); } catch { threw = true; }
+  IsTrue(threw, "hole striking through outer boundary should throw");
+});
+
+Test("WithHoles_HoleFlushAgainstOuterEdge_DoesNotThrow", () => {
+  var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+  var hole  = new Point3D[] { new(2,2,0), new(2,4,0), new(4,4,0), new(4,2,0) };
+  var poly  = Polygon3D.Make(outer, new[] { hole });
+  Eq(1, poly.Holes().Length);
+});
+
+Test("WithHoles_HoleEntirelyOutsideOuter_Throws", () => {
+  // Hole never crosses or touches the outer boundary (same plane, disjoint region) — must be rejected
+  // by the containment check even though the strikes-through check alone lets it slip by.
+  var outer = new Point3D[] { new(0,0,0), new(10,0,0), new(10,10,0), new(0,10,0) };
+  var hole  = new Point3D[] { new(20,20,0), new(20,22,0), new(22,22,0), new(22,20,0) };
+  bool threw = false;
+  try { Polygon3D.Make(outer, new[] { hole }); } catch { threw = true; }
+  IsTrue(threw, "hole entirely outside outer boundary should throw");
 });
 
 Test("Contains_OnBoundary_True", () => {
@@ -2928,6 +3147,37 @@ Test("Area_UnitSquare", () => {
   Eq(1.0, p.Area());
 });
 
+Test("Area_SelfIntersectingOuterWithHole", () => {
+  // Bowtie outer (lobes 4.0 + 1.0 = 5.0 total covered area) with a small 1x0.3 hole safely inside the
+  // larger lobe, away from the self-crossing — exercises Area()'s slow path together with its direct
+  // per-hole subtraction.
+  var outer = new Point2D[] { new(0,0), new(4,0), new(1,3), new(3,3) };
+  var hole  = new Point2D[] { new(1.5,0.2), new(1.5,0.5), new(2.5,0.5), new(2.5,0.2) };
+  var p = Polygon2D.Make(outer, new[] { hole });
+  IsFalse(p.IsSimple());
+  Eq(4.7, p.Area());
+});
+
+Test("Centroid_SelfIntersectingOuter_MatchesSimplifyWeightedAverage", () => {
+  // Cross-validated against an independently-computed area-weighted average over Simplify()'s pieces,
+  // rather than hand-deriving the expected centroid.
+  var p = Polygon2D.Make(new Point2D[] { new(0,0), new(4,0), new(1,3), new(3,3) });
+  IsFalse(p.IsSimple());
+
+  double totalArea = 0.0, wx = 0.0, wy = 0.0;
+  foreach (var piece in p.Simplify()) {
+    double a = piece.Area();
+    var c = piece.Centroid();
+    totalArea += a;
+    wx += a * c.X;
+    wy += a * c.Y;
+  }
+
+  var actual = p.Centroid();
+  Eq(wx / totalArea, actual.X);
+  Eq(wy / totalArea, actual.Y);
+});
+
 Test("Area_WithHole", () => {
   // 4x4 square (CCW) minus 2x2 inner hole (CW) → area = 16 - 4 = 12
   var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
@@ -2973,6 +3223,47 @@ Console.WriteLine("\nPolygon3D (additional)");
 Test("Area_UnitSquare", () => {
   var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
   Eq(1.0, p.Area());
+});
+
+Test("Area_SelfIntersectingOuterInXYPlane", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(1,3,0), new(3,3,0) });
+  IsFalse(p.IsSimple());
+  Eq(5.0, p.Area());
+});
+
+Test("Area_SelfIntersectingOuterOnTiltedPlane_MatchesSimplifySum", () => {
+  // On a non-axis-aligned plane a naive 2D-projected shoelace on the decomposed loops would be wrong
+  // (foreshortening) — cross-validated against Simplify() + per-piece Area() instead of hand-deriving
+  // the tilted value.
+  Point3D Tilt(double x, double y) => new(x, y, 0.3 * x + 0.2 * y);
+  var p = Polygon3D.Make(new Point3D[] { Tilt(0,0), Tilt(4,0), Tilt(1,3), Tilt(3,3) });
+  IsFalse(p.IsSimple());
+  double simplifyTotal = 0.0;
+  foreach (var piece in p.Simplify()) {
+    simplifyTotal += piece.Area();
+  }
+  Eq(simplifyTotal, p.Area());
+});
+
+Test("Centroid_SelfIntersectingOuterOnTiltedPlane_MatchesSimplifyWeightedAverage", () => {
+  Point3D Tilt(double x, double y) => new(x, y, 0.3 * x + 0.2 * y);
+  var p = Polygon3D.Make(new Point3D[] { Tilt(0,0), Tilt(4,0), Tilt(1,3), Tilt(3,3) });
+  IsFalse(p.IsSimple());
+
+  double totalArea = 0.0, wx = 0.0, wy = 0.0, wz = 0.0;
+  foreach (var piece in p.Simplify()) {
+    double a = piece.Area();
+    var c = piece.Centroid();
+    totalArea += a;
+    wx += a * c.X;
+    wy += a * c.Y;
+    wz += a * c.Z;
+  }
+
+  var actual = p.Centroid();
+  Eq(wx / totalArea, actual.X);
+  Eq(wy / totalArea, actual.Y);
+  Eq(wz / totalArea, actual.Z);
 });
 
 Test("AlmostEquals_SamePoly_True", () => {

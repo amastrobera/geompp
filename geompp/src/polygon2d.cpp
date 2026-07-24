@@ -20,6 +20,38 @@
 
 namespace geompp {
 
+namespace {
+// Standalone edges of a closed ring, as a flat segment list (not a path) — what has_intersections()'s
+// Shamos-Hoey sweep needs to test crossings between two INDEPENDENT rings, since concatenating two rings'
+// points into one array and closing it (SegmentRange2D's usual "ring" contract) would fabricate bogus
+// edges connecting them.
+std::vector<LineSegment2D> ring_segments(std::vector<Point2D> const& ring) {
+  std::vector<LineSegment2D> segs;
+  int n = static_cast<int>(ring.size());
+  segs.reserve(n);
+  for (int i = 0; i < n; ++i) {
+    segs.push_back(LineSegment2D::Make(ring[i], ring[(i + 1) % n]));
+  }
+  return segs;
+}
+
+// True only for a genuine STRICT-interior crossing (each segment struck strictly between its own two
+// endpoints, not at either one) — deliberately narrower than has_intersections()'s intersect(), which
+// treats any touch (shared vertex, T-junction where one segment's endpoint lands mid-way along the other,
+// or a collinear overlap) as "intersecting" too. That's the right definition for detecting a genuine
+// self-crossing WITHIN one ring, but wrong for "does this hole strike through the outer boundary": a hole
+// flush against part of the outer boundary, or touching it at a single vertex or T-junction, is a normal,
+// legitimate polygon-with-hole shape (see Centroid_SquareWithOffCenterHole), not a "hole crosses outer"
+// error. Uses line_intersection's parametric sc/tc (position along each infinite line) rather than
+// has_intersections' straddle test, since only that gives a way to tell "struck in the middle" (0 < t < 1)
+// apart from "touched at an end" (t == 0 or 1) or "never met" (nullopt, incl. the parallel/collinear case).
+bool strictly_crosses(LineSegment2D const& a, LineSegment2D const& b) {
+  double sc, tc;
+  auto pt = detail::line_intersection(a.First(), a.Last(), b.First(), b.Last(), sc, tc);
+  return pt.has_value() && compare(sc, 0) > 0 && compare(sc, 1) < 0 && compare(tc, 0) > 0 && compare(tc, 1) < 0;
+}
+}  // namespace
+
 #pragma region Constructors
 
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
@@ -70,11 +102,85 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
           DECIMAL_PRECISION));
     }
 
+    // Checked before CW-ness: a self-intersecting ring's winding is a degenerate notion (its net signed
+    // area can land on either sign depending on the specific crossing), so it must be rejected outright
+    // rather than let a coincidentally-CW self-intersecting ring slip through as a "hole". Unlike the outer
+    // ring, holes have no Simplify()-style decomposition path of their own, so a self-intersecting one
+    // can't be resolved later — it has to be rejected at construction.
+    if (detail::has_intersections(SegmentRange2D(unique_hole_points, true))) {
+      throw std::runtime_error("cannot create polygon hole with self-intersections");
+    }
+
     if (!are_cw(unique_hole_points)) {
       throw std::runtime_error("cannot create polygon holes in anti-clock-wise order");
     }
 
     unique_holes_points.push_back(unique_hole_points);
+  }
+
+  // Each hole is individually simple (checked above), but nothing yet stops two DIFFERENT holes from
+  // crossing each other — two overlapping holes don't correspond to any coherent "region removed from the
+  // polygon" and would silently corrupt every area/winding-number/boolean-op computation downstream.
+  // Checked pairwise: combine hole i's and hole j's edges into one flat segment list (ring_segments(),
+  // NOT a SegmentRange2D — that would treat them as one closed path and fabricate a bogus edge joining
+  // them) and reuse the same has_intersections() Shamos-Hoey sweep the per-hole self-intersection check
+  // above already uses. shares_endpoint() (inside has_intersections) means two holes that merely TOUCH at
+  // a single shared vertex are not flagged — only a genuine crossing (or edge overlap) is. O(H^2 log n)
+  // for H holes; fine for the small hole counts polygons actually have.
+  for (std::size_t i = 0; i < unique_holes_points.size(); ++i) {
+    for (std::size_t j = i + 1; j < unique_holes_points.size(); ++j) {
+      auto combined = ring_segments(unique_holes_points[i]);
+      auto seg_j = ring_segments(unique_holes_points[j]);
+      combined.insert(combined.end(), seg_j.begin(), seg_j.end());
+      if (has_intersections(combined)) {
+        GEOMPP_LOG(ERROR) << "invalid polygon: hole " << i << " intersects hole " << j;
+        throw std::runtime_error("cannot create polygon with intersecting holes");
+      }
+    }
+  }
+
+  // A hole striking through the outer boundary is incoherent (which side of that edge is "inside" the
+  // polygon at that point?) — but unlike the hole-vs-hole check above, this can't reuse has_intersections()
+  // on the combined segment set: the OUTER ring is explicitly allowed to self-intersect by design (the
+  // self-intersecting-bowtie feature — see IsSimple()/Simplify()), so that would flag the outer ring's own
+  // legitimate self-crossing as a false "hole crosses outer" positive. It also can't reuse has_intersections
+  // ()'s intersect()+shares_endpoint() combo the way the hole-vs-hole check above does: shares_endpoint()
+  // only excludes a shared VERTEX, not a hole vertex landing mid-way along an outer edge (a T-junction) or a
+  // hole edge running flush along part of the outer boundary (collinear overlap) — both legitimate,
+  // ordinary polygon-with-hole shapes (a hole notched into a corner, like Centroid_SquareWithOffCenterHole),
+  // not a "strikes through" error. strictly_crosses() (above) draws the actual line: only a hole edge that
+  // punches through an outer edge strictly between both segments' endpoints counts. O(H * n_outer * n_hole)
+  // pairwise; fine at construction-time scale.
+  if (!unique_holes_points.empty()) {
+    auto outer_segs = ring_segments(unique_points);
+    for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
+      auto hole_segs = ring_segments(unique_holes_points[h]);
+      for (auto const& outer_seg : outer_segs) {
+        for (auto const& hole_seg : hole_segs) {
+          if (strictly_crosses(outer_seg, hole_seg)) {
+            GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " intersects the outer loop";
+            throw std::runtime_error("cannot create polygon with a hole that intersects the outer loop");
+          }
+        }
+      }
+    }
+  }
+
+  // A hole's edges are already guaranteed not to strike through the outer boundary (checked above), but
+  // that alone doesn't stop a hole from sitting entirely OUTSIDE the outer loop — such a hole would pass
+  // every check so far yet describe no coherent region to remove. Checking a single point (the hole's
+  // first vertex) is enough: since the hole can't cross the outer boundary, every one of its points is on
+  // the same side of that boundary, so if the first is inside (or touching), the whole hole is.
+  for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
+    auto const& p = unique_holes_points[h].front();
+    bool contained = detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
+                                                     p.x(), p.y()) ||
+                      detail::view::polygon_contains(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
+                                                      p.x(), p.y());
+    if (!contained) {
+      GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
+      throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
+    }
   }
 
   double perimeter = 0;
@@ -130,18 +236,42 @@ bool Polygon2D::AlmostEquals(Polygon2D const& other, double epsilon) const {
 SegmentRange2D Polygon2D::ToSegments() const { return SegmentRange2D(VERTICES, true); }
 
 Point2D Polygon2D::Centroid() const {
-  Point2D cs = centroid(VERTICES);
-  double sa = signed_area(VERTICES);
+  bool outer_simple = !detail::has_intersections(ToSegments());
 
-  if (HOLES.empty()) {
-    return cs;
+  if (outer_simple && HOLES.empty()) {
+    // Common case, preserved as an exact shortcut: single region, no weighted average needed.
+    return centroid(VERTICES);
   }
 
-  // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)  — hole areas are negative (CW) so they subtract
-  double total_sa = sa;
-  double wx = sa * cs.x();
-  double wy = sa * cs.y();
+  // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)
+  double total_sa = 0.0;
+  double wx = 0.0;
+  double wy = 0.0;
 
+  if (outer_simple) {
+    Point2D cs = centroid(VERTICES);
+    double sa = signed_area(VERTICES);
+    total_sa = sa;
+    wx = sa * cs.x();
+    wy = sa * cs.y();
+  } else {
+    // Self-intersecting outer ring (e.g. a bowtie): weighting the whole ring's own centroid by its raw
+    // net signed_area (the old approach) is wrong the same way the old Area() was — opposite-winding
+    // lobes can partially cancel that weight, or even land it near zero, making the division unstable.
+    // Decompose into the real interior faces instead (each already CCW/positive-area — see
+    // simplify_rings()'s doc comment) and weight each one's own centroid by its own area, exactly as if
+    // each were its own separate positive contribution — same principle Area()'s slow path already uses.
+    for (auto const& loop : detail::view::simplify_rings(VERTICES, std::vector<std::vector<Point2D>>{}, View2D::XY())) {
+      Point2D cs = centroid(loop);
+      double sa = signed_area(loop);
+      total_sa += sa;
+      wx += sa * cs.x();
+      wy += sa * cs.y();
+    }
+  }
+
+  // Holes are always individually simple (Make() rejects a self-intersecting hole outright), so this is
+  // always a direct, correct subtraction — hole areas are negative (CW), so they subtract.
   for (auto const& hole : HOLES) {
     double sa_h = signed_area(hole);
     Point2D c_h = centroid(hole);
@@ -154,21 +284,58 @@ Point2D Polygon2D::Centroid() const {
 }
 
 double Polygon2D::Area() const {
-  // outer loop
-  double area = signed_area(VERTICES);  // this is guaranteed to be positive by the constructor
-
-  // remove the areas of holes (inner loops)
+  // Holes are always individually simple now — Make() rejects a self-intersecting hole outright (see its
+  // own comment) — so this direct shoelace sum is always correct however the OUTER ring turns out; holes
+  // never need decomposing or recursing into, unlike VERTICES below. O(N_holes) total.
+  double total_hole_area = 0.0;
   for (auto const& hole : HOLES) {
-    area += signed_area(
-        hole);  // holes are checked to be CW (guaranteed by constructor), therefore this area WILL be negative
+    total_hole_area += signed_area(hole);  // guaranteed CW (negative) by Make()
   }
 
-  return area;
+  // FAST PATH: outer ring is simple too — pure O(n) shoelace, no decomposition at all.
+  if (!detail::has_intersections(ToSegments())) {
+    return signed_area(VERTICES) + total_hole_area;
+  }
+
+  // SLOW PATH: self-intersecting outer ring (e.g. a bowtie) — decompose it, and ONLY it (holes are already
+  // handled above), via the same half-edge tracer Simplify() uses, at O(n log n) — NOT the full public
+  // Simplify()/Make() pipeline, which would also re-run hole assignment and reconstruct Polygon2D objects
+  // for no reason here, and would recurse into piece.Area() if called that way (a real hazard: Simplify()
+  // isn't actually guaranteed to fully resolve every degenerate input into simple pieces, and a piece
+  // that's still non-simple calling back into Area() risks unbounded recursion — see git history).
+  // simplify_rings() already returns just the real interior faces, each CCW (positive signed_area) — the
+  // single unbounded "outside" face is discarded internally, so this is a plain sum, no sign-filtering.
+  double outer_solid_area = 0.0;
+  for (auto const& loop : detail::view::simplify_rings(VERTICES, std::vector<std::vector<Point2D>>{}, View2D::XY())) {
+    outer_solid_area += signed_area(loop);
+  }
+
+  return outer_solid_area + total_hole_area;  // total_hole_area is already negative — add, don't subtract
 }
 
 double Polygon2D::PerimeterSize() const { return PERIMETER; }
 
-double Polygon2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
+double Polygon2D::DistanceTo(Point2D const& point) const {
+  if (Contains(point)) {
+    return 0.0;
+  }
+
+  // Contains() already ruled out interior and on-perimeter, so the closest point is somewhere on the
+  // boundary — outer ring or a hole — measured as a plain min over every edge's own DistanceTo(). No
+  // convex fast path: unlike distance_to(polygon, line) (calc_utils2d.cpp), which exploits a fixed
+  // line's perpendicular direction to make the per-vertex signed distance affine and binary-searchable,
+  // distance-to-a-POINT has no such fixed direction, so it doesn't reduce to that algorithm.
+  double min_dist = std::numeric_limits<double>::max();
+  for (auto const& seg : ring_segments(VERTICES)) {
+    min_dist = std::min(min_dist, seg.DistanceTo(point));
+  }
+  for (auto const& hole : HOLES) {
+    for (auto const& seg : ring_segments(hole)) {
+      min_dist = std::min(min_dist, seg.DistanceTo(point));
+    }
+  }
+  return min_dist;
+}
 
 bool Polygon2D::IsSimple() const {
   if (detail::has_intersections(ToSegments())) {
@@ -201,30 +368,13 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
     return {*this};
   }
 
-  auto rings = detail::view::simplify_rings(VERTICES, HOLES, View2D::XY());
-
-  // The half-edge walk traces interior faces with CW orientation (SA < 0) and the outer
-  // (unbounded) graph face with CCW orientation (SA > 0).  Flip each CW interior ring to
-  // CCW to get valid outer-ring candidates; discard CCW rings (outer graph face).
-  std::vector<std::vector<Point2D>> candidates;
+  // simplify_rings() already returns just the real interior faces, each CCW (positive signed_area) — the
+  // single unbounded "outside" face the half-edge walk also traces is discarded internally.
+  std::vector<std::vector<Point2D>> candidates = detail::view::simplify_rings(VERTICES, HOLES, View2D::XY());
   std::vector<double> candidate_areas;
-  for (auto const& ring : rings) {
-    if (ring.size() < 3) {
-      continue;
-    }
-    try {
-      double sa = signed_area(ring);
-      if (compare(sa, 0.0) < 0) {
-        // CW interior face → flip to CCW
-        auto ccw = ring;
-        std::reverse(ccw.begin(), ccw.end());
-        candidate_areas.push_back(-sa);
-        candidates.push_back(std::move(ccw));
-      }
-      // CCW rings (SA > 0): outer graph face → discard
-    } catch (std::runtime_error const& e) {
-      GEOMPP_LOG(WARNING) << "Simplify: skipping degenerate ring (" << ring.size() << " pts): " << e.what();
-    }
+  candidate_areas.reserve(candidates.size());
+  for (auto const& ring : candidates) {
+    candidate_areas.push_back(signed_area(ring));
   }
 
   // Sort candidates by area descending so larger rings come first
@@ -341,6 +491,8 @@ bool Polygon2D::Intersects(Ray2D const& ray) const { return Intersection(ray).ha
 
 bool Polygon2D::Intersects(LineSegment2D const& segment) const { return Intersection(segment).has_value(); }
 
+bool Polygon2D::Intersects(Polygon2D const& other) const { return !Intersection(other).empty(); }
+
 std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Line2D const& line) const {
   auto const& p0 = line.First();
   auto const& p1 = line.Last();
@@ -353,7 +505,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Line2D const& 
   // if they exist, they are guaranteed to be of even number, sorted, non duplicated
   // and also te < tl, for each pair te = t(i), tl = t(i+1)
 
-  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+  auto eval = [&](double t) { return lerp(p0, p1, t); };
 
   std::vector<LineSegment2D> segs;
   for (auto const& [te, tl] : intervals) {
@@ -374,7 +526,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(Ray2D const& r
   // if they exist, they are guaranteed to be of even number, sorted, non duplicated
   // and also te < tl, for each pair te = t(i), tl = t(i+1)
 
-  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+  auto eval = [&](double t) { return lerp(p0, p1, t); };
 
   std::vector<LineSegment2D> intersection_list;
 
@@ -421,7 +573,7 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
   // if they exist, they are guaranteed to be of even number, sorted, non duplicated
   // and also te < tl, for each pair te = t(i), tl = t(i+1)
 
-  auto eval = [&](double t) { return Point2D(p0.x() + t * (p1.x() - p0.x()), p0.y() + t * (p1.y() - p0.y())); };
+  auto eval = [&](double t) { return lerp(p0, p1, t); };
 
   std::vector<LineSegment2D> intersection_list;
 
@@ -469,6 +621,73 @@ std::optional<std::vector<LineSegment2D>> Polygon2D::Intersection(LineSegment2D 
   }
 
   return std::nullopt;
+}
+
+#pragma endregion
+
+#pragma region Boolean Operations
+
+namespace {
+
+// Decomposes a polygon into RingPieces for boolean_op_multi: itself (as the sole piece) if already
+// simple, or Simplify()'s pieces otherwise. Simplify() is what makes a self-intersecting operand safe for
+// source-tagged classification — it resolves the self-crossing into pieces that are each genuinely simple
+// and CCW-outer/CW-hole oriented, which a single self-intersecting ring's own traversal cannot guarantee
+// (that's precisely why classify_and_orient_source_tagged requires RingPieces rather than a raw ring).
+detail::RingPieces to_ring_pieces(Polygon2D const& p) {
+  if (p.IsSimple()) {
+    return {{p.Perimeter(), p.Holes()}};
+  }
+  detail::RingPieces pieces;
+  for (auto const& piece : p.Simplify()) {
+    pieces.push_back({piece.Perimeter(), piece.Holes()});
+  }
+  return pieces;
+}
+
+std::vector<Polygon2D> run_boolean_op(Polygon2D const& a, Polygon2D const& b, detail::BooleanOp op) {
+  auto groups = detail::boolean_op_multi(to_ring_pieces(a), to_ring_pieces(b), op);
+
+  std::vector<Polygon2D> result;
+  result.reserve(groups.size());
+  for (auto const& [outer, holes] : groups) {
+    // A hole traced by boolean_op_multi can, on rare degenerate configurations, come out
+    // self-intersecting (a still-open bug upstream of this assembly step — see the
+    // self-intersecting-operand-orientation gap tracked in test_polygon2d.cpp's randomized-invariant
+    // tests) — Make() now rejects that outright rather than silently accepting a malformed hole. Retry
+    // without holes rather than dropping the whole piece: the outer boundary itself is still valid, and
+    // losing it entirely would be a bigger area error than losing just its hole.
+    try {
+      result.push_back(Polygon2D::Make(outer, holes));
+    } catch (std::runtime_error const& e) {
+      GEOMPP_LOG(WARNING) << "run_boolean_op: rejected a result piece's holes (" << e.what()
+                          << "); retrying without holes";
+      try {
+        result.push_back(Polygon2D::Make(outer));
+      } catch (std::runtime_error const& e2) {
+        GEOMPP_LOG(WARNING) << "run_boolean_op: could not assemble result piece at all: " << e2.what();
+      }
+    }
+  }
+  return result;
+}
+
+}  // namespace
+
+std::vector<Polygon2D> Polygon2D::Union(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Union);
+}
+
+std::vector<Polygon2D> Polygon2D::Intersection(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Intersection);
+}
+
+std::vector<Polygon2D> Polygon2D::Difference(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Difference);
+}
+
+std::vector<Polygon2D> Polygon2D::Xor(Polygon2D const& other) const {
+  return run_boolean_op(*this, other, detail::BooleanOp::Xor);
 }
 
 #pragma endregion

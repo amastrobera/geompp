@@ -29,6 +29,8 @@ Free functions
     remove_collinear(points)
     linear_combination(points, weights)
     average(points)
+    lerp(p0, p1, t)
+    clip(clipper_loop, subject_loop)
     signed_area(points[, plane])
     centroid(points[, plane])
     find_extreme_points(polygon, line)
@@ -115,6 +117,8 @@ from ._geompp import (  # noqa: F401
     remove_collinear,
     linear_combination,
     average,
+    lerp,
+    clip,
     signed_area,
     centroid,
     has_intersections,
@@ -157,7 +161,7 @@ __all__ = [
     "Axis",
     "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
     "remove_duplicates", "remove_consecutive_duplicates",
-    "remove_collinear", "linear_combination", "average",
+    "remove_collinear", "linear_combination", "average", "lerp", "clip",
     "signed_area", "centroid",
     "has_intersections", "find_intersections", "convex_hull",
     "CoordinateFrame", "principal_axes", "principal_normal", "principal_direction",

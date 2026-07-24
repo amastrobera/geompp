@@ -70,4 +70,24 @@ std::pair<double, double> View2D::xy(Point3D const& p) const {
   throw std::runtime_error("invalid ProjectionType, cannot project xy()");
 }
 
+Point3D View2D::xyz(double x, double y) const {
+  switch (TYPE) {
+    case ProjectionType::XY:
+      return Point3D(x, y, PLANE_OFFSET);
+
+    case ProjectionType::YZ:
+      return Point3D(PLANE_OFFSET, x, y);
+
+    case ProjectionType::ZX:
+      return Point3D(y, PLANE_OFFSET, x);
+
+    case ProjectionType::Custom:
+      return ORIGIN + AXIS_U * x + AXIS_V * y;
+  }
+
+  throw std::runtime_error("invalid ProjectionType, cannot compute xyz()");
+}
+
+Point3D View2D::xyz(Point2D const& p) const { return xyz(p.x(), p.y()); }
+
 }  // namespace geompp

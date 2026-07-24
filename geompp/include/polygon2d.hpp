@@ -31,6 +31,15 @@ class Polygon2D {
   bool AlmostEquals(Polygon2D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange2D ToSegments() const;
   Point2D Centroid() const;
+
+  /// @brief Outer ring area minus holes. Holes are always simple (Make() rejects a self-intersecting hole
+  /// outright), so their contribution is always a direct O(1)-per-hole shoelace sum. If the outer ring is
+  /// also simple, the whole thing is O(n). If the outer ring self-intersects (e.g. a bowtie), it's
+  /// decomposed at O(n log n) into its real bounded faces (discarding the unbounded "outside" face the
+  /// decomposition also produces) and their areas summed — the total COVERED area, matching what
+  /// Intersection()/Difference()/etc. operate against (winding-number membership counts every lobe as
+  /// "inside" regardless of local winding sign), not a net/signed sum where opposite-winding lobes would
+  /// otherwise partially cancel.
   double Area() const;
   double PerimeterSize() const;
   bool IsSimple() const;  // no self-intersections, but holes are allowed
@@ -84,6 +93,11 @@ class Polygon2D {
   /// @return true if any part of the segment is inside the polygon or crosses its boundary.
   bool Intersects(LineSegment2D const& segment) const;
 
+  /// @brief Tests whether this polygon shares any area (or boundary) with another.
+  /// @param other The other polygon.
+  /// @return true if the two polygons overlap, touch, or either fully contains the other.
+  bool Intersects(Polygon2D const& other) const;
+
   /// @brief Intersection of this polygon with a line.
   /// @param line The line.
   /// @return The crossing point, or std::nullopt if the line misses the polygon.
@@ -98,6 +112,28 @@ class Polygon2D {
   /// @param other The segment.
   /// @return The crossing point if it lies on the segment, or std::nullopt otherwise.
   std::optional<std::vector<LineSegment2D>> Intersection(LineSegment2D const& other) const;
+
+#pragma endregion
+
+#pragma region Boolean Operations
+
+  /// @brief Set union of this polygon and other. Handles holes and self-intersecting operands; a
+  /// disjoint pair of polygons yields more than one result polygon.
+  /// @return Zero or more result polygons (zero is impossible for Union unless both operands are empty).
+  std::vector<Polygon2D> Union(Polygon2D const& other) const;
+
+  /// @brief Set intersection of this polygon and other (overloads Intersection() by argument type).
+  /// @return Zero or more result polygons — empty if the two polygons don't overlap.
+  std::vector<Polygon2D> Intersection(Polygon2D const& other) const;
+
+  /// @brief Set difference (this minus other). Handles the case where other lies entirely inside this
+  /// polygon with no shared boundary, correctly producing a hole.
+  /// @return Zero or more result polygons — empty if other fully covers this polygon.
+  std::vector<Polygon2D> Difference(Polygon2D const& other) const;
+
+  /// @brief Symmetric difference (the area covered by exactly one of the two polygons).
+  /// @return Zero or more result polygons.
+  std::vector<Polygon2D> Xor(Polygon2D const& other) const;
 
 #pragma endregion
 

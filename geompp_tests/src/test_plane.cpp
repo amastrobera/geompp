@@ -87,6 +87,18 @@ TEST_F(PlaneTest, AlmostEquals) {
   // same normal, different origin point, but on the same actual plane
   EXPECT_TRUE(g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1), g::Vector3D::BasisZ())
                   .AlmostEquals(g::Plane::FromOriginAndNormal(g::Point3D(5, 3, 1), g::Vector3D::BasisZ())));
+
+  // same plane (coplanar origins, dot product exactly 0), checked with a loose custom epsilon — the
+  // coplanarity test must compare the dot product against zero using epsilon as the tolerance, not
+  // compare the dot product against epsilon itself
+  auto p1 = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1), g::Vector3D::BasisZ());
+  auto p2 = g::Plane::FromOriginAndNormal(g::Point3D(5, 3, 1), g::Vector3D::BasisZ());
+  EXPECT_TRUE(p1.AlmostEquals(p2, 0.5));
+
+  // nearly (but not exactly) coplanar origins: within a loose epsilon, still equal; within a tight one, not
+  auto p3 = g::Plane::FromOriginAndNormal(g::Point3D(0, 0, 1.05), g::Vector3D::BasisZ());
+  EXPECT_TRUE(p1.AlmostEquals(p3, 0.5));
+  EXPECT_FALSE(p1.AlmostEquals(p3, 0.001));
 }
 
 TEST_F(PlaneTest, Assignment) {

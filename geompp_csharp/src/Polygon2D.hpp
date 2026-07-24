@@ -49,6 +49,8 @@ public:
     bool Intersects(Line2D^ line);
     bool Intersects(Ray2D^ ray);
     bool Intersects(LineSegment2D^ segment);
+    // True if this polygon shares any area (or boundary) with other.
+    bool Intersects(Polygon2D^ other);
 
     // Intersection — optional<variant<Point2D, vector<LineSegment2D>>>
     //   null                  → no intersection
@@ -57,6 +59,13 @@ public:
     System::Object^ Intersection(Line2D^ line);
     System::Object^ Intersection(Ray2D^ ray);
     System::Object^ Intersection(LineSegment2D^ segment);
+
+    // Boolean operations — general map-overlay ops, holes and self-intersecting operands tolerant.
+    // Each returns zero or more disjoint result polygons (a disjoint pair yields more than one).
+    array<Polygon2D^>^ Intersection(Polygon2D^ other);
+    array<Polygon2D^>^ Union(Polygon2D^ other);
+    array<Polygon2D^>^ Difference(Polygon2D^ other);
+    array<Polygon2D^>^ Xor(Polygon2D^ other);
 
     // Operator
     static bool operator==(Polygon2D^ lhs, Polygon2D^ rhs);

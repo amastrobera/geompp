@@ -43,12 +43,31 @@ void bind_polygon3d(py::module_& m) {
              [](const geompp::Polygon3D& p, const geompp::Ray3D& r) { return p.Intersects(r); }, "ray"_a)
         .def("intersects",
              [](const geompp::Polygon3D& p, const geompp::LineSegment3D& s) { return p.Intersects(s); }, "segment"_a)
+        .def("intersects",
+             [](const geompp::Polygon3D& p, const geompp::Polygon3D& other) { return p.Intersects(other); }, "other"_a,
+             "True if this polygon shares any point with other — area overlap when coplanar, or a genuine "
+             "strike-through (shared segment on the two planes' common line) when not.")
         .def("intersection",
              [](const geompp::Polygon3D& p, const geompp::Line3D& l) -> py::object { return opt_to_py(p.Intersection(l)); }, "line"_a)
         .def("intersection",
              [](const geompp::Polygon3D& p, const geompp::Ray3D& r) -> py::object { return opt_to_py(p.Intersection(r)); }, "ray"_a)
         .def("intersection",
              [](const geompp::Polygon3D& p, const geompp::LineSegment3D& s) -> py::object { return opt_to_py(p.Intersection(s)); }, "segment"_a)
+        .def("intersection",
+             [](const geompp::Polygon3D& p, const geompp::Polygon3D& other) -> py::object { return opt_variant_to_py(p.Intersection(other)); },
+             "other"_a,
+             "Intersection with another polygon: a list[Polygon3D] when coplanar, a list[LineSegment3D] "
+             "when the planes cross (the chord(s) where both bounded regions cover the shared line), or "
+             "None if they share no point.")
+        .def("union",
+             [](const geompp::Polygon3D& p, const geompp::Polygon3D& other) { return p.Union(other); }, "other"_a,
+             "Set union with a coplanar polygon. Raises if the two polygons aren't coplanar.")
+        .def("difference",
+             [](const geompp::Polygon3D& p, const geompp::Polygon3D& other) { return p.Difference(other); }, "other"_a,
+             "Set difference (self minus other) with a coplanar polygon. Raises if not coplanar.")
+        .def("xor",
+             [](const geompp::Polygon3D& p, const geompp::Polygon3D& other) { return p.Xor(other); }, "other"_a,
+             "Symmetric difference with a coplanar polygon. Raises if not coplanar.")
         .def("__len__",     &geompp::Polygon3D::Size)
         .def("__getitem__", [](const geompp::Polygon3D& p, int i) -> geompp::Point3D {
             if (i < 0) {

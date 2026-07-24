@@ -1,6 +1,7 @@
 #include "triangle2d.hpp"
 
 #include "bbox2d.hpp"
+#include "calc_utils2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "polygon2d.hpp"
@@ -72,7 +73,17 @@ bool Triangle2D::IsCCW() const { return SignedArea() > 0; }
 
 #pragma region line operations
 
-double Triangle2D::DistanceTo(Point2D const& point) const { throw std::runtime_error("not implemented"); }
+double Triangle2D::DistanceTo(Point2D const& point) const {
+  if (Contains(point)) {
+    return 0.0;
+  }
+
+  // Contains() already ruled out interior and on-perimeter, so the closest point is somewhere on one
+  // of the three edges — plain min over each edge's own DistanceTo(), same approach as
+  // Polygon2D::DistanceTo (no convex fast path needed at just 3 edges).
+  return std::min({LineSegment2D::Make(P0, P1).DistanceTo(point), LineSegment2D::Make(P1, P2).DistanceTo(point),
+                   LineSegment2D::Make(P2, P0).DistanceTo(point)});
+}
 
 std::tuple<Vector2D, Vector2D> Triangle2D::ToAxis() const { return {P1 - P0, P2 - P0}; }
 
@@ -125,7 +136,7 @@ bool Triangle2D::Contains(Point2D const& point) const {
 bool Triangle2D::Intersects(Line2D const& line) const { return Intersection(line).has_value(); }
 bool Triangle2D::Intersects(Ray2D const& ray) const { return Intersection(ray).has_value(); }
 bool Triangle2D::Intersects(LineSegment2D const& segment) const { return Intersection(segment).has_value(); }
-bool Triangle2D::Intersects(Triangle2D const& other) const { throw std::runtime_error("not implemented"); }
+bool Triangle2D::Intersects(Triangle2D const& other) const { return Intersection(other).has_value(); }
 
 Triangle2D::ReturnSet Triangle2D::Intersection(Line2D const& line) const {
   auto points_view = std::vector<LineSegment2D>{LineSegment2D::Make(P0, P1), LineSegment2D::Make(P1, P2),
@@ -257,7 +268,27 @@ Triangle2D::ReturnSet Triangle2D::Intersection(LineSegment2D const& segment) con
 }
 
 Triangle2D::ReturnSet Triangle2D::Intersection(Triangle2D const& other) const {
-  throw std::runtime_error("not implemented");
+  std::vector<Point2D> this_pts = {P0, P1, P2};
+  std::vector<Point2D> other_pts = {other.P0, other.P1, other.P2};
+
+  // clip() runs the general planar-arrangement boolean-intersection engine, no convex special-casing
+  // needed (triangles are always convex). It already drops zero-area slivers internally, so a mere
+  // touch (shared vertex, or edges meeting without any overlapping area) comes back as an empty result
+  // rather than a degenerate 1- or 2-point "ring" — consistent with how Intersection(Line2D) above
+  // treats an all-vertices touch as "no intersection" too.
+  auto rings = clip(other_pts, this_pts);
+  if (rings.empty()) {
+    return std::nullopt;
+  }
+
+  // the intersection of two convex regions is itself convex and simply connected, so clip() can only
+  // ever return a single outer ring here (no holes possible, unlike its general contract for arbitrary
+  // loops).
+  auto const& ring = rings[0];
+  if (ring.size() == 3) {
+    return Triangle2D::Make(ring[0], ring[1], ring[2]);
+  }
+  return Polygon2D::Make(ring);
 }
 
 #pragma endregion

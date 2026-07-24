@@ -23,5 +23,3 @@ if(BUILD_PYTHON)
     find_package(Python 3.8 REQUIRED COMPONENTS Interpreter Development.Module)
     add_subdirectory(geompp_python)
 endif()
-
-#add_subdirectory(geom_viewer)

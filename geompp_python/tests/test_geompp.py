@@ -1189,6 +1189,139 @@ class TestPolygon2D:
         with pytest.raises(Exception):
             geompp.Polygon2D.make(outer, [ccw_hole])
 
+    def test_with_holes_self_intersecting_hole_throws(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(6, 0),
+            geompp.Point2D(6, 6), geompp.Point2D(0, 6),
+        ]
+        # Bowtie hole (self-crossing): (1,1)->(3,1)->(1,3)->(3,3).
+        bowtie_hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(3, 1),
+            geompp.Point2D(1, 3), geompp.Point2D(3, 3),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon2D.make(outer, [bowtie_hole])
+
+    def test_with_holes_two_holes_overlap_throws(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(10, 0),
+            geompp.Point2D(10, 10), geompp.Point2D(0, 10),
+        ]
+        hole_a = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 5),
+            geompp.Point2D(5, 5), geompp.Point2D(5, 1),
+        ]
+        hole_b = [
+            geompp.Point2D(3, 3), geompp.Point2D(3, 7),
+            geompp.Point2D(7, 7), geompp.Point2D(7, 3),
+        ]  # overlaps hole_a
+        with pytest.raises(Exception):
+            geompp.Polygon2D.make(outer, [hole_a, hole_b])
+
+    def test_with_holes_two_holes_touch_at_vertex_does_not_throw(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(10, 0),
+            geompp.Point2D(10, 10), geompp.Point2D(0, 10),
+        ]
+        # Two squares touching diagonally at the single shared corner (5,5).
+        hole_a = [
+            geompp.Point2D(3, 3), geompp.Point2D(3, 5),
+            geompp.Point2D(5, 5), geompp.Point2D(5, 3),
+        ]
+        hole_b = [
+            geompp.Point2D(5, 5), geompp.Point2D(5, 7),
+            geompp.Point2D(7, 7), geompp.Point2D(7, 5),
+        ]
+        p = geompp.Polygon2D.make(outer, [hole_a, hole_b])
+        assert len(p.holes()) == 2
+
+    def test_with_holes_two_holes_disjoint_does_not_throw(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(10, 0),
+            geompp.Point2D(10, 10), geompp.Point2D(0, 10),
+        ]
+        hole_a = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+            geompp.Point2D(3, 3), geompp.Point2D(3, 1),
+        ]
+        hole_b = [
+            geompp.Point2D(6, 6), geompp.Point2D(6, 8),
+            geompp.Point2D(8, 8), geompp.Point2D(8, 6),
+        ]
+        p = geompp.Polygon2D.make(outer, [hole_a, hole_b])
+        assert len(p.holes()) == 2
+
+    def test_with_holes_hole_strikes_through_outer_throws(self):
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(10, 0),
+            geompp.Point2D(10, 10), geompp.Point2D(0, 10),
+        ]
+        # Hole straddles the outer boundary at x=10: half inside, half poking out.
+        hole = [
+            geompp.Point2D(8, 4), geompp.Point2D(8, 6),
+            geompp.Point2D(12, 6), geompp.Point2D(12, 4),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon2D.make(outer, [hole])
+
+    def test_with_holes_hole_flush_against_outer_edge_does_not_throw(self):
+        # Hole touches the outer boundary along a full edge, not just a vertex — a normal "notched
+        # corner" shape, must not be rejected as "striking through".
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        hole = [
+            geompp.Point2D(2, 2), geompp.Point2D(2, 4),
+            geompp.Point2D(4, 4), geompp.Point2D(4, 2),
+        ]
+        p = geompp.Polygon2D.make(outer, [hole])
+        assert len(p.holes()) == 1
+
+    def test_with_holes_hole_entirely_outside_outer_throws(self):
+        # Hole never crosses or touches the outer boundary, so the strikes-through check alone lets it
+        # slip by, but it sits wholly outside the outer square.
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(10, 0),
+            geompp.Point2D(10, 10), geompp.Point2D(0, 10),
+        ]
+        hole = [
+            geompp.Point2D(20, 20), geompp.Point2D(20, 22),
+            geompp.Point2D(22, 22), geompp.Point2D(22, 20),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon2D.make(outer, [hole])
+
+    def test_area_self_intersecting_outer_with_hole(self):
+        # Bowtie outer (lobes 4.0 + 1.0 = 5.0 total covered area) with a small 1x0.3 hole safely inside
+        # the larger lobe, away from the self-crossing — exercises Area()'s slow path together with its
+        # direct per-hole subtraction.
+        p = geompp.Polygon2D.make(
+            [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(1, 3), geompp.Point2D(3, 3)],
+            [[geompp.Point2D(1.5, 0.2), geompp.Point2D(1.5, 0.5),
+              geompp.Point2D(2.5, 0.5), geompp.Point2D(2.5, 0.2)]],
+        )
+        assert not p.is_simple()
+        assert approx(p.area(), 4.7)
+
+    def test_centroid_self_intersecting_outer_matches_simplify_weighted_average(self):
+        # Cross-validated against an independently-computed area-weighted average over simplify()'s
+        # pieces, rather than hand-deriving the expected centroid.
+        p = geompp.Polygon2D.make(
+            [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(1, 3), geompp.Point2D(3, 3)])
+        assert not p.is_simple()
+
+        total_area, wx, wy = 0.0, 0.0, 0.0
+        for piece in p.simplify():
+            a = piece.area()
+            c = piece.centroid()
+            total_area += a
+            wx += a * c.x
+            wy += a * c.y
+
+        c = p.centroid()
+        assert approx(c.x, wx / total_area) and approx(c.y, wy / total_area)
+
     def test_centroid_square(self, square):
         c = square.centroid()
         assert approx(c.x, 0.5) and approx(c.y, 0.5)
@@ -1455,6 +1588,42 @@ class TestPolygon2DIntersection:
         assert sq.intersects(geompp.LineSegment2D.make(geompp.Point2D(-0.5, 0.5), geompp.Point2D(1.5, 0.5)))
         assert not sq.intersects(geompp.LineSegment2D.make(geompp.Point2D(-2, 0.5), geompp.Point2D(-0.5, 0.5)))
 
+    # ── Polygon2D boolean ops ───────────────────────────────────────────────
+
+    @pytest.fixture
+    def overlapping(self):
+        return geompp.Polygon2D.make([
+            geompp.Point2D(0.5, 0.5), geompp.Point2D(1.5, 0.5),
+            geompp.Point2D(1.5, 1.5), geompp.Point2D(0.5, 1.5),
+        ])
+
+    def test_intersects_polygon(self, sq, overlapping):
+        assert sq.intersects(overlapping)
+        disjoint = geompp.Polygon2D.make([
+            geompp.Point2D(5, 5), geompp.Point2D(6, 5), geompp.Point2D(6, 6), geompp.Point2D(5, 6),
+        ])
+        assert not sq.intersects(disjoint)
+
+    def test_union(self, sq, overlapping):
+        result = sq.union(overlapping)
+        assert len(result) == 1
+        assert abs(result[0].area() - 1.75) < 1e-6
+
+    def test_intersection_polygon(self, sq, overlapping):
+        result = sq.intersection(overlapping)
+        assert len(result) == 1
+        assert abs(result[0].area() - 0.25) < 1e-6
+
+    def test_difference(self, sq, overlapping):
+        result = sq.difference(overlapping)
+        assert len(result) == 1
+        assert abs(result[0].area() - 0.75) < 1e-6
+
+    def test_xor(self, sq, overlapping):
+        result = sq.xor(overlapping)
+        assert len(result) == 1
+        assert result[0].has_holes()
+
 
 # ─── Polygon3D ───────────────────────────────────────────────────────────────
 
@@ -1524,6 +1693,88 @@ class TestPolygon3D:
         with pytest.raises(Exception):
             geompp.Polygon3D.make(outer, [ccw_hole])
 
+    def test_with_holes_self_intersecting_hole_throws(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(6, 0, 0),
+            geompp.Point3D(6, 6, 0), geompp.Point3D(0, 6, 0),
+        ]
+        bowtie_hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(3, 1, 0),
+            geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon3D.make(outer, [bowtie_hole])
+
+    def test_with_holes_two_holes_overlap_throws(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(10, 0, 0),
+            geompp.Point3D(10, 10, 0), geompp.Point3D(0, 10, 0),
+        ]
+        hole_a = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 5, 0),
+            geompp.Point3D(5, 5, 0), geompp.Point3D(5, 1, 0),
+        ]
+        hole_b = [
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 7, 0),
+            geompp.Point3D(7, 7, 0), geompp.Point3D(7, 3, 0),
+        ]  # overlaps hole_a
+        with pytest.raises(Exception):
+            geompp.Polygon3D.make(outer, [hole_a, hole_b])
+
+    def test_with_holes_two_holes_touch_at_vertex_does_not_throw(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(10, 0, 0),
+            geompp.Point3D(10, 10, 0), geompp.Point3D(0, 10, 0),
+        ]
+        hole_a = [
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 5, 0),
+            geompp.Point3D(5, 5, 0), geompp.Point3D(5, 3, 0),
+        ]
+        hole_b = [
+            geompp.Point3D(5, 5, 0), geompp.Point3D(5, 7, 0),
+            geompp.Point3D(7, 7, 0), geompp.Point3D(7, 5, 0),
+        ]
+        p = geompp.Polygon3D.make(outer, [hole_a, hole_b])
+        assert len(p.holes()) == 2
+
+    def test_with_holes_hole_strikes_through_outer_throws(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(10, 0, 0),
+            geompp.Point3D(10, 10, 0), geompp.Point3D(0, 10, 0),
+        ]
+        hole = [
+            geompp.Point3D(8, 4, 0), geompp.Point3D(8, 6, 0),
+            geompp.Point3D(12, 6, 0), geompp.Point3D(12, 4, 0),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon3D.make(outer, [hole])
+
+    def test_with_holes_hole_flush_against_outer_edge_does_not_throw(self):
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(2, 2, 0), geompp.Point3D(2, 4, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(4, 2, 0),
+        ]
+        p = geompp.Polygon3D.make(outer, [hole])
+        assert len(p.holes()) == 1
+
+    def test_with_holes_hole_entirely_outside_outer_throws(self):
+        # Hole never crosses or touches the outer boundary (same plane, disjoint region) — must be
+        # rejected by the containment check even though the strikes-through check alone lets it slip by.
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(10, 0, 0),
+            geompp.Point3D(10, 10, 0), geompp.Point3D(0, 10, 0),
+        ]
+        hole = [
+            geompp.Point3D(20, 20, 0), geompp.Point3D(20, 22, 0),
+            geompp.Point3D(22, 22, 0), geompp.Point3D(22, 20, 0),
+        ]
+        with pytest.raises(Exception):
+            geompp.Polygon3D.make(outer, [hole])
+
     def test_area_square(self):
         pts = [
             geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
@@ -1541,6 +1792,26 @@ class TestPolygon3D:
             geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
         ]
         assert approx(geompp.Polygon3D.make(outer, [hole]).area(), 12.0)
+
+    def test_area_self_intersecting_outer_in_xy_plane(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0),
+        ])
+        assert not p.is_simple()
+        assert approx(p.area(), 5.0)
+
+    def test_area_self_intersecting_outer_on_tilted_plane_matches_simplify_sum(self):
+        # On a non-axis-aligned plane a naive 2D-projected shoelace on the decomposed loops would be
+        # wrong (foreshortening) — cross-validated against simplify() + per-piece area() instead of
+        # hand-deriving the tilted value.
+        def tilt(x, y):
+            return geompp.Point3D(x, y, 0.3 * x + 0.2 * y)
+
+        p = geompp.Polygon3D.make([tilt(0, 0), tilt(4, 0), tilt(1, 3), tilt(3, 3)])
+        assert not p.is_simple()
+        simplify_total = sum(piece.area() for piece in p.simplify())
+        assert approx(p.area(), simplify_total)
 
     def test_area_far_from_origin(self):
         ox, oy = 1e8, 1e8
@@ -1622,6 +1893,29 @@ class TestPolygon3D:
         ]
         c = geompp.Polygon3D.make(pts).centroid()
         assert approx(c.x, 2.0) and approx(c.y, 2.0) and approx(c.z, 5.0)
+
+    def test_centroid_self_intersecting_outer_matches_simplify_weighted_average(self):
+        # On a tilted (non-axis-aligned) plane so a naive 2D-projected centroid would be wrong too
+        # (foreshortening) — cross-validated against simplify() + per-piece area()/centroid().
+        def tilt(x, y):
+            return geompp.Point3D(x, y, 0.3 * x + 0.2 * y)
+
+        p = geompp.Polygon3D.make([tilt(0, 0), tilt(4, 0), tilt(1, 3), tilt(3, 3)])
+        assert not p.is_simple()
+
+        total_area, wx, wy, wz = 0.0, 0.0, 0.0, 0.0
+        for piece in p.simplify():
+            a = piece.area()
+            c = piece.centroid()
+            total_area += a
+            wx += a * c.x
+            wy += a * c.y
+            wz += a * c.z
+
+        actual = p.centroid()
+        assert approx(actual.x, wx / total_area)
+        assert approx(actual.y, wy / total_area)
+        assert approx(actual.z, wz / total_area)
 
     def test_centroid_with_centered_hole(self):
         outer = [
@@ -1865,6 +2159,70 @@ class TestPolygon3DIntersection:
         result = yz.intersection(geompp.Line3D.make(geompp.Point3D(-1, 0.5, 0.5), geompp.Point3D(1, 0.5, 0.5)))
         assert result is not None
         assert result.almost_equals(geompp.Point3D(0, 0.5, 0.5))
+
+    # ── Polygon3D boolean ops (Polygon3D operand) ───────────────────────────
+
+    def _overlapping(self):
+        return geompp.Polygon3D.make([
+            geompp.Point3D(0.5, 0.5, 0), geompp.Point3D(1.5, 0.5, 0),
+            geompp.Point3D(1.5, 1.5, 0), geompp.Point3D(0.5, 1.5, 0),
+        ])
+
+    def test_intersects_polygon_coplanar(self):
+        assert self._sq().intersects(self._overlapping())
+
+    def test_union_coplanar(self):
+        result = self._sq().union(self._overlapping())
+        assert len(result) == 1
+        assert abs(result[0].area() - 1.75) < 1e-6
+
+    def test_difference_coplanar(self):
+        result = self._sq().difference(self._overlapping())
+        assert len(result) == 1
+        assert abs(result[0].area() - 0.75) < 1e-6
+
+    def test_xor_coplanar(self):
+        result = self._sq().xor(self._overlapping())
+        assert len(result) == 1
+        assert result[0].has_holes()
+
+    def test_union_not_coplanar_raises(self):
+        wall = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+            geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1),
+        ])
+        with pytest.raises(Exception):
+            self._sq().union(wall)
+
+    def test_intersection_polygon_coplanar_returns_polygons(self):
+        result = self._sq().intersection(self._overlapping())
+        assert result is not None
+        assert isinstance(result, list)
+        assert isinstance(result[0], geompp.Polygon3D)
+        assert abs(result[0].area() - 0.25) < 1e-6
+
+    def test_intersection_polygon_planes_crossing_returns_segments(self):
+        a = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ])
+        b = geompp.Polygon3D.make([
+            geompp.Point3D(1, 2, 3), geompp.Point3D(3, 2, 3),
+            geompp.Point3D(3, 2, -1), geompp.Point3D(1, 2, -1),
+        ])
+        result = a.intersection(b)
+        assert result is not None
+        assert isinstance(result, list)
+        assert isinstance(result[0], geompp.LineSegment3D)
+        assert len(result) == 1
+
+    def test_intersection_polygon_parallel_distinct_returns_none(self):
+        a = self._sq()
+        b = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 5), geompp.Point3D(1, 0, 5),
+            geompp.Point3D(1, 1, 5), geompp.Point3D(0, 1, 5),
+        ])
+        assert a.intersection(b) is None
 
 
 # ─── Free function centroid (3D) ─────────────────────────────────────────────
@@ -3491,6 +3849,54 @@ class TestFreeFunctions:
         pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0)]
         avg = geompp.average(pts)
         assert approx(avg.x, 1.0)
+
+    def test_lerp_2d(self):
+        p0, p1 = geompp.Point2D(0, 0), geompp.Point2D(10, 20)
+        assert approx(geompp.lerp(p0, p1, 0.0).x, 0.0)
+        assert approx(geompp.lerp(p0, p1, 1.0).x, 10.0)
+        mid = geompp.lerp(p0, p1, 0.5)
+        assert approx(mid.x, 5.0) and approx(mid.y, 10.0)
+        # not clamped: t outside [0, 1] extrapolates
+        far = geompp.lerp(p0, p1, 2.0)
+        assert approx(far.x, 20.0) and approx(far.y, 40.0)
+
+    def test_lerp_3d(self):
+        p0, p1 = geompp.Point3D(0, 0, 0), geompp.Point3D(10, 20, 30)
+        mid = geompp.lerp(p0, p1, 0.5)
+        assert approx(mid.x, 5.0) and approx(mid.y, 10.0) and approx(mid.z, 15.0)
+
+    def test_clip_2d_overlapping_squares(self):
+        clipper = [geompp.Point2D(0.5, 0.5), geompp.Point2D(1.5, 0.5),
+                   geompp.Point2D(1.5, 1.5), geompp.Point2D(0.5, 1.5)]
+        subject = [geompp.Point2D(0, 0), geompp.Point2D(1, 0),
+                   geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        rings = geompp.clip(clipper, subject)
+        assert len(rings) == 1
+        poly = geompp.Polygon2D.make(rings[0])
+        assert approx(poly.area(), 0.25)
+
+    def test_clip_2d_disjoint_returns_empty(self):
+        clipper = [geompp.Point2D(5, 5), geompp.Point2D(6, 5), geompp.Point2D(6, 6), geompp.Point2D(5, 6)]
+        subject = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        assert geompp.clip(clipper, subject) == []
+
+    def test_clip_3d_coplanar_overlapping_squares(self):
+        clipper = [geompp.Point3D(0.5, 0.5, 0), geompp.Point3D(1.5, 0.5, 0),
+                   geompp.Point3D(1.5, 1.5, 0), geompp.Point3D(0.5, 1.5, 0)]
+        subject = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+                   geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)]
+        rings = geompp.clip(clipper, subject)
+        assert len(rings) == 1
+        poly = geompp.Polygon3D.make(rings[0])
+        assert approx(poly.area(), 0.25)
+
+    def test_clip_3d_non_coplanar_raises(self):
+        clipper = [geompp.Point3D(0, 0, 0), geompp.Point3D(0, 1, 0),
+                   geompp.Point3D(0, 1, 1), geompp.Point3D(0, 0, 1)]
+        subject = [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+                   geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)]
+        with pytest.raises(Exception):
+            geompp.clip(clipper, subject)
 
     def test_linear_combination_2d(self):
         pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 0)]

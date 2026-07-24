@@ -33,6 +33,11 @@ class Polygon3D {
   bool AlmostEquals(Polygon3D const& other, double epsilon = DOUBLE_EPSILON) const;
   SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
+
+  /// @brief Same convention as Polygon2D::Area(): holes are always simple (Make() rejects a
+  /// self-intersecting hole outright) so their contribution is a direct O(1)-per-hole shoelace sum; the
+  /// outer ring, if also simple, makes the whole thing O(n), otherwise it's decomposed at O(n log n) into
+  /// its real bounded faces and their (plane-aware, not merely 2D-projected) areas summed.
   double Area() const;
   double PerimeterSize() const;
   bool IsSimple() const;
@@ -107,6 +112,43 @@ class Polygon3D {
   /// @param segment The segment.
   /// @return The crossing point if it lies on the segment, or std::nullopt otherwise.
   std::optional<Point3D> Intersection(LineSegment3D const& segment) const;
+
+  /// @brief Tests whether this polygon shares any point with another — area overlap when coplanar, or a
+  /// genuine strike-through (a shared segment on the two planes' common line) when not.
+  bool Intersects(Polygon3D const& other) const;
+
+  /// @brief Intersection of this polygon with another.
+  /// - Coplanar (same plane): the set intersection of the two areas, same semantics as
+  ///   Polygon2D::Intersection(Polygon2D) — zero or more result polygons.
+  /// - Not coplanar, planes crossing: the two flat regions can only share points along the planes'
+  ///   common line, so the result is the chain of segments where both polygons' bounded regions cover
+  ///   that line (empty chain omitted — reported as std::nullopt, not an empty vector).
+  /// - Not coplanar, planes parallel (and distinct, since coplanar was already ruled out): std::nullopt —
+  ///   parallel distinct planes never share a point.
+  /// @return std::nullopt if the two polygons share no point; otherwise whichever variant alternative
+  /// matches the coplanar/non-coplanar case above.
+  std::optional<std::variant<std::vector<Polygon3D>, std::vector<LineSegment3D>>> Intersection(
+      Polygon3D const& other) const;
+
+#pragma endregion
+
+#pragma region Boolean Operations
+
+  /// @brief Set union of this polygon and other.
+  /// @pre Both polygons must be coplanar (GetPlane().AlmostEquals(other.GetPlane())) — a union of two
+  /// polygons on different planes isn't representable as a single flat Polygon3D.
+  /// @throws std::logic_error if the two polygons are not coplanar.
+  std::vector<Polygon3D> Union(Polygon3D const& other) const;
+
+  /// @brief Set difference (this minus other).
+  /// @pre Same coplanarity requirement as Union() — see its docs for why.
+  /// @throws std::logic_error if the two polygons are not coplanar.
+  std::vector<Polygon3D> Difference(Polygon3D const& other) const;
+
+  /// @brief Symmetric difference (the area covered by exactly one of the two polygons).
+  /// @pre Same coplanarity requirement as Union() — see its docs for why.
+  /// @throws std::logic_error if the two polygons are not coplanar.
+  std::vector<Polygon3D> Xor(Polygon3D const& other) const;
 
 #pragma endregion
 

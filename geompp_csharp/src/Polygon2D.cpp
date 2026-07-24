@@ -174,6 +174,10 @@ bool Polygon2D::Intersects(LineSegment2D^ segment) {
     return _native->Intersects(*segment->_native);
 }
 
+bool Polygon2D::Intersects(Polygon2D^ other) {
+    return _native->Intersects(*other->_native);
+}
+
 // ── Intersection ──────────────────────────────────────────────────────────────
 
 static array<LineSegment2D^>^ segs_to_managed(std::optional<std::vector<geompp::LineSegment2D>> const& result) {
@@ -198,6 +202,32 @@ System::Object^ Polygon2D::Intersection(Ray2D^ ray) {
 
 System::Object^ Polygon2D::Intersection(LineSegment2D^ segment) {
     return segs_to_managed(_native->Intersection(*segment->_native));
+}
+
+// ── Boolean operations ────────────────────────────────────────────────────────
+
+static array<Polygon2D^>^ polys_to_managed(std::vector<geompp::Polygon2D> const& native) {
+    auto arr = gcnew array<Polygon2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Polygon2D(new geompp::Polygon2D(native[i]));
+    }
+    return arr;
+}
+
+array<Polygon2D^>^ Polygon2D::Intersection(Polygon2D^ other) {
+    return polys_to_managed(_native->Intersection(*other->_native));
+}
+
+array<Polygon2D^>^ Polygon2D::Union(Polygon2D^ other) {
+    return polys_to_managed(_native->Union(*other->_native));
+}
+
+array<Polygon2D^>^ Polygon2D::Difference(Polygon2D^ other) {
+    return polys_to_managed(_native->Difference(*other->_native));
+}
+
+array<Polygon2D^>^ Polygon2D::Xor(Polygon2D^ other) {
+    return polys_to_managed(_native->Xor(*other->_native));
 }
 
 // ── Operator ──────────────────────────────────────────────────────────────────

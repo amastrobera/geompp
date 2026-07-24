@@ -582,9 +582,28 @@ TEST_F(Triangle3DTest, ToPolygon) {
 }
 
 TEST_F(Triangle3DTest, DistanceTo) {
-  // DistanceTo is not yet implemented — throws
-  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(2, 0, 0), g::Point3D(0, 2, 0));
-  EXPECT_ANY_THROW(t.DistanceTo(g::Point3D(0.5, 0.5, 0)));
+  // right triangle in the XY plane: legs on the axes (length 4 each), hypotenuse x + y = 4, z = 0
+  auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
+
+  // in-plane: interior, on an edge, on a vertex, on the hypotenuse — all zero
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point3D(1, 1, 0)), 1e-9);
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point3D(2, 0, 0)), 1e-9);
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point3D(0, 0, 0)), 1e-9);
+  EXPECT_NEAR(0.0, t.DistanceTo(g::Point3D(2, 2, 0)), 1e-9);
+
+  // in-plane, outside: perpendicular foot within a leg, then within the hypotenuse
+  EXPECT_NEAR(3.0, t.DistanceTo(g::Point3D(2, -3, 0)), 1e-9);
+  EXPECT_NEAR(2 * std::sqrt(2.0), t.DistanceTo(g::Point3D(4, 4, 0)), 1e-9);
+
+  // in-plane, outside: perpendicular foot falls off every edge — nearest point is a vertex
+  EXPECT_NEAR(std::sqrt(2.0), t.DistanceTo(g::Point3D(-1, -1, 0)), 1e-9);
+
+  // off-plane: Contains() is never true off-plane (Location() requires ToPlane().Contains() first), so
+  // distance is always true 3D distance to the nearest edge — no "perpendicular to the flat interior"
+  // shortcut. (-1, -1, 3): nearest point on either leg is the shared vertex (0, 0, 0).
+  EXPECT_NEAR(std::sqrt(11.0), t.DistanceTo(g::Point3D(-1, -1, 3)), 1e-9);
+  // (3, 3, 4): nearest point is on the hypotenuse, at (2, 2, 0) — not directly "below" the query point.
+  EXPECT_NEAR(3 * std::sqrt(2.0), t.DistanceTo(g::Point3D(3, 3, 4)), 1e-9);
 }
 
 TEST_F(Triangle3DTest, Location) {
@@ -909,6 +928,58 @@ TEST_F(Triangle3DTest, IntersectionWTriangle) {
     // t2 cut by plane y=1 → segment (5.5,1,0)→(6.5,1,0) (computed analytically below)
     auto t2 = g::Triangle3D::Make(g::Point3D(5, 1, -1), g::Point3D(7, 1, -1), g::Point3D(6, 1, 1));
     EXPECT_ANY_THROW(t.Intersection(t2));
+  }
+}
+
+TEST_F(Triangle3DTest, OverlapWTriangle) {
+  geompp::DECIMAL_PRECISION = 4;
+  // Reference right triangle on the XY plane: x>=0, y>=0, x+y<=4
+  auto t = g::Triangle3D::Make(g::Point3D::Zero(), g::Point3D(4, 0, 0), g::Point3D(0, 4, 0));
+
+  // Same-shape triangle shifted by (1,1): x>=1, y>=1, x+y<=6. The overlap region
+  // (x>=1, y>=1, x+y<=4) is itself a right triangle with vertices (1,1), (3,1), (1,3).
+  {
+    auto shifted = g::Triangle3D::Make(g::Point3D(1, 1, 0), g::Point3D(5, 1, 0), g::Point3D(1, 5, 0));
+    ASSERT_TRUE(t.Overlaps(shifted));
+    auto ov = t.Overlap(shifted);
+    ASSERT_TRUE(ov.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Triangle3D>(*ov));
+    auto const& tri = std::get<g::Triangle3D>(*ov);
+    EXPECT_NEAR(2.0, tri.Area(), 1e-6);
+    EXPECT_TRUE(tri.Contains(g::Point3D(1.5, 1.5, 0)));
+  }
+
+  // A much larger triangle fully containing t → overlap equals t itself.
+  {
+    auto huge = g::Triangle3D::Make(g::Point3D(-10, -10, 0), g::Point3D(20, -10, 0), g::Point3D(-10, 20, 0));
+    ASSERT_TRUE(t.Overlaps(huge));
+    auto ov = t.Overlap(huge);
+    ASSERT_TRUE(ov.has_value());
+    ASSERT_TRUE(std::holds_alternative<g::Triangle3D>(*ov));
+    EXPECT_NEAR(t.Area(), std::get<g::Triangle3D>(*ov).Area(), 1e-6);
+  }
+
+  // Coplanar but disjoint (far away) → no overlap.
+  {
+    auto disjoint = g::Triangle3D::Make(g::Point3D(100, 100, 0), g::Point3D(104, 100, 0), g::Point3D(100, 104, 0));
+    EXPECT_FALSE(t.Overlaps(disjoint));
+    EXPECT_FALSE(t.Overlap(disjoint).has_value());
+  }
+
+  // Coplanar, touching only along the shared hypotenuse edge (0,4,0)-(4,0,0) — zero area in common,
+  // so this does not count as an overlap (mirrors how Intersection(Line2D) treats an all-vertices touch).
+  {
+    auto other_half = g::Triangle3D::Make(g::Point3D(4, 0, 0), g::Point3D(0, 4, 0), g::Point3D(4, 4, 0));
+    EXPECT_FALSE(t.Overlaps(other_half));
+    EXPECT_FALSE(t.Overlap(other_half).has_value());
+  }
+
+  // Different (non-coincident) plane → Overlap() requires the SAME plane, so nullopt even though the
+  // planes actually cross through both triangles (that case belongs to Intersection(Triangle3D), above).
+  {
+    auto crossing = g::Triangle3D::Make(g::Point3D(1, 1, -1), g::Point3D(1, 1, 1), g::Point3D(3, 1, 0));
+    EXPECT_FALSE(t.Overlaps(crossing));
+    EXPECT_FALSE(t.Overlap(crossing).has_value());
   }
 }
 

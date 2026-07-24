@@ -79,6 +79,23 @@ public:
     static bool AreCCW(System::Collections::Generic::List<Point3D^>^ points, Plane^ refPlane);
     static bool AreCW (System::Collections::Generic::List<Point3D^>^ points, Plane^ refPlane);
 
+    // Lerp — linear interpolation between two points: p0 + t * (p1 - p0). Not clamped — t outside
+    // [0, 1] extrapolates past p0/p1.
+    static Point2D^ Lerp(Point2D^ p0, Point2D^ p1, double t);
+    static Point3D^ Lerp(Point3D^ p0, Point3D^ p1, double t);
+
+    // Clip — set intersection of clipperLoop and subjectLoop (raw point loops, no holes, last point
+    // != first — implicitly closed). Returns every ring of the result (CCW outers and CW holes mixed
+    // in one flat list — even hole-less input can produce a holed intersection). The Point3D overload
+    // requires both loops to be coplanar (plane fitted from subjectLoop's first three points); throws
+    // otherwise.
+    static System::Collections::Generic::IEnumerable<System::Collections::Generic::List<Point2D^>^>^ Clip(
+        System::Collections::Generic::List<Point2D^>^ clipperLoop,
+        System::Collections::Generic::List<Point2D^>^ subjectLoop);
+    static System::Collections::Generic::IEnumerable<System::Collections::Generic::List<Point3D^>^>^ Clip(
+        System::Collections::Generic::List<Point3D^>^ clipperLoop,
+        System::Collections::Generic::List<Point3D^>^ subjectLoop);
+
     // Segment-set intersection.
     // HasIntersections — Shamos–Hoey: true if any two of the segments intersect.
     static bool HasIntersections(System::Collections::Generic::List<LineSegment2D^>^ segments);

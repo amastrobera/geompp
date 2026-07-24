@@ -333,6 +333,18 @@ TEST_F(Point3DTest, Average) {
   EXPECT_ANY_THROW(g::average(std::vector<g::Point3D>{}));
 }
 
+TEST_F(Point3DTest, Lerp) {
+  g::Point3D p0(0, 0, 0), p1(10, 20, 30);
+
+  EXPECT_EQ(p0, g::lerp(p0, p1, 0.0));
+  EXPECT_EQ(p1, g::lerp(p0, p1, 1.0));
+  EXPECT_EQ(g::Point3D(5, 10, 15), g::lerp(p0, p1, 0.5));
+
+  // not clamped: t outside [0, 1] extrapolates
+  EXPECT_EQ(g::Point3D(-10, -20, -30), g::lerp(p0, p1, -1.0));
+  EXPECT_EQ(g::Point3D(20, 40, 60), g::lerp(p0, p1, 2.0));
+}
+
 TEST_F(Point3DTest, LinearCombination) {
   std::vector<g::Point3D> pts{g::Point3D(1, 0, 0), g::Point3D(0, 1, 0), g::Point3D(0, 0, 1)};
   std::vector<double> w{0.5, 0.3, 0.2};

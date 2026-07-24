@@ -82,7 +82,7 @@ Point2D LineSegment2D::Interpolate(double pct) const {
     return P1;
   }
 
-  return P0 + pct * (P1 - P0);
+  return lerp(P0, P1, pct);
 }
 
 bool LineSegment2D::IsLeft(Point2D const& p) const {
@@ -122,17 +122,23 @@ bool intersect(LineSegment2D const& seg1, LineSegment2D const& seg2) {
     std::swap(l2, r2);
   }
 
+  // Signed cross-product magnitude, NOT is_left()'s left/not-left bool: multiplying two bools can never
+  // produce a negative product, so "both strictly on the right" (false * false = 0) was indistinguishable
+  // from "one endpoint exactly on the line" and silently fell through as an undetected same-side case —
+  // a false positive whenever the OTHER segment's line happened to straddle seg1/seg2 (see the seg1×seg7
+  // repro in a Union() output ring that motivated this fix: both of seg7's endpoints were strictly right
+  // of seg1's line, is_left() returned false/false for both, and the same-side rejection never fired).
   double lsign, rsign;
-  lsign = is_left(l1, r1, l2);
-  rsign = is_left(l1, r1, r2);
+  lsign = (r1 - l1).Cross(l2 - l1);
+  rsign = (r1 - l1).Cross(r2 - l1);
   if (compare(lsign * rsign, 0) > 0) {
     return false;  // seg2 is on the same side of seg1
   }
 
-  lsign = is_left(l2, r2, l1);
-  rsign = is_left(l2, r2, r1);
+  lsign = (r2 - l2).Cross(l1 - l2);
+  rsign = (r2 - l2).Cross(r1 - l2);
   if (compare(lsign * rsign, 0) > 0) {
-    return false;  // seg2 is on the same side of seg1
+    return false;  // seg1 is on the same side of seg2
   }
 
   return true;
