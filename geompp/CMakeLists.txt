@@ -51,13 +51,16 @@ add_library(${PROJECT_NAME}
     src/bball2d.cpp
     src/brect2d.cpp
     src/calc_utils2d.cpp
+    src/grid_cell2d.cpp
+    src/mesh2d.cpp
+    src/polymesh2d.cpp
 
     src/point3d.cpp
     src/vector3d.cpp
     src/line3d.cpp
     src/line_segment3d.cpp
     src/polyline3d.cpp
-    src/ray3d.cpp 
+    src/ray3d.cpp
     src/plane.cpp
     src/triangle3d.cpp
     src/polygon3d.cpp
@@ -68,6 +71,9 @@ add_library(${PROJECT_NAME}
     src/geometry_collection3d.cpp
     src/calc_utils3d.cpp
     src/view2d.cpp
+    src/grid_cell3d.cpp
+    src/mesh3d.cpp
+    src/polymesh3d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

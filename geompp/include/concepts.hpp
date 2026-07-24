@@ -39,7 +39,7 @@ concept Point = requires(T const& p) {
 
 template <typename T>
 concept PointContainer =
-       std::ranges::random_access_range<T>    // Requires operator[](size_t) and iteration
+       std::ranges::random_access_range<T>    // Requires operator[](std::size_t) and iteration
     && std::ranges::sized_range<T>            // Requires size() / empty()
     && Point<std::ranges::range_value_t<T>>;  // Enforces that the element type is a Point
 
