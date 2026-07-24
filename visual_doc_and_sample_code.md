@@ -137,6 +137,25 @@ A quick list of code examples per topic is provided here.
 <details open>
 <summary><b> &nbsp; &nbsp; 1.2 Create geometries from text</b></summary>
 
+  **WKT** (Well-Known Text) is the OGC's plain-text format for geometry — `TAG (coordinates)` — used
+  across GIS tools and databases (PostGIS, GDAL, QGIS, ...). Every geompp primitive round-trips through
+  it via `ToWkt()` / `FromWkt()`, and through the same text via file I/O (`ToFile()` / `FromFile()`,
+  see section 1.3). `RAY` and `TRIANGLE` aren't part of the official OGC spec — they're extensions this
+  library adds, following the same `TAG (coordinates)` grammar as the standard ones.
+
+  | Primitive | WKT tag | 2D example | Notes |
+  |---|---|---|---|
+  | `Point2D` | `POINT` | `POINT (1 2)` | a single coordinate pair |
+  | `Line2D` (infinite) | `LINE` | `LINE (0 0, 1 0)` | two points the infinite line passes through |
+  | `Ray2D` | `RAY` | `RAY (0 0, 1 0)` | origin point, then a **direction vector** — not a second point |
+  | `LineSegment2D` | `LINESTRING` | `LINESTRING (0 0, 5 0)` | always exactly 2 points |
+  | `Polyline2D` | `LINESTRING` | `LINESTRING (0 0, 2 3, 5 0, 8 4)` | same tag as `LineSegment2D`, any number of points ≥ 2 |
+  | `Triangle2D` | `TRIANGLE` | `TRIANGLE (0 0, 4 0, 2 3)` | exactly 3 points |
+  | `Polygon2D` | `POLYGON` | `POLYGON ((0 0, 4 0, 4 4, 0 4, 0 0))` | outer ring closes by repeating its first point (must be CCW); holes append as extra, CW rings: `POLYGON ((0 0, 4 0, 4 4, 0 4, 0 0), (1 1, 1 2, 2 2, 2 1, 1 1))` |
+
+  For 3D, every point just gets one more coordinate — same tags, same structure. One example,
+  `LineSegment3D`: `LINESTRING (1 0 0, -1 0 2)`.
+
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
 
@@ -261,7 +280,16 @@ A quick list of code examples per topic is provided here.
 <details open>
 <summary><b> &nbsp; &nbsp; 1.3 Import geometries from a file</b></summary>
 
-  An `.lsv` file is a plain-text list of WKT geometries, one per line:
+  An `.lsv` file is a plain-text list of WKT geometries, one per line — e.g. `sample_geometries.lsv`:
+
+  ```
+  POINT (1 2 3)
+  POINT (4 5 6)
+  LINESTRING (0 0 0, 1 1 1)
+  LINESTRING (2 0 0, 2 3 4)
+  LINE (0 0 0, 1 0 0)
+  RAY (0 0 0, 0 1 0)
+  ```
 
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
@@ -382,15 +410,176 @@ A quick list of code examples per topic is provided here.
 <summary><b> &nbsp; 2. Geometry Operations</b></summary>
 
 <details open>
-<summary><b> &nbsp; &nbsp; 2.1 Containment </b></summary>
+<summary><b> &nbsp; &nbsp; 2.1 Interpolation </b></summary>
+
+  Three related operations move between a normalized parameter `t` and a physical point:
+
+  - **`lerp(P0, P1, t)`** — free function, plain linear interpolation: `P0 + t * (P1 - P0)`. `t = 0`
+    gives `P0`, `t = 1` gives `P1`. **Not clamped** — `t` outside `[0, 1]` extrapolates past either point.
+
+  <p align="center">
+    <img src="./images/img_2-1-lerp.png" width="420" alt="A dashed segment between P0 and P1 with the lerp(P0, P1, 0.25) point marked">
+  </p>
+
+  - **`Interpolate(t)`** — the point at parameter `t` along a shape, built on `lerp` internally.
+    - `LineSegment2D/3D::Interpolate(t)` **clamps** `t` to `[0, 1]` (below `0` returns `First`, above
+      `1` returns `Last`), so it never extrapolates the way the free `lerp()` does.
+    - `Polyline2D/3D::Interpolate(t)` uses a single **arc-length** `t ∈ [0, 1]` over the *whole*
+      polyline, not a per-segment or vertex-index fraction — `t = 0.5` is the point halfway along the
+      total length, whichever segment that lands in. `t` outside `[0, 1]` throws.
+
+  <p align="center">
+    <img src="./images/img_2-1-interpolate.png" width="420" alt="A 4-point polyline with its Interpolate(0.5) point marked, and the traveled half of the arc length highlighted">
+  </p>
+
+  - **`Location(point)`** — the inverse of `Interpolate`: given a point already on the shape, returns
+    its parameter `t`. For `Polyline2D/3D`, that's the same arc-length fraction `Interpolate` consumes.
+    The point must actually lie on the shape (within the current `DECIMAL_PRECISION` tolerance) —
+    `Location` returns `+infinity` for an off-shape point rather than projecting it to the nearest one.
+
+  <p align="center">
+    <img src="./images/img_2-1-location.png" width="420" alt="The same polyline with a query point resolved back to its arc-length parameter via Location()">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "point2d.hpp"
+  #include "line_segment2d.hpp"
+  #include "polyline2d.hpp"
+
+  namespace g = geompp;
+
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // lerp() — plain linear interpolation, not clamped
+  auto p0 = g::Point2D(1, 1);
+  auto p1 = g::Point2D(9, 5);
+  auto mid = g::lerp(p0, p1, 0.25);
+  GEOMPP_LOG(INFO) << "lerp(0.25) = " << mid.ToWkt();
+
+  // LineSegment2D::Interpolate — clamped to [0, 1]
+  auto seg = g::LineSegment2D::Make(p0, p1);
+  GEOMPP_LOG(INFO) << "seg.Interpolate(0.25) = " << seg.Interpolate(0.25).ToWkt();
+  GEOMPP_LOG(INFO) << "seg.Interpolate(1.5)  = " << seg.Interpolate(1.5).ToWkt();  // clamped to P1
+
+  // Polyline2D::Interpolate / Location — a single arc-length t over the WHOLE polyline
+  auto pl = g::Polyline2D::Make(
+      {g::Point2D(0, 0), g::Point2D(0, 4), g::Point2D(4, 4), g::Point2D(4, 0)});
+  auto at_half = pl.Interpolate(0.5);
+  GEOMPP_LOG(INFO) << "pl.Interpolate(0.5) = " << at_half.ToWkt();
+  GEOMPP_LOG(INFO) << "pl.Location(2, 4)   = " << pl.Location(g::Point2D(2, 4));
+  ```
+
+  will print out
+
+  ```
+  I20260403] lerp(0.25) = POINT (3 2)
+  I20260403] seg.Interpolate(0.25) = POINT (3 2)
+  I20260403] seg.Interpolate(1.5)  = POINT (9 5)
+  I20260403] pl.Interpolate(0.5) = POINT (2 4)
+  I20260403] pl.Location(2, 4)   = 0.5
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  g.set_decimal_precision(g.DP_THREE)
+
+  # lerp() — plain linear interpolation, not clamped
+  p0 = g.Point2D(1, 1)
+  p1 = g.Point2D(9, 5)
+  mid = g.lerp(p0, p1, 0.25)
+  print(f"lerp(0.25) = {mid.to_wkt()}")
+
+  # LineSegment2D.interpolate — clamped to [0, 1]
+  seg = g.LineSegment2D.make(p0, p1)
+  print(f"seg.interpolate(0.25) = {seg.interpolate(0.25).to_wkt()}")
+  print(f"seg.interpolate(1.5)  = {seg.interpolate(1.5).to_wkt()}")  # clamped to P1
+
+  # Polyline2D.interpolate / location — a single arc-length t over the WHOLE polyline
+  pl = g.Polyline2D.make([g.Point2D(0, 0), g.Point2D(0, 4), g.Point2D(4, 4), g.Point2D(4, 0)])
+  at_half = pl.interpolate(0.5)
+  print(f"pl.interpolate(0.5) = {at_half.to_wkt()}")
+  print(f"pl.location(2, 4)   = {pl.location(g.Point2D(2, 4))}")
+  ```
+
+  will print out
+
+  ```
+  lerp(0.25) = POINT (3 2)
+  seg.interpolate(0.25) = POINT (3 2)
+  seg.interpolate(1.5)  = POINT (9 5)
+  pl.interpolate(0.5) = POINT (2 4)
+  pl.location(2, 4)   = 0.5
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+  // Lerp — plain linear interpolation, not clamped
+  var p0 = new G.Point2D(1, 1);
+  var p1 = new G.Point2D(9, 5);
+  var mid = G.GeomUtil.Lerp(p0, p1, 0.25);
+  Console.WriteLine($"Lerp(0.25) = {mid.ToWkt()}");
+
+  // LineSegment2D.Interpolate — clamped to [0, 1]
+  var seg = G.LineSegment2D.Make(p0, p1);
+  Console.WriteLine($"seg.Interpolate(0.25) = {seg.Interpolate(0.25).ToWkt()}");
+  Console.WriteLine($"seg.Interpolate(1.5)  = {seg.Interpolate(1.5).ToWkt()}"); // clamped to P1
+
+  // Polyline2D.Interpolate / Location — a single arc-length t over the WHOLE polyline
+  var pl = G.Polyline2D.Make(new[] {
+      new G.Point2D(0, 0), new G.Point2D(0, 4), new G.Point2D(4, 4), new G.Point2D(4, 0)
+  });
+  var atHalf = pl.Interpolate(0.5);
+  Console.WriteLine($"pl.Interpolate(0.5) = {atHalf.ToWkt()}");
+  Console.WriteLine($"pl.Location(2, 4)   = {pl.Location(new G.Point2D(2, 4))}");
+  ```
+
+  will print out
+
+  ```
+  Lerp(0.25) = POINT (3 2)
+  seg.Interpolate(0.25) = POINT (3 2)
+  seg.Interpolate(1.5)  = POINT (9 5)
+  pl.Interpolate(0.5) = POINT (2 4)
+  pl.Location(2, 4)   = 0.5
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 2.2 Containment </b></summary>
 
 `Triangle3D::Contains(p)` and `Polygon2D/3D::Contains(p)` test whether a point lies inside a shape
   using barycentric coordinates and the winding number, respectively.
   `LineSegment::Contains(p)` checks whether a point lies on the segment;
-  `Location(p)` returns the parameter `t ∈ [0, 1]` for a point already on it, and `Interpolate(t)` reverses the mapping.
+  `Location(p)` / `Interpolate(t)` map a point on it to/from a `t ∈ [0, 1]` parameter — see section 2.1
+  "Interpolation" for the full story, including the `Polyline` equivalents.
 
   <p align="center">
-    <img src="./images/img_2-1-containment.png" width="420" alt="A point inside a polygon and a point outside it, tested with Contains()">
+    <img src="./images/img_2-2-containment.png" width="420" alt="A point inside a polygon and a point outside it, tested with Contains()">
   </p>
 
   <details closed>
@@ -535,7 +724,7 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; &nbsp; 2.2 Intersection </b></summary>
+<summary><b> &nbsp; &nbsp; 2.3 Intersection </b></summary>
 
   Every 2D primitive (`Line2D`, `Ray2D`, `LineSegment2D`, `Triangle2D`, `Polygon2D`) can intersect any
   other 2D primitive, and the same holds in 3D across `Line3D`, `Ray3D`, `LineSegment3D`, `Triangle3D`,
@@ -547,7 +736,7 @@ A quick list of code examples per topic is provided here.
   Methods return `object` (null on miss) in C#; use pattern matching to extract the result type.
 
   <p align="center">
-    <img src="./images/img_2-2-intersection.png" width="420" alt="A vertical line crossing a C-shaped polygon, producing two chord segments">
+    <img src="./images/img_2-3-intersection.png" width="420" alt="A vertical line crossing a C-shaped polygon, producing two chord segments">
   </p>
 
   <details closed>
@@ -783,16 +972,18 @@ A quick list of code examples per topic is provided here.
   </details>
 
 <details open>
-<summary><b> &nbsp; &nbsp; &nbsp; 2.2.1 Split a complex polygon </b></summary>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.3.1 Split a complex polygon </b></summary>
 
   A **complex polygon** (also called a self-intersecting polygon) is a polygon whose edges cross
-  each other. `Simplify()` decomposes it into a list of simple (non-self-intersecting) polygons
-  via planar-graph half-edge face tracing. Each returned polygon is guaranteed to satisfy
-  `IsSimple() == true`. If the input is already simple, `Simplify()` returns a single-element
-  vector containing the original polygon.
+  each other. `Simplify()` decomposes it into a list of simple (non-self-intersecting) polygons by
+  finding every crossing with a Bentley–Ottmann sweep, splitting the ring at each one, then tracing
+  the resulting planar graph face-by-face (half-edge walk). Each returned polygon is guaranteed to satisfy
+`IsSimple() == true`. If the input is already simple, `Simplify()` returns a single-element
+  vector containing the original polygon. The polygon pieces split out by `Simplify()` are guaranteed 
+  to be all CCW winding (in 2D), while they will have their own winding (their own normal) in 3D. 
 
   <p align="center">
-    <img src="./images/img_2-2-1-split.png" width="420" alt="A self-crossing bowtie polygon decomposed by Simplify() into two simple triangles">
+    <img src="./images/img_2-3-1-split.png" width="420" alt="A self-crossing bowtie polygon decomposed by Simplify() into two simple triangles">
   </p>
 
   <details closed>
@@ -920,7 +1111,7 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; &nbsp; 2.3 Overlap </b></summary>
+<summary><b> &nbsp; &nbsp; 2.4 Overlap </b></summary>
 
   `Overlaps(other)` returns `true` when two primitives share a 1D region (more than a single point).
   `Overlap(other)` returns the shared geometry, or `std::nullopt` when they do not overlap or
@@ -933,7 +1124,7 @@ A quick list of code examples per topic is provided here.
   Use C# pattern matching to extract the concrete type.
 
   <p align="center">
-    <img src="./images/img_2-3-overlap.png" width="420" alt="Two overlapping collinear segments and their shared Overlap() result">
+    <img src="./images/img_2-4-overlap.png" width="420" alt="Two overlapping collinear segments and their shared Overlap() result">
   </p>
 
   <details closed>
@@ -1136,14 +1327,14 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; &nbsp; 2.4 Touch </b></summary>
+<summary><b> &nbsp; &nbsp; 2.5 Touch </b></summary>
 
   `Touches(other)` returns `true` when two primitives share exactly one endpoint-contact point
   (not an interior crossing, not a shared segment). `Touch(other)` returns that contact point,
   or `std::nullopt` when there is no touch.
 
   <p align="center">
-    <img src="./images/img_2-4-touch.png" width="420" alt="A segment T-junction touching another segment at a single contact point">
+    <img src="./images/img_2-5-touch.png" width="420" alt="A segment T-junction touching another segment at a single contact point">
   </p>
 
   <details closed>
@@ -1340,14 +1531,14 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; &nbsp; 2.5 Polyline Overlaps / Touches </b></summary>
+<summary><b> &nbsp; &nbsp; 2.6 Polyline Overlaps / Touches </b></summary>
 
   `Polyline2D` and `Polyline3D` iterate over their constituent segments to collect all
   overlapping sub-segments or all touch points. `Overlap(other)` returns
   `std::optional<std::vector<LineSegment2D/3D>>`; `Touch(other)` returns `std::optional<std::vector<Point2D/3D>>`.
 
   <p align="center">
-    <img src="./images/img_2-5-polyline-overlap-touch.png" width="420" alt="An L-shaped polyline overlapping the x-axis and a stem polyline touching it at a T-junction">
+    <img src="./images/img_2-6-polyline-overlap-touch.png" width="420" alt="An L-shaped polyline overlapping the x-axis and a stem polyline touching it at a T-junction">
   </p>
 
   <details closed>
@@ -2022,7 +2213,7 @@ A quick list of code examples per topic is provided here.
   `Y` the secondary, and `Z` the best-fit plane normal (least variance).
 
   <p align="center">
-    <img src="./images/img_4-pca.png" width="420" alt="An 8-point flat cloud elongated along X, with its principal_axes X/Y/Z drawn">
+    <img src="./images/img_4-pca.png" width="420" alt="A 3D point cloud (grey) with its centroid and principal_axes X/Y/Z (red/green/blue), shown against the white world axes">
   </p>
 
   <details closed>
@@ -3316,7 +3507,9 @@ A quick list of code examples per topic is provided here.
 
   If you need the actual closest-approach segment instead of just the scalar, use `Distance(...)`
   (note: no `To`) — it returns `std::optional<LineSegment3D>`, `std::nullopt` when the two intersect
-  or overlap (matching the zero case of `DistanceTo`).
+  or overlap (matching the zero case of `DistanceTo`). Under the hood, the closest points on two
+  (possibly skew) 3D lines are solved in closed form via Cramer's rule on the 2×2 system that makes
+  the connecting vector perpendicular to both directions.
 
   For polygon-to-line distance, use the free function `distance_to(polygon, line)` (see section 5.4
   "Polygon extreme points" for `find_extreme_points`, its sibling function) — zero if the line
@@ -3653,23 +3846,40 @@ A quick list of code examples per topic is provided here.
   - `RadialDistance` — O(n) brute-force pass: drops a vertex if it's closer than `threshold` to the
     last *kept* vertex. Cheapest and least accurate — good as a fast noise-clustering pre-pass, not as
     the sole strategy when shape fidelity matters.
+
+  <p align="center">
+    <img src="./images/dist_decimation_mechanism.png" width="560" alt="How RadialDistance decides: a point survives only if it is farther than the threshold from the last kept point"><br>
+  </p>
+
   - `RamerDouglasPeucker` — O(n log n) to O(n²): recursively drops vertices closer than `threshold`
     to the chord spanning their segment. Given points P1, P2, P3, drops P2 when its perpendicular
     distance from the P1-P3 chord is below `threshold`; otherwise keeps P2 and recurses on both
     halves. Best general-purpose choice — preserves the vertices that most define the polyline's shape.
+
+  <p align="center">
+    <img src="./images/rdp_decimation_mechanism.png" width="560" alt="How RamerDouglasPeucker decides: keeps the point with the largest perpendicular distance from the chord"><br>
+  </p>
+
+
   - `VisvalingamWhyatt` — O(n log n) to O(n²): repeatedly drops the vertex forming the smallest-area
     triangle with its neighbors, while that area stays below `threshold`, then re-evaluates the
     neighbors. Tends to preserve visually significant features (sharp spikes) better than
     `RadialDistance` while being similarly simple to reason about.
 
+
+  <p align="center">
+    <img src="./images/vw_decimation_mechanism.png" width="560" alt="How VisvalingamWhyatt decides: repeatedly removes the point forming the smallest-area triangle with its neighbors">
+  </p>
+
+
   `settings` is optional and defaults to `{RamerDouglasPeucker, 0.5}`, so `Reduce()` with no arguments
   keeps working.
 
+
+  Here is an example done with Jupyter Notebook in 2D of polyline expansion and reduction. 
+
   <p align="center">
-    <img src="./images/polyline_decimation_blunts_apex.png" width="560" alt="RadialDistance decimation missing a sharp apex and blunting it into a wider hump"><br>
-    <img src="./images/dist_decimation_mechanism.png" width="560" alt="How RadialDistance decides: a point survives only if it is farther than the threshold from the last kept point"><br>
-    <img src="./images/rdp_decimation_mechanism.png" width="560" alt="How RamerDouglasPeucker decides: keeps the point with the largest perpendicular distance from the chord"><br>
-    <img src="./images/vw_decimation_mechanism.png" width="560" alt="How VisvalingamWhyatt decides: repeatedly removes the point forming the smallest-area triangle with its neighbors">
+    <img src="./images/polyline_notepad.png" width="560" alt="sample code to expand or reduce a polyline with default settings">
   </p>
 
   <details closed>
@@ -4059,7 +4269,14 @@ A quick list of code examples per topic is provided here.
 <summary><b> &nbsp; 9. Polygon boolean operations </b></summary>
 
   `Polygon2D`/`Polygon3D` support four set operations against another polygon of the same type, all
-  built on the same planar-arrangement engine (`clip()` / `boolean_op()`) that backs `Intersection(Polygon)`.
+  built on the same planar-arrangement engine (`clip()` / `boolean_op()`) that backs `Intersection(Polygon)`:
+  a Bentley–Ottmann sweep finds every crossing between the two operands' edges, the rings are split at
+  each one, and every surviving segment is classified inside/outside the other operand (by point
+  containment) before the kept segments are traced back into closed result rings.
+  **Union, Intersection, Difference, and Xor are the exact same algorithm** — only a tiny inside/outside
+  truth table differs between them. The sweep and the final retrace are O(n log n), but classification
+  probes each split fragment against the other operand with a plain winding-number scan (no spatial
+  index), which is O((n+k)·m) — so **O(n²) worst case**, dominated by classification rather than the sweep.
   Each returns zero or more result polygons — a disjoint pair of operands can split into several pieces —
   and holes are respected on both operands throughout.
 
