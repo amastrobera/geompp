@@ -4428,3 +4428,183 @@ A quick list of code examples per topic is provided here.
   </details>
 
 </details>
+
+<details open>
+<summary><b> &nbsp; 10. Meshes</b></summary>
+
+  `Mesh2D`/`Mesh3D` (triangle faces) and `PolyMesh2D`/`PolyMesh3D` (arbitrary-sided polygon faces) hold
+  a set of adjacent facets built from a list of `Triangle`/`Polygon` inputs. Shared vertices are welded
+  via a spatial-hash grid (`GridCell2D`/`GridCell3D`) rather than an O(n) `AlmostEquals` scan, so
+  `Size()` reflects the number of input facets while the underlying unique-vertex count can be smaller.
+  No adjacency structure is stored (no "neighboring face" query), and `PolyMesh` facets cannot have
+  holes — `FromPolygons()` throws if any input polygon does.
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.1 Triangle mesh (Mesh2D / Mesh3D)</b></summary>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "mesh2d.hpp"
+
+  namespace g = geompp;
+
+  // two triangles sharing an edge — a unit square split along its diagonal
+  auto t0 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1));
+  auto t1 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::Mesh2D::FromTriangles({t0, t1});
+
+  GEOMPP_LOG(INFO) << "facets: " << mesh.Size() << ", area: " << mesh.Area();
+  for (std::size_t i = 0; i < mesh.Size(); ++i)
+      GEOMPP_LOG(INFO) << "face " << i << ": " << mesh[i].ToWkt();
+  ```
+
+  ```bash
+  I20260725] facets: 2, area: 1
+  I20260725] face 0: TRIANGLE (0 0, 1 0, 1 1)
+  I20260725] face 1: TRIANGLE (0 0, 1 1, 0 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # two triangles sharing an edge — a unit square split along its diagonal
+  t0 = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1))
+  t1 = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 1), g.Point2D(0, 1))
+  mesh = g.Mesh2D.from_triangles([t0, t1])
+
+  print(f"facets: {mesh.size()}, area: {mesh.area()}")
+  for i, face in enumerate(mesh):
+      print(f"face {i}: {face.to_wkt()}")
+  ```
+
+  ```
+  facets: 2, area: 1.0
+  face 0: TRIANGLE (0 0, 1 0, 1 1)
+  face 1: TRIANGLE (0 0, 1 1, 0 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // two triangles sharing an edge — a unit square split along its diagonal
+  var t0 = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0), new G.Point2D(1, 1));
+  var t1 = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 1), new G.Point2D(0, 1));
+  var mesh = G.Mesh2D.FromTriangles(new[] { t0, t1 });
+
+  Console.WriteLine($"facets: {mesh.Size()}, area: {mesh.Area()}");
+  for (int i = 0; i < mesh.Size(); ++i)
+      Console.WriteLine($"face {i}: {mesh[i].ToWkt()}");
+  ```
+
+  ```
+  facets: 2, area: 1
+  face 0: TRIANGLE (0 0, 1 0, 1 1)
+  face 1: TRIANGLE (0 0, 1 1, 0 1)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.2 Polygon mesh (PolyMesh2D / PolyMesh3D)</b></summary>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polymesh2d.hpp"
+
+  namespace g = geompp;
+
+  // two quads sharing an edge — a 2x1 rectangle split down the middle
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+
+  GEOMPP_LOG(INFO) << "facets: " << mesh.Size() << ", area: " << mesh.Area();
+  for (std::size_t i = 0; i < mesh.Size(); ++i)
+      GEOMPP_LOG(INFO) << "face " << i << ": " << mesh[i].ToWkt();
+  ```
+
+  ```bash
+  I20260725] facets: 2, area: 2
+  I20260725] face 0: POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
+  I20260725] face 1: POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # two quads sharing an edge — a 2x1 rectangle split down the middle
+  p0 = g.Polygon2D.make([g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1), g.Point2D(0, 1)])
+  p1 = g.Polygon2D.make([g.Point2D(1, 0), g.Point2D(2, 0), g.Point2D(2, 1), g.Point2D(1, 1)])
+  mesh = g.PolyMesh2D.from_polygons([p0, p1])
+
+  print(f"facets: {mesh.size()}, area: {mesh.area()}")
+  for i, face in enumerate(mesh):
+      print(f"face {i}: {face.to_wkt()}")
+  ```
+
+  ```
+  facets: 2, area: 2.0
+  face 0: POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
+  face 1: POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // two quads sharing an edge — a 2x1 rectangle split down the middle
+  var p0 = G.Polygon2D.Make(new G.Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var p1 = G.Polygon2D.Make(new G.Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+  var mesh = G.PolyMesh2D.FromPolygons(new[] { p0, p1 });
+
+  Console.WriteLine($"facets: {mesh.Size()}, area: {mesh.Area()}");
+  for (int i = 0; i < mesh.Size(); ++i)
+      Console.WriteLine($"face {i}: {mesh[i].ToWkt()}");
+  ```
+
+  ```
+  facets: 2, area: 2
+  face 0: POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
+  face 1: POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+</details>

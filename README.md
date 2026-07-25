@@ -151,20 +151,20 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; polygon extreme points along a line, polygon tangents; polyline decimation, Bezier corner smoothing, polyline expansion; polygon clipping; boolean operations (union, intersection, difference); |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; polygon extreme points along a line, polygon tangents; polyline decimation, Bezier corner smoothing, polyline expansion; polygon clipping; boolean operations (union, intersection, difference); Mesh2D/3D and PolyMesh2D/3D (triangle- and polygon-faced meshes with spatial-hash vertex welding, no adjacency structure); |
   | Next | TBC |
-  | Backlog | adjacency, definition of "non-planar polygon" or PolyMesh, triangulation/polygonization|
+  | Backlog | adjacency structure for Mesh/PolyMesh, triangulation/polygonization|
 
 
   This is the summary of the current test coverage. More on [test coverage](./test_coverage_report.md).
 
   | Metric | Count | Notes |
   |--------|-------|-------|
-  | Public methods | ~421 | Excl. ctors/dtors/operators |
-  | C++ tested | ~415 | ~99% |
-  | Python tested | ~235 | ~56% |
-  | C# tested | ~231 | ~55% |
-  | Stubs (not yet impl.) | 10 | Polygon2D/3D::DistanceTo; Triangle2D::Intersection(△); Triangle2D/3D::DistanceTo |
+  | Public methods (C++) | ~491 | Excl. ctors/dtors/operators |
+  | C++ methods tested | ~469/491 | ~95% (909 TEST cases, 907 run, 2 disabled) |
+  | Python methods tested | 423/443 | ~95% (742 pytest cases) |
+  | C# methods tested | 482/549 | ~88% (846 harness tests) |
+  | Stubs (not yet impl.) | 0 | Previously 10 — all now implemented (see test_coverage_report.md) |
 
 
 

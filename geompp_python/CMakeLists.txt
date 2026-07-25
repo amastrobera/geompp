@@ -50,6 +50,12 @@ set(BINDING_SOURCES
     src/bind_geometry_collection2d.cpp
     src/bind_geometry_collection3d.cpp
     src/bind_view2d.cpp
+    src/bind_grid_cell2d.cpp
+    src/bind_grid_cell3d.cpp
+    src/bind_mesh2d.cpp
+    src/bind_mesh3d.cpp
+    src/bind_polymesh2d.cpp
+    src/bind_polymesh3d.cpp
 )
 
 # ─── Python extension module ─────────────────────────────────────────────────

@@ -108,6 +108,43 @@ TEST_F(Vector2DTest, TestFromFile) {
   GEOMPP_LOG(INFO) << "form file = " << p.ToWkt();
 }
 
+TEST_F(Vector2DTest, ToPoint) {
+  auto p = g::Vector2D(3.5, -2.25).ToPoint();
+  EXPECT_EQ(3.5, p.x());
+  EXPECT_EQ(-2.25, p.y());
+}
+
+TEST_F(Vector2DTest, Length) {
+  EXPECT_EQ(0.0, g::Vector2D(0, 0).Length());
+  EXPECT_EQ(5.0, g::Vector2D(3, 4).Length());
+  EXPECT_EQ(1.0, g::Vector2D::BasisX().Length());
+  EXPECT_EQ(1.0, g::Vector2D::BasisY().Length());
+}
+
+TEST_F(Vector2DTest, AlmostEquals) {
+  EXPECT_TRUE(g::Vector2D(1.001, 2.001).AlmostEquals(g::Vector2D(1.002, 2.002), 0.01));
+  EXPECT_FALSE(g::Vector2D(1.0, 2.0).AlmostEquals(g::Vector2D(1.5, 2.0), 0.01));
+  EXPECT_TRUE(g::Vector2D(3, 4).AlmostEquals(g::Vector2D(3, 4)));
+}
+
+TEST_F(Vector2DTest, Normalize) {
+  auto n = g::Vector2D(3, 4).Normalize();
+  EXPECT_EQ(1.0, g::round(n.Length()));
+  EXPECT_EQ(0.6, n.x());
+  EXPECT_EQ(0.8, n.y());
+
+  // already-unit vectors stay unit
+  auto ux = g::Vector2D::BasisX().Normalize();
+  EXPECT_EQ(g::Vector2D(1, 0), ux);
+}
+
+TEST_F(Vector2DTest, BasisY) {
+  auto y = g::Vector2D::BasisY();
+  EXPECT_EQ(0.0, y.x());
+  EXPECT_EQ(1.0, y.y());
+  ASSERT_EQ(0.0, g::round(g::Vector2D::BasisX().Dot(y)));  // BasisX and BasisY are perpendicular
+}
+
 TEST_F(Vector2DTest, IsParallel) {
   // Same direction — parallel
   EXPECT_TRUE(g::Vector2D(1, 0).IsParallel(g::Vector2D(2, 0)));

@@ -17,6 +17,11 @@ Planar operations:
 Parser:
     WktParser
 
+Meshes (WIP — no adjacency structure, faces cannot have holes):
+    GridCell2D, GridCell3D (internal vertex-welding grid bucket, exposed for completeness)
+    Mesh2D, Mesh3D (triangle faces)
+    PolyMesh2D, PolyMesh3D (arbitrary-sided polygon faces)
+
 Free functions
 --------------
     are_collinear(p1, p2, p3)
@@ -106,6 +111,13 @@ from ._geompp import (  # noqa: F401
     View2D,
     # parser
     WktParser,
+    # meshes (WIP)
+    GridCell2D,
+    GridCell3D,
+    Mesh2D,
+    Mesh3D,
+    PolyMesh2D,
+    PolyMesh3D,
     # free functions
     are_collinear,
     are_coplanar,
@@ -158,6 +170,7 @@ __all__ = [
     "Point3D", "Vector3D", "Line3D", "Ray3D", "LineSegment3D",
     "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "BBall3D", "BPrism3D", "Plane", "GeometryCollection3D",
     "WktParser",
+    "GridCell2D", "GridCell3D", "Mesh2D", "Mesh3D", "PolyMesh2D", "PolyMesh3D",
     "Axis",
     "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
     "remove_duplicates", "remove_consecutive_duplicates",

@@ -34,7 +34,7 @@ class Polygon3D {
   SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
 
-  /// @brief Same convention as Polygon2D::Area(): holes are always simple (Make() rejects a
+  /// @brief Same convention as Polygon3D::Area(): holes are always simple (Make() rejects a
   /// self-intersecting hole outright) so their contribution is a direct O(1)-per-hole shoelace sum; the
   /// outer ring, if also simple, makes the whole thing O(n), otherwise it's decomposed at O(n log n) into
   /// its real bounded faces and their (plane-aware, not merely 2D-projected) areas summed.
@@ -64,6 +64,7 @@ class Polygon3D {
   static Polygon3D FromFile(std::string const& path);
 
   Polygon3D& operator=(Polygon3D const& other);
+  Polygon3D& operator=(Polygon3D&&) = default;
 
 #pragma region Geometrical Operations
 
@@ -119,7 +120,7 @@ class Polygon3D {
 
   /// @brief Intersection of this polygon with another.
   /// - Coplanar (same plane): the set intersection of the two areas, same semantics as
-  ///   Polygon2D::Intersection(Polygon2D) — zero or more result polygons.
+  ///   Polygon3D::Intersection(Polygon3D) — zero or more result polygons.
   /// - Not coplanar, planes crossing: the two flat regions can only share points along the planes'
   ///   common line, so the result is the chain of segments where both polygons' bounded regions cover
   ///   that line (empty chain omitted — reported as std::nullopt, not an empty vector).
@@ -149,6 +150,20 @@ class Polygon3D {
   /// @pre Same coplanarity requirement as Union() — see its docs for why.
   /// @throws std::logic_error if the two polygons are not coplanar.
   std::vector<Polygon3D> Xor(Polygon3D const& other) const;
+
+#pragma endregion
+
+#pragma region Iterators
+
+  // Only expose const_iterator
+  using const_iterator = std::vector<Point3D>::const_iterator;
+
+  // Both const and non-const begin/end return const_iterator!
+  const_iterator begin() const;
+  const_iterator end() const;
+
+  const_iterator cbegin() const;
+  const_iterator cend() const;
 
 #pragma endregion
 
@@ -184,6 +199,13 @@ inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& pla
 inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
                             std::vector<std::vector<Point3D>> const& holes, bool is_convex)
     : VERTICES(points), HOLES(holes), PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+
+// Both const and non-const begin/end return const_iterator!
+inline Polygon3D::const_iterator Polygon3D::begin() const { return VERTICES.cbegin(); }
+inline Polygon3D::const_iterator Polygon3D::end() const { return VERTICES.cend(); }
+
+inline Polygon3D::const_iterator Polygon3D::cbegin() const { return VERTICES.cbegin(); }
+inline Polygon3D::const_iterator Polygon3D::cend() const { return VERTICES.cend(); }
 
 #pragma endregion
 

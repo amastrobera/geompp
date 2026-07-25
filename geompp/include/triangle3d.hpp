@@ -44,7 +44,8 @@ class Triangle3D {
 
   /// @brief Distance from a point to this triangle (interior or boundary).
   /// @param point The point to measure distance to.
-  /// @return 0 if @p point is inside the triangle's closed region; otherwise the distance to the closest edge or vertex.
+  /// @return 0 if @p point is inside the triangle's closed region; otherwise the distance to the closest edge or
+  /// vertex.
   double DistanceTo(Point3D const& point) const;
 
   /// @brief Local 2D basis spanning the triangle's plane.
@@ -54,7 +55,8 @@ class Triangle3D {
   /// @brief Interpolates a point in the triangle's plane from barycentric-like coordinates (s, t) along U and V.
   /// @param s Scalar along the U axis (= P1 - P0).
   /// @param t Scalar along the V axis (= P2 - P0).
-  /// @return P0 + s·U + t·V if (s, t) describes a point inside the triangle (s, t, s+t in [0, 1]); otherwise std::nullopt.
+  /// @return P0 + s·U + t·V if (s, t) describes a point inside the triangle (s, t, s+t in [0, 1]); otherwise
+  /// std::nullopt.
   std::optional<Point3D> Interpolate(double s, double t) const;
 
   /// @brief Inverse of @ref Interpolate — locates a point in the (s, t) basis of @ref ToAxis.
@@ -70,6 +72,7 @@ class Triangle3D {
   static Triangle3D FromFile(std::string const& path);
 
   Triangle3D& operator=(Triangle3D const& other);
+  Triangle3D& operator=(Triangle3D&&) = default;
 
 #pragma region Geometrical Operations
 

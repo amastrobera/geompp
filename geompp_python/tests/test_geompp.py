@@ -350,6 +350,29 @@ class TestVector3D:
         n = geompp.Vector3D(3, 4, 0).normalize()
         assert approx(n.length(), 1.0)
 
+    def test_arithmetic(self):
+        a = geompp.Vector3D(1, 2, 3)
+        b = geompp.Vector3D(4, 5, 6)
+        s = a + b
+        assert approx(s.x, 5) and approx(s.y, 7) and approx(s.z, 9)
+        d = b - a
+        assert approx(d.x, 3) and approx(d.y, 3) and approx(d.z, 3)
+        scaled = a * 2
+        assert approx(scaled.x, 2) and approx(scaled.y, 4) and approx(scaled.z, 6)
+        rscaled = 2 * a
+        assert approx(rscaled.x, 2) and approx(rscaled.y, 4) and approx(rscaled.z, 6)
+        divided = b / 2
+        assert approx(divided.x, 2) and approx(divided.y, 2.5) and approx(divided.z, 3)
+
+    def test_negation(self):
+        v = -geompp.Vector3D(1, 2, 3)
+        assert approx(v.x, -1) and approx(v.y, -2) and approx(v.z, -3)
+
+    def test_eq(self):
+        v = geompp.Vector3D(1.0, 2.0, 3.0)
+        assert v == geompp.Vector3D(1.0, 2.0, 3.0)
+        assert not (v == geompp.Vector3D(1.0, 2.0, 3.1))
+
     def test_almost_equals(self):
         v = geompp.Vector3D(1.0, 2.0, 3.0)
         assert v.almost_equals(geompp.Vector3D(1.0, 2.0, 3.0))
@@ -6096,3 +6119,176 @@ class TestPolyline3DExpand:
         pl = geompp.Polyline3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(2, 2, 0)])
         with pytest.raises(ValueError):
             pl.expand(geompp.PolylineExpansionParams(segments_per_corner=0))
+
+
+# ─── GridCell2D / GridCell3D ───────────────────────────────────────────────────
+
+class TestGridCell2D:
+    def test_from_point_quantizes(self):
+        cell = geompp.GridCell2D.from_point(geompp.Point2D(2.5, 3.5), 1.0)
+        assert cell.x == 2 and cell.y == 3
+
+    def test_from_point_nearby_points_same_cell(self):
+        c1 = geompp.GridCell2D.from_point(geompp.Point2D(10.1, 10.1), 1.0)
+        c2 = geompp.GridCell2D.from_point(geompp.Point2D(10.9, 10.9), 1.0)
+        assert c1 == c2
+
+    def test_from_point_distant_points_different_cell(self):
+        c1 = geompp.GridCell2D.from_point(geompp.Point2D(0, 0), 1.0)
+        c2 = geompp.GridCell2D.from_point(geompp.Point2D(100, 100), 1.0)
+        assert not (c1 == c2)
+
+    def test_from_point_default_epsilon(self):
+        c1 = geompp.GridCell2D.from_point(geompp.Point2D(0, 0))
+        c2 = geompp.GridCell2D.from_point(geompp.Point2D(0.0001, 0))
+        assert c1 == c2
+
+
+class TestGridCell3D:
+    def test_from_point_quantizes(self):
+        cell = geompp.GridCell3D.from_point(geompp.Point3D(2.5, 3.5, 4.5), 1.0)
+        assert cell.x == 2 and cell.y == 3 and cell.z == 4
+
+    def test_from_point_nearby_points_same_cell(self):
+        c1 = geompp.GridCell3D.from_point(geompp.Point3D(10.1, 10.1, 10.1), 1.0)
+        c2 = geompp.GridCell3D.from_point(geompp.Point3D(10.9, 10.9, 10.9), 1.0)
+        assert c1 == c2
+
+    def test_from_point_distant_points_different_cell(self):
+        c1 = geompp.GridCell3D.from_point(geompp.Point3D(0, 0, 0), 1.0)
+        c2 = geompp.GridCell3D.from_point(geompp.Point3D(100, 100, 100), 1.0)
+        assert not (c1 == c2)
+
+
+# ─── Mesh2D / Mesh3D ────────────────────────────────────────────────────────────
+
+class TestMesh2D:
+    def test_from_triangles_empty_raises(self):
+        with pytest.raises(ValueError):
+            geompp.Mesh2D.from_triangles([])
+
+    def test_from_triangles_single(self):
+        t = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1))
+        mesh = geompp.Mesh2D.from_triangles([t])
+        assert mesh.size() == 1
+        assert approx(mesh.area(), 0.5)
+
+    def test_getitem_out_of_range_raises(self):
+        t = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1))
+        mesh = geompp.Mesh2D.from_triangles([t])
+        with pytest.raises(IndexError):
+            mesh[1]
+
+    def test_shared_edge_welds_and_preserves_faces(self):
+        # Regression test for the vertex-index off-by-one bug: two triangles sharing an
+        # edge must weld to 4 unique vertices and each face must round-trip correctly.
+        t0 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1))
+        t1 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1))
+        mesh = geompp.Mesh2D.from_triangles([t0, t1])
+
+        assert mesh.size() == 2
+        assert approx(mesh.area(), 1.0)
+        assert t0.almost_equals(mesh[0])
+        assert t1.almost_equals(mesh[1])
+
+    def test_len_and_iteration(self):
+        t0 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1))
+        t1 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1))
+        mesh = geompp.Mesh2D.from_triangles([t0, t1])
+        assert len(mesh) == 2
+        faces = list(mesh)
+        assert len(faces) == 2
+        assert faces[0].almost_equals(mesh[0])
+        assert faces[1].almost_equals(mesh[1])
+
+
+class TestMesh3D:
+    def test_from_triangles_empty_raises(self):
+        with pytest.raises(ValueError):
+            geompp.Mesh3D.from_triangles([])
+
+    def test_from_triangles_single(self):
+        t = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0))
+        mesh = geompp.Mesh3D.from_triangles([t])
+        assert mesh.size() == 1
+        assert approx(mesh.area(), 0.5)
+
+    def test_shared_edge_welds_and_preserves_faces(self):
+        t0 = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0))
+        t1 = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0))
+        mesh = geompp.Mesh3D.from_triangles([t0, t1])
+
+        assert mesh.size() == 2
+        assert approx(mesh.area(), 1.0)
+        assert t0.almost_equals(mesh[0])
+        assert t1.almost_equals(mesh[1])
+
+
+# ─── PolyMesh2D / PolyMesh3D ────────────────────────────────────────────────────
+
+class TestPolyMesh2D:
+    def test_from_polygons_empty_raises(self):
+        with pytest.raises(ValueError):
+            geompp.PolyMesh2D.from_polygons([])
+
+    def test_from_polygons_with_holes_raises(self):
+        outer = geompp.Polygon2D.make(
+            [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4), geompp.Point2D(0, 4)],
+            [[geompp.Point2D(1, 1), geompp.Point2D(1, 2), geompp.Point2D(2, 2), geompp.Point2D(2, 1)]])
+        with pytest.raises(ValueError):
+            geompp.PolyMesh2D.from_polygons([outer])
+
+    def test_from_polygons_single_quad(self):
+        p = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        mesh = geompp.PolyMesh2D.from_polygons([p])
+        assert mesh.size() == 1
+        assert approx(mesh.area(), 1.0)
+
+    def test_shared_edge_welds_and_preserves_faces(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        mesh = geompp.PolyMesh2D.from_polygons([p0, p1])
+
+        assert mesh.size() == 2
+        assert approx(mesh.area(), 2.0)
+        assert p0.almost_equals(mesh[0])
+        assert p1.almost_equals(mesh[1])
+
+    def test_len_and_iteration(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        mesh = geompp.PolyMesh2D.from_polygons([p0])
+        assert len(mesh) == 1
+        faces = list(mesh)
+        assert faces[0].almost_equals(mesh[0])
+
+
+class TestPolyMesh3D:
+    def test_from_polygons_empty_raises(self):
+        with pytest.raises(ValueError):
+            geompp.PolyMesh3D.from_polygons([])
+
+    def test_from_polygons_with_holes_raises(self):
+        outer = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)],
+            [[geompp.Point3D(1, 1, 0), geompp.Point3D(1, 2, 0), geompp.Point3D(2, 2, 0), geompp.Point3D(2, 1, 0)]])
+        with pytest.raises(ValueError):
+            geompp.PolyMesh3D.from_polygons([outer])
+
+    def test_from_polygons_single_quad(self):
+        p = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)])
+        mesh = geompp.PolyMesh3D.from_polygons([p])
+        assert mesh.size() == 1
+        assert approx(mesh.area(), 1.0)
+
+    def test_shared_edge_welds_and_preserves_faces(self):
+        p0 = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)])
+        p1 = geompp.Polygon3D.make(
+            [geompp.Point3D(1, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(2, 1, 0), geompp.Point3D(1, 1, 0)])
+        mesh = geompp.PolyMesh3D.from_polygons([p0, p1])
+
+        assert mesh.size() == 2
+        assert approx(mesh.area(), 2.0)
+        assert p0.almost_equals(mesh[0])
+        assert p1.almost_equals(mesh[1])

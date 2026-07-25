@@ -65,6 +65,7 @@ class Polygon2D {
   static Polygon2D FromFile(std::string const& path);
 
   Polygon2D& operator=(Polygon2D const& other);
+  Polygon2D& operator=(Polygon2D&&) = default;
 
 #pragma region Geometrical Operations
 
@@ -137,6 +138,20 @@ class Polygon2D {
 
 #pragma endregion
 
+#pragma region Iterators
+
+  // Only expose const_iterator
+  using const_iterator = std::vector<Point2D>::const_iterator;
+
+  // Both const and non-const begin/end return const_iterator!
+  const_iterator begin() const;
+  const_iterator end() const;
+
+  const_iterator cbegin() const;
+  const_iterator cend() const;
+
+#pragma endregion
+
  private:
   std::vector<Point2D> VERTICES;
   std::vector<std::vector<Point2D>> HOLES;
@@ -167,6 +182,13 @@ inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter
 inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,
                             std::vector<std::vector<Point2D>> const& holes, bool is_convex)
     : VERTICES(points), HOLES(holes), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+
+// Both const and non-const begin/end return const_iterator!
+inline Polygon2D::const_iterator Polygon2D::begin() const { return VERTICES.cbegin(); }
+inline Polygon2D::const_iterator Polygon2D::end() const { return VERTICES.cend(); }
+
+inline Polygon2D::const_iterator Polygon2D::cbegin() const { return VERTICES.cbegin(); }
+inline Polygon2D::const_iterator Polygon2D::cend() const { return VERTICES.cend(); }
 
 #pragma endregion
 

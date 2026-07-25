@@ -566,6 +566,44 @@ TEST_F(Polygon2DTest, IsConvex_WithHole_False) {
   EXPECT_FALSE(p.IsConvex());
 }
 
+// ---- ConvexHull ---------------------------------------------------------------
+
+TEST_F(Polygon2DTest, ConvexHull_AlreadyConvex_ReturnsSamePoints) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto hull = p.ConvexHull();
+  EXPECT_TRUE(p.AlmostEquals(hull));
+}
+
+TEST_F(Polygon2DTest, ConvexHull_ConcavePolygon_DropsInnerVertex) {
+  // L-shaped / arrow polygon — the dent at (2,2) must be excluded from the hull
+  auto p = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 2), g::Point2D(0, 4)});
+  auto hull = p.ConvexHull();
+
+  EXPECT_EQ(4u, hull.Size());
+  for (std::size_t i = 0; i < hull.Size(); ++i) {
+    EXPECT_FALSE(hull[i].AlmostEquals(g::Point2D(2, 2))) << "dent vertex must not survive the hull";
+  }
+}
+
+TEST_F(Polygon2DTest, ConvexHull_WithHole_IgnoresHole) {
+  // The hull of a polygon with a hole is just the hull of its outer ring
+  std::vector<g::Point2D> outer = {g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 3), g::Point2D(0, 3)};
+  std::vector<g::Point2D> hole = {g::Point2D(1, 1), g::Point2D(1, 2), g::Point2D(2, 2), g::Point2D(2, 1)};
+  auto p = g::Polygon2D::Make(outer, {hole});
+
+  auto hull = p.ConvexHull();
+  EXPECT_EQ(4u, hull.Size());
+  EXPECT_NEAR(9.0, hull.Area(), 1e-9);
+  EXPECT_FALSE(hull.HasHoles());
+}
+
+TEST_F(Polygon2DTest, ConvexHull_IsConvex) {
+  auto p = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 2), g::Point2D(0, 4)});
+  EXPECT_TRUE(p.ConvexHull().IsConvex());
+}
+
 // ---- Simplify ---------------------------------------------------------------
 
 TEST_F(Polygon2DTest, Simplify_AlreadySimple_ReturnsSelf) {

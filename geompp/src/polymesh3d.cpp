@@ -26,12 +26,18 @@ PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons) {
     throw std::invalid_argument("provided zero polygons to initialize the mesh");
   }
 
+  for (auto const& poly : polygons) {
+    if (poly.HasHoles()) {
+      throw std::invalid_argument("PolyMesh3D faces cannot have holes");
+    }
+  }
+
   //  unique points (remove duplicates from polygons) --> use the GridCell and save into a hashmap
   //    \_ using deque to avoid constant dynamic re-allocations as the size doubles
   std::deque<Point3D> point_deque;
 
   // grid-cell to keep nearby vertices on the same hashkey
-  std::unordered_map<GridCell3D, std::size_t, GridCell3DHash> grid_map;
+  std::unordered_map<GridCell3D, std::size_t, detail::GridCell3DHash> grid_map;
   //   lambda that
   //    (1) finds a hash for a point
   //    (2) saves the point into point_deque
@@ -42,7 +48,7 @@ PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons) {
       return search->second;
     }
     point_deque.push_back(p);
-    std::size_t n = point_deque.size();
+    std::size_t n = point_deque.size() - 1;  // 0-based index of the element just pushed
     grid_map[gc] = n;
     return n;
   };
@@ -57,13 +63,11 @@ PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons) {
   face_idx_offsets.reserve(n_polygons);
 
   for (auto const& poly : polygons) {
-    std::size_t n_poly = poly.Size();
-
     face_idx_begins.push_back(face_indices_deque.size());  // beginning of the face indices
-    face_idx_offsets.push_back(n_poly);                    // number of points of this face
+    face_idx_offsets.push_back(poly.Size());               // number of points of this face
 
-    for (std::size_t i_p = 0; i_p < n_poly; ++i_p) {
-      std::size_t i = get_gridcell_hash_index(poly[i_p]);
+    for (auto const& p : poly) {
+      std::size_t i = get_gridcell_hash_index(p);
       face_indices_deque.push_back(i);
     }
   }

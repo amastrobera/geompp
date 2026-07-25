@@ -11,6 +11,42 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [Unreleased]
+
+> `Mesh2D/3D` (triangle-faced) and `PolyMesh2D/3D` (arbitrary-polygon-faced) meshes with spatial-hash vertex welding, bound in Python and C#. Also closes several test-coverage gaps flagged in `test_coverage_report.md`: C++ `Vector2D` core methods, `Polygon2D/3D::ConvexHull()`, Python `Vector3D` operators, and C#'s `ToString()`/`operator==` across all bound classes.
+
+### Added
+
+**C++ core**
+- `Mesh2D`/`Mesh3D` (`mesh2d.hpp`/`mesh3d.hpp`) — a mesh of adjacent triangles stored as unique welded vertices plus a per-face `array<size_t, 3>` index. `FromTriangles(vector<Triangle2D/3D>)` welds each triangle's vertices via `GridCell2D/3D`-bucketed spatial hashing (`detail::GridCellMapForMesh2D/3D`) instead of an O(n) `AlmostEquals` scan; `Size()`, `Area()` (sum of each input triangle's own area, independent of welding), `operator[]` (bounds-checked), and a lazy `Faces()` range view (borrows `this` — must not outlive the mesh).
+- `PolyMesh2D`/`PolyMesh3D` (`polymesh2d.hpp`/`polymesh3d.hpp`) — same idea for arbitrary-sided polygon faces, stored as a flat variable-length index buffer (`FACE_INDICES`/`FACE_IDX_BEGINS`/`FACE_IDX_OFFSETS`) rather than a fixed-3 array. `FromPolygons(vector<Polygon2D/3D>)` throws `std::invalid_argument` if any input polygon has holes, since a mesh facet can't represent one.
+- `GridCell2D`/`GridCell3D` (`grid_cell2d.hpp`/`grid_cell3d.hpp`) — axis-aligned spatial hash bucket (`floor(coord / epsilon)` per axis) backing the vertex-welding above. `FromPoint()` defaults `epsilon` to `DOUBLE_EPSILON` (tracks the same thread-local `DECIMAL_PRECISION` as `AlmostEquals`, but compares via grid-cell bucketing rather than direct distance — two points up to `sqrt(2)`/`sqrt(3)` × epsilon apart can land in the same cell, and two points closer than epsilon can land in different cells if they straddle a cell boundary).
+
+**Python bindings**
+- `Mesh2D`/`Mesh3D`: `from_triangles(triangles)`, `size()`, `area()`, `__len__`, `__getitem__`, `__iter__`.
+- `PolyMesh2D`/`PolyMesh3D`: `from_polygons(polygons)`, `size()`, `area()`, `__len__`, `__getitem__`, `__iter__`.
+- `GridCell2D`/`GridCell3D`: `from_point(point[, epsilon])`, `x`/`y`(/`z`), `__eq__`.
+
+**C# bindings**
+- `Mesh2D`/`Mesh3D`: `FromTriangles(triangles)`, `Size()`, `Area()`, indexer, `ToString()`.
+- `PolyMesh2D`/`PolyMesh3D`: `FromPolygons(polygons)`, `Size()`, `Area()`, indexer, `ToString()`.
+- `GridCell2D`/`GridCell3D`: `FromPoint(point[, epsilon])`, `X`/`Y`(/`Z`), `operator==`, `ToString()`.
+- `ToString()` added for all 26 previously-bound classes; `operator==` added for the 20 of them that lacked it (everything except `Vector2D`, `BBall2D/3D`, `BRect2D`, `BPrism3D`, which already had it). `WktParser` has no `operator==` binding — not applicable, no C++ operator to wrap.
+
+### Fixed
+
+- **Critical off-by-one in mesh vertex welding**: `add_point` (`grid_cell2d.cpp`/`grid_cell3d.cpp`) and the equivalent inline lambda in `polymesh2d.cpp`/`polymesh3d.cpp` recorded a newly-welded vertex's index as the container's size *after* `push_back` (a 1-based count) instead of its 0-based position, shifting every face's vertex indices by one and making the *last* unique vertex in any mesh one-past-the-end — an out-of-bounds read on `operator[]`/`Faces()` for any mesh built from ≥2 faces sharing a vertex. Affected all four factories: `Mesh2D/3D::FromTriangles`, `PolyMesh2D/3D::FromPolygons`. Fixed by using `size() - 1`; regression-tested in all three languages via a two-face shared-edge case asserting each face's original vertices survive welding unshifted.
+- `polymesh2d.cpp`/`polymesh3d.cpp` referenced `GridCell2DHash`/`GridCell3DHash` unqualified after the type moved into `namespace detail` — compile error, fixed by qualifying as `detail::GridCell2DHash`/`detail::GridCell3DHash`.
+- `mesh2d.hpp`/`mesh3d.hpp`/`polymesh2d.hpp`/`polymesh3d.hpp` each had a missing closing brace on the inline `Faces()` definition, leaving `namespace geompp` unclosed for the rest of the header — silently masked by a stale cached build until a forced rebuild surfaced it as a `<deque>`/`<unordered_map>` template-instantiation cascade in unrelated translation units. `polymesh3d.hpp`'s `Faces()` was additionally defined as `PolyMesh2D::Faces()` (copy-paste from the 2D header) instead of `PolyMesh3D::Faces()`.
+- `add_triangle` (`grid_cell2d.cpp`/`grid_cell3d.cpp`) was declared to return `std::tuple<size_t, size_t, size_t>` but never returned a value on any path — undefined behavior in principle, though harmless in practice since both call sites discarded the result. Simplified to `void`.
+- `Triangle2D`/`Triangle3D`/`Polygon2D`/`Polygon3D` gained a duplicate copy-ctor/move-ctor/copy-assignment declaration (edited in alongside the mesh work) that conflicted with each class's pre-existing custom `operator=(T const&)`. The actually-needed piece — an explicit `operator=(T&&) = default` move-assignment, required for `std::movable` so `Mesh2D/3D::Faces()`'s range-view pipeline compiles — was kept; the accidental duplicates were removed.
+- `PolyMesh2D/3D::FromPolygons` now rejects polygons with holes (`std::invalid_argument`) instead of silently discarding the hole and using only the outer ring as the face, matching the class's own "each facet has no holes" documented invariant.
+- C++ `Vector2D`: `ToPoint`, `Length`, `AlmostEquals`, `Normalize`, `BasisY` had no direct test in `test_vector2d.cpp` despite being implemented and correct — added tests, no behavior change.
+- C++ `Polygon2D/3D::ConvexHull()` (the member method, not the free `convex_hull()` function) had no dedicated test — added tests, no behavior change.
+- Python `Vector3D`: `__add__`/`__sub__`/`__mul__`/`__rmul__`/`__truediv__`/`__neg__`/`__eq__` had no test (unlike `Vector2D`, which has `test_arithmetic`) — added tests, no behavior change.
+
+---
+
 ## [0.15.0] - 2026-07-21
 
 > C++ library — tagged `v0.15.0` · C# / NuGet — tagged `csharp-v0.15.0` · Python / PyPI — tagged `python-v0.15.0`

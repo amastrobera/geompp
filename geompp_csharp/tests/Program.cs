@@ -2053,6 +2053,12 @@ Test("IsParallel_ScaledSameDir",  () => IsTrue(new Vector2D(1, 1).IsParallel(new
 Test("IsParallel_Perpendicular",  () => IsFalse(new Vector2D(1, 0).IsParallel(new Vector2D(0, 1))));
 Test("IsParallel_NonParallel",    () => IsFalse(new Vector2D(1, 0).IsParallel(new Vector2D(1, 1))));
 
+Test("ToString_ContainsCoordinates", () => {
+  var s = new Vector2D(1.0, 2.0).ToString();
+  IsTrue(s.Contains("VECTOR"), "missing VECTOR keyword");
+  IsTrue(s.Contains("1") && s.Contains("2"), "missing coordinates");
+});
+
 // ── WktParser ─────────────────────────────────────────────────────────────────
 Console.WriteLine("\nWktParser");
 
@@ -2136,6 +2142,16 @@ Test("ToWkt_Point2D_ContainsCoordinates", () => {
   IsTrue(wkt!.Contains("POINT"), "missing POINT keyword");
   IsTrue(wkt.Contains("5"), "missing x");
   IsTrue(wkt.Contains("6"), "missing y");
+});
+
+Test("ToString_ContainsFilePath", () => {
+  var path = MakeTempWktFile("POINT (1 2)");
+  using (var parser = WktParser.Open(path)) {
+    var s = parser.ToString();
+    IsTrue(s.Contains("WktParser"), "missing WktParser label");
+    IsTrue(s.Contains(path), "missing file path");
+  }
+  File.Delete(path);
 });
 
 // ── GeometryCollection2D ──────────────────────────────────────────────────────
@@ -2323,6 +2339,20 @@ Test("ScalarMultiply_Point", () => {
   Eq(6.0, p.Y);
 });
 
+Test("ToString_ContainsCoordinates", () => {
+  var s = new Point2D(1.0, 2.0).ToString();
+  IsTrue(s.Contains("POINT"), "missing POINT keyword");
+  IsTrue(s.Contains("1") && s.Contains("2"), "missing coordinates");
+});
+
+Test("Equality_SamePoint_True", () => {
+  IsTrue(new Point2D(1.0, 2.0) == new Point2D(1.0, 2.0));
+});
+
+Test("Equality_DifferentPoint_False", () => {
+  IsFalse(new Point2D(0.0, 0.0) == new Point2D(1.0, 0.0));
+});
+
 // ── Point3D (additional) ──────────────────────────────────────────────────────
 Console.WriteLine("\nPoint3D (additional)");
 
@@ -2382,6 +2412,20 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("ToString_ContainsCoordinates", () => {
+  var s = new Point3D(1.0, 2.0, 3.0).ToString();
+  IsTrue(s.Contains("POINT"), "missing POINT keyword");
+  IsTrue(s.Contains("1") && s.Contains("2") && s.Contains("3"), "missing coordinates");
+});
+
+Test("Equality_SamePoint_True", () => {
+  IsTrue(new Point3D(1.0, 2.0, 3.0) == new Point3D(1.0, 2.0, 3.0));
+});
+
+Test("Equality_DifferentPoint_False", () => {
+  IsFalse(new Point3D(0.0, 0.0, 0.0) == new Point3D(1.0, 0.0, 0.0));
+});
+
 // ── Vector3D (additional) ─────────────────────────────────────────────────────
 Console.WriteLine("\nVector3D (additional)");
 
@@ -2390,6 +2434,20 @@ Test("ToPoint_MatchesXYZ", () => {
   Eq(1.0, pt.X);
   Eq(2.0, pt.Y);
   Eq(3.0, pt.Z);
+});
+
+Test("ToString_ContainsCoordinates", () => {
+  var s = new Vector3D(1.0, 2.0, 3.0).ToString();
+  IsTrue(s.Contains("VECTOR"), "missing VECTOR keyword");
+  IsTrue(s.Contains("1") && s.Contains("2") && s.Contains("3"), "missing coordinates");
+});
+
+Test("Equality_SameVector_True", () => {
+  IsTrue(new Vector3D(1.0, 2.0, 3.0) == new Vector3D(1.0, 2.0, 3.0));
+});
+
+Test("Equality_DifferentVector_False", () => {
+  IsFalse(new Vector3D(1.0, 0.0, 0.0) == new Vector3D(0.0, 1.0, 0.0));
 });
 
 // ── Line2D (additional) ───────────────────────────────────────────────────────
@@ -2465,6 +2523,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("ToString_ContainsWkt", () => {
+  var s = Line2D.Make(new Point2D(0, 0), new Point2D(1, 1)).ToString();
+  IsTrue(s.Contains("LINE"), "missing LINE keyword");
+});
+
+Test("Equality_SameLine_True", () => {
+  var l1 = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var l2 = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  IsTrue(l1 == l2);
+});
+
+Test("Equality_DifferentLine_False", () => {
+  var l1 = Line2D.Make(new Point2D(0, 0), new Point2D(1, 0));
+  var l2 = Line2D.Make(new Point2D(0, 0), new Point2D(0, 1));
+  IsFalse(l1 == l2);
+});
+
 // ── Line3D (additional) ───────────────────────────────────────────────────────
 Console.WriteLine("\nLine3D (additional)");
 
@@ -2502,6 +2577,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   l.ToFile(path);
   IsTrue(l.AlmostEquals(Line3D.FromFile(path)));
   File.Delete(path);
+});
+
+Test("ToString_ContainsWkt", () => {
+  var s = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0)).ToString();
+  IsTrue(s.Contains("LINE"), "missing LINE keyword");
+});
+
+Test("Equality_SameLine_True", () => {
+  var l1 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var l2 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  IsTrue(l1 == l2);
+});
+
+Test("Equality_DifferentLine_False", () => {
+  var l1 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0));
+  var l2 = Line3D.Make(new Point3D(0, 0, 0), new Point3D(0, 1, 0));
+  IsFalse(l1 == l2);
 });
 
 // ── LineSegment2D (additional) ────────────────────────────────────────────────
@@ -2599,6 +2691,23 @@ Test("Reversed_TwiceIsOriginal", () => {
   var rr = s.Reversed()!.Reversed()!;
   IsTrue(s.First().AlmostEquals(rr.First()));
   IsTrue(s.Last().AlmostEquals(rr.Last()));
+});
+
+Test("ToString_ContainsWkt", () => {
+  var s = LineSegment2D.Make(new Point2D(0, 0), new Point2D(1, 1)).ToString();
+  IsTrue(s.Contains("LINESTRING"), "missing LINESTRING keyword");
+});
+
+Test("Equality_SameSeg_True", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var b = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentSeg_False", () => {
+  var a = LineSegment2D.Make(new Point2D(0, 0), new Point2D(4, 0));
+  var b = LineSegment2D.Make(new Point2D(0, 0), new Point2D(0, 4));
+  IsFalse(a == b);
 });
 
 // ── LineSegment3D (additional) ────────────────────────────────────────────────
@@ -2714,6 +2823,23 @@ Test("Reversed_TwiceIsOriginal", () => {
   IsTrue(s.Last().AlmostEquals(rr.Last()));
 });
 
+Test("ToString_ContainsWkt", () => {
+  var s = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0)).ToString();
+  IsTrue(s.Contains("LINESTRING"), "missing LINESTRING keyword");
+});
+
+Test("Equality_SameSeg_True", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentSeg_False", () => {
+  var a = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0));
+  var b = LineSegment3D.Make(new Point3D(0, 0, 0), new Point3D(0, 4, 0));
+  IsFalse(a == b);
+});
+
 // ── Ray2D (additional) ────────────────────────────────────────────────────────
 Console.WriteLine("\nRay2D (additional)");
 
@@ -2818,6 +2944,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   r.ToFile(path);
   IsTrue(r.AlmostEquals(Ray2D.FromFile(path)));
   File.Delete(path);
+});
+
+Test("ToString_ContainsWkt", () => {
+  var s = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0)).ToString();
+  IsTrue(s.Contains("RAY"), "missing RAY keyword");
+});
+
+Test("Equality_SameRay_True", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  IsTrue(r1 == r2);
+});
+
+Test("Equality_DifferentRay_False", () => {
+  var r1 = Ray2D.Make(new Point2D(0, 0), new Vector2D(1, 0));
+  var r2 = Ray2D.Make(new Point2D(0, 0), new Vector2D(0, 1));
+  IsFalse(r1 == r2);
 });
 
 // ── Ray3D (additional) ────────────────────────────────────────────────────────
@@ -2926,6 +3069,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   r.ToFile(path);
   IsTrue(r.AlmostEquals(Ray3D.FromFile(path)));
   File.Delete(path);
+});
+
+Test("ToString_ContainsWkt", () => {
+  var s = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0)).ToString();
+  IsTrue(s.Contains("RAY"), "missing RAY keyword");
+});
+
+Test("Equality_SameRay_True", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  IsTrue(r1 == r2);
+});
+
+Test("Equality_DifferentRay_False", () => {
+  var r1 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(1, 0, 0));
+  var r2 = Ray3D.Make(new Point3D(0, 0, 0), new Vector3D(0, 1, 0));
+  IsFalse(r1 == r2);
 });
 
 // ── Polyline2D (additional) ───────────────────────────────────────────────────
@@ -3049,6 +3209,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("ToString_ContainsWkt", () => {
+  var s = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) }).ToString();
+  IsTrue(s.Contains("LINESTRING"), "missing LINESTRING keyword");
+});
+
+Test("Equality_SamePolyline_True", () => {
+  var a = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  var b = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0), new(4,4) });
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentPolyline_False", () => {
+  var a = Polyline2D.Make(new Point2D[] { new(0,0), new(4,0) });
+  var b = Polyline2D.Make(new Point2D[] { new(0,0), new(0,4) });
+  IsFalse(a == b);
+});
+
 // ── Polyline3D (additional) ───────────────────────────────────────────────────
 Console.WriteLine("\nPolyline3D (additional)");
 
@@ -3139,6 +3316,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("ToString_ContainsWkt", () => {
+  var s = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0) }).ToString();
+  IsTrue(s.Contains("LINESTRING"), "missing LINESTRING keyword");
+});
+
+Test("Equality_SamePolyline_True", () => {
+  var a = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0) });
+  var b = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0) });
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentPolyline_False", () => {
+  var a = Polyline3D.Make(new Point3D[] { new(0,0,0), new(4,0,0) });
+  var b = Polyline3D.Make(new Point3D[] { new(0,0,0), new(0,4,0) });
+  IsFalse(a == b);
+});
+
 // ── Polygon2D (additional) ────────────────────────────────────────────────────
 Console.WriteLine("\nPolygon2D (additional)");
 
@@ -3217,6 +3411,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("ToString_ContainsWkt", () => {
+  var s = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) }).ToString();
+  IsTrue(s.Contains("POLYGON"), "missing POLYGON keyword");
+});
+
+Test("Equality_SamePoly_True", () => {
+  var a = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var b = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentPoly_False", () => {
+  var a = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+  var b = Polygon2D.Make(new Point2D[] { new(0,0), new(2,0), new(2,2), new(0,2) });
+  IsFalse(a == b);
+});
+
 // ── Polygon3D (additional) ────────────────────────────────────────────────────
 Console.WriteLine("\nPolygon3D (additional)");
 
@@ -3292,6 +3503,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("ToString_ContainsWkt", () => {
+  var s = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) }).ToString();
+  IsTrue(s.Contains("POLYGON"), "missing POLYGON keyword");
+});
+
+Test("Equality_SamePoly_True", () => {
+  var a = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  var b = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentPoly_False", () => {
+  var a = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+  var b = Polygon3D.Make(new Point3D[] { new(0,0,0), new(2,0,0), new(2,2,0), new(0,2,0) });
+  IsFalse(a == b);
+});
+
 // ── Triangle2D (additional methods) ──────────────────────────────────────────
 Console.WriteLine("\nTriangle2D (new methods)");
 
@@ -3352,6 +3580,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   File.Delete(path);
 });
 
+Test("ToString_ContainsWkt", () => {
+  var s = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3)).ToString();
+  IsTrue(s.Contains("TRIANGLE"), "missing TRIANGLE keyword");
+});
+
+Test("Equality_SameTriangle_True", () => {
+  var a = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  var b = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentTriangle_False", () => {
+  var a = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,3));
+  var b = Triangle2D.Make(new Point2D(0,0), new Point2D(1,0), new Point2D(0,1));
+  IsFalse(a == b);
+});
+
 // ── Triangle3D (additional methods) ──────────────────────────────────────────
 Console.WriteLine("\nTriangle3D (new methods)");
 
@@ -3406,6 +3651,23 @@ Test("ToFile_FromFile_RoundTrip", () => {
   t.ToFile(path);
   IsTrue(t.AlmostEquals(Triangle3D.FromFile(path)));
   File.Delete(path);
+});
+
+Test("ToString_ContainsWkt", () => {
+  var s = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0)).ToString();
+  IsTrue(s.Contains("TRIANGLE"), "missing TRIANGLE keyword");
+});
+
+Test("Equality_SameTriangle_True", () => {
+  var a = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  var b = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentTriangle_False", () => {
+  var a = Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0));
+  var b = Triangle3D.Make(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(0,4,0));
+  IsFalse(a == b);
 });
 
 // ── Triangle3D.Intersection (Line / Ray / Segment) ────────────────────────────
@@ -3585,6 +3847,23 @@ Test("AlmostEquals_DiffBBox_False", () => {
   IsFalse(a.AlmostEquals(b));
 });
 
+Test("ToString_ContainsMinMax", () => {
+  var s = new BBox2D(new Point2D(0, 0), new Point2D(1, 1)).ToString();
+  IsTrue(s.Contains("BBox2D"), "missing BBox2D label");
+});
+
+Test("Equality_SameBBox_True", () => {
+  var a = new BBox2D(new Point2D(0, 0), new Point2D(1, 1));
+  var b = new BBox2D(new Point2D(0, 0), new Point2D(1, 1));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentBBox_False", () => {
+  var a = new BBox2D(new Point2D(0, 0), new Point2D(1, 1));
+  var b = new BBox2D(new Point2D(0, 0), new Point2D(2, 2));
+  IsFalse(a == b);
+});
+
 // ── BBox3D (additional) ───────────────────────────────────────────────────────
 Console.WriteLine("\nBBox3D (additional)");
 
@@ -3598,6 +3877,23 @@ Test("AlmostEquals_DiffBBox_False", () => {
   var a = new BBox3D(new Point3D(0,0,0), new Point3D(1,1,1));
   var b = new BBox3D(new Point3D(0,0,0), new Point3D(2,2,2));
   IsFalse(a.AlmostEquals(b));
+});
+
+Test("ToString_ContainsMinMax", () => {
+  var s = new BBox3D(new Point3D(0, 0, 0), new Point3D(1, 1, 1)).ToString();
+  IsTrue(s.Contains("BBox3D"), "missing BBox3D label");
+});
+
+Test("Equality_SameBBox_True", () => {
+  var a = new BBox3D(new Point3D(0, 0, 0), new Point3D(1, 2, 3));
+  var b = new BBox3D(new Point3D(0, 0, 0), new Point3D(1, 2, 3));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentBBox_False", () => {
+  var a = new BBox3D(new Point3D(0, 0, 0), new Point3D(1, 1, 1));
+  var b = new BBox3D(new Point3D(0, 0, 0), new Point3D(2, 2, 2));
+  IsFalse(a == b);
 });
 
 // ── Plane (additional) ────────────────────────────────────────────────────────
@@ -3841,6 +4137,21 @@ Test("IsCoplanar_LineSegment_AbovePlane_False", () => {
   IsFalse(Plane.XY().IsCoplanar(seg));
 });
 
+Test("ToString_ContainsOriginAndNormal", () => {
+  var s = Plane.XY().ToString();
+  IsTrue(s.Contains("Plane"), "missing Plane label");
+  IsTrue(s.Contains("origin"), "missing origin");
+  IsTrue(s.Contains("normal"), "missing normal");
+});
+
+Test("Equality_SamePlane_True", () => {
+  IsTrue(Plane.XY() == Plane.XY());
+});
+
+Test("Equality_DifferentPlane_False", () => {
+  IsFalse(Plane.XY() == Plane.YZ());
+});
+
 // ── GeometryCollection2D (additional) ────────────────────────────────────────
 Console.WriteLine("\nGeometryCollection2D (additional)");
 
@@ -3874,6 +4185,29 @@ Test("Add_Triangle2D_SizeIncreases", () => {
   Eq(1, gc.Size(), 0);
 });
 
+Test("ToString_ContainsWkt", () => {
+  var gc = new GeometryCollection2D();
+  gc.Add(new Point2D(1, 2));
+  var s = gc.ToString();
+  IsTrue(s.Contains("GEOMETRYCOLLECTION"), "missing GEOMETRYCOLLECTION keyword");
+});
+
+Test("Equality_SameCollection_True", () => {
+  var a = new GeometryCollection2D();
+  a.Add(new Point2D(1, 2));
+  var b = new GeometryCollection2D();
+  b.Add(new Point2D(1, 2));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentCollection_False", () => {
+  var a = new GeometryCollection2D();
+  a.Add(new Point2D(1, 2));
+  var b = new GeometryCollection2D();
+  b.Add(new Point2D(9, 9));
+  IsFalse(a == b);
+});
+
 // ── GeometryCollection3D (additional) ────────────────────────────────────────
 Console.WriteLine("\nGeometryCollection3D (additional)");
 
@@ -3905,6 +4239,29 @@ Test("Add_Triangle3D_SizeIncreases", () => {
   var gc = new GeometryCollection3D();
   gc.Add(Triangle3D.Make(new Point3D(0,0,0), new Point3D(1,0,0), new Point3D(0,1,0)));
   Eq(1, gc.Size(), 0);
+});
+
+Test("ToString_ContainsWkt", () => {
+  var gc = new GeometryCollection3D();
+  gc.Add(new Point3D(1, 2, 3));
+  var s = gc.ToString();
+  IsTrue(s.Contains("GEOMETRYCOLLECTION"), "missing GEOMETRYCOLLECTION keyword");
+});
+
+Test("Equality_SameCollection_True", () => {
+  var a = new GeometryCollection3D();
+  a.Add(new Point3D(1, 2, 3));
+  var b = new GeometryCollection3D();
+  b.Add(new Point3D(1, 2, 3));
+  IsTrue(a == b);
+});
+
+Test("Equality_DifferentCollection_False", () => {
+  var a = new GeometryCollection3D();
+  a.Add(new Point3D(1, 2, 3));
+  var b = new GeometryCollection3D();
+  b.Add(new Point3D(9, 9, 9));
+  IsFalse(a == b);
 });
 
 Console.WriteLine("\nPolygon2D::IsConvex");
@@ -4348,6 +4705,12 @@ Test("AlmostEquals_DifferentBall", () => {
   IsFalse(b1.AlmostEquals(b2));
 });
 
+Test("ToString_ContainsCenterAndRadius", () => {
+  var s = new BBall2D(new Point2D(1, 2), 3.0).ToString();
+  IsTrue(s.Contains("BBall2D"), "missing BBall2D label");
+  IsTrue(s.Contains("radius"), "missing radius");
+});
+
 // ── BBall3D ───────────────────────────────────────────────────────────────────
 Console.WriteLine("\nBBall3D");
 
@@ -4407,6 +4770,12 @@ Test("AlmostEquals_DifferentBall", () => {
   var b1 = new BBall3D(new Point3D(1, 2, 3), 4.0);
   var b2 = new BBall3D(new Point3D(0, 0, 0), 1.0);
   IsFalse(b1.AlmostEquals(b2));
+});
+
+Test("ToString_ContainsCenterAndRadius", () => {
+  var s = new BBall3D(new Point3D(1, 2, 3), 4.0).ToString();
+  IsTrue(s.Contains("BBall3D"), "missing BBall3D label");
+  IsTrue(s.Contains("radius"), "missing radius");
 });
 
 // ── BRect2D ───────────────────────────────────────────────────────────────────
@@ -4520,6 +4889,14 @@ Test("AlmostEquals_DifferentRect_False", () => {
     new Point2D(0, 0), new Point2D(6, 0), new Point2D(6, 2), new Point2D(0, 2)
   });
   IsFalse(r1.AlmostEquals(r2));
+});
+
+Test("ToString_ContainsCenterAndHalfLengths", () => {
+  var pts = new Point2D[] {
+    new Point2D(0, 0), new Point2D(4, 0), new Point2D(4, 2), new Point2D(0, 2)
+  };
+  var s = new BRect2D(pts).ToString();
+  IsTrue(s.Contains("BRect2D"), "missing BRect2D label");
 });
 
 // ── BPrism3D ──────────────────────────────────────────────────────────────────
@@ -4663,6 +5040,17 @@ Test("AlmostEquals_DifferentPrism_False", () => {
   var p1 = new BPrism3D(pts1);
   var p2 = new BPrism3D(pts2);
   IsFalse(p1.AlmostEquals(p2));
+});
+
+Test("ToString_ContainsCenterAndHalfLengths", () => {
+  var pts = new Point3D[] {
+    new Point3D(0, 0, 0), new Point3D(4, 0, 0),
+    new Point3D(4, 3, 0), new Point3D(0, 3, 0),
+    new Point3D(0, 0, 2), new Point3D(4, 0, 2),
+    new Point3D(4, 3, 2), new Point3D(0, 3, 2),
+  };
+  var s = new BPrism3D(pts).ToString();
+  IsTrue(s.Contains("BPrism3D"), "missing BPrism3D label");
 });
 
 // ── Overlap — Line2D ──────────────────────────────────────────────────────────
@@ -5484,6 +5872,227 @@ Test("Polyline3D_Expand_InvalidSegmentsPerCorner_Throws", () => {
   try { pl.Expand(new PolylineExpansionParams(0.5, PolylineExpansionMode.FixedSegments, 0, 0.1, 1e-6)); }
   catch (Exception) { threw = true; }
   IsTrue(threw, "expected throw for segments_per_corner < 1");
+});
+
+// ── GridCell2D / GridCell3D ─────────────────────────────────────────────────────
+Console.WriteLine("\nGridCell2D / GridCell3D");
+
+Test("GridCell2D_FromPoint_Quantizes", () => {
+  var cell = GridCell2D.FromPoint(new Point2D(2.5, 3.5), 1.0);
+  Eq(2, cell.X, 0);
+  Eq(3, cell.Y, 0);
+});
+
+Test("GridCell2D_FromPoint_NearbyPointsSameCell", () => {
+  var c1 = GridCell2D.FromPoint(new Point2D(10.1, 10.1), 1.0);
+  var c2 = GridCell2D.FromPoint(new Point2D(10.9, 10.9), 1.0);
+  IsTrue(c1 == c2);
+});
+
+Test("GridCell2D_FromPoint_DistantPointsDifferentCell", () => {
+  var c1 = GridCell2D.FromPoint(new Point2D(0, 0), 1.0);
+  var c2 = GridCell2D.FromPoint(new Point2D(100, 100), 1.0);
+  IsFalse(c1 == c2);
+});
+
+Test("GridCell2D_ToString_ContainsCoordinates", () => {
+  var s = GridCell2D.FromPoint(new Point2D(2.5, 3.5), 1.0).ToString();
+  IsTrue(s.Contains("GridCell2D"), "missing GridCell2D label");
+});
+
+Test("GridCell3D_FromPoint_Quantizes", () => {
+  var cell = GridCell3D.FromPoint(new Point3D(2.5, 3.5, 4.5), 1.0);
+  Eq(2, cell.X, 0);
+  Eq(3, cell.Y, 0);
+  Eq(4, cell.Z, 0);
+});
+
+Test("GridCell3D_FromPoint_NearbyPointsSameCell", () => {
+  var c1 = GridCell3D.FromPoint(new Point3D(10.1, 10.1, 10.1), 1.0);
+  var c2 = GridCell3D.FromPoint(new Point3D(10.9, 10.9, 10.9), 1.0);
+  IsTrue(c1 == c2);
+});
+
+Test("GridCell3D_FromPoint_DistantPointsDifferentCell", () => {
+  var c1 = GridCell3D.FromPoint(new Point3D(0, 0, 0), 1.0);
+  var c2 = GridCell3D.FromPoint(new Point3D(100, 100, 100), 1.0);
+  IsFalse(c1 == c2);
+});
+
+Test("GridCell3D_ToString_ContainsCoordinates", () => {
+  var s = GridCell3D.FromPoint(new Point3D(2.5, 3.5, 4.5), 1.0).ToString();
+  IsTrue(s.Contains("GridCell3D"), "missing GridCell3D label");
+});
+
+// ── Mesh2D / Mesh3D ───────────────────────────────────────────────────────────
+Console.WriteLine("\nMesh2D / Mesh3D");
+
+Test("Mesh2D_FromTriangles_Empty_Throws", () => {
+  bool threw = false;
+  try { Mesh2D.FromTriangles(new Triangle2D[] { }); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected empty triangle list to throw");
+});
+
+Test("Mesh2D_FromTriangles_Single", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1));
+  var mesh = Mesh2D.FromTriangles(new[] { t });
+  Eq(1, mesh.Size(), 0);
+  Eq(0.5, mesh.Area());
+});
+
+Test("Mesh2D_Indexer_OutOfRange_Throws", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1));
+  var mesh = Mesh2D.FromTriangles(new[] { t });
+  bool threw = false;
+  try { var _ = mesh[1]; }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected out-of-range index to throw");
+});
+
+// Regression test for the vertex-index off-by-one bug: two triangles sharing an edge
+// must weld to 4 unique vertices and each face must round-trip correctly.
+Test("Mesh2D_FromTriangles_SharedEdge_WeldsAndPreservesFaces", () => {
+  var t0 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(1, 1));
+  var t1 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 1), new Point2D(0, 1));
+  var mesh = Mesh2D.FromTriangles(new[] { t0, t1 });
+
+  Eq(2, mesh.Size(), 0);
+  Eq(1.0, mesh.Area());
+  IsTrue(t0.AlmostEquals(mesh[0]), "first face's vertices were not preserved");
+  IsTrue(t1.AlmostEquals(mesh[1]), "second face's vertices were not preserved");
+});
+
+Test("Mesh2D_ToString_ContainsSizeAndArea", () => {
+  var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1));
+  var mesh = Mesh2D.FromTriangles(new[] { t });
+  var s = mesh.ToString();
+  IsTrue(s.Contains("Mesh2D"), "missing Mesh2D label");
+});
+
+Test("Mesh3D_FromTriangles_Empty_Throws", () => {
+  bool threw = false;
+  try { Mesh3D.FromTriangles(new Triangle3D[] { }); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected empty triangle list to throw");
+});
+
+Test("Mesh3D_FromTriangles_SharedEdge_WeldsAndPreservesFaces", () => {
+  var t0 = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0));
+  var t1 = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0));
+  var mesh = Mesh3D.FromTriangles(new[] { t0, t1 });
+
+  Eq(2, mesh.Size(), 0);
+  Eq(1.0, mesh.Area());
+  IsTrue(t0.AlmostEquals(mesh[0]), "first face's vertices were not preserved");
+  IsTrue(t1.AlmostEquals(mesh[1]), "second face's vertices were not preserved");
+});
+
+Test("Mesh3D_Indexer_OutOfRange_Throws", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var mesh = Mesh3D.FromTriangles(new[] { t });
+  bool threw = false;
+  try { var _ = mesh[1]; }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected out-of-range index to throw");
+});
+
+Test("Mesh3D_ToString_ContainsSizeAndArea", () => {
+  var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
+  var mesh = Mesh3D.FromTriangles(new[] { t });
+  var s = mesh.ToString();
+  IsTrue(s.Contains("Mesh3D"), "missing Mesh3D label");
+});
+
+// ── PolyMesh2D / PolyMesh3D ───────────────────────────────────────────────────
+Console.WriteLine("\nPolyMesh2D / PolyMesh3D");
+
+Test("PolyMesh2D_FromPolygons_Empty_Throws", () => {
+  bool threw = false;
+  try { PolyMesh2D.FromPolygons(new Polygon2D[] { }); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected empty polygon list to throw");
+});
+
+Test("PolyMesh2D_FromPolygons_WithHoles_Throws", () => {
+  var outer = Polygon2D.Make(
+    new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) },
+    new Point2D[][] { new Point2D[] { new(1, 1), new(1, 2), new(2, 2), new(2, 1) } });
+  bool threw = false;
+  try { PolyMesh2D.FromPolygons(new[] { outer }); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected polygon with holes to throw");
+});
+
+Test("PolyMesh2D_FromPolygons_SingleQuad", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var mesh = PolyMesh2D.FromPolygons(new[] { p });
+  Eq(1, mesh.Size(), 0);
+  Eq(1.0, mesh.Area());
+});
+
+// Regression test for the vertex-index off-by-one bug: two quads sharing an edge must
+// weld shared vertices and each face must round-trip correctly.
+Test("PolyMesh2D_FromPolygons_SharedEdge_WeldsAndPreservesFaces", () => {
+  var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+  var mesh = PolyMesh2D.FromPolygons(new[] { p0, p1 });
+
+  Eq(2, mesh.Size(), 0);
+  Eq(2.0, mesh.Area());
+  IsTrue(p0.AlmostEquals(mesh[0]), "first face's vertices were not preserved");
+  IsTrue(p1.AlmostEquals(mesh[1]), "second face's vertices were not preserved");
+});
+
+Test("PolyMesh2D_ToString_ContainsSizeAndArea", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var mesh = PolyMesh2D.FromPolygons(new[] { p });
+  var s = mesh.ToString();
+  IsTrue(s.Contains("PolyMesh2D"), "missing PolyMesh2D label");
+});
+
+Test("PolyMesh3D_FromPolygons_Empty_Throws", () => {
+  bool threw = false;
+  try { PolyMesh3D.FromPolygons(new Polygon3D[] { }); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected empty polygon list to throw");
+});
+
+Test("PolyMesh3D_FromPolygons_WithHoles_Throws", () => {
+  var outer = Polygon3D.Make(
+    new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0) },
+    new Point3D[][] { new Point3D[] { new(1, 1, 0), new(1, 2, 0), new(2, 2, 0), new(2, 1, 0) } });
+  bool threw = false;
+  try { PolyMesh3D.FromPolygons(new[] { outer }); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected polygon with holes to throw");
+});
+
+Test("PolyMesh3D_FromPolygons_SharedEdge_WeldsAndPreservesFaces", () => {
+  var p0 = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+  var p1 = Polygon3D.Make(new Point3D[] { new(1, 0, 0), new(2, 0, 0), new(2, 1, 0), new(1, 1, 0) });
+  var mesh = PolyMesh3D.FromPolygons(new[] { p0, p1 });
+
+  Eq(2, mesh.Size(), 0);
+  Eq(2.0, mesh.Area());
+  IsTrue(p0.AlmostEquals(mesh[0]), "first face's vertices were not preserved");
+  IsTrue(p1.AlmostEquals(mesh[1]), "second face's vertices were not preserved");
+});
+
+Test("PolyMesh3D_Indexer_OutOfRange_Throws", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+  var mesh = PolyMesh3D.FromPolygons(new[] { p });
+  bool threw = false;
+  try { var _ = mesh[1]; }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected out-of-range index to throw");
+});
+
+Test("PolyMesh3D_ToString_ContainsSizeAndArea", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+  var mesh = PolyMesh3D.FromPolygons(new[] { p });
+  var s = mesh.ToString();
+  IsTrue(s.Contains("PolyMesh3D"), "missing PolyMesh3D label");
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────
