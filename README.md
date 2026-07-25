@@ -13,8 +13,21 @@
   A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
   thoroughly tested, and usable from C++, C# (.Net 8/9/10 or .Net Framework 4.8), and Python 3.
 
-  This library is a spiritual successor to [GeomSharp](https://github.com/amastrobera/geom_sharp),
-  rewritten to produce better algorithms, faster execution, and no dependency on C#/.NET.
+  ### Why do we need one ? 
+
+  You may be a CAD or a Game developer using C#.Net, and you use APIs native to the platform you develop into. These native APIs are easy to get in, but may contain bugs that have not been fixed, or simply lack some functionalities. 
+  You may be a Data Scientist using Python on a GIS project, and having to import 3+ libraries, and covert from data-structure to data-structure to use it. 
+  You may be a C++ developer who wants to import a more lightweight library than those which already exist, and possibly more user friendly. 
+  
+  This library was born a few years ago to solve all these problems. It was recently augmented with the aim of using the most modern algorithms to solve a variety of geometrical problems. 
+
+  The sources of these algorithms are to be found in several textbooks, such as 
+  - Practical Geometry Algorithms (Danniel Sunday)
+  - Computational Geometry in C (Joseph O'Rourke)
+  - Computational Geometry (Mark de Berg, Marc van Kreveld, Mark Overmars, Otfried Schwarzkopf)
+
+  Finally, the help of AI was used to validate algorithms (bug-free, guarantee the desired big-O), bind into other languages than C++, add edge cases to achieve a high test coverage, and build documentation. 
+
 
   **Language bindings:**
   [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](./geompp_python/README.md) 
