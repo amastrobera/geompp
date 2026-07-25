@@ -4,11 +4,12 @@
 #include "triangle2d.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 namespace geompp {
 
 Mesh2D::Mesh2D(std::vector<Point2D> unique_vertices, std::vector<std::array<std::size_t, 3>> face_indices, double area)
-    : VERTICES(unique_vertices), FACE_INDICES(face_indices), AREA(area) {}
+    : VERTICES(std::move(unique_vertices)), FACE_INDICES(std::move(face_indices)), AREA(area) {}
 
 Mesh2D Mesh2D::FromTriangles(std::vector<Triangle2D> const& triangles) {
   // GridCellMapForMesh2D::Make() throws std::invalid_argument if triangles is empty.

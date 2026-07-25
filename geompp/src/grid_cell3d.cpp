@@ -8,6 +8,7 @@
 #include <deque>
 #include <stdexcept>
 #include <unordered_map>
+#include <utility>
 
 namespace geompp {
 
@@ -31,35 +32,22 @@ std::size_t GridCell3DHash::operator()(GridCell3D const& cell) const noexcept {
 
 namespace {
 
-/// @brief function that registers a new point and returns the hash (if old point, returns the known GridCell hash)
-/// In particular, this polyvalent function:
-///    (1) finds a hash for a point
-///    (2) saves the point into POINT_DEQUE
-///    (3) returns the index of that POINT_DEQUE
-std::size_t add_point(Point3D const& p, std::deque<Point3D>& uniques,
-                      std::unordered_map<GridCell3D, std::size_t, GridCell3DHash>& cell_map) {
+// function that registers a new point and returns the hash (if old point, returns the known GridCell hash)
+// In particular, this polyvalent function:
+//    (1) finds a hash for a point
+//    (2) saves the point into POINT_DEQUE
+//    (3) returns the index of that POINT_DEQUE
+std::size_t add_point(Point3D const& p, std::deque<Point3D>& point_deque,
+                      std::unordered_map<GridCell3D, std::size_t, GridCell3DHash>& grid_map) {
   auto gc = GridCell3D::FromPoint(p);
-  if (auto search = cell_map.find(gc); search != cell_map.end()) {
+  if (auto search = grid_map.find(gc); search != grid_map.end()) {
     return search->second;
   }
-  uniques.push_back(p);
-  std::size_t n = uniques.size() - 1;  // 0-based index of the element just pushed
-  cell_map[gc] = n;
+  point_deque.push_back(p);
+  std::size_t n = point_deque.size() - 1;  // 0-based index of the element just pushed
+  grid_map[gc] = n;
   return n;
 }
-
-void add_triangle(
-    Triangle3D const& t, std::deque<Point3D>& point_deque,
-    std::unordered_map<GridCell3D, std::size_t, GridCell3DHash>& grid_map,
-    std::vector<std::array<std::size_t, 3>>& face_indices) {
-  auto const& [p0, p1, p2] = t.Vertices();
-  std::size_t i0 = add_point(p0, point_deque, grid_map);
-  std::size_t i1 = add_point(p1, point_deque, grid_map);
-  std::size_t i2 = add_point(p2, point_deque, grid_map);
-
-  face_indices.push_back({i0, i1, i2});
-}
-
 }  // namespace
 
 GridCellMapForMesh3D GridCellMapForMesh3D::Make(std::vector<Triangle3D> const& triangles) {
@@ -81,14 +69,67 @@ GridCellMapForMesh3D GridCellMapForMesh3D::Make(std::vector<Triangle3D> const& t
   face_indices.reserve(n_triangles);
 
   for (auto const& t : triangles) {
-    add_triangle(t, point_deque, grid_map, face_indices);
+    auto const& [p0, p1, p2] = t.Vertices();
+    std::size_t i0 = add_point(p0, point_deque, grid_map);
+    std::size_t i1 = add_point(p1, point_deque, grid_map);
+    std::size_t i2 = add_point(p2, point_deque, grid_map);
+
+    face_indices.push_back({i0, i1, i2});
   }
 
   // transform the deque in vector (1 allocation, using move)
   std::vector<Point3D> unique_vertices(std::make_move_iterator(point_deque.begin()),
                                        std::make_move_iterator(point_deque.end()));
 
-  return {unique_vertices, face_indices};
+  return {std::move(unique_vertices), std::move(face_indices)};
+}
+
+GridCellMapForPolyMesh3D GridCellMapForPolyMesh3D::Make(std::vector<Polygon3D> const& polygons) {
+  std::size_t n_polygons = polygons.size();
+
+  if (n_polygons == 0) {
+    throw std::invalid_argument("provided zero polygons to initialize the mesh");
+  }
+
+  for (auto const& poly : polygons) {
+    if (poly.HasHoles()) {
+      throw std::invalid_argument("PolyMesh3D faces cannot have holes");
+    }
+  }
+
+  //  unique points (remove duplicates from polygons) --> use the GridCell and save into a hashmap
+  //    \_ using deque to avoid constant dynamic re-allocations as the size doubles
+  std::deque<Point3D> point_deque;
+
+  // grid-cell to keep nearby vertices on the same hashkey
+  std::unordered_map<GridCell3D, std::size_t, GridCell3DHash> grid_map;
+
+  // arrange vertices into face indices (get indices from the hashmap above)
+  //    \_ using deque to avoid constant dynamic re-allocations as the size doubles
+  std::deque<std::size_t> face_indices_deque;
+
+  std::vector<std::size_t> face_idx_begins;
+  face_idx_begins.reserve(n_polygons);
+  std::vector<std::size_t> face_idx_offsets;
+  face_idx_offsets.reserve(n_polygons);
+
+  for (auto const& poly : polygons) {
+    face_idx_begins.push_back(face_indices_deque.size());  // beginning of the face indices
+    face_idx_offsets.push_back(poly.Size());               // number of points of this face
+
+    for (auto const& p : poly) {
+      std::size_t i = add_point(p, point_deque, grid_map);
+      face_indices_deque.push_back(i);
+    }
+  }
+
+  // transform the deques into vectors (1 allocation each, using move)
+  std::vector<Point3D> unique_vertices(std::make_move_iterator(point_deque.begin()),
+                                       std::make_move_iterator(point_deque.end()));
+  std::vector<std::size_t> face_indices(std::make_move_iterator(face_indices_deque.begin()),
+                                        std::make_move_iterator(face_indices_deque.end()));
+
+  return {std::move(unique_vertices), std::move(face_indices), std::move(face_idx_begins), std::move(face_idx_offsets)};
 }
 
 }  // namespace detail

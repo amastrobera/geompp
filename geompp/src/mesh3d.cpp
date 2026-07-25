@@ -4,11 +4,12 @@
 #include "triangle3d.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 namespace geompp {
 
 Mesh3D::Mesh3D(std::vector<Point3D> unique_vertices, std::vector<std::array<std::size_t, 3>> face_indices, double area)
-    : VERTICES(unique_vertices), FACE_INDICES(face_indices), AREA(area) {}
+    : VERTICES(std::move(unique_vertices)), FACE_INDICES(std::move(face_indices)), AREA(area) {}
 
 Mesh3D Mesh3D::FromTriangles(std::vector<Triangle3D> const& triangles) {
   // GridCellMapForMesh3D::Make() throws std::invalid_argument if triangles is empty.

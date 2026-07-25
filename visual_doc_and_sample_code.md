@@ -4433,14 +4433,63 @@ A quick list of code examples per topic is provided here.
 <summary><b> &nbsp; 10. Meshes</b></summary>
 
   `Mesh2D`/`Mesh3D` (triangle faces) and `PolyMesh2D`/`PolyMesh3D` (arbitrary-sided polygon faces) hold
-  a set of adjacent facets built from a list of `Triangle`/`Polygon` inputs. Shared vertices are welded
-  via a spatial-hash grid (`GridCell2D`/`GridCell3D`) rather than an O(n) `AlmostEquals` scan, so
-  `Size()` reflects the number of input facets while the underlying unique-vertex count can be smaller.
-  No adjacency structure is stored (no "neighboring face" query), and `PolyMesh` facets cannot have
-  holes — `FromPolygons()` throws if any input polygon does.
+  a set of adjacent facets built from a list of `Triangle`/`Polygon` inputs. No adjacency structure is
+  stored (no "neighboring face" query), and `PolyMesh` facets cannot have holes — `FromPolygons()`
+  throws if any input polygon does.
+
+  #### The problem: equating "the same" point twice
+
+  A triangle/polygon soup — the raw input to `FromTriangles()`/`FromPolygons()` — repeats every shared
+  vertex once per facet that touches it: two triangles sharing an edge each carry their own copy of
+  that edge's two endpoints. Building a mesh means collapsing those repeats back into one shared
+  vertex per physical point, so that adjacent facets actually reference the same index rather than two
+  numerically-almost-equal-but-distinct points. The naive way to detect "is this point one we've
+  already seen?" is an `AlmostEquals` scan against every previously-registered point — correct, but
+  O(n) per insertion and O(n²) overall for an n-vertex mesh, which gets slow fast on any mesh with more
+  than a few hundred facets.
+
+  #### The fix: GridCell
+
+  `GridCell2D`/`GridCell3D` turn that O(n) scan into an O(1) hash-map lookup: floor-divide each
+  coordinate by a resolution `epsilon` (`floor(x/ε)`, `floor(y/ε)`, ...) to get an integer cell
+  address, and use that address as the hash key. Two points that fall in the same cell are assumed to
+  be the same vertex and get welded; a point in a new cell is registered as a new unique vertex. This
+  is deliberately an *approximation* of `AlmostEquals`, not a replacement for it — it trades a small,
+  well-understood inaccuracy at cell boundaries for O(1) average-case welding:
+
+  - Two points **up to `√2·ε`** (2D) or **`√3·ε`** (3D) apart can still land in the **same** cell and
+    get welded, even though that's farther apart than `epsilon` alone would suggest (the cell's
+    diagonal, not its side, bounds the worst case).
+  - Two points **closer than `epsilon`** can land in **different** cells and stay **distinct**, if
+    they happen to fall on opposite sides of a cell boundary.
+
+  `epsilon` defaults to `DOUBLE_EPSILON`, which tracks the same thread-local `DECIMAL_PRECISION` every
+  `AlmostEquals` call in the library already uses — so tightening/loosening precision globally also
+  tightens/loosens mesh vertex welding, even though the comparison *algorithm* (grid bucketing vs.
+  direct distance) differs.
+
+  <p align="center">
+    <img src="./images/grid_cell.png" width="420" alt="GridCell2D bucketing: near-duplicate points inside one cell weld to a single vertex; points straddling a cell boundary stay distinct even when closer together">
+  </p>
 
 <details open>
 <summary><b> &nbsp; &nbsp; 10.1 Triangle mesh (Mesh2D / Mesh3D)</b></summary>
+
+  Every facet is a `Triangle2D`/`Triangle3D` — always convex, always planar (in 3D, a triangle can't
+  be non-planar), and cheap to construct and reason about. `FromTriangles()` welds shared vertices via
+  `GridCell2D/3D` (see above) and stores each facet as a fixed `array<size_t, 3>` index triple — no
+  variable-length bookkeeping.
+
+  **Advantages**: fixed-size face records mean no indirection to find a facet's vertex count, and
+  triangulating arbitrary geometry (terrain, scanned surfaces, subdivision output) is a well-trodden
+  problem with mature algorithms to draw from. **Trade-off**: representing anything with flat faces
+  wider than 3 vertices (a cube's square side, say) means splitting it into 2+ triangles up front —
+  extra vertices/edges that convey no extra geometric information, and a seam down the middle of what
+  is conceptually one flat face.
+
+  <p align="center">
+    <img src="./images/mesh3d.png" width="420" alt="Mesh3D: a triangulated 3D dome, 18 triangular facets welded from 16 unique vertices">
+  </p>
 
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
@@ -4525,6 +4574,27 @@ A quick list of code examples per topic is provided here.
 
 <details open>
 <summary><b> &nbsp; &nbsp; 10.2 Polygon mesh (PolyMesh2D / PolyMesh3D)</b></summary>
+
+  Every facet is a `Polygon2D`/`Polygon3D` of whatever vertex count it naturally has — a quad stays a
+  quad, a hexagon stays a hexagon. `FromPolygons()` welds shared vertices the same way `Mesh` does, but
+  stores each facet as a *run* into a flat, variable-length index buffer (`FACE_INDICES` sliced by
+  `FACE_IDX_BEGINS`/`FACE_IDX_OFFSETS`) instead of a fixed `array<size_t, 3>`, since facets no longer
+  all have the same vertex count.
+
+  **Advantages**: one facet per real flat surface — no artificial split-triangle seam, and facet count
+  stays proportional to the geometry's actual faces rather than 2-3× as many for anything not
+  already triangular (a hexagonal prism's 2 caps are 1 facet each here, 4 triangles each as a `Mesh`).
+  This matches how CAD/BIM/architectural geometry is usually authored (rooms, panels, walls — genuinely
+  flat, multi-sided faces) and is the natural fit for boolean-op or extrusion pipelines built on
+  `Polygon2D/3D` already. **Trade-off**: facets aren't guaranteed convex or (in 3D) planar the way a
+  triangle always is — `Polygon2D::Make()`/`Polygon3D::Make()` still validate simplicity but a
+  near-planar quad from noisy input can be a worse approximation of the "real" flat surface than an
+  explicit triangulation would be; the variable-length index buffer also costs one extra indirection
+  (begin/offset lookup) per facet access versus `Mesh`'s direct fixed-size array.
+
+  <p align="center">
+    <img src="./images/polymesh3d.png" width="420" alt="PolyMesh3D: a hexagonal prism, 8 facets (2 hexagons + 6 quads) welded from 12 unique vertices">
+  </p>
 
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
