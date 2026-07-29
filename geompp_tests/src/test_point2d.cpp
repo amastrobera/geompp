@@ -6,6 +6,7 @@
 #include "geompp_log.hpp"
 
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <vector>
@@ -194,6 +195,57 @@ TEST_F(Point2DTest, RemoveCollinear) {
   ASSERT_EQ(g::Point2D(7, 0), unique_pts[6]);
 }
 
+TEST_F(Point2DTest, RemoveCollinear_MoveOverload_MatchesConstRefOverload) {
+  // clang-format off
+  std::vector<g::Point2D> pts{g::Point2D::Zero(),
+                              g::Point2D(1, 0),
+                              g::Point2D(2, 0), // collinear
+                              g::Point2D(2, 2),
+                              g::Point2D(2, 3), // collinear
+                              g::Point2D(3, 6),
+                              g::Point2D(4, 5)
+                              };
+  // clang-format on
+  std::vector<g::Point2D> pts_copy = pts;
+
+  auto from_copy = g::remove_collinear(pts);
+  auto from_move = g::remove_collinear(std::move(pts_copy));
+
+  ASSERT_EQ(from_copy.size(), from_move.size());
+  for (std::size_t i = 0; i < from_copy.size(); ++i) {
+    EXPECT_EQ(from_copy[i], from_move[i]);
+  }
+}
+
+TEST_F(Point2DTest, RemoveConsecutiveDuplicates) {
+  // Unlike remove_duplicates() (which removes ANY duplicate regardless of position), this only merges
+  // ADJACENT runs — a duplicate reappearing later, non-consecutively, is left alone.
+  std::vector<g::Point2D> pts{g::Point2D::Zero(), g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 0),
+                              g::Point2D(1, 0),    g::Point2D(2, 0),  g::Point2D::Zero()};
+
+  auto unique_pts = g::remove_consecutive_duplicates(pts);
+
+  ASSERT_EQ(4, unique_pts.size());
+  ASSERT_EQ(g::Point2D::Zero(), unique_pts[0]);
+  ASSERT_EQ(g::Point2D(1, 0), unique_pts[1]);
+  ASSERT_EQ(g::Point2D(2, 0), unique_pts[2]);
+  ASSERT_EQ(g::Point2D::Zero(), unique_pts[3]);
+}
+
+TEST_F(Point2DTest, RemoveConsecutiveDuplicates_MoveOverload_MatchesConstRefOverload) {
+  std::vector<g::Point2D> pts{g::Point2D::Zero(), g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 0),
+                              g::Point2D(1, 0),    g::Point2D(2, 0),  g::Point2D::Zero()};
+  std::vector<g::Point2D> pts_copy = pts;
+
+  auto from_copy = g::remove_consecutive_duplicates(pts);
+  auto from_move = g::remove_consecutive_duplicates(std::move(pts_copy));
+
+  ASSERT_EQ(from_copy.size(), from_move.size());
+  for (std::size_t i = 0; i < from_copy.size(); ++i) {
+    EXPECT_EQ(from_copy[i], from_move[i]);
+  }
+}
+
 TEST_F(Point2DTest, Centroid_Square) {
   // 4×4 CCW square → centroid at (2, 2)
   std::vector<g::Point2D> pts = {
@@ -300,6 +352,38 @@ TEST_F(Point2DTest, IsLeftIsRightAreMutuallyExclusiveOffTheLine) {
 
   EXPECT_TRUE(g::is_left(v1, v2, p));
   EXPECT_FALSE(g::is_right(v1, v2, p));
+}
+
+// --------------------------------------------------------------------------------------------------
+// sort_ccw
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(Point2DTest, SortCcw_TooFewPoints_ReturnsAsIs) {
+  std::vector<g::Point2D> two{g::Point2D(0, 0), g::Point2D(1, 1)};
+  auto sorted = g::sort_ccw(two);
+  ASSERT_EQ(2u, sorted.size());
+  ASSERT_EQ(two[0], sorted[0]);
+  ASSERT_EQ(two[1], sorted[1]);
+}
+
+TEST_F(Point2DTest, SortCcw_ShuffledSquare_RecoversCcwOrder) {
+  // fed in scrambled order, expect the square's own CCW ring order back out (starting point may
+  // differ, so check relative order via rotation rather than exact index equality)
+  std::vector<g::Point2D> shuffled{g::Point2D(4, 4), g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 4)};
+
+  auto sorted = g::sort_ccw(shuffled);
+  ASSERT_EQ(4u, sorted.size());
+  ASSERT_TRUE(g::are_ccw(sorted));
+
+  // rotate `sorted` until it starts at (0,0), then it must exactly match the canonical CCW square
+  auto start = std::find(sorted.begin(), sorted.end(), g::Point2D(0, 0));
+  ASSERT_NE(sorted.end(), start);
+  std::rotate(sorted.begin(), start, sorted.end());
+
+  std::vector<g::Point2D> expected{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_EQ(expected[i], sorted[i]);
+  }
 }
 
 // --------------------------------------------------------------------------------------------------

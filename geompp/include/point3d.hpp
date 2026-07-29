@@ -44,10 +44,16 @@ class Point3D {
 bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3);
 
 std::vector<Point3D> remove_consecutive_duplicates(std::vector<Point3D> const& points);
+/// @brief Same as the const& overload, but compacts @p points in place (no fresh vector allocated)
+/// instead of copying survivors into a new one.
+std::vector<Point3D> remove_consecutive_duplicates(std::vector<Point3D>&& points);
 
 std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points);
 
 std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points);
+/// @brief Same as the const& overload, but compacts @p points in place (no fresh vector allocated)
+/// instead of copying survivors into a new one.
+std::vector<Point3D> remove_collinear(std::vector<Point3D>&& points);
 
 Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights);
 

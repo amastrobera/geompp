@@ -37,6 +37,8 @@ void bind_mesh2d(py::module_& m);
 void bind_mesh3d(py::module_& m);
 void bind_polymesh2d(py::module_& m);
 void bind_polymesh3d(py::module_& m);
+void bind_connected_mesh2d(py::module_& m);
+void bind_connected_mesh3d(py::module_& m);
 
 PYBIND11_MODULE(_geompp, m) {
     m.doc() = "geompp: C++ 2D/3D geometry library — Python bindings";
@@ -76,4 +78,6 @@ PYBIND11_MODULE(_geompp, m) {
     bind_mesh3d(m);
     bind_polymesh2d(m);
     bind_polymesh3d(m);
+    bind_connected_mesh2d(m);
+    bind_connected_mesh3d(m);
 }

@@ -309,6 +309,59 @@ TEST_F(Point3DTest, RemoveCollinear) {
   ASSERT_EQ(2, g::remove_collinear({g::Point3D::Zero(), g::Point3D(1, 0, 0)}).size());
 }
 
+TEST_F(Point3DTest, RemoveCollinear_MoveOverload_MatchesConstRefOverload) {
+  // clang-format off
+  std::vector<g::Point3D> pts{
+    g::Point3D::Zero(),
+    g::Point3D(1, 0, 0),
+    g::Point3D(2, 0, 0),  // collinear — X axis run
+    g::Point3D(2, 1, 0),
+    g::Point3D(2, 2, 0),  // collinear — Y axis run
+    g::Point3D(3, 3, 0),
+  };
+  // clang-format on
+  std::vector<g::Point3D> pts_copy = pts;
+
+  auto from_copy = g::remove_collinear(pts);
+  auto from_move = g::remove_collinear(std::move(pts_copy));
+
+  ASSERT_EQ(from_copy.size(), from_move.size());
+  for (std::size_t i = 0; i < from_copy.size(); ++i) {
+    EXPECT_EQ(from_copy[i], from_move[i]);
+  }
+}
+
+TEST_F(Point3DTest, RemoveConsecutiveDuplicates) {
+  // Unlike remove_duplicates() (which removes ANY duplicate regardless of position), this only merges
+  // ADJACENT runs — a duplicate reappearing later, non-consecutively, is left alone.
+  std::vector<g::Point3D> pts{g::Point3D::Zero(),  g::Point3D::Zero(),  g::Point3D(1, 0, 0),
+                              g::Point3D(1, 0, 0),  g::Point3D(1, 0, 0), g::Point3D(2, 0, 0),
+                              g::Point3D::Zero()};
+
+  auto unique_pts = g::remove_consecutive_duplicates(pts);
+
+  ASSERT_EQ(4, unique_pts.size());
+  ASSERT_EQ(g::Point3D::Zero(), unique_pts[0]);
+  ASSERT_EQ(g::Point3D(1, 0, 0), unique_pts[1]);
+  ASSERT_EQ(g::Point3D(2, 0, 0), unique_pts[2]);
+  ASSERT_EQ(g::Point3D::Zero(), unique_pts[3]);
+}
+
+TEST_F(Point3DTest, RemoveConsecutiveDuplicates_MoveOverload_MatchesConstRefOverload) {
+  std::vector<g::Point3D> pts{g::Point3D::Zero(),  g::Point3D::Zero(),  g::Point3D(1, 0, 0),
+                              g::Point3D(1, 0, 0),  g::Point3D(1, 0, 0), g::Point3D(2, 0, 0),
+                              g::Point3D::Zero()};
+  std::vector<g::Point3D> pts_copy = pts;
+
+  auto from_copy = g::remove_consecutive_duplicates(pts);
+  auto from_move = g::remove_consecutive_duplicates(std::move(pts_copy));
+
+  ASSERT_EQ(from_copy.size(), from_move.size());
+  for (std::size_t i = 0; i < from_copy.size(); ++i) {
+    EXPECT_EQ(from_copy[i], from_move[i]);
+  }
+}
+
 TEST_F(Point3DTest, Average) {
   // clang-format off
   std::vector<g::Point3D> pts{

@@ -118,6 +118,34 @@ TEST_F(Polygon3DTest, WithHoles_Valid) {
   ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
 }
 
+TEST_F(Polygon3DTest, Make_MoveOverload_NoHoles_MatchesCopyOverload) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> outer_copy = outer;
+
+  auto p_copy = g::Polygon3D::Make(outer);
+  auto p_moved = g::Polygon3D::Make(std::move(outer_copy));
+
+  EXPECT_TRUE(p_copy.AlmostEquals(p_moved));
+  ASSERT_EQ(4, p_moved.Size());
+}
+
+TEST_F(Polygon3DTest, Make_MoveOverload_WithHoles_MatchesCopyOverload) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
+  std::vector<g::Point3D> outer_copy = outer;
+  std::vector<std::vector<g::Point3D>> holes_copy = {hole};
+
+  auto p_copy = g::Polygon3D::Make(outer, {hole});
+  auto p_moved = g::Polygon3D::Make(std::move(outer_copy), std::move(holes_copy));
+
+  EXPECT_TRUE(p_copy.AlmostEquals(p_moved));
+  ASSERT_TRUE(p_moved.HasHoles());
+  ASSERT_EQ(1u, p_moved.Holes().size());
+}
+
 TEST_F(Polygon3DTest, HasHoles_False_WhenNoHoles) {
   std::vector<g::Point3D> outer = {
       g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};

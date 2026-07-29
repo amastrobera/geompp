@@ -113,6 +113,31 @@ TEST_F(Polygon2DTest, WithHoles_Valid) {
   ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
 }
 
+TEST_F(Polygon2DTest, Make_MoveOverload_NoHoles_MatchesCopyOverload) {
+  std::vector<g::Point2D> outer = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> outer_copy = outer;
+
+  auto p_copy = g::Polygon2D::Make(outer);
+  auto p_moved = g::Polygon2D::Make(std::move(outer_copy));
+
+  EXPECT_TRUE(p_copy.AlmostEquals(p_moved));
+  ASSERT_EQ(4, p_moved.Size());
+}
+
+TEST_F(Polygon2DTest, Make_MoveOverload_WithHoles_MatchesCopyOverload) {
+  std::vector<g::Point2D> outer = {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  std::vector<g::Point2D> hole = {g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)};
+  std::vector<g::Point2D> outer_copy = outer;
+  std::vector<std::vector<g::Point2D>> holes_copy = {hole};
+
+  auto p_copy = g::Polygon2D::Make(outer, {hole});
+  auto p_moved = g::Polygon2D::Make(std::move(outer_copy), std::move(holes_copy));
+
+  EXPECT_TRUE(p_copy.AlmostEquals(p_moved));
+  ASSERT_TRUE(p_moved.HasHoles());
+  ASSERT_EQ(1u, p_moved.Holes().size());
+}
+
 TEST_F(Polygon2DTest, HasHoles_False_WhenNoHoles) {
   std::vector<g::Point2D> outer = {
       g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};

@@ -7,6 +7,8 @@
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
 
+#include <utility>
+
 namespace GeomPP {
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
@@ -27,11 +29,13 @@ Polygon2D::!Polygon2D() {
 // ── Factory ───────────────────────────────────────────────────────────────────
 
 Polygon2D^ Polygon2D::Make(array<Point2D^>^ points) {
+    // nativePoints is a fresh vector this function exclusively owns after marshalling — moving it
+    // into Make(vector&&) avoids the extra copy Make(vector const&) would otherwise make internally.
     std::vector<geompp::Point2D> nativePoints;
     nativePoints.reserve(points->Length);
     for each (Point2D^ p in points)
         nativePoints.push_back(*p->_native);
-    return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(nativePoints)));
+    return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(std::move(nativePoints))));
 }
 
 Polygon2D^ Polygon2D::Make(array<Point2D^>^ points, array<array<Point2D^>^>^ holes) {
@@ -46,10 +50,11 @@ Polygon2D^ Polygon2D::Make(array<Point2D^>^ points, array<array<Point2D^>^>^ hol
         nativeHole.reserve(hole->Length);
         for each (Point2D^ p in hole)
             nativeHole.push_back(*p->_native);
-        nativeHoles.push_back(nativeHole);
+        nativeHoles.push_back(std::move(nativeHole));
     }
 
-    return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(nativePoints, nativeHoles)));
+    return gcnew Polygon2D(new geompp::Polygon2D(
+        geompp::Polygon2D::Make(std::move(nativePoints), std::move(nativeHoles))));
 }
 
 // ── Methods ──────────────────────────────────────────────────────────────────

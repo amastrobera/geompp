@@ -4,17 +4,8 @@
 #include "polygon3d.hpp"
 
 #include <stdexcept>
-#include <utility>
 
 namespace geompp {
-
-PolyMesh3D::PolyMesh3D(std::vector<Point3D> unique_vertices, std::vector<std::size_t> face_indices,
-                       std::vector<std::size_t> face_idx_begins, std::vector<std::size_t> face_idx_offsets, double area)
-    : VERTICES(std::move(unique_vertices)),
-      FACE_INDICES(std::move(face_indices)),
-      FACE_IDX_BEGINS(std::move(face_idx_begins)),
-      FACE_IDX_OFFSETS(std::move(face_idx_offsets)),
-      AREA(area) {}
 
 PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons) {
   // GridCellMapForPolyMesh3D::Make() throws std::invalid_argument if polygons is empty or holed.
@@ -31,17 +22,17 @@ PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons) {
 }
 
 Polygon3D PolyMesh3D::operator[](std::size_t i) const {
-  if (i >= FACE_IDX_BEGINS.size()) {
+  if (i >= FACE_IDX_BEGINS->size()) {
     throw std::out_of_range("index out of FACE_IDX_BEGINS list");
   }
-  std::size_t f_idx_begin = FACE_IDX_BEGINS[i];    // where the polygon starts
-  std::size_t f_idx_offset = FACE_IDX_OFFSETS[i];  // how many points it has
+  std::size_t f_idx_begin = (*FACE_IDX_BEGINS)[i];    // where the polygon starts
+  std::size_t f_idx_offset = (*FACE_IDX_OFFSETS)[i];  // how many points it has
 
   std::vector<Point3D> vertices;
   vertices.reserve(f_idx_offset);  // number of vertices per polygon
   for (std::size_t i = 0; i < f_idx_offset; ++i) {
-    std::size_t v_idx = FACE_INDICES[f_idx_begin + i];
-    vertices.emplace_back(VERTICES[v_idx]);
+    std::size_t v_idx = (*FACE_INDICES)[f_idx_begin + i];
+    vertices.emplace_back((*VERTICES)[v_idx]);
   }
 
   return Polygon3D::Make(vertices);

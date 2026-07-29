@@ -10,6 +10,8 @@
 #include "bball3d.hpp"
 #include "brect2d.hpp"
 #include "bprism3d.hpp"
+#include "connected_mesh2d.hpp"
+#include "connected_mesh3d.hpp"
 #include "constants.hpp"
 #include "geometry_collection2d.hpp"
 #include "geometry_collection3d.hpp"

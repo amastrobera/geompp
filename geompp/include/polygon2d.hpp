@@ -21,6 +21,12 @@ class Polygon2D {
  public:
   static Polygon2D Make(std::vector<Point2D> const& points);
   static Polygon2D Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes);
+  /// @brief Same as the const& overload, but consumes @p points instead of copying it — every
+  /// point-cleanup step (collinear removal, etc.) reuses @p points' own storage instead of allocating
+  /// a fresh vector.
+  static Polygon2D Make(std::vector<Point2D>&& points);
+  /// @brief Same as the const& overload, but consumes both @p points and @p holes instead of copying them.
+  static Polygon2D Make(std::vector<Point2D>&& points, std::vector<std::vector<Point2D>>&& holes);
   Polygon2D(Polygon2D const&) = default;
   Polygon2D(Polygon2D&&) = default;
   ~Polygon2D() = default;
@@ -158,8 +164,18 @@ class Polygon2D {
   double PERIMETER;
   bool IS_CONVEX;
 
+  // Shared by every Make() overload (const&/&& on points, with/without holes): validates an
+  // already-collinear-filtered outer ring (and, for the second overload, raw holes still needing their
+  // own per-hole cleanup) and wraps it. Taking everything by value lets each Make() overload hand off
+  // its data with a single move regardless of whether it started from a const& or && parameter.
+  static Polygon2D FromUniquePoints(std::vector<Point2D> unique_points);
+  static Polygon2D FromUniquePoints(std::vector<Point2D> unique_points, std::vector<std::vector<Point2D>> holes);
+
   Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex);
   Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes,
+            bool is_convex);
+  Polygon2D(std::vector<Point2D>&& points, double perimeter, bool is_convex);
+  Polygon2D(std::vector<Point2D>&& points, double perimeter, std::vector<std::vector<Point2D>>&& holes,
             bool is_convex);
 };
 
@@ -182,6 +198,11 @@ inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter
 inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter,
                             std::vector<std::vector<Point2D>> const& holes, bool is_convex)
     : VERTICES(points), HOLES(holes), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+inline Polygon2D::Polygon2D(std::vector<Point2D>&& points, double perimeter, bool is_convex)
+    : VERTICES(std::move(points)), HOLES{}, PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+inline Polygon2D::Polygon2D(std::vector<Point2D>&& points, double perimeter,
+                            std::vector<std::vector<Point2D>>&& holes, bool is_convex)
+    : VERTICES(std::move(points)), HOLES(std::move(holes)), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 
 // Both const and non-const begin/end return const_iterator!
 inline Polygon2D::const_iterator Polygon2D::begin() const { return VERTICES.cbegin(); }

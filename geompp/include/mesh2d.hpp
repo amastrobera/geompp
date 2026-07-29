@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 #include <ranges>
 #include <vector>
 
@@ -49,21 +50,32 @@ class Mesh2D {
 #pragma endregion
 
  private:
-  std::vector<Point2D> VERTICES;
-  std::vector<std::array<std::size_t, 3>> FACE_INDICES;
+  // shared_ptr, not plain vector: copying a Mesh2D (or handing its vertex buffer to a future
+  // Polygonize()/Triangulate() conversion) becomes an O(1) refcount bump instead of an O(n) deep
+  // copy. Safe without copy-on-write because Mesh2D never exposes a mutable reference to either
+  // buffer after construction.
+  std::shared_ptr<std::vector<Point2D>> VERTICES;
+  std::shared_ptr<std::vector<std::array<std::size_t, 3>>> FACE_INDICES;
   double AREA;
 
-  Mesh2D(std::vector<Point2D> unique_vertices, std::vector<std::array<std::size_t, 3>> face_indices, double area);
+  // Takes shared_ptr by const&, not by value+move: copying a shared_ptr is just an atomic refcount
+  // bump (no vector copy), so there's no expensive-copy case left to avoid with a move overload.
+  Mesh2D(std::shared_ptr<std::vector<Point2D>> const& unique_vertices,
+         std::shared_ptr<std::vector<std::array<std::size_t, 3>>> const& face_indices, double area);
 };
 
 #pragma region Inlined Functions
 
-inline std::size_t Mesh2D::Size() const { return FACE_INDICES.size(); }
+inline Mesh2D::Mesh2D(std::shared_ptr<std::vector<Point2D>> const& unique_vertices,
+                      std::shared_ptr<std::vector<std::array<std::size_t, 3>>> const& face_indices, double area)
+    : VERTICES(unique_vertices), FACE_INDICES(face_indices), AREA(area) {}
+
+inline std::size_t Mesh2D::Size() const { return FACE_INDICES->size(); }
 inline double Mesh2D::Area() const { return AREA; }
 
 inline auto Mesh2D::Faces() const {
-  return FACE_INDICES | std::views::transform([this](const auto& idx) {
-           return Triangle2D::Make(VERTICES[idx[0]], VERTICES[idx[1]], VERTICES[idx[2]]);
+  return *FACE_INDICES | std::views::transform([this](const auto& idx) {
+           return Triangle2D::Make((*VERTICES)[idx[0]], (*VERTICES)[idx[1]], (*VERTICES)[idx[2]]);
          });
 }
 

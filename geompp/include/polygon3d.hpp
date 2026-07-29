@@ -22,6 +22,12 @@ class Polygon3D {
  public:
   static Polygon3D Make(std::vector<Point3D> const& points);
   static Polygon3D Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes);
+  /// @brief Same as the const& overload, but consumes @p points instead of copying it — every
+  /// point-cleanup step (collinear removal, etc.) reuses @p points' own storage instead of allocating
+  /// a fresh vector.
+  static Polygon3D Make(std::vector<Point3D>&& points);
+  /// @brief Same as the const& overload, but consumes both @p points and @p holes instead of copying them.
+  static Polygon3D Make(std::vector<Point3D>&& points, std::vector<std::vector<Point3D>>&& holes);
   Polygon3D(Polygon3D const&) = default;
   Polygon3D(Polygon3D&&) = default;
   ~Polygon3D() = default;
@@ -174,9 +180,19 @@ class Polygon3D {
   double PERIMETER;
   bool IS_CONVEX;
 
+  // Shared by every Make() overload (const&/&& on points, with/without holes): validates an
+  // already-collinear-filtered outer ring (and, for the second overload, raw holes still needing their
+  // own per-hole cleanup) and wraps it. Taking everything by value lets each Make() overload hand off
+  // its data with a single move regardless of whether it started from a const& or && parameter.
+  static Polygon3D FromUniquePoints(std::vector<Point3D> unique_points);
+  static Polygon3D FromUniquePoints(std::vector<Point3D> unique_points, std::vector<std::vector<Point3D>> holes);
+
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex);
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
             std::vector<std::vector<Point3D>> const& holes, bool is_convex);
+  Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter, bool is_convex);
+  Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter,
+            std::vector<std::vector<Point3D>>&& holes, bool is_convex);
 };
 
 #pragma region Operator Overloading
@@ -199,6 +215,11 @@ inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& pla
 inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
                             std::vector<std::vector<Point3D>> const& holes, bool is_convex)
     : VERTICES(points), HOLES(holes), PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+inline Polygon3D::Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter, bool is_convex)
+    : VERTICES(std::move(points)), HOLES{}, PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+inline Polygon3D::Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter,
+                            std::vector<std::vector<Point3D>>&& holes, bool is_convex)
+    : VERTICES(std::move(points)), HOLES(std::move(holes)), PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 
 // Both const and non-const begin/end return const_iterator!
 inline Polygon3D::const_iterator Polygon3D::begin() const { return VERTICES.cbegin(); }

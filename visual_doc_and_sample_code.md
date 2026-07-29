@@ -4435,7 +4435,9 @@ A quick list of code examples per topic is provided here.
   `Mesh2D`/`Mesh3D` (triangle faces) and `PolyMesh2D`/`PolyMesh3D` (arbitrary-sided polygon faces) hold
   a set of adjacent facets built from a list of `Triangle`/`Polygon` inputs. No adjacency structure is
   stored (no "neighboring face" query), and `PolyMesh` facets cannot have holes — `FromPolygons()`
-  throws if any input polygon does.
+  throws if any input polygon does. `ConnectedMesh2D`/`ConnectedMesh3D` (§10.3) are the same idea as
+  `Mesh2D`/`Mesh3D` but precompute per-facet edge adjacency internally, queryable via each facet's
+  `FaceView2D`/`FaceView3D`.
 
   #### The problem: equating "the same" point twice
 
@@ -4669,6 +4671,175 @@ A quick list of code examples per topic is provided here.
   facets: 2, area: 2
   face 0: POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
   face 1: POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.3 Connected mesh (ConnectedMesh2D / ConnectedMesh3D)</b></summary>
+
+  Same triangle-faced mesh as `Mesh2D`/`Mesh3D` — `FromTriangles()` welds shared vertices via
+  `GridCell2D`/`GridCell3D` the same way — but `ConnectedMesh2D`/`ConnectedMesh3D` additionally
+  precompute, for every facet's 3 edges, which other facet (and which of *its* edges) sits across that
+  edge, via a compact 4-byte `detail::TriangleCompactNeighborRef` per edge (`{triangle_id,
+  local_edge_id}`, or a boundary sentinel if the edge has no twin). That adjacency is built by an
+  edge-key hashmap over the welded triangle indices during `FromTriangles()` itself, so it costs
+  nothing to query later.
+
+  Indexing/iterating a `ConnectedMesh2D`/`ConnectedMesh3D` hands back a **`FaceView2D`**/**`FaceView3D`**
+  rather than a bare `Triangle2D`/`Triangle3D`: a lightweight, chainable handle onto one facet that
+  exposes both its geometry and that precomputed adjacency:
+  - `Geometry()` — the facet rebuilt as a `Triangle2D`/`Triangle3D` (same as `Mesh2D/3D`'s plain
+    accessor).
+  - `Neighbor(edge)` — crosses one of the facet's 3 edges (`FIRST`/`SECOND`/`THIRD`, numbered
+    `v0`-`v1`, `v1`-`v2`, `v2`-`v0`) and returns the `FaceView2D`/`FaceView3D` on the other side, or
+    nothing if that edge is a boundary edge with no twin (`std::nullopt` in C++, `None` in Python,
+    `null` in C#). Calls chain: `face.Neighbor(edge)->Geometry()`.
+  - `NeighborEntryEdge(edge)` — which edge of `Neighbor(edge)` was entered through (`INVALID` at a
+    boundary), so a caller can immediately cross back with `Neighbor(entry_edge)`.
+  - `TriangleEdge` (`FIRST`/`SECOND`/`THIRD`/`INVALID`) is one shared enum, used by both the 2D and 3D
+    `FaceView`.
+
+  A `FaceView2D`/`FaceView3D` must not outlive the `ConnectedMesh2D`/`ConnectedMesh3D` it came from (in
+  Python/C# this is enforced for you — see the bindings' lifetime notes — but it's still your job in
+  C++).
+
+  <p align="center">
+    <img src="./images/connected_mesh3d.png" width="380" alt="ConnectedMesh3D: the same dome mesh as Mesh3D, with one facet's 3 edges bolded in yellow and the 3 facets across those edges — its precomputed edge-adjacency neighbors — shaded yellow instead of teal">
+    &nbsp;&nbsp;
+    <img src="./images/connected_mesh2d_navigation.png" width="380" alt="ConnectedMesh2D FaceView navigation: a fan of 4 triangles highlighted gold end to end, with arrows crossing each shared edge labeled THIRD to FIRST, walking from face 0 (start) to face 3 (end, a boundary)">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "connected_mesh2d.hpp"
+
+  namespace g = geompp;
+  using Edge = g::detail::TriangleCompactNeighborRef::TriangleEdge;  // FIRST=1, SECOND=2, THIRD=3
+
+  // A fan of 4 triangles sharing the origin, each welded to the next along its THIRD edge.
+  auto mesh = g::ConnectedMesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(0, 1), g::Point2D(-1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(-1, 1), g::Point2D(-1, 0)),
+  });
+  GEOMPP_LOG(INFO) << "facets: " << mesh.Size() << ", area: " << mesh.Area();
+
+  // Walk the mesh left to right via Neighbor()/NeighborEntryEdge(), starting from face 0.
+  auto face = mesh[0];
+  GEOMPP_LOG(INFO) << "start at face " << face.ID() << ": " << face.Geometry().ToWkt();
+  while (true) {
+      auto next = face.Neighbor(Edge::THIRD);
+      if (!next.has_value()) {
+          GEOMPP_LOG(INFO) << "face " << face.ID() << ".THIRD is a boundary -- stop";
+          break;
+      }
+      GEOMPP_LOG(INFO) << "cross face " << face.ID() << ".THIRD -> face " << next->ID()
+                        << " (entered via " << static_cast<int>(face.NeighborEntryEdge(Edge::THIRD))
+                        << "): " << next->Geometry().ToWkt();
+      face = *next;
+  }
+  ```
+
+  ```bash
+  I20260729] facets: 4, area: 2
+  I20260729] start at face 0: TRIANGLE (0 0, 1 0, 1 1)
+  I20260729] cross face 0.THIRD -> face 1 (entered via 1): TRIANGLE (0 0, 1 1, 0 1)
+  I20260729] cross face 1.THIRD -> face 2 (entered via 1): TRIANGLE (0 0, 0 1, -1 1)
+  I20260729] cross face 2.THIRD -> face 3 (entered via 1): TRIANGLE (0 0, -1 1, -1 0)
+  I20260729] face 3.THIRD is a boundary -- stop
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # A fan of 4 triangles sharing the origin, each welded to the next along its THIRD edge.
+  mesh = g.ConnectedMesh2D.from_triangles([
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 1), g.Point2D(0, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(0, 1), g.Point2D(-1, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(-1, 1), g.Point2D(-1, 0)),
+  ])
+  print(f"facets: {mesh.size()}, area: {mesh.area()}")
+
+  # Walk the mesh left to right via neighbor()/neighbor_entry_edge(), starting from face 0.
+  face = mesh[0]
+  print(f"start at face {face.id()}: {face.geometry().to_wkt()}")
+  while True:
+      next_face = face.neighbor(g.TriangleEdge.THIRD)
+      if next_face is None:
+          print(f"face {face.id()}.THIRD is a boundary -- stop")
+          break
+      entry = face.neighbor_entry_edge(g.TriangleEdge.THIRD)
+      print(f"cross face {face.id()}.THIRD -> face {next_face.id()} (entered via {entry.name}): "
+            f"{next_face.geometry().to_wkt()}")
+      face = next_face
+  ```
+
+  ```
+  facets: 4, area: 2.0
+  start at face 0: TRIANGLE (0 0, 1 0, 1 1)
+  cross face 0.THIRD -> face 1 (entered via FIRST): TRIANGLE (0 0, 1 1, 0 1)
+  cross face 1.THIRD -> face 2 (entered via FIRST): TRIANGLE (0 0, 0 1, -1 1)
+  cross face 2.THIRD -> face 3 (entered via FIRST): TRIANGLE (0 0, -1 1, -1 0)
+  face 3.THIRD is a boundary -- stop
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // A fan of 4 triangles sharing the origin, each welded to the next along its Third edge.
+  var mesh = G.ConnectedMesh2D.FromTriangles(new[] {
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0), new G.Point2D(1, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 1), new G.Point2D(0, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(0, 1), new G.Point2D(-1, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(-1, 1), new G.Point2D(-1, 0)),
+  });
+  Console.WriteLine($"facets: {mesh.Size()}, area: {mesh.Area()}");
+
+  // Walk the mesh left to right via Neighbor()/NeighborEntryEdge(), starting from face 0.
+  var face = mesh[0];
+  Console.WriteLine($"start at face {face.Id()}: {face.Geometry().ToWkt()}");
+  while (true) {
+      var next = face.Neighbor(G.TriangleEdge.Third);
+      if (next == null) {
+          Console.WriteLine($"face {face.Id()}.Third is a boundary -- stop");
+          break;
+      }
+      var entry = face.NeighborEntryEdge(G.TriangleEdge.Third);
+      Console.WriteLine($"cross face {face.Id()}.Third -> face {next.Id()} (entered via {entry}): "
+                       + $"{next.Geometry().ToWkt()}");
+      face = next;
+  }
+  ```
+
+  ```
+  facets: 4, area: 2
+  start at face 0: TRIANGLE (0 0, 1 0, 1 1)
+  cross face 0.Third -> face 1 (entered via First): TRIANGLE (0 0, 1 1, 0 1)
+  cross face 1.Third -> face 2 (entered via First): TRIANGLE (0 0, 0 1, -1 1)
+  cross face 2.Third -> face 3 (entered via First): TRIANGLE (0 0, -1 1, -1 0)
+  face 3.Third is a boundary -- stop
   ```
 
    </details>

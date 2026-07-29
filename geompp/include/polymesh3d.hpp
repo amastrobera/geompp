@@ -4,6 +4,7 @@
 #include "polygon3d.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <ranges>
 #include <vector>
 
@@ -51,26 +52,44 @@ class PolyMesh3D {
 #pragma endregion
 
  private:
-  std::vector<Point3D> VERTICES;              // all points (unique) of the mesh
-  std::vector<std::size_t> FACE_INDICES;      // list of points per face, in index [0,1,2, 2,3,5,6, 0,1,5,7, ...]
-  std::vector<std::size_t> FACE_IDX_BEGINS;   // list of index beginnings          [0,     3,       7,       ...]
-  std::vector<std::size_t> FACE_IDX_OFFSETS;  // number of vertices per polygon    [3,     4,       4,       ...]
+  // shared_ptr, not plain vector: copying a PolyMesh3D (or handing its vertex buffer to a future
+  // Polygonize()/Triangulate() conversion) becomes an O(1) refcount bump instead of an O(n) deep
+  // copy. Safe without copy-on-write because PolyMesh3D never exposes a mutable reference to any of
+  // these buffers after construction.
+  std::shared_ptr<std::vector<Point3D>> VERTICES;              // all points (unique) of the mesh
+  std::shared_ptr<std::vector<std::size_t>> FACE_INDICES;      // list of points per face, in index [0,1,2, 2,3,5,6, 0,1,5,7, ...]
+  std::shared_ptr<std::vector<std::size_t>> FACE_IDX_BEGINS;   // list of index beginnings          [0,     3,       7,       ...]
+  std::shared_ptr<std::vector<std::size_t>> FACE_IDX_OFFSETS;  // number of vertices per polygon    [3,     4,       4,       ...]
   double AREA;
 
-  PolyMesh3D(std::vector<Point3D> unique_vertices, std::vector<std::size_t> face_indices,
-             std::vector<std::size_t> face_idx_begins, std::vector<std::size_t> face_idx_offsets, double area);
+  // Takes shared_ptr by const&, not by value+move: copying a shared_ptr is just an atomic refcount
+  // bump (no vector copy), so there's no expensive-copy case left to avoid with a move overload.
+  PolyMesh3D(std::shared_ptr<std::vector<Point3D>> const& unique_vertices,
+             std::shared_ptr<std::vector<std::size_t>> const& face_indices,
+             std::shared_ptr<std::vector<std::size_t>> const& face_idx_begins,
+             std::shared_ptr<std::vector<std::size_t>> const& face_idx_offsets, double area);
 };
 
 #pragma region Inlined Functions
 
-inline std::size_t PolyMesh3D::Size() const { return FACE_IDX_BEGINS.size(); }
+inline PolyMesh3D::PolyMesh3D(std::shared_ptr<std::vector<Point3D>> const& unique_vertices,
+                              std::shared_ptr<std::vector<std::size_t>> const& face_indices,
+                              std::shared_ptr<std::vector<std::size_t>> const& face_idx_begins,
+                              std::shared_ptr<std::vector<std::size_t>> const& face_idx_offsets, double area)
+    : VERTICES(unique_vertices),
+      FACE_INDICES(face_indices),
+      FACE_IDX_BEGINS(face_idx_begins),
+      FACE_IDX_OFFSETS(face_idx_offsets),
+      AREA(area) {}
+
+inline std::size_t PolyMesh3D::Size() const { return FACE_IDX_BEGINS->size(); }
 inline double PolyMesh3D::Area() const { return AREA; }
 
 inline auto PolyMesh3D::Faces() const {
   // Generate indices [0, 1, 2, ..., num_faces - 1]
-  return std::views::iota(std::size_t{0}, FACE_IDX_BEGINS.size()) | std::views::transform([this](std::size_t i) {
-           std::size_t start = FACE_IDX_BEGINS[i];
-           std::size_t count = FACE_IDX_OFFSETS[i];
+  return std::views::iota(std::size_t{0}, FACE_IDX_BEGINS->size()) | std::views::transform([this](std::size_t i) {
+           std::size_t start = (*FACE_IDX_BEGINS)[i];
+           std::size_t count = (*FACE_IDX_OFFSETS)[i];
 
            // 1. Pre-allocate buffer for exact vertex count (zero reallocations)
            std::vector<Point3D> pts;
@@ -78,7 +97,7 @@ inline auto PolyMesh3D::Faces() const {
 
            // 2. Look up point coordinates from the flattened indices
            for (std::size_t k = 0; k < count; ++k) {
-             pts.push_back(VERTICES[FACE_INDICES[start + k]]);
+             pts.push_back((*VERTICES)[(*FACE_INDICES)[start + k]]);
            }
 
            // 3. Construct and return the Polygon

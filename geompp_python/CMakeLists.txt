@@ -56,6 +56,8 @@ set(BINDING_SOURCES
     src/bind_mesh3d.cpp
     src/bind_polymesh2d.cpp
     src/bind_polymesh3d.cpp
+    src/bind_connected_mesh2d.cpp
+    src/bind_connected_mesh3d.cpp
 )
 
 # ─── Python extension module ─────────────────────────────────────────────────
@@ -152,6 +154,14 @@ else()
         ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
         ${GEOMPP_ROOT}/src/calc_utils3d.cpp
         ${GEOMPP_ROOT}/src/view2d.cpp
+        ${GEOMPP_ROOT}/src/grid_cell2d.cpp
+        ${GEOMPP_ROOT}/src/grid_cell3d.cpp
+        ${GEOMPP_ROOT}/src/mesh2d.cpp
+        ${GEOMPP_ROOT}/src/mesh3d.cpp
+        ${GEOMPP_ROOT}/src/polymesh2d.cpp
+        ${GEOMPP_ROOT}/src/polymesh3d.cpp
+        ${GEOMPP_ROOT}/src/connected_mesh2d.cpp
+        ${GEOMPP_ROOT}/src/connected_mesh3d.cpp
     )
 
     # ── glog ─────────────────────────────────────────────────────────────────

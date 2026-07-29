@@ -141,6 +141,10 @@
     <ClCompile Include="src\Mesh3D.cpp" />
     <ClCompile Include="src\PolyMesh2D.cpp" />
     <ClCompile Include="src\PolyMesh3D.cpp" />
+    <ClCompile Include="src\ConnectedMesh2D.cpp" />
+    <ClCompile Include="src\FaceView2D.cpp" />
+    <ClCompile Include="src\ConnectedMesh3D.cpp" />
+    <ClCompile Include="src\FaceView3D.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -181,6 +185,10 @@
     <ClInclude Include="src\Mesh3D.hpp" />
     <ClInclude Include="src\PolyMesh2D.hpp" />
     <ClInclude Include="src\PolyMesh3D.hpp" />
+    <ClInclude Include="src\ConnectedMesh2D.hpp" />
+    <ClInclude Include="src\FaceView2D.hpp" />
+    <ClInclude Include="src\ConnectedMesh3D.hpp" />
+    <ClInclude Include="src\FaceView3D.hpp" />
   </ItemGroup>
 
   <!-- ── geompp native core (compiled without /clr so that GEOMPP_NO_THREAD_LOCAL ── -->

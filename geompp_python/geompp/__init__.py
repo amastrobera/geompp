@@ -17,10 +17,17 @@ Planar operations:
 Parser:
     WktParser
 
-Meshes (WIP — no adjacency structure, faces cannot have holes):
+Meshes (WIP — faces cannot have holes):
     GridCell2D, GridCell3D (internal vertex-welding grid bucket, exposed for completeness)
-    Mesh2D, Mesh3D (triangle faces)
-    PolyMesh2D, PolyMesh3D (arbitrary-sided polygon faces)
+    Mesh2D, Mesh3D (triangle faces, no adjacency structure)
+    PolyMesh2D, PolyMesh3D (arbitrary-sided polygon faces, no adjacency structure)
+    ConnectedMesh2D, ConnectedMesh3D (triangle faces; per-facet edge adjacency precomputed
+                     internally and exposed via the FaceView2D/FaceView3D objects returned by
+                     indexing/iteration)
+    FaceView2D, FaceView3D (a facet of a ConnectedMesh2D/3D: .geometry(), .neighbor(edge),
+                     .neighbor_entry_edge(edge))
+    TriangleEdge (FIRST, SECOND, THIRD — which of a facet's 3 edges to cross; INVALID marks a
+                  boundary edge with no twin; shared by ConnectedMesh2D and ConnectedMesh3D)
 
 Free functions
 --------------
@@ -118,6 +125,11 @@ from ._geompp import (  # noqa: F401
     Mesh3D,
     PolyMesh2D,
     PolyMesh3D,
+    ConnectedMesh2D,
+    ConnectedMesh3D,
+    FaceView2D,
+    FaceView3D,
+    TriangleEdge,
     # free functions
     are_collinear,
     are_coplanar,
@@ -171,6 +183,7 @@ __all__ = [
     "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "BBall3D", "BPrism3D", "Plane", "GeometryCollection3D",
     "WktParser",
     "GridCell2D", "GridCell3D", "Mesh2D", "Mesh3D", "PolyMesh2D", "PolyMesh3D",
+    "ConnectedMesh2D", "ConnectedMesh3D", "FaceView2D", "FaceView3D", "TriangleEdge",
     "Axis",
     "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
     "remove_duplicates", "remove_consecutive_duplicates",

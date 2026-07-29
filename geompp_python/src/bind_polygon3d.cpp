@@ -1,15 +1,19 @@
 #include "bind_helpers.hpp"
 
+#include <utility>
+
 void bind_polygon3d(py::module_& m) {
     py::class_<geompp::Polygon3D>(m, "Polygon3D",
         "3D polygon (ordered vertex list).")
         .def_static("make",
-             [](const std::vector<geompp::Point3D>& pts) { return geompp::Polygon3D::Make(pts); },
+             // Takes `pts` by value (not const&): pybind11 already builds a fresh std::vector to
+             // convert the Python list, so this is a free move into Make(vector&&) rather than an
+             // extra copy on top of an already-owned temporary.
+             [](std::vector<geompp::Point3D> pts) { return geompp::Polygon3D::Make(std::move(pts)); },
              "points"_a)
         .def_static("make",
-             [](const std::vector<geompp::Point3D>& pts,
-                const std::vector<std::vector<geompp::Point3D>>& holes) {
-                 return geompp::Polygon3D::Make(pts, holes);
+             [](std::vector<geompp::Point3D> pts, std::vector<std::vector<geompp::Point3D>> holes) {
+                 return geompp::Polygon3D::Make(std::move(pts), std::move(holes));
              },
              "points"_a, "holes"_a)
         .def(py::init<const geompp::Polygon3D&>())

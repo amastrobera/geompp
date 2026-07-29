@@ -1,10 +1,11 @@
 #pragma once
 
 #include "constants.hpp"
+#include "utils.hpp"
 
 #include <array>
+#include <memory>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 namespace geompp {
@@ -42,87 +43,130 @@ struct GridCell3DHash {
 
 /// @brief Welds a set of triangles' vertices via @ref GridCell3D bucketing into a unique-vertex list
 /// plus one index triple per input triangle. Backs @ref Mesh3D::FromTriangles.
-///
-/// @note `GetUniques()`/`GetFaceIndices()` move their result out on every call — call each exactly
-/// once. This class only ever exists as a same-statement temporary in `Mesh3D::FromTriangles`, so
-/// there's no second caller to hand a moved-from vector to.
 class GridCellMapForMesh3D {
  public:
   /// @throws std::invalid_argument if @p triangles is empty.
   static GridCellMapForMesh3D Make(std::vector<Triangle3D> const& triangles);
   ~GridCellMapForMesh3D() = default;
 
-  /// @brief Moves out the vector of unique points registered.
-  std::vector<Point3D> GetUniques();
+  /// @brief The vector of unique points registered (shared, not copied).
+  std::shared_ptr<std::vector<Point3D>> GetUniques() const;
 
-  /// @brief Moves out one vertex-index triple per input triangle, indexing into @ref GetUniques.
-  std::vector<std::array<std::size_t, 3>> GetFaceIndices();
+  /// @brief One vertex-index triple per input triangle, indexing into @ref GetUniques (shared, not copied).
+  std::shared_ptr<std::vector<std::array<std::size_t, 3>>> GetFaceIndices() const;
 
  private:
-  std::vector<Point3D> UNIQUE_POINTS;
-  std::vector<std::array<std::size_t, 3>> FACE_INDICES;
+  std::shared_ptr<std::vector<Point3D>> UNIQUE_POINTS;
+  std::shared_ptr<std::vector<std::array<std::size_t, 3>>> FACE_INDICES;
 
-  GridCellMapForMesh3D(std::vector<Point3D> unique_points, std::vector<std::array<std::size_t, 3>> face_indices);
+  GridCellMapForMesh3D(std::shared_ptr<std::vector<Point3D>> const& unique_points,
+                       std::shared_ptr<std::vector<std::array<std::size_t, 3>>> const& face_indices);
 };
 
-inline GridCellMapForMesh3D::GridCellMapForMesh3D(std::vector<Point3D> unique_points,
-                                                  std::vector<std::array<std::size_t, 3>> face_indices)
-    : UNIQUE_POINTS(std::move(unique_points)), FACE_INDICES(std::move(face_indices)) {}
+inline GridCellMapForMesh3D::GridCellMapForMesh3D(
+    std::shared_ptr<std::vector<Point3D>> const& unique_points,
+    std::shared_ptr<std::vector<std::array<std::size_t, 3>>> const& face_indices)
+    : UNIQUE_POINTS(unique_points), FACE_INDICES(face_indices) {}
 
-inline std::vector<Point3D> GridCellMapForMesh3D::GetUniques() { return std::move(UNIQUE_POINTS); }
+inline std::shared_ptr<std::vector<Point3D>> GridCellMapForMesh3D::GetUniques() const { return UNIQUE_POINTS; }
 
-inline std::vector<std::array<std::size_t, 3>> GridCellMapForMesh3D::GetFaceIndices() { return std::move(FACE_INDICES); }
+inline std::shared_ptr<std::vector<std::array<std::size_t, 3>>> GridCellMapForMesh3D::GetFaceIndices() const {
+  return FACE_INDICES;
+}
 
 /// @brief Welds a set of polygons' vertices via @ref GridCell3D bucketing into a unique-vertex list
 /// plus a flat variable-length face-index buffer (one run of indices per input polygon). Backs
 /// @ref PolyMesh3D::FromPolygons.
-///
-/// @note Accessors move their result out on every call — see @ref GridCellMapForMesh3D's note; the
-/// same single-use-temporary contract applies here.
 class GridCellMapForPolyMesh3D {
  public:
   /// @throws std::invalid_argument if @p polygons is empty, or if any polygon has one or more holes.
   static GridCellMapForPolyMesh3D Make(std::vector<Polygon3D> const& polygons);
   ~GridCellMapForPolyMesh3D() = default;
 
-  /// @brief Moves out the vector of unique points registered.
-  std::vector<Point3D> GetUniques();
+  /// @brief The vector of unique points registered (shared, not copied).
+  std::shared_ptr<std::vector<Point3D>> GetUniques() const;
 
-  /// @brief Moves out the flat index buffer: every registered polygon's vertex indices, concatenated.
-  std::vector<std::size_t> GetFaceIndices();
+  /// @brief The flat index buffer: every registered polygon's vertex indices, concatenated (shared, not copied).
+  std::shared_ptr<std::vector<std::size_t>> GetFaceIndices() const;
 
-  /// @brief Moves out each polygon's starting offset into @ref GetFaceIndices.
-  std::vector<std::size_t> GetFaceIdxBegins();
+  /// @brief Each polygon's starting offset into @ref GetFaceIndices (shared, not copied).
+  std::shared_ptr<std::vector<std::size_t>> GetFaceIdxBegins() const;
 
-  /// @brief Moves out each polygon's vertex count (run length into @ref GetFaceIndices).
-  std::vector<std::size_t> GetFaceIdxOffsets();
+  /// @brief Each polygon's vertex count, i.e. run length into @ref GetFaceIndices (shared, not copied).
+  std::shared_ptr<std::vector<std::size_t>> GetFaceIdxOffsets() const;
 
  private:
-  std::vector<Point3D> UNIQUE_POINTS;
-  std::vector<std::size_t> FACE_INDICES;
-  std::vector<std::size_t> FACE_IDX_BEGINS;
-  std::vector<std::size_t> FACE_IDX_OFFSETS;
+  std::shared_ptr<std::vector<Point3D>> UNIQUE_POINTS;
+  std::shared_ptr<std::vector<std::size_t>> FACE_INDICES;
+  std::shared_ptr<std::vector<std::size_t>> FACE_IDX_BEGINS;
+  std::shared_ptr<std::vector<std::size_t>> FACE_IDX_OFFSETS;
 
-  GridCellMapForPolyMesh3D(std::vector<Point3D> unique_points, std::vector<std::size_t> face_indices,
-                           std::vector<std::size_t> face_idx_begins, std::vector<std::size_t> face_idx_offsets);
+  GridCellMapForPolyMesh3D(std::shared_ptr<std::vector<Point3D>> const& unique_points,
+                           std::shared_ptr<std::vector<std::size_t>> const& face_indices,
+                           std::shared_ptr<std::vector<std::size_t>> const& face_idx_begins,
+                           std::shared_ptr<std::vector<std::size_t>> const& face_idx_offsets);
 };
 
-inline GridCellMapForPolyMesh3D::GridCellMapForPolyMesh3D(std::vector<Point3D> unique_points,
-                                                          std::vector<std::size_t> face_indices,
-                                                          std::vector<std::size_t> face_idx_begins,
-                                                          std::vector<std::size_t> face_idx_offsets)
-    : UNIQUE_POINTS(std::move(unique_points)),
-      FACE_INDICES(std::move(face_indices)),
-      FACE_IDX_BEGINS(std::move(face_idx_begins)),
-      FACE_IDX_OFFSETS(std::move(face_idx_offsets)) {}
+inline GridCellMapForPolyMesh3D::GridCellMapForPolyMesh3D(
+    std::shared_ptr<std::vector<Point3D>> const& unique_points,
+    std::shared_ptr<std::vector<std::size_t>> const& face_indices,
+    std::shared_ptr<std::vector<std::size_t>> const& face_idx_begins,
+    std::shared_ptr<std::vector<std::size_t>> const& face_idx_offsets)
+    : UNIQUE_POINTS(unique_points),
+      FACE_INDICES(face_indices),
+      FACE_IDX_BEGINS(face_idx_begins),
+      FACE_IDX_OFFSETS(face_idx_offsets) {}
 
-inline std::vector<Point3D> GridCellMapForPolyMesh3D::GetUniques() { return std::move(UNIQUE_POINTS); }
+inline std::shared_ptr<std::vector<Point3D>> GridCellMapForPolyMesh3D::GetUniques() const { return UNIQUE_POINTS; }
 
-inline std::vector<std::size_t> GridCellMapForPolyMesh3D::GetFaceIndices() { return std::move(FACE_INDICES); }
+inline std::shared_ptr<std::vector<std::size_t>> GridCellMapForPolyMesh3D::GetFaceIndices() const {
+  return FACE_INDICES;
+}
 
-inline std::vector<std::size_t> GridCellMapForPolyMesh3D::GetFaceIdxBegins() { return std::move(FACE_IDX_BEGINS); }
+inline std::shared_ptr<std::vector<std::size_t>> GridCellMapForPolyMesh3D::GetFaceIdxBegins() const {
+  return FACE_IDX_BEGINS;
+}
 
-inline std::vector<std::size_t> GridCellMapForPolyMesh3D::GetFaceIdxOffsets() { return std::move(FACE_IDX_OFFSETS); }
+inline std::shared_ptr<std::vector<std::size_t>> GridCellMapForPolyMesh3D::GetFaceIdxOffsets() const {
+  return FACE_IDX_OFFSETS;
+}
+
+class GridCellMapForConnectedMesh3D {
+ public:
+  /// @throws std::invalid_argument if @p triangles is empty.
+  static GridCellMapForConnectedMesh3D Make(std::vector<Triangle3D> const& triangles);
+  ~GridCellMapForConnectedMesh3D() = default;
+
+  /// @brief Moves out the vector of unique points registered.
+  std::shared_ptr<std::vector<Point3D>> GetUniques();
+
+  std::shared_ptr<std::vector<std::size_t>> GetTriangles();
+
+  std::shared_ptr<std::vector<std::array<detail::TriangleCompactNeighborRef, 3>>> GetNeighborRefs();
+
+ private:
+  std::shared_ptr<std::vector<Point3D>> UNIQUE_POINTS;
+  std::shared_ptr<std::vector<std::size_t>> TRIANGLES;
+  std::shared_ptr<std::vector<std::array<detail::TriangleCompactNeighborRef, 3>>> NEIGHBORS;
+
+  GridCellMapForConnectedMesh3D(
+      std::shared_ptr<std::vector<Point3D>> unique_points, std::shared_ptr<std::vector<std::size_t>> triangles,
+      std::shared_ptr<std::vector<std::array<detail::TriangleCompactNeighborRef, 3>>> neighbors);
+};
+
+inline GridCellMapForConnectedMesh3D::GridCellMapForConnectedMesh3D(
+    std::shared_ptr<std::vector<Point3D>> unique_points, std::shared_ptr<std::vector<std::size_t>> triangles,
+    std::shared_ptr<std::vector<std::array<detail::TriangleCompactNeighborRef, 3>>> neighbors)
+    : UNIQUE_POINTS(unique_points), TRIANGLES(triangles), NEIGHBORS(neighbors) {}
+
+inline std::shared_ptr<std::vector<Point3D>> GridCellMapForConnectedMesh3D::GetUniques() { return UNIQUE_POINTS; }
+
+inline std::shared_ptr<std::vector<std::size_t>> GridCellMapForConnectedMesh3D::GetTriangles() { return TRIANGLES; }
+
+inline std::shared_ptr<std::vector<std::array<detail::TriangleCompactNeighborRef, 3>>>
+GridCellMapForConnectedMesh3D::GetNeighborRefs() {
+  return NEIGHBORS;
+}
 
 }  // namespace detail
 

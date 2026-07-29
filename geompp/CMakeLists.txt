@@ -54,6 +54,7 @@ add_library(${PROJECT_NAME}
     src/grid_cell2d.cpp
     src/mesh2d.cpp
     src/polymesh2d.cpp
+    src/connected_mesh2d.cpp
 
     src/point3d.cpp
     src/vector3d.cpp
@@ -74,6 +75,7 @@ add_library(${PROJECT_NAME}
     src/grid_cell3d.cpp
     src/mesh3d.cpp
     src/polymesh3d.cpp
+    src/connected_mesh3d.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

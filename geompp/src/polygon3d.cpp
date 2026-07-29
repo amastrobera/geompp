@@ -56,9 +56,7 @@ bool strictly_crosses(LineSegment2D const& a, LineSegment2D const& b) {
 
 #pragma region Constructors
 
-Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
-  auto unique_points = remove_collinear(points);
-
+Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points) {
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
         "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
@@ -91,13 +89,10 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) {
 
   bool is_poly_convex = is_convex(unique_points, {}, outer_plane.normal());
 
-  return {unique_points, outer_plane, perimeter, is_poly_convex};
+  return {std::move(unique_points), outer_plane, perimeter, is_poly_convex};
 }
 
-Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes) {
-  auto unique_points =
-      remove_collinear(remove_consecutive_duplicates(points));  // remove duplicates and collinear points
-
+Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points, std::vector<std::vector<Point3D>> holes) {
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
         "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
@@ -132,8 +127,8 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
 
   std::vector<std::vector<Point3D>> unique_holes_points;
   std::vector<std::vector<LineSegment2D>> unique_holes_segs_2d;  // cached for the cross-hole check below
-  for (auto const& hole : holes) {
-    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(hole));
+  for (auto& hole : holes) {
+    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(std::move(hole)));
 
     if (unique_hole_points.size() < 3) {
       throw std::runtime_error(std::format(
@@ -166,7 +161,7 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
       }
     }
 
-    unique_holes_points.push_back(unique_hole_points);
+    unique_holes_points.push_back(std::move(unique_hole_points));
     unique_holes_segs_2d.push_back(std::move(hole_segs));
   }
 
@@ -232,8 +227,24 @@ Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::v
 
   bool is_poly_convex = is_convex(unique_points, unique_holes_points, outer_plane.normal());
 
-  return {unique_points, outer_plane, perimeter, unique_holes_points, is_poly_convex};
+  return {std::move(unique_points), outer_plane, perimeter, std::move(unique_holes_points), is_poly_convex};
 }
+
+Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) { return FromUniquePoints(remove_collinear(points)); }
+
+Polygon3D Polygon3D::Make(std::vector<Point3D>&& points) {
+  return FromUniquePoints(remove_collinear(std::move(points)));
+}
+
+Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes) {
+  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(points)), holes);
+}
+
+Polygon3D Polygon3D::Make(std::vector<Point3D>&& points, std::vector<std::vector<Point3D>>&& holes) {
+  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(std::move(points))), std::move(holes));
+}
+
+#pragma endregion
 
 Polygon3D& Polygon3D::operator=(Polygon3D const& other) {
   if (this != &other) {
