@@ -236,7 +236,7 @@ extern template bool is_ccw(std::vector<Point2D> const&, View2D const&);
 extern template bool is_ccw(std::vector<Point3D> const&, View2D const&);
 
 template <typename PointT>
-bool are_collinear(PointT const& p1, PointT const& p2, PointT const& p3, View2D const& view);
+bool are_collinear(PointT const& p0, PointT const& p1, PointT const& p2, View2D const& view);
 
 extern template bool are_collinear(Point2D const&, Point2D const&, Point2D const&, View2D const&);
 extern template bool are_collinear(Point3D const&, Point3D const&, Point3D const&, View2D const&);

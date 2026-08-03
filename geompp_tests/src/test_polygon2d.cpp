@@ -1,6 +1,7 @@
 #include "polygon2d.hpp"
 
 #include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "point2d.hpp"
 #include "ray2d.hpp"
 #include "triangle2d.hpp"
@@ -10,9 +11,14 @@
 #include "geompp_log.hpp"
 
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <array>
 #include <filesystem>
 #include <random>
 #include <cmath>
+#include <type_traits>
+#include <utility>
+#include <variant>
 
 namespace g = geompp;
 namespace fs = std::filesystem;
@@ -26,6 +32,77 @@ class Polygon2DTest : public ::testing::Test {
   void SetUp() override { g::DECIMAL_PRECISION = g::DP_THREE; }
   void TearDown() override { g::DECIMAL_PRECISION = g::DP_THREE; }
 };
+
+// A valid triangulation must never let an original polygon vertex land in the MIDDLE of a triangle
+// edge (a "hanging"/T-junction vertex) -- every polygon vertex the triangulation touches must be an
+// actual corner (endpoint) of every triangle edge it lies on. Checks every (triangle edge, polygon
+// vertex) pair.
+static void ExpectNoPolygonVertexHangsOnTriangleEdge(g::Polygon2D const& polygon,
+                                                      std::vector<g::Triangle2D> const& triangles) {
+  auto const& polygon_points = polygon.Perimeter();
+  for (std::size_t ti = 0; ti < triangles.size(); ++ti) {
+    auto [v0, v1, v2] = triangles[ti].Vertices();
+    std::array<std::pair<g::Point2D, g::Point2D>, 3> edges{{{v0, v1}, {v1, v2}, {v2, v0}}};
+    for (std::size_t ei = 0; ei < edges.size(); ++ei) {
+      auto const& [a, b] = edges[ei];
+      auto seg = g::LineSegment2D::Make(a, b);
+      for (auto const& p : polygon_points) {
+        if (p.AlmostEquals(a) || p.AlmostEquals(b)) {
+          continue;  // p IS this edge's endpoint -- not a hanging vertex
+        }
+        EXPECT_FALSE(seg.Contains(p)) << "polygon vertex " << p.ToWkt() << " hangs on triangle " << ti
+                                      << "'s edge " << ei << " (" << a.ToWkt() << " -> " << b.ToWkt()
+                                      << ") without being one of its endpoints";
+      }
+    }
+  }
+}
+
+// A valid triangulation must be edge-manifold: every oriented triangle edge (a "half-edge") either
+// has no twin at all (a polygon boundary edge, used by exactly one triangle) or has EXACTLY one twin
+// in another triangle traversing the same undirected edge in the OPPOSITE direction (twin.start ==
+// edge.end && twin.end == edge.start) -- the standard consequence of every triangle sharing the same
+// CCW winding. A same-direction "twin" or more than one twin both indicate a topological defect
+// (inconsistent winding, an overlapping triangle, or a non-manifold edge).
+static void ExpectHalfEdgesAreManifold(std::vector<g::Triangle2D> const& triangles) {
+  struct HalfEdge {
+    g::Point2D start, end;
+    std::size_t triangle_idx, edge_idx;
+  };
+  std::vector<HalfEdge> half_edges;
+  for (std::size_t ti = 0; ti < triangles.size(); ++ti) {
+    auto [v0, v1, v2] = triangles[ti].Vertices();
+    half_edges.push_back({v0, v1, ti, 0});
+    half_edges.push_back({v1, v2, ti, 1});
+    half_edges.push_back({v2, v0, ti, 2});
+  }
+  for (std::size_t i = 0; i < half_edges.size(); ++i) {
+    auto const& e = half_edges[i];
+    std::vector<std::size_t> twins;
+    for (std::size_t j = 0; j < half_edges.size(); ++j) {
+      if (j == i) {
+        continue;
+      }
+      auto const& o = half_edges[j];
+      bool same_undirected = (e.start.AlmostEquals(o.start) && e.end.AlmostEquals(o.end)) ||
+                             (e.start.AlmostEquals(o.end) && e.end.AlmostEquals(o.start));
+      if (same_undirected) {
+        twins.push_back(j);
+      }
+    }
+    EXPECT_LE(twins.size(), 1u) << "triangle " << e.triangle_idx << "'s edge " << e.edge_idx << " ("
+                                << e.start.ToWkt() << " -> " << e.end.ToWkt() << ") has "
+                                << twins.size() << " twins -- should have at most 1";
+    if (twins.size() == 1) {
+      auto const& twin = half_edges[twins[0]];
+      EXPECT_TRUE(twin.start.AlmostEquals(e.end) && twin.end.AlmostEquals(e.start))
+          << "triangle " << e.triangle_idx << "'s edge " << e.edge_idx << " (" << e.start.ToWkt()
+          << " -> " << e.end.ToWkt() << ") and triangle " << twin.triangle_idx << "'s edge "
+          << twin.edge_idx << " (" << twin.start.ToWkt() << " -> " << twin.end.ToWkt()
+          << ") share an undirected edge but traverse it in the SAME direction";
+    }
+  }
+}
 
 TEST_F(Polygon2DTest, Constructor) {
   auto p = g::Polygon2D::Make({g::Point2D::Zero(), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
@@ -1521,6 +1598,8 @@ TEST_F(Polygon2DTest, Triangulate_ConvexQuad_ProducesTwoTrianglesCoveringFullAre
     total_area += t.Area();
   }
   EXPECT_NEAR(total_area, p.Area(), 1e-9);
+  ExpectNoPolygonVertexHangsOnTriangleEdge(p, triangles);
+  ExpectHalfEdgesAreManifold(triangles);
 }
 
 TEST_F(Polygon2DTest, Triangulate_ConcavePolygon_ProducesCorrectAreaAndCount) {
@@ -1536,6 +1615,140 @@ TEST_F(Polygon2DTest, Triangulate_ConcavePolygon_ProducesCorrectAreaAndCount) {
     total_area += t.Area();
   }
   EXPECT_NEAR(total_area, p.Area(), 1e-9);
+  ExpectNoPolygonVertexHangsOnTriangleEdge(p, triangles);
+  ExpectHalfEdgesAreManifold(triangles);
+}
+
+TEST_F(Polygon2DTest, Triangulate_CombPolygon_ProducesCorrectAreaAndCount) {
+  // A 3-tooth "comb" -- the classic adversarial shape for naive ear-clipping (deep, narrow notches
+  // between tall teeth), same shape as CalcUtils2DTest.EarClippingTriangulation_CombPolygon_....
+  // Unlike the other shapes tested here, this one genuinely needs multiple laps around the ring
+  // before it fully triangulates (see the visual doc's Triangulation section for why).
+  auto p = g::Polygon2D::Make({
+      g::Point2D(5, 0), g::Point2D(5, 10), g::Point2D(4, 10), g::Point2D(4, 9), g::Point2D(3, 9),
+      g::Point2D(3, 10), g::Point2D(2, 10), g::Point2D(2, 9), g::Point2D(1, 9), g::Point2D(1, 10),
+      g::Point2D(0, 10), g::Point2D(0, 0)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 10u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+  ExpectNoPolygonVertexHangsOnTriangleEdge(p, triangles);
+  ExpectHalfEdgesAreManifold(triangles);
+}
+
+TEST_F(Polygon2DTest, Triangulate_FivePointedStar_TriangleAreasSumToPolygonArea) {
+  // 5-pointed star (same shape used in visual_doc_and_sample_code.md's Triangulation example) --
+  // concave, with a reflex vertex at each of its 5 inner corners. Regardless of how many ears get
+  // clipped or in what order, the fundamental invariant of any correct triangulation is that the
+  // triangles' areas sum to exactly the original polygon's area.
+  auto p = g::Polygon2D::Make({
+      g::Point2D(3.0, 6.0), g::Point2D(2.29, 3.97), g::Point2D(0.15, 3.93), g::Point2D(1.86, 2.63),
+      g::Point2D(1.24, 0.57), g::Point2D(3.0, 1.8), g::Point2D(4.76, 0.57), g::Point2D(4.14, 2.63),
+      g::Point2D(5.85, 3.93), g::Point2D(3.71, 3.97)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 8u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    EXPECT_TRUE(p.Contains(t.Centroid())) << "triangle " << t.ToWkt() << " strays outside the polygon";
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+  ExpectNoPolygonVertexHangsOnTriangleEdge(p, triangles);
+  ExpectHalfEdgesAreManifold(triangles);
+}
+
+TEST_F(Polygon2DTest, Triangulate_FivePointedStar_TrianglesExactlyTileWithNoOverlap) {
+  // Stronger companion to the area-sum test above: area-sum-equals-polygon-area alone can't rule out
+  // two triangles overlapping while a third has a compensating gap (areas would still cancel out).
+  // This test instead proves an EXACT tiling two ways: (1) no pair of triangles shares more than an
+  // edge/vertex (their pairwise Intersection() is never a positive-area Triangle2D/Polygon2D), and
+  // (2) a dense sampling grid over the polygon's bounding box confirms "inside the polygon" and
+  // "inside some triangle" are the same set of points, i.e. no gaps and no excess coverage.
+  // Deliberately NOT implemented via Polygon2D::Union()/Xor(): unioning polygons that share a full
+  // edge (as every pair of adjacent triangles here does) currently mis-clips instead of merging --
+  // a separate, pre-existing bug in the boolean-op machinery, unrelated to Triangulate() itself.
+  auto p = g::Polygon2D::Make({
+      g::Point2D(3.0, 6.0), g::Point2D(2.29, 3.97), g::Point2D(0.15, 3.93), g::Point2D(1.86, 2.63),
+      g::Point2D(1.24, 0.57), g::Point2D(3.0, 1.8), g::Point2D(4.76, 0.57), g::Point2D(4.14, 2.63),
+      g::Point2D(5.85, 3.93), g::Point2D(3.71, 3.97)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+  ASSERT_EQ(triangles.size(), 8u);
+
+  // (1) no pairwise positive-area overlap
+  for (std::size_t i = 0; i < triangles.size(); ++i) {
+    for (std::size_t j = i + 1; j < triangles.size(); ++j) {
+      auto result = triangles[i].Intersection(triangles[j]);
+      if (!result.has_value()) {
+        continue;
+      }
+      double overlap_area = std::visit(
+          [](auto const& shape) -> double {
+            using T = std::decay_t<decltype(shape)>;
+            if constexpr (std::is_same_v<T, g::Triangle2D> || std::is_same_v<T, g::Polygon2D>) {
+              return shape.Area();
+            } else {
+              return 0.0;  // Point2D / LineSegment2D: zero-area touch, not an overlap
+            }
+          },
+          *result);
+      EXPECT_NEAR(overlap_area, 0.0, 1e-9) << "triangles " << i << " and " << j << " overlap with real area";
+    }
+  }
+
+  // (2) dense grid: "inside polygon" and "inside some triangle" must be the same set of points.
+  // Points within `margin` of any edge (polygon boundary OR a triangle diagonal) are skipped:
+  // Polygon2D::Contains() and Triangle2D::Contains() use different algorithms (winding number vs.
+  // barycentric), so immediately-on-a-boundary points can disagree on which side of "inclusive" they
+  // fall on -- that's boundary-inclusion noise, not evidence of a real gap/overlap in the
+  // triangulation. A real gap or overlap would show up as a mismatch well away from every edge.
+  std::vector<g::LineSegment2D> edges;
+  auto const& perimeter = p.Perimeter();
+  for (std::size_t k = 0; k < perimeter.size(); ++k) {
+    edges.push_back(g::LineSegment2D::Make(perimeter[k], perimeter[(k + 1) % perimeter.size()]));
+  }
+  for (auto const& t : triangles) {
+    auto [v0, v1, v2] = t.Vertices();
+    edges.push_back(g::LineSegment2D::Make(v0, v1));
+    edges.push_back(g::LineSegment2D::Make(v1, v2));
+    edges.push_back(g::LineSegment2D::Make(v2, v0));
+  }
+
+  double const margin = 0.02;
+  double min_x = 0.0, max_x = 6.0, min_y = 0.0, max_y = 6.0;
+  int const steps = 97;  // prime step count so the grid never aligns with the star's straight edges
+  int mismatches = 0, skipped = 0;
+  for (int ix = 0; ix < steps; ++ix) {
+    for (int iy = 0; iy < steps; ++iy) {
+      double x = min_x + (max_x - min_x) * (ix + 0.37) / steps;
+      double y = min_y + (max_y - min_y) * (iy + 0.61) / steps;
+      g::Point2D pt(x, y);
+
+      bool near_edge = std::any_of(edges.begin(), edges.end(),
+                                   [&pt, margin](g::LineSegment2D const& e) { return e.DistanceTo(pt) < margin; });
+      if (near_edge) {
+        ++skipped;
+        continue;
+      }
+
+      bool in_poly = p.Contains(pt);
+      bool in_any_tri = std::any_of(triangles.begin(), triangles.end(),
+                                    [&pt](g::Triangle2D const& t) { return t.Contains(pt); });
+      if (in_poly != in_any_tri) {
+        ++mismatches;
+      }
+    }
+  }
+  EXPECT_LT(skipped, steps * steps) << "every grid point was too close to an edge -- margin too large?";
+  EXPECT_EQ(mismatches, 0) << "found grid points (away from any edge) where polygon-membership and "
+                              "triangle-coverage disagree -- a real gap or overlap";
 }
 
 TEST_F(Polygon2DTest, Triangulate_ReflexVertexOnNonAdjacentDiagonal_StaysInsidePolygon) {
@@ -1555,6 +1768,8 @@ TEST_F(Polygon2DTest, Triangulate_ReflexVertexOnNonAdjacentDiagonal_StaysInsideP
     EXPECT_TRUE(p.Contains(t.Centroid())) << "triangle " << t.ToWkt() << " strays outside the polygon";
   }
   EXPECT_NEAR(total_area, p.Area(), 1e-9);
+  ExpectNoPolygonVertexHangsOnTriangleEdge(p, triangles);
+  ExpectHalfEdgesAreManifold(triangles);
 }
 
 TEST_F(Polygon2DTest, Triangulate_DefaultParams_UsesGuaranteedNoRevalidation) {

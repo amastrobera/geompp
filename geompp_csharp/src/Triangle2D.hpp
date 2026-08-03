@@ -10,6 +10,7 @@ namespace GeomPP {
 ref class Point2D;
 ref class Vector2D;
 ref class Line2D;
+ref class Ray2D;
 ref class LineSegment2D;
 ref class Polygon2D;
 
@@ -45,9 +46,15 @@ public:
 
     // Intersects
     bool Intersects(Line2D^ line);
+    bool Intersects(Ray2D^ ray);
+    bool Intersects(LineSegment2D^ segment);
+    bool Intersects(Triangle2D^ other);
 
     // Intersection — optional<variant<Point2D,LineSegment2D,Triangle2D,Polygon2D>> → System::Object^
     System::Object^ Intersection(Line2D^ line);
+    System::Object^ Intersection(Ray2D^ ray);
+    System::Object^ Intersection(LineSegment2D^ segment);
+    System::Object^ Intersection(Triangle2D^ other);
 
     // Operator
     static bool operator==(Triangle2D^ lhs, Triangle2D^ rhs);

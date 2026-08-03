@@ -1153,10 +1153,10 @@ template bool is_ccw(std::vector<Point2D> const&, View2D const&);
 template bool is_ccw(std::vector<Point3D> const&, View2D const&);
 
 template <typename PointT>
-bool are_collinear(PointT const& p1, PointT const& p2, PointT const& p3, View2D const& view) {
-  double x0 = view.x(p1), y0 = view.y(p1);
-  double x1 = view.x(p2), y1 = view.y(p2);
-  double x2 = view.x(p3), y2 = view.y(p3);
+bool are_collinear(PointT const& p0, PointT const& p1, PointT const& p2, View2D const& view) {
+  auto [x0, y0] = view.xy(p0);
+  auto [x1, y1] = view.xy(p1);
+  auto [x2, y2] = view.xy(p2);
 
   // A duplicate needs no separate check: if points[i] == points[i+1] (or points[i+1] == points[i+2]),
   // one of the two edge vectors below is the zero vector, so the cross product is already trivially zero.
@@ -2398,35 +2398,32 @@ std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<P
 
       // it can happen that this vertex is not reflex, but also not convex!
       // the points may be collinear, making the triangle check fail, we want to avoid that
-      if (detail::view::are_collinear(p_prev, p_cur, p_next, view)) {
-        i = i_next;
-        continue;
-      }
-
-      // check if the triangle is an ear
-      bool is_ear = true;
-      for (auto const& j : reflex_indices) {
-        if (j == i_prev || j == i_next) {  // quick exit (we don't care of the prev/next indices to be reflex)
-          continue;
+      if (!detail::view::are_collinear(p_prev, p_cur, p_next, view)) {
+        // check if the triangle is an ear
+        bool is_ear = true;
+        for (auto const& j : reflex_indices) {
+          if (j == i_prev || j == i_next) {  // quick exit (we don't care of the prev/next indices to be reflex)
+            continue;
+          }
+          if (lambda_is_point_in_triangle(p_prev, p_cur, p_next, input[j])) {
+            is_ear = false;
+            break;
+          }
         }
-        if (lambda_is_point_in_triangle(p_prev, p_cur, p_next, input[j])) {
-          is_ear = false;
-          break;
+
+        if (is_ear) {
+          triangles.push_back({i_prev, i, i_next});
+
+          // set the prev/next indices to skip the current vertex
+          next_id[i_prev] = i_next;
+          prev_id[i_next] = i_prev;
+
+          // update reflex status of the previous and next vertices
+          lambda_modify_reflex_status(i_prev);
+          lambda_modify_reflex_status(i_next);
+
+          --n;
         }
-      }
-
-      if (is_ear) {
-        triangles.push_back({i_prev, i, i_next});
-
-        // remove the ear vertex from the polygon
-        next_id[i_prev] = i_next;
-        prev_id[i_next] = i_prev;
-
-        // update reflex status of the previous and next vertices
-        lambda_modify_reflex_status(i_prev);
-        lambda_modify_reflex_status(i_next);
-
-        --n;
       }
     }
 

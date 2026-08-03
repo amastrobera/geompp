@@ -5010,10 +5010,15 @@ A quick list of code examples per topic is provided here.
   The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
   at its inner corners. Every diagonal ear clipping adds happens to fan out from the same inner
   vertex here, but that's a property of this particular vertex ordering, not something the algorithm
-  guarantees in general.
+  guarantees in general. Alongside it, a 3-tooth "comb" — the classic *adversarial* shape for naive
+  ear-clipping: its deep, narrow notches mean some vertices get checked, rejected, and only clipped
+  later once an unrelated clip elsewhere in the ring shrinks the set of blocking reflex vertices, so
+  the algorithm needs more than one pass around it to finish.
 
   <p align="center">
-    <img src="./images/triangulation.png" width="640" alt="A 5-pointed star polygon before and after Triangulate(): 8 triangles, every diagonal (gold) fanning out from one of the star's inner vertices">
+    <img src="./images/triangulation.png" width="420" alt="A 5-pointed star polygon before and after Triangulate(): 8 triangles (every edge in gold), every diagonal fanning out from one of the star's inner vertices">
+    &nbsp;&nbsp;
+    <img src="./images/comb_triangulation.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate(): 10 triangles fanning from the base, the classic adversarial case that needs multiple traversal laps to fully clip">
   </p>
 
   <details closed>

@@ -173,9 +173,9 @@
   | Metric | Count | Notes |
   |--------|-------|-------|
   | Public methods (C++) | ~513 | Excl. ctors/dtors/operators |
-  | C++ methods tested | ~493/513 | ~96% (992 TEST cases, 990 run, 2 disabled) |
-  | Python methods tested | 448/468 | ~96% (784 pytest cases) |
-  | C# methods tested | 508/575 | ~88% (886 harness tests) |
+  | C++ methods tested | ~493/513 | ~96% (998 TEST cases, 996 run, 2 disabled) |
+  | Python methods tested | 454/474 | ~96% (792 pytest cases) |
+  | C# methods tested | 514/581 | ~88% (898 harness tests) |
   | Stubs (not yet impl.) | 2 | `TriangulationParams::Strategy::MonotonePolygon`/`Delaunay` — intentional, see test_coverage_report.md |
 
 

@@ -1475,6 +1475,28 @@ TEST_F(CalcUtils2DTest, EarClippingTriangulation_ConcavePentagon_ReturnsValidInd
   EXPECT_NEAR(total_area, 10.0, 1e-9);
 }
 
+TEST_F(CalcUtils2DTest, EarClippingTriangulation_CombPolygon_RequiresMultipleTraversalLaps) {
+  // A 3-tooth "comb" -- the classic adversarial shape for naive ear-clipping: several deep, narrow
+  // notches between tall teeth. Unlike every other shape tested here, this one genuinely needs more
+  // than one lap around the ring: some vertices get checked, rejected as non-ears (blocked by a
+  // reflex vertex elsewhere), and only succeed on a later lap once an unrelated clip shrinks the
+  // reflex set. Regression/stress test for exactly that multi-lap code path, not a specific bug.
+  std::vector<g::Point2D> comb = {
+      {5, 0}, {5, 10}, {4, 10}, {4, 9}, {3, 9}, {3, 10},
+      {2, 10}, {2, 9}, {1, 9}, {1, 10}, {0, 10}, {0, 0}};
+  auto tri_indices = gd::view::ear_clipping_triangulation(comb, g::View2D::XY());
+
+  ASSERT_EQ(tri_indices.size(), 10u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, comb.size());
+    }
+    total_area += g::Triangle2D::Make(comb[tri[0]], comb[tri[1]], comb[tri[2]]).Area();
+  }
+  EXPECT_NEAR(total_area, 48.0, 1e-9);
+}
+
 TEST_F(CalcUtils2DTest, EarClippingTriangulation_ReflexVertexOnNonAdjacentDiagonal_StaysInsidePolygon) {
   // L-shaped hexagon whose reflex vertex (2, 2) sits exactly on the diagonal between two OTHER
   // (non-adjacent) vertices: (0, 4) and (4, 0) both satisfy x + y == 4, same as (2, 2). Regression
@@ -1515,6 +1537,27 @@ TEST_F(CalcUtils2DTest, EarClippingTriangulation_CollinearMidEdgeVertex_Produces
                                  square_with_midpoint[tri[2]]);
     total_area += t.Area();
     EXPECT_TRUE(polygon.Contains(t.Centroid())) << "triangle " << t.ToWkt() << " strays outside the polygon";
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, EarClippingTriangulation_CollinearVertexAtRingStart_DoesNotHang) {
+  // Same square-with-a-redundant-midpoint shape as the test above, but rotated so the collinear
+  // vertex (2, 0) is at INDEX 0 -- i.e. the very first vertex the main loop's i=0 start visits.
+  // Diagnostic for the are_collinear() skip-branch: `i = i_next; continue;` never re-derives
+  // i_prev/i_next for the new i, so if the loop starts exactly on a collinear vertex, the very next
+  // iteration runs with stale (wrong) i_prev/i_next.
+  std::vector<g::Point2D> square_with_midpoint = {{2, 0}, {4, 0}, {4, 4}, {0, 4}, {0, 0}};
+  auto tri_indices = gd::view::ear_clipping_triangulation(square_with_midpoint, g::View2D::XY());
+
+  ASSERT_EQ(tri_indices.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, square_with_midpoint.size()) << "index out of range -- stale i_prev/i_next?";
+    }
+    total_area += g::Triangle2D::Make(square_with_midpoint[tri[0]], square_with_midpoint[tri[1]],
+                                      square_with_midpoint[tri[2]]).Area();
   }
   EXPECT_NEAR(total_area, 16.0, 1e-9);
 }
