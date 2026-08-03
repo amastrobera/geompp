@@ -1,5 +1,6 @@
 #include "polymesh3d.hpp"
 
+#include "mesh3d.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
 #include "utils.hpp"
@@ -92,6 +93,34 @@ TEST_F(PolyMesh3DTest, Faces_MatchesOperatorBracket) {
     ++i;
   }
   EXPECT_EQ(mesh.Size(), i);
+}
+
+TEST_F(PolyMesh3DTest, Triangulate_TwoFacetsSharedEdge_PreservesTotalArea) {
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 1, 0), g::Point3D(1, 1, 0)});
+  auto mesh = g::PolyMesh3D::FromPolygons({p0, p1});
+
+  auto tri_mesh = mesh.Triangulate();
+  EXPECT_EQ(4u, tri_mesh.Size());
+  EXPECT_NEAR(mesh.Area(), tri_mesh.Area(), 1e-9);
+}
+
+// Regression test: PolyMesh3D::Triangulate() used to triangulate the whole (shared, deduplicated)
+// VERTICES buffer as if it were a single ring, which only "worked" by coincidence for facets that
+// happened to share welded edges. Two disjoint facets — no welding to paper over the bug — exposes it
+// directly: the old code produced a wrong triangle count and a wrong total area.
+TEST_F(PolyMesh3DTest, Triangulate_TwoDisjointFacets_PreservesTotalArea) {
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(5, 5, 0), g::Point3D(6, 5, 0), g::Point3D(6, 6, 0), g::Point3D(5, 6, 0)});
+  auto mesh = g::PolyMesh3D::FromPolygons({p0, p1});
+
+  auto tri_mesh = mesh.Triangulate();
+  EXPECT_EQ(4u, tri_mesh.Size());
+  EXPECT_NEAR(mesh.Area(), tri_mesh.Area(), 1e-9);
 }
 
 }  // namespace geompp_tests

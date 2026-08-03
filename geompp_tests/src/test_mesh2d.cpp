@@ -1,5 +1,6 @@
 #include "mesh2d.hpp"
 
+#include "connected_mesh2d.hpp"
 #include "point2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
@@ -86,6 +87,34 @@ TEST_F(Mesh2DTest, Faces_MatchesOperatorBracket) {
     ++i;
   }
   EXPECT_EQ(mesh.Size(), i);
+}
+
+TEST_F(Mesh2DTest, Connect_PreservesSizeAreaAndFaces) {
+  auto t0 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1));
+  auto t1 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::Mesh2D::FromTriangles({t0, t1});
+
+  auto connected = mesh.Connect();
+  EXPECT_EQ(mesh.Size(), connected.Size());
+  EXPECT_NEAR(mesh.Area(), connected.Area(), 1e-9);
+  for (std::size_t i = 0; i < mesh.Size(); ++i) {
+    EXPECT_TRUE(mesh[i].AlmostEquals(connected[i].Geometry())) << "face " << i << " mismatch after Connect()";
+  }
+}
+
+TEST_F(Mesh2DTest, Connect_SharedEdge_ExposesAdjacency) {
+  // Same fan-of-4 pattern used in the ConnectedMesh2D suite: adjacent facets should now be
+  // queryable across their shared THIRD edge, which a bare Mesh2D cannot do.
+  using Edge = g::detail::TriangleCompactNeighborRef::TriangleEdge;
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+
+  auto connected = mesh.Connect();
+  auto neighbor = connected[0].Neighbor(Edge::THIRD);
+  ASSERT_TRUE(neighbor.has_value());
+  EXPECT_EQ(1u, neighbor->ID());
 }
 
 }  // namespace geompp_tests

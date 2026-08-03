@@ -22,6 +22,7 @@ endif()
 set(BINDING_SOURCES
     src/bindings.cpp
     src/bind_precision.cpp
+    src/bind_triangulation_params.cpp
     src/bind_point2d.cpp
     src/bind_point3d.cpp
     src/bind_vector2d.cpp
@@ -137,6 +138,7 @@ else()
         ${GEOMPP_ROOT}/src/bbox2d.cpp
         ${GEOMPP_ROOT}/src/bball2d.cpp
         ${GEOMPP_ROOT}/src/brect2d.cpp
+        ${GEOMPP_ROOT}/src/sweep_line2d.cpp
         ${GEOMPP_ROOT}/src/calc_utils2d.cpp
         ${GEOMPP_ROOT}/src/point3d.cpp
         ${GEOMPP_ROOT}/src/vector3d.cpp

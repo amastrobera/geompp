@@ -5,6 +5,7 @@
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "ray2d.hpp"
+#include "triangle2d.hpp"
 #include "utils.hpp"
 
 #include "geompp_log.hpp"
@@ -168,10 +169,9 @@ Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points, std::v
   // the same side of that boundary, so if the first is inside (or touching), the whole hole is.
   for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
     auto const& p = unique_holes_points[h].front();
-    bool contained = detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
-                                                     p.x(), p.y()) ||
-                      detail::view::polygon_contains(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
-                                                      p.x(), p.y());
+    bool contained =
+        detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(), p.x(), p.y()) ||
+        detail::view::polygon_contains(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(), p.x(), p.y());
     if (!contained) {
       GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
       throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
@@ -455,6 +455,16 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
     }
   }
   return results;
+}
+
+std::vector<Triangle2D> Polygon2D::Triangulate(TriangulationParams::Strategy strategy) const {
+  // Make() already guarantees VERTICES is simple, CCW-wound, and duplicate-free, so triangulate_impl's
+  // input-quality checks are all skipped.
+  auto tris = triangulate(
+      VERTICES, TriangulationParams{strategy, TriangulationParams::Simplicity::Guaranteed,
+                                    TriangulationParams::Winding::Guaranteed, TriangulationParams::Collinearity::Guaranteed});
+
+  return tris;
 }
 
 #pragma region Operator Overloading

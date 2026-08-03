@@ -1,5 +1,6 @@
 #include "mesh3d.hpp"
 
+#include "connected_mesh3d.hpp"
 #include "grid_cell3d.hpp"
 #include "triangle3d.hpp"
 
@@ -26,6 +27,16 @@ Triangle3D Mesh3D::operator[](std::size_t i) const {
   }
   auto f_idx = (*FACE_INDICES)[i];
   return Triangle3D::Make((*VERTICES)[f_idx[0]], (*VERTICES)[f_idx[1]], (*VERTICES)[f_idx[2]]);
+}
+
+ConnectedMesh3D Mesh3D::Connect() const {
+  std::vector<Triangle3D> triangles;
+  triangles.reserve(FACE_INDICES->size());
+  for (std::size_t i = 0; i < FACE_INDICES->size(); ++i) {
+    auto f_idx = (*FACE_INDICES)[i];
+    triangles.emplace_back(Triangle3D::Make((*VERTICES)[f_idx[0]], (*VERTICES)[f_idx[1]], (*VERTICES)[f_idx[2]]));
+  }
+  return ConnectedMesh3D::FromTriangles(triangles);
 }
 
 }  // namespace geompp

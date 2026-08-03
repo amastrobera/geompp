@@ -10,6 +10,7 @@
 #include "point2d.hpp"
 #include "polygon2d.hpp"
 #include "ray3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector2d.hpp"
 
@@ -210,9 +211,9 @@ Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points, std::v
   for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
     auto const& p = unique_holes_points[h].front();
     bool contained = detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point3D>>{}, hole_view,
-                                                     hole_view.x(p), hole_view.y(p)) ||
-                      detail::view::polygon_contains(unique_points, std::vector<std::vector<Point3D>>{}, hole_view,
-                                                      hole_view.x(p), hole_view.y(p));
+                                                   hole_view.x(p), hole_view.y(p)) ||
+                     detail::view::polygon_contains(unique_points, std::vector<std::vector<Point3D>>{}, hole_view,
+                                                    hole_view.x(p), hole_view.y(p));
     if (!contained) {
       GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
       throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
@@ -589,6 +590,15 @@ std::vector<Polygon3D> Polygon3D::Simplify() const {
     }
   }
   return results;
+}
+
+std::vector<Triangle3D> Polygon3D::Triangulate(TriangulationParams::Strategy strategy) const {
+  auto tris = triangulate(
+      VERTICES, PLANE.normal(),
+      TriangulationParams{strategy, TriangulationParams::Simplicity::Guaranteed,
+                          TriangulationParams::Winding::Guaranteed, TriangulationParams::Collinearity::Guaranteed});
+
+  return tris;
 }
 
 Polygon3D Polygon3D::ConvexHull() {

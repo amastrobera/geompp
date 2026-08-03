@@ -4,6 +4,8 @@
 #include "line3d.hpp"
 #include "line_segment3d.hpp"
 #include "polygon3d.hpp"
+#include "segment_iterator3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 #include "view2d.hpp"
@@ -337,8 +339,7 @@ namespace {
 // Per edge P0->P1 (E = P1-P0, A = P0-line_origin, D = line direction, unit), the squared distance
 // from the edge point P0+t*E to the line is the quadratic c0 + c1*t + c2*t^2 derived from
 // |A+tE|^2 - ((A+tE).D)^2; minimizing over t in [0,1] is a standard clamped-vertex search.
-double ring_distance_to_line(std::vector<Point3D> const& ring, Point3D const& line_origin,
-                             Vector3D const& line_dir) {
+double ring_distance_to_line(std::vector<Point3D> const& ring, Point3D const& line_origin, Vector3D const& line_dir) {
   std::size_t n = ring.size();
   double min_d2 = -1;
   for (std::size_t i = 0; i < n; ++i) {
@@ -465,11 +466,58 @@ PolygonTangents<LineSegment3D> tangents_to(Polygon3D const& polygon, Polygon3D c
   View2D view = view_for_plane(poly_plane);
 
   auto [RL_poly_i, RL_other_i] = detail::view::poly_poly_RL_tangent_to(polygon.Perimeter(), polygon.IsConvex(),
-                                                                        other.Perimeter(), other.IsConvex(), view);
+                                                                       other.Perimeter(), other.IsConvex(), view);
   auto [LR_other_i, LR_poly_i] = detail::view::poly_poly_RL_tangent_to(other.Perimeter(), other.IsConvex(),
-                                                                        polygon.Perimeter(), polygon.IsConvex(), view);
+                                                                       polygon.Perimeter(), polygon.IsConvex(), view);
   return {LineSegment3D::Make(polygon[RL_poly_i], other[RL_other_i]),
           LineSegment3D::Make(polygon[LR_poly_i], other[LR_other_i])};
+}
+
+std::vector<LineSegment3D> to_segments(std::vector<Point3D> const& points) {
+  SegmentRange3D range(points, true);
+  std::vector<LineSegment3D> segments;
+  segments.reserve(range.size());
+  for (auto const& seg : range) {
+    segments.push_back(seg);
+  }
+  return segments;
+}
+
+bool is_simple(std::vector<Point3D> const& points, Vector3D const& normal) {
+  Axis dax = normal.DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  return detail::view::is_simple(points, view);
+}
+
+bool is_simple(std::vector<Point3D> const& points) { return is_simple(points, principal_normal(points)); }
+
+std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input, Vector3D normal,
+                                    TriangulationParams const& settings) {
+  if (input.size() < 3) {
+    throw std::invalid_argument("less than 3 points");
+  }
+
+  auto dax = normal.DominantAxis();
+  View2D view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+
+  auto tris = detail::view::triangulate_impl(input, view, settings);
+  std::vector<Triangle3D> result;
+  result.reserve(tris.size());
+  for (auto const& t : tris) {
+    result.push_back(Triangle3D::Make(t[0], t[1], t[2]));
+  }
+  return result;
+}
+
+std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input, TriangulationParams const& settings) {
+  if (input.size() < 3) {
+    throw std::invalid_argument("less than 3 points");
+  }
+
+  auto frame = principal_axes(input);
+  Vector3D normal = frame.Z;
+
+  return triangulate(input, normal, settings);
 }
 
 }  // namespace geompp

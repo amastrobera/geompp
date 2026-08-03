@@ -8,6 +8,7 @@
 namespace GeomPP {
 
 ref class Triangle3D;
+ref class ConnectedMesh3D;
 
 // A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple. No
 // adjacency structure is stored to find a face's neighbors.
@@ -23,6 +24,9 @@ public:
     int Size();
     double Area();
     property Triangle3D^ default[int] { Triangle3D^ get(int i); }
+
+    // Same facets/vertices, plus precomputed per-facet edge adjacency (see ConnectedMesh3D).
+    ConnectedMesh3D^ Connect();
 
     virtual System::String^ ToString() override;
 

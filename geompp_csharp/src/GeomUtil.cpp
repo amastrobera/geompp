@@ -15,6 +15,8 @@
 #include "Line2D.hpp"
 #include "Line3D.hpp"
 #include "Polyline2D.hpp"
+#include "Triangle2D.hpp"
+#include "Triangle3D.hpp"
 
 namespace GeomPP {
 
@@ -373,6 +375,53 @@ PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Polygon3D^ other) {
     return gcnew PolygonTangents3D(
         gcnew LineSegment3D(new geompp::LineSegment3D(t.left)),
         gcnew LineSegment3D(new geompp::LineSegment3D(t.right)));
+}
+
+TriangulationParams::TriangulationParams()
+    : _strategy(TriangulationStrategy::EarClipping), _simplicity(TriangulationSimplicity::Enforce),
+      _ccwWinding(TriangulationWinding::Enforce), _collinearity(TriangulationCollinearity::Enforce) {}
+
+TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity)
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity) {}
+
+geompp::TriangulationParams TriangulationParams::ToNative() {
+    geompp::TriangulationParams native;
+    native.strategy = static_cast<geompp::TriangulationParams::Strategy>(_strategy);
+    native.simplicity = static_cast<geompp::TriangulationParams::Simplicity>(_simplicity);
+    native.ccw_winding = static_cast<geompp::TriangulationParams::Winding>(_ccwWinding);
+    native.collinearity = static_cast<geompp::TriangulationParams::Collinearity>(_collinearity);
+    return native;
+}
+
+System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
+    System::Collections::Generic::List<Point2D^>^ points, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNativePoints2D(points), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Triangle2D^>(static_cast<int>(native.size()));
+    for (auto const& t : native) {
+        list->Add(gcnew Triangle2D(new geompp::Triangle2D(t)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Triangle3D^>^ GeomUtil::Triangulate(
+    System::Collections::Generic::List<Point3D^>^ points, Vector3D^ normal, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNative(points), *normal->_native, settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Triangle3D^>(static_cast<int>(native.size()));
+    for (auto const& t : native) {
+        list->Add(gcnew Triangle3D(new geompp::Triangle3D(t)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Triangle3D^>^ GeomUtil::Triangulate(
+    System::Collections::Generic::List<Point3D^>^ points, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNative(points), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Triangle3D^>(static_cast<int>(native.size()));
+    for (auto const& t : native) {
+        list->Add(gcnew Triangle3D(new geompp::Triangle3D(t)));
+    }
+    return list;
 }
 
 }  // namespace GeomPP

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
 
@@ -10,7 +11,7 @@
 
 namespace geompp {
 
-class Polygon3D;
+class Mesh3D;
 
 /// @brief A mesh made of adjacent, arbitrary-sided polygonal faces, stored as a flat index buffer for efficiency
 /// No adjacency structure is stored to find a face's neighbors.
@@ -51,15 +52,33 @@ class PolyMesh3D {
 
 #pragma endregion
 
+  /// @brief Returns a mesh of triangles instead of n-gons — every facet is triangulated independently
+  /// (its own vertices are already simple, CCW-wound, and duplicate-free by construction, since every
+  /// PolyMesh3D facet came from a validated Polygon3D, so every TriangulationParams check is skipped)
+  /// and the results are combined into one Mesh3D.
+  /// @param strategy The triangulation strategy to use. Options:
+  ///        - EarClipping: O(n^2) worst case, but simple and robust for small polygons
+  ///        - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
+  ///                           into monotone pieces)
+  ///        - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum
+  ///                    angle of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+  /// @returns A Mesh3D with sum(facet_vertex_count - 2) triangles across every facet.
+  /// @throws whatever the chosen @p strategy itself throws (e.g. std::runtime_error for a
+  /// not-yet-implemented strategy).
+  Mesh3D Triangulate(TriangulationParams::Strategy strategy = TriangulationParams::Strategy::EarClipping) const;
+
  private:
   // shared_ptr, not plain vector: copying a PolyMesh3D (or handing its vertex buffer to a future
   // Polygonize()/Triangulate() conversion) becomes an O(1) refcount bump instead of an O(n) deep
   // copy. Safe without copy-on-write because PolyMesh3D never exposes a mutable reference to any of
   // these buffers after construction.
-  std::shared_ptr<std::vector<Point3D>> VERTICES;              // all points (unique) of the mesh
-  std::shared_ptr<std::vector<std::size_t>> FACE_INDICES;      // list of points per face, in index [0,1,2, 2,3,5,6, 0,1,5,7, ...]
-  std::shared_ptr<std::vector<std::size_t>> FACE_IDX_BEGINS;   // list of index beginnings          [0,     3,       7,       ...]
-  std::shared_ptr<std::vector<std::size_t>> FACE_IDX_OFFSETS;  // number of vertices per polygon    [3,     4,       4,       ...]
+  std::shared_ptr<std::vector<Point3D>> VERTICES;  // all points (unique) of the mesh
+  std::shared_ptr<std::vector<std::size_t>>
+      FACE_INDICES;  // list of points per face, in index [0,1,2, 2,3,5,6, 0,1,5,7, ...]
+  std::shared_ptr<std::vector<std::size_t>>
+      FACE_IDX_BEGINS;  // list of index beginnings          [0,     3,       7,       ...]
+  std::shared_ptr<std::vector<std::size_t>>
+      FACE_IDX_OFFSETS;  // number of vertices per polygon    [3,     4,       4,       ...]
   double AREA;
 
   // Takes shared_ptr by const&, not by value+move: copying a shared_ptr is just an atomic refcount

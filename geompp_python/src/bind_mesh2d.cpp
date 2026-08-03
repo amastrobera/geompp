@@ -28,5 +28,7 @@ void bind_mesh2d(py::module_& m) {
                 faces.append(mesh[static_cast<int>(i)]);
             }
             return faces.attr("__iter__")();
-        });
+        })
+        .def("connect", &geompp::Mesh2D::Connect,
+             "Same facets/vertices, plus precomputed per-facet edge adjacency (see ConnectedMesh2D).");
 }

@@ -4,6 +4,8 @@
 #include "point3d.hpp"
 #include "polygon2d.hpp"
 #include "segment_iterator2d.hpp"
+#include "sweep_line2d.hpp"
+#include "triangle2d.hpp"
 #include "vector2d.hpp"
 #include "vector3d.hpp"
 
@@ -13,6 +15,8 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <deque>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -26,50 +30,6 @@
 
 namespace geompp {
 namespace detail {
-
-namespace {
-
-// build the LEFT / RIGHT events for every segment; works for any SegmentList (vector, SegmentRange2D, ...)
-template <SegmentList Segments>
-std::vector<Event2D> build_events(Segments const& segments) {
-  std::vector<Event2D> all;
-  all.reserve(segments.size() * 2);
-
-  for (std::size_t i = 0; i < segments.size(); ++i) {
-    auto const& seg = segments[i];  // ref to element (vector) or lifetime-extended temporary (range)
-
-    auto ev1 = Event2D{EventType2D::UNKN, seg.First(), i, std::nullopt};
-    auto ev2 = Event2D{EventType2D::UNKN, seg.Last(), i, std::nullopt};
-    if (ev1 < ev2) {
-      ev1.Type = EventType2D::LEFT;
-      ev2.Type = EventType2D::RIGHT;
-    } else {
-      ev1.Type = EventType2D::RIGHT;
-      ev2.Type = EventType2D::LEFT;
-    }
-
-    all.emplace_back(ev1);
-    all.emplace_back(ev2);
-  }
-
-  return all;
-}
-
-template <SegmentList Segments>
-double min_sweep_x(Segments const& segments) {
-  double min_x = std::numeric_limits<double>::infinity();
-  for (std::size_t i = 0; i < segments.size(); ++i) {
-    auto const& seg = segments[i];
-    min_x = std::min(min_x, std::min(seg.First().x(), seg.Last().x()));
-  }
-  return min_x;
-}
-
-}  // namespace
-
-bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b) {
-  return a.First() == b.First() || a.First() == b.Last() || a.Last() == b.First() || a.Last() == b.Last();
-}
 
 std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
                                          Point2D const& other_p1, double& sc, double& tc) {
@@ -98,306 +58,6 @@ std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, P
   }
   sc = tc = std::numeric_limits<double>::quiet_NaN();
   return std::nullopt;
-}
-
-std::partial_ordering compare_event_point(Point2D a, Point2D b) {
-  auto compare_x = compare(a.x(), b.x());
-  if (compare_x != std::partial_ordering::equivalent) {
-    return compare_x;
-  }
-  auto compare_y = compare(a.y(), b.y());
-  return compare_y;
-}
-
-// ------- event queue -------
-EventQueue2D::EventQueue2D(std::vector<LineSegment2D> const& segments) {
-  EVENTS = EventMinHeap(std::greater<Event2D>{}, build_events(segments));
-}
-
-EventQueue2D::EventQueue2D(SegmentRange2D const& segments) {
-  EVENTS = EventMinHeap(std::greater<Event2D>{}, build_events(segments));
-}
-
-EventQueue2D::EventQueue2D(Polygon2D const& polygon) : EventQueue2D(polygon.ToSegments()) {}
-
-bool Event2D::operator<(Event2D const& other) const {
-  // order by x coordinate, then by y coordinate, then by event type (LEFT < INTERSECTION < RIGHT)
-  auto compare_x = compare(Point.x(), other.Point.x());
-  if (compare_x != std::partial_ordering::equivalent) {
-    return compare_x < 0;
-  }
-
-  auto compare_y = compare(Point.y(), other.Point.y());
-  if (compare_y != std::partial_ordering::equivalent) {
-    return compare_y < 0;
-  }
-
-  return Type < other.Type;  // relies on the order of the EventType2D enum
-                             // prioritize LEFT < INTERSECTION < RIGHT events (guaranteed by EventType2D enum order)
-                             // note on D.Sunday book: helps to process edge cases
-}
-
-bool Event2D::operator>(Event2D const& other) const { return other < *this; }
-
-bool Event2D::operator==(Event2D const& other) const {
-  return Type == other.Type && Point == other.Point && SegmentId == other.SegmentId &&
-         InterSegmentId == other.InterSegmentId;
-}
-
-std::optional<Event2D> EventQueue2D::Top() const {
-  if (EVENTS.empty()) {
-    return std::nullopt;
-  }
-  return EVENTS.top();
-}
-
-std::optional<Event2D> EventQueue2D::Pop() {
-  if (EVENTS.empty()) {
-    return std::nullopt;
-  }
-  Event2D top = EVENTS.top();
-  EVENTS.pop();
-  return top;
-}
-
-bool EventQueue2D::Empty() const { return EVENTS.empty(); }
-
-void EventQueue2D::Push(Event2D const& event) { EVENTS.push(event); }
-
-bool EventQueue2D::Contains(Event2D const& event) const {
-  for (const auto& queued_event : EVENTS.c) {
-    if (queued_event == event) {
-      return true;
-    }
-    // INTERSECTION(A,B) and INTERSECTION(B,A) are the same geometric event: check the reversed pair too
-    if (event.Type == EventType2D::INTERSECTION && queued_event.Type == EventType2D::INTERSECTION &&
-        queued_event.Point == event.Point && event.InterSegmentId.has_value() &&
-        queued_event.InterSegmentId.has_value() && queued_event.SegmentId == event.InterSegmentId.value() &&
-        queued_event.InterSegmentId.value() == event.SegmentId) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// ------- sweep line -------
-
-bool IntersectionEvent2D::operator<(IntersectionEvent2D const& other) const {
-  return compare_event_point(Point, other.Point) < 0;  // order by the intersection point
-}
-
-bool IntersectionEvent2D::operator==(IntersectionEvent2D const& other) const {
-  return compare_event_point(Point, other.Point) == 0;  // order by the intersection point
-}
-
-template <SegmentList Segments>
-double SweepLineComparator<Segments>::GetYAtX(LineSegment2D const& seg, double x) const {
-  auto is_seg_reverse = compare_event_point(seg.First(), seg.Last()) > 0;
-
-  auto p0 = is_seg_reverse ? seg.Last() : seg.First();
-  auto p1 = is_seg_reverse ? seg.First() : seg.Last();
-
-  if (compare(x, p0.x()) < 0) {
-    return p0.y();
-  }
-
-  if (compare(x, p1.x()) > 0) {
-    return p1.y();
-  }
-
-  if (compare(p1.x(), p0.x()) == 0) {  // vertical segment: avoid division by zero
-    return (p0.y() + p1.y()) / 2.0;
-  }
-  // linear interpolation
-  return p0.y() + ((p1.y() - p0.y()) / (p1.x() - p0.x())) * (x - p0.x());
-}
-
-template <SegmentList Segments>
-bool SweepLineComparator<Segments>::operator()(std::size_t id1, std::size_t id2) const {
-  if (id1 >= segments->size() || id2 >= segments->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  double y1 = GetYAtX((*segments)[id1], sweep_x);
-  double y2 = GetYAtX((*segments)[id2], sweep_x);
-
-  if (compare(y1, y2) != std::partial_ordering::equivalent) {
-    return compare(y1, y2) < 0;
-  }
-  // Equal y at sweep_x: evaluate at the midpoint of the segments' active x-overlap.
-  // This is always strictly interior — avoids the endpoint ambiguity that plagues
-  // forward/backward delta looks (forward reverses shared-RIGHT order; backward
-  // reverses shared-LEFT order).
-  auto seg_left_x = [](LineSegment2D const& s) { return std::min(s.First().x(), s.Last().x()); };
-  auto seg_right_x = [](LineSegment2D const& s) { return std::max(s.First().x(), s.Last().x()); };
-  double overlap_lo = std::max(seg_left_x((*segments)[id1]), seg_left_x((*segments)[id2]));
-  double overlap_hi = std::min(seg_right_x((*segments)[id1]), seg_right_x((*segments)[id2]));
-  if (overlap_lo < overlap_hi) {
-    double mid_x = (overlap_lo + overlap_hi) * 0.5;
-    double y1_mid = GetYAtX((*segments)[id1], mid_x);
-    double y2_mid = GetYAtX((*segments)[id2], mid_x);
-    if (compare(y1_mid, y2_mid) != std::partial_ordering::equivalent) {
-      return compare(y1_mid, y2_mid) < 0;
-    }
-  }
-  return id1 < id2;  // final fallback (parallel / coincident segments)
-}
-
-// SweepLine2D template members: defined here, emitted for other TUs by the explicit instantiations below.
-// Each definition needs its own `template <SegmentList Segments>` and the SweepLine2D<Segments>:: qualifier.
-
-template <SegmentList Segments>
-SweepLine2D<Segments>::SweepLine2D(Segments const& segments)
-    : SWEEP_X(min_sweep_x(segments)), PTR_SEGMENTS(&segments) {}
-
-template <SegmentList Segments>
-std::optional<std::size_t> SweepLine2D<Segments>::FindIndex(std::size_t seg_id) const {
-  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
-  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
-
-  if (it == ACTIVE_SEGMENTS.end() || *it != seg_id) {
-    // lower_bound didn't land exactly on seg_id — either the comparator's tie-break sent it to the wrong
-    // slot, or seg_id genuinely isn't active. Since ids are unique in ACTIVE_SEGMENTS, an exact match can
-    // never be a false positive, so falling back to an O(n) linear scan whenever it ISN'T an exact match
-    // is always safe, regardless of how stale SWEEP_X is relative to the vector's true order.
-    it = std::find(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id);
-    if (it == ACTIVE_SEGMENTS.end()) {
-      return std::nullopt;
-    }
-  }
-  return static_cast<std::size_t>(std::distance(ACTIVE_SEGMENTS.begin(), it));
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(std::size_t seg_id) const {
-  if (seg_id >= PTR_SEGMENTS->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  auto idx = FindIndex(seg_id);
-  if (!idx) {
-    GEOMPP_LOG(WARNING) << "requested a segment ID missing from the SweepLine active list";
-    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
-  }
-
-  auto seg_elem = IdSegPair{ACTIVE_SEGMENTS[*idx], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[*idx]]};
-
-  std::optional<IdSegPair> above_elem = std::nullopt;
-  if (*idx + 1 < ACTIVE_SEGMENTS.size()) {
-    auto above_id = ACTIVE_SEGMENTS[*idx + 1];
-    if (above_id >= PTR_SEGMENTS->size()) {
-      throw std::out_of_range("SegmentId (above) is out of range of the segments list");
-    }
-    above_elem = IdSegPair{above_id, (*PTR_SEGMENTS)[above_id]};
-  }
-
-  std::optional<IdSegPair> below_elem = std::nullopt;
-  if (*idx > 0) {
-    auto below_id = ACTIVE_SEGMENTS[*idx - 1];
-    if (below_id >= PTR_SEGMENTS->size()) {
-      throw std::out_of_range("SegmentId (below) is out of range of the segments list");
-    }
-    below_elem = IdSegPair{below_id, (*PTR_SEGMENTS)[below_id]};
-  }
-
-  return SweepLineElement2D{seg_elem, above_elem, below_elem};
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Add(std::size_t seg_id) {
-  if (seg_id >= PTR_SEGMENTS->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
-  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
-
-  if (it != ACTIVE_SEGMENTS.end() && *it == seg_id) {
-    throw std::logic_error("Attempted to insert a segment into the sweep line that is already active");
-  }
-
-  ACTIVE_SEGMENTS.insert(it, seg_id);
-  return Get(seg_id);
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Remove(std::size_t seg_id) {
-  if (seg_id >= PTR_SEGMENTS->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  auto idx = FindIndex(seg_id);
-  if (!idx) {
-    GEOMPP_LOG(ERROR) << "Attempted to remove a segment from the sweep line that is not active";
-    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
-  }
-
-  auto triplet_before_remove = Get(seg_id);
-  ACTIVE_SEGMENTS.erase(ACTIVE_SEGMENTS.begin() + *idx);
-
-  return SweepLineElement2D{std::nullopt, triplet_before_remove.Above, triplet_before_remove.Below};
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::ReverseRunResult2D SweepLine2D<Segments>::ReverseRun(
-    std::vector<std::size_t> const& seg_ids) {
-  if (seg_ids.size() < 2) {
-    throw std::invalid_argument("ReverseRun requires at least 2 segment ids");
-  }
-
-  auto anchor_idx = FindIndex(seg_ids.front());
-  if (!anchor_idx) {
-    return ReverseRunResult2D{};  // Ok = false: not active at all — fully stale
-  }
-
-  std::set<std::size_t> wanted(seg_ids.begin(), seg_ids.end());
-
-  // Expand outward from the anchor by direct vector indexing only — no further comparator calls — to see
-  // whether the rest of `wanted` occupies the immediately-adjacent slots. Anything less than fully
-  // contiguous means the run isn't (or is no longer) intact, so the caller should treat it as stale.
-  std::size_t lo = *anchor_idx;
-  std::size_t hi = *anchor_idx;
-  std::size_t found = 1;
-
-  while (found < wanted.size() && lo > 0 && wanted.count(ACTIVE_SEGMENTS[lo - 1]) > 0) {
-    --lo;
-    ++found;
-  }
-  while (found < wanted.size() && hi + 1 < ACTIVE_SEGMENTS.size() && wanted.count(ACTIVE_SEGMENTS[hi + 1]) > 0) {
-    ++hi;
-    ++found;
-  }
-
-  if (found != wanted.size()) {
-    return ReverseRunResult2D{};  // Ok = false: not contiguous — stale event
-  }
-
-  std::reverse(ACTIVE_SEGMENTS.begin() + static_cast<std::ptrdiff_t>(lo),
-              ACTIVE_SEGMENTS.begin() + static_cast<std::ptrdiff_t>(hi) + 1);
-
-  ReverseRunResult2D result;
-  result.Ok = true;
-  result.NewTop = IdSegPair{ACTIVE_SEGMENTS[hi], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[hi]]};
-  result.NewBottom = IdSegPair{ACTIVE_SEGMENTS[lo], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[lo]]};
-  if (lo > 0) {
-    auto id = ACTIVE_SEGMENTS[lo - 1];
-    result.BelowRun = IdSegPair{id, (*PTR_SEGMENTS)[id]};
-  }
-  if (hi + 1 < ACTIVE_SEGMENTS.size()) {
-    auto id = ACTIVE_SEGMENTS[hi + 1];
-    result.AboveRun = IdSegPair{id, (*PTR_SEGMENTS)[id]};
-  }
-  return result;
-}
-
-template <SegmentList Segments>
-void SweepLine2D<Segments>::SetX(double val) {
-  SWEEP_X = val;
-}
-
-template <SegmentList Segments>
-double SweepLine2D<Segments>::GetX() const {
-  return SWEEP_X;
 }
 
 // ------- free functions -------
@@ -480,16 +140,6 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
   run_bentley_ottmann(segments, visitor);
   return std::vector<IntersectionEvent2D>(visitor.Output.begin(), visitor.Output.end());
 }
-
-// explicit instantiations — emit the templated members/functions for each concrete SegmentList the driver uses.
-// Add a line here for every type you instantiate with; only these types will link.
-template class SweepLineComparator<std::vector<LineSegment2D>>;
-template class SweepLineComparator<SegmentRange2D>;
-
-// explicit instantiations — emit the templated members/functions for each concrete SegmentList the driver uses.
-// Add a line here for every type you instantiate with; only these types will link.
-template class SweepLine2D<std::vector<LineSegment2D>>;
-template class SweepLine2D<SegmentRange2D>;
 
 // for a free function template the instantiation deduces the parameter from the argument type:
 template bool has_intersections(std::vector<LineSegment2D> const&);
@@ -1305,7 +955,7 @@ struct SourceTaggedSegment {
 // COMBINED pool in one sweep (subject-clip crossings are exactly what boolean ops care about), matching
 // boolean_op's arrangement exactly — this only adds provenance to the result.
 std::vector<SourceTaggedSegment> split_segments_at_crossings_tagged(std::vector<LineSegment2D> const& subj_segs,
-                                                                     std::vector<LineSegment2D> const& clip_segs) {
+                                                                    std::vector<LineSegment2D> const& clip_segs) {
   std::vector<LineSegment2D> segs = subj_segs;
   segs.insert(segs.end(), clip_segs.begin(), clip_segs.end());
   std::size_t const subj_count = subj_segs.size();
@@ -1418,8 +1068,8 @@ bool piece_set_contains(RingPieces const& pieces, double px, double py) {
 // required to satisfy), so only the OTHER operand needs probing, left and right. Half the polygon_contains
 // calls of classify_and_orient, and the own side no longer depends on the nudge epsilon at all.
 std::vector<LineSegment2D> classify_and_orient_source_tagged(std::vector<SourceTaggedSegment> const& split,
-                                                              RingPieces const& subj_pieces,
-                                                              RingPieces const& clip_pieces, BooleanOp op) {
+                                                             RingPieces const& subj_pieces,
+                                                             RingPieces const& clip_pieces, BooleanOp op) {
   std::vector<LineSegment2D> result;
   result.reserve(split.size());
 
@@ -1488,6 +1138,51 @@ RingPieces boolean_op_multi(RingPieces const& subj_pieces, RingPieces const& cli
 namespace view {
 
 template <PointContainer Points>
+bool is_ccw(Points const& points, View2D const& view) {
+  std::size_t n = std::ranges::size(points);
+  double area2 = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    double x0 = view.x(points[i]), y0 = view.y(points[i]);
+    double x1 = view.x(points[(i + 1) % n]), y1 = view.y(points[(i + 1) % n]);
+    area2 += x0 * y1 - x1 * y0;
+  }
+  return compare(area2, 0.0) > 0;
+}
+
+template bool is_ccw(std::vector<Point2D> const&, View2D const&);
+template bool is_ccw(std::vector<Point3D> const&, View2D const&);
+
+template <typename PointT>
+bool are_collinear(PointT const& p1, PointT const& p2, PointT const& p3, View2D const& view) {
+  double x0 = view.x(p1), y0 = view.y(p1);
+  double x1 = view.x(p2), y1 = view.y(p2);
+  double x2 = view.x(p3), y2 = view.y(p3);
+
+  // A duplicate needs no separate check: if points[i] == points[i+1] (or points[i+1] == points[i+2]),
+  // one of the two edge vectors below is the zero vector, so the cross product is already trivially zero.
+  double cross = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);  // zero turn at points[i+1]
+
+  return compare(cross, 0.0) == 0;
+}
+
+template bool are_collinear(Point2D const&, Point2D const&, Point2D const&, View2D const&);
+template bool are_collinear(Point3D const&, Point3D const&, Point3D const&, View2D const&);
+
+template <PointContainer Points>
+bool has_collinears(Points const& points, View2D const& view) {
+  std::size_t n = std::ranges::size(points);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (detail::view::are_collinear(points[i], points[(i + 1) % n], points[(i + 2) % n], view)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template bool has_collinears(std::vector<Point2D> const&, View2D const&);
+template bool has_collinears(std::vector<Point3D> const&, View2D const&);
+
+template <PointContainer Points>
 bool is_convex(Points const& vertices, View2D const& view) {
   int n = static_cast<int>(vertices.size());
   bool seen_positive = false;
@@ -1515,6 +1210,15 @@ bool is_convex(Points const& vertices, View2D const& view) {
 
 template bool is_convex(std::vector<Point2D> const&, View2D const&);
 template bool is_convex(std::vector<Point3D> const&, View2D const&);
+
+template <PointContainer Points>
+bool is_simple(Points const& points, View2D const& view) {
+  auto segs = collect_ring_segments(points, std::vector<Points>{}, view);
+  return !has_intersections(segs);
+}
+
+template bool is_simple(std::vector<Point2D> const&, View2D const&);
+template bool is_simple(std::vector<Point3D> const&, View2D const&);
 
 }  // namespace view
 
@@ -2132,6 +1836,18 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D c
           LineSegment2D::Make(polygon[LR_poly_i], other[LR_other_i])};
 }
 
+std::vector<LineSegment2D> to_segments(std::vector<Point2D> const& points) {
+  SegmentRange2D range(points, true);
+  std::vector<LineSegment2D> segments;
+  segments.reserve(range.size());
+  for (auto const& seg : range) {
+    segments.push_back(seg);
+  }
+  return segments;
+}
+
+bool is_simple(std::vector<Point2D> const& points) { return detail::view::is_simple(points, View2D::XY()); }
+
 template <PointContainer Points>
 std::vector<Points> clip(Points const& clipper_loop, Points const& subject_loop) {
   using PointT = typename Points::value_type;
@@ -2594,5 +2310,318 @@ template std::vector<Point2D> polyline_expansion(std::vector<Point2D> const& inp
                                                  PolylineExpansionParams const& settings);
 template std::vector<Point3D> polyline_expansion(std::vector<Point3D> const& input,
                                                  PolylineExpansionParams const& settings);
+
+namespace detail {
+namespace view {
+
+// triangulation functions
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<PointT> const& input,
+                                                                   View2D const& view) {
+  std::size_t n = input.size();
+
+  // temporary container for output (excellent for unknown size list)
+  std::deque<std::array<std::size_t, 3>> triangles;
+
+  // temporary containers for calculations
+  //  \_ previous and next indices (keep them as they are)
+  std::vector<std::size_t> next_id(n), prev_id(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    next_id[i] = (i + 1) % n;
+    prev_id[i] = (i + n - 1) % n;
+  }
+
+  // helper lambdas
+  auto lambda_is_right = [&view](PointT const& a, PointT const& b, PointT const& c) -> bool {
+    auto u_x = view.x(b) - view.x(a);
+    auto u_y = view.y(b) - view.y(a);
+
+    auto v_x = view.x(c) - view.x(a);
+    auto v_y = view.y(c) - view.y(a);
+
+    return compare(u_x * v_y - u_y * v_x, 0) < 0;
+  };
+
+  // Inclusive (>= 0, not > 0): a point exactly ON one of the candidate ear's edges must still
+  // disqualify it, not just a point strictly inside. Without this, a non-adjacent vertex that happens
+  // to be collinear with two of the ear's vertices (e.g. a reflex vertex sitting exactly on the
+  // prev-next diagonal, as in an L-shaped polygon whose notch corner lies on that diagonal) is
+  // invisible to a strict test, so the algorithm accepts a diagonal that actually exits the polygon.
+  auto lambda_is_left_or_on = [&view](PointT const& a, PointT const& b, PointT const& c) -> bool {
+    auto u_x = view.x(b) - view.x(a);
+    auto u_y = view.y(b) - view.y(a);
+
+    auto v_x = view.x(c) - view.x(a);
+    auto v_y = view.y(c) - view.y(a);
+
+    return compare(u_x * v_y - u_y * v_x, 0) >= 0;
+  };
+
+  auto lambda_is_point_in_triangle = [&lambda_is_left_or_on](PointT const& a, PointT const& b, PointT const& c,
+                                                             PointT const& p) -> bool {
+    return lambda_is_left_or_on(a, b, p) && lambda_is_left_or_on(b, c, p) && lambda_is_left_or_on(c, a, p);
+  };
+
+  //  \_ reflex indices to analyze (reduce with a "swap and pop", the order doesn't matter)
+  std::deque<std::size_t> reflex_indices;
+  std::vector<std::uint8_t> is_reflex(n, 0);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (lambda_is_right(input[prev_id[i]], input[i], input[next_id[i]])) {
+      reflex_indices.push_back(i);
+      is_reflex[i] = 1;
+    }
+  }
+
+  auto lambda_modify_reflex_status = [&](std::size_t idx) {
+    bool is_now_reflex = lambda_is_right(input[prev_id[idx]], input[idx], input[next_id[idx]]);
+
+    if (!is_now_reflex && is_reflex[idx]) {  // the opposite can never happen by a theorem: once an ear is cut,
+                                             // the prev/next vertex can become convex, but never reflex
+      auto it = std::find(reflex_indices.begin(), reflex_indices.end(), idx);
+      if (it != reflex_indices.end()) {
+        // remove with a quick O(1) swap and pop
+        *it = reflex_indices.back();
+        reflex_indices.pop_back();
+      }
+
+      is_reflex[idx] = 0;
+    }
+  };
+
+  // main loop: while we have more than 3 vertices, try to find an ear and clip it
+  std::size_t i = 0, i_prev = prev_id[i], i_next = next_id[i];
+  while (n > 3) {
+    if (!is_reflex[i]) {  // the triplet could be an ear
+      PointT const& p_cur = input[i];
+      PointT const& p_prev = input[i_prev];
+      PointT const& p_next = input[i_next];
+
+      // it can happen that this vertex is not reflex, but also not convex!
+      // the points may be collinear, making the triangle check fail, we want to avoid that
+      if (detail::view::are_collinear(p_prev, p_cur, p_next, view)) {
+        i = i_next;
+        continue;
+      }
+
+      // check if the triangle is an ear
+      bool is_ear = true;
+      for (auto const& j : reflex_indices) {
+        if (j == i_prev || j == i_next) {  // quick exit (we don't care of the prev/next indices to be reflex)
+          continue;
+        }
+        if (lambda_is_point_in_triangle(p_prev, p_cur, p_next, input[j])) {
+          is_ear = false;
+          break;
+        }
+      }
+
+      if (is_ear) {
+        triangles.push_back({i_prev, i, i_next});
+
+        // remove the ear vertex from the polygon
+        next_id[i_prev] = i_next;
+        prev_id[i_next] = i_prev;
+
+        // update reflex status of the previous and next vertices
+        lambda_modify_reflex_status(i_prev);
+        lambda_modify_reflex_status(i_next);
+
+        --n;
+      }
+    }
+
+    // update the index to the next vertex
+    i = i_next;
+    i_prev = prev_id[i];
+    i_next = next_id[i];
+  }
+
+  // exactly 3 vertices remain, still linked via prev_id/next_id — the loop above only clips ears down to
+  // n == 3 and never emits this last, leftover triangle itself.
+  triangles.push_back({i_prev, i, i_next});
+
+  // transform the deque in vector (1 allocation, using move)
+  std::vector<std::array<std::size_t, 3>> triangles_output(std::make_move_iterator(triangles.begin()),
+                                                           std::make_move_iterator(triangles.end()));
+
+  return triangles_output;
+}
+
+template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<Point2D> const& input,
+                                                                            View2D const& view);
+template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<Point3D> const& input,
+                                                                            View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
+                                                                       View2D const& view) {
+  throw std::runtime_error("not yet implemented");
+}
+
+template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point2D> const& input,
+                                                                                View2D const& view);
+template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point3D> const& input,
+                                                                                View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view) {
+  throw std::runtime_error("not yet implemented");
+}
+
+template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point2D> const& input,
+                                                                        View2D const& view);
+template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point3D> const& input,
+                                                                        View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& input, View2D const& view,
+                                                    TriangulationParams const& settings) {
+  if (input.size() < 3) {
+    throw std::invalid_argument("triangulate: input must have at least 3 points");
+  }
+
+  if (input.size() == 3) {
+    return {std::array<PointT, 3>{input[0], input[1], input[2]}};
+  }
+
+  // Working copy: Collinearity::Enforce may shrink it, Winding::Enforce may reverse it — every check below
+  // and the final index-back-into-points step at the bottom all operate on this, never on the original
+  // `input`.
+  std::vector<PointT> working = input;
+
+  switch (settings.collinearity) {
+    case TriangulationParams::Collinearity::Guaranteed: {
+      break;
+    }
+    case TriangulationParams::Collinearity::Assert: {
+      if (detail::view::has_collinears(working, view)) {
+        throw std::invalid_argument("triangulate: input has collinear (or duplicate) points");
+      }
+      break;
+    }
+    case TriangulationParams::Collinearity::Enforce: {
+      if (detail::view::has_collinears(working, view)) {
+        // remove_collinear() also catches duplicates as a byproduct: are_collinear(p0, p1, p2) is trivially
+        // true whenever any two of the three coincide, so a run of duplicate points collapses right along
+        // with genuinely collinear ones — no separate remove_consecutive_duplicates() pass needed.
+        working = remove_collinear(std::move(working));
+        if (working.size() < 3) {
+          throw std::invalid_argument("triangulate: fewer than 3 points remain after removing collinear points");
+        }
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown collinearity strategy");
+    }
+  }
+
+  switch (settings.ccw_winding) {
+    case TriangulationParams::Winding::Guaranteed: {
+      break;
+    }
+    case TriangulationParams::Winding::Assert: {
+      if (!detail::view::is_ccw(working, view)) {
+        throw std::invalid_argument("triangulate: input is not CCW wound");
+      }
+      break;
+    }
+    case TriangulationParams::Winding::Enforce: {
+      if (!detail::view::is_ccw(working, view)) {
+        std::reverse(working.begin(), working.end());
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown winding strategy");
+    }
+  }
+
+  // param check and creation of simple loops
+  std::vector<std::vector<PointT>> simple_loops;
+  switch (settings.simplicity) {
+    case TriangulationParams::Simplicity::Guaranteed: {
+      simple_loops.push_back(working);
+      break;
+    }
+    case TriangulationParams::Simplicity::Assert: {
+      if (!detail::view::is_simple(working, view)) {
+        throw std::invalid_argument("triangulate: input is not simple");
+      }
+      simple_loops.push_back(working);
+      break;
+    }
+    case TriangulationParams::Simplicity::Enforce: {
+      if (detail::view::is_simple(working, view)) {
+        simple_loops.push_back(working);
+      } else if constexpr (std::is_same_v<PointT, Point3D>) {
+        // TODO: simplify_rings() only ever returns 2D-projected rings (Point2D), so unprojecting them back
+        // to Point3D needs plane-aware reconstruction not wired up here yet.
+        throw std::runtime_error("not yet implemented");
+      } else {  // simplified rings are also guaranteed to be CCW sorted
+        for (auto const& loop : detail::view::simplify_rings(working, {}, view)) {
+          simple_loops.push_back(loop);
+        }
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown simplicity strategy");
+    }
+  }
+
+  std::vector<std::array<std::size_t, 3>> tri_indices;
+
+  switch (settings.strategy) {
+    case TriangulationParams::Strategy::EarClipping: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = ear_clipping_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    case TriangulationParams::Strategy::MonotonePolygon: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    case TriangulationParams::Strategy::Delaunay: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = delaunay_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown triangulation strategy");
+    }
+  }
+
+  std::vector<std::array<PointT, 3>> result;
+  result.reserve(tri_indices.size());
+  for (auto const& tri : tri_indices) {
+    result.push_back({working[tri[0]], working[tri[1]], working[tri[2]]});
+  }
+  return result;
+}
+
+template std::vector<std::array<Point2D, 3>> triangulate_impl(std::vector<Point2D> const& input, View2D const& view,
+                                                              TriangulationParams const& settings);
+template std::vector<std::array<Point3D, 3>> triangulate_impl(std::vector<Point3D> const& input, View2D const& view,
+                                                              TriangulationParams const& settings);
+}  // namespace view
+}  // namespace detail
+
+std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input, TriangulationParams const& settings) {
+  auto tris = detail::view::triangulate_impl(input, View2D::XY(), settings);
+  std::vector<Triangle2D> result;
+  result.reserve(tris.size());
+  for (auto const& t : tris) {
+    result.push_back(Triangle2D::Make(t[0], t[1], t[2]));
+  }
+  return result;
+}
 
 }  // namespace geompp

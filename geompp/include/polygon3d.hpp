@@ -59,6 +59,17 @@ class Polygon3D {
   /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
   std::vector<Polygon3D> Simplify() const;
 
+  /// @brief Breaks down the polygon (outer ring ONLY, holes are ignored) into a set of triangles, in the
+  /// polygon's own plane (GetPlane().normal() supplies the projection — no PCA re-fit needed since it's
+  /// already known). Make() already guarantees the outer ring is simple, CCW-wound, and free of
+  /// collinear/duplicate points, so this always calls the free triangulate() with every
+  /// TriangulationParams check set to Guaranteed — no re-validation cost.
+  /// @param strategy which triangulation algorithm to run (see TriangulationParams::Strategy).
+  /// @returns one Triangle3D per triangle; Size() - 2 triangles.
+  /// @throws whatever the chosen @p strategy itself throws (e.g. std::runtime_error for a
+  /// not-yet-implemented strategy).
+  std::vector<Triangle3D> Triangulate(TriangulationParams::Strategy strategy) const;
+
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.
   /// @return 0 if @p point is inside the polygon (or on its boundary); otherwise the distance to the nearest edge.

@@ -5,9 +5,12 @@
 #include <polymesh3d.hpp>
 #pragma managed(pop)
 
+#include "GeomUtil.hpp"  // TriangulationStrategy
+
 namespace GeomPP {
 
 ref class Polygon3D;
+ref class Mesh3D;
 
 // A mesh made of adjacent, arbitrary-sided polygonal faces, stored as a flat index buffer. No
 // adjacency structure is stored to find a face's neighbors. Each facet has no holes.
@@ -23,6 +26,12 @@ public:
     int Size();
     double Area();
     property Polygon3D^ default[int] { Polygon3D^ get(int i); }
+
+    // Returns a mesh of triangles instead of n-gons — every facet is triangulated independently
+    // (already simple/CCW/collinear-free by construction, so no re-validation) and combined into one
+    // Mesh3D.
+    Mesh3D^ Triangulate();
+    Mesh3D^ Triangulate(TriangulationStrategy strategy);
 
     virtual System::String^ ToString() override;
 

@@ -370,4 +370,33 @@ void bind_free_functions(py::module_& m) {
           "polygon"_a, "other"_a,
           "The two common outer tangent segments between two 3D polygons, as PolygonTangents3D(left, right). "
           "Both polygons must lie in the same plane; raises RuntimeError otherwise.");
+
+    // ── triangulation ──────────────────────────────────────────────────────────────────────────
+    // TriangulationParams and its enums are registered separately, earlier — see
+    // bind_triangulation_params.cpp for why.
+    m.def("triangulate",
+          [](const std::vector<geompp::Point2D>& pts, const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(pts, settings);
+          },
+          "points"_a, "settings"_a = geompp::TriangulationParams{},
+          "Breaks a simple 2D polygon's outer loop (no holes) down into triangles, per the given "
+          "TriangulationParams. Returns list[Triangle2D], points.size() - 2 triangles for a simple polygon.");
+
+    m.def("triangulate",
+          [](const std::vector<geompp::Point3D>& pts, const geompp::Vector3D& normal,
+             const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(pts, normal, settings);
+          },
+          "points"_a, "normal"_a, "settings"_a = geompp::TriangulationParams{},
+          "Breaks a simple, planar 3D polygon's outer loop (no holes) down into triangles, projected via "
+          "the given plane normal, per the given TriangulationParams. Input is assumed flat/coplanar. "
+          "Returns list[Triangle3D], points.size() - 2 triangles for a simple polygon.");
+
+    m.def("triangulate",
+          [](const std::vector<geompp::Point3D>& pts, const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(pts, settings);
+          },
+          "points"_a, "settings"_a = geompp::TriangulationParams{},
+          "Same as the (points, normal, settings) overload, but fits the plane normal via PCA "
+          "(principal_normal) automatically.");
 }

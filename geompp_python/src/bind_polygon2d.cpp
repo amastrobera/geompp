@@ -34,6 +34,11 @@ void bind_polygon2d(py::module_& m) {
         .def("simplify",       &geompp::Polygon2D::Simplify,
              "Decomposes a self-intersecting polygon into one or more simple polygons. "
              "Returns [self] if already simple.")
+        .def("triangulate",    &geompp::Polygon2D::Triangulate,
+             "strategy"_a = geompp::TriangulationParams::Strategy::EarClipping,
+             "Breaks the polygon (outer ring only, holes are ignored) down into a list of Triangle2D. "
+             "make() already guarantees the outer ring is simple/CCW/collinear-free, so this never "
+             "re-validates.")
         .def("perimeter",      &geompp::Polygon2D::Perimeter,  "Returns the vertices as a list of Point2D.")
         .def("has_holes",      &geompp::Polygon2D::HasHoles,   "Returns True if the polygon has one or more holes.")
         .def("holes",          &geompp::Polygon2D::Holes,

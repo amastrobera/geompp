@@ -8,6 +8,7 @@
 namespace GeomPP {
 
 ref class Triangle2D;
+ref class ConnectedMesh2D;
 
 // A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple. No
 // adjacency structure is stored to find a face's neighbors.
@@ -23,6 +24,9 @@ public:
     int Size();
     double Area();
     property Triangle2D^ default[int] { Triangle2D^ get(int i); }
+
+    // Same facets/vertices, plus precomputed per-facet edge adjacency (see ConnectedMesh2D).
+    ConnectedMesh2D^ Connect();
 
     virtual System::String^ ToString() override;
 

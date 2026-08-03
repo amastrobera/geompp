@@ -4,6 +4,7 @@
 #include "Line3D.hpp"
 #include "Ray3D.hpp"
 #include "LineSegment3D.hpp"
+#include "Triangle3D.hpp"
 
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
@@ -121,6 +122,19 @@ array<Polygon3D^>^ Polygon3D::Simplify() {
     auto arr = gcnew array<Polygon3D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Polygon3D(new geompp::Polygon3D(native[i]));
+    }
+    return arr;
+}
+
+array<Triangle3D^>^ Polygon3D::Triangulate() {
+    return Triangulate(TriangulationStrategy::EarClipping);
+}
+
+array<Triangle3D^>^ Polygon3D::Triangulate(TriangulationStrategy strategy) {
+    auto native = _native->Triangulate(static_cast<geompp::TriangulationParams::Strategy>(strategy));
+    auto arr = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
     }
     return arr;
 }

@@ -1,5 +1,6 @@
 #include "mesh2d.hpp"
 
+#include "connected_mesh2d.hpp"
 #include "grid_cell2d.hpp"
 #include "triangle2d.hpp"
 
@@ -26,6 +27,16 @@ Triangle2D Mesh2D::operator[](std::size_t i) const {
   }
   auto f_idx = (*FACE_INDICES)[i];
   return Triangle2D::Make((*VERTICES)[f_idx[0]], (*VERTICES)[f_idx[1]], (*VERTICES)[f_idx[2]]);
+}
+
+ConnectedMesh2D Mesh2D::Connect() const {
+  std::vector<Triangle2D> triangles;
+  triangles.reserve(FACE_INDICES->size());
+  for (std::size_t i = 0; i < FACE_INDICES->size(); ++i) {
+    auto f_idx = (*FACE_INDICES)[i];
+    triangles.emplace_back(Triangle2D::Make((*VERTICES)[f_idx[0]], (*VERTICES)[f_idx[1]], (*VERTICES)[f_idx[2]]));
+  }
+  return ConnectedMesh2D::FromTriangles(triangles);
 }
 
 }  // namespace geompp

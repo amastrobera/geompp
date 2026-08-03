@@ -5011,6 +5011,150 @@ class TestPolygon3DSimplify:
                 assert abs(poly[i].z) < 1e-9
 
 
+# --- Polygon2D.triangulate ---
+class TestPolygon2DTriangulate:
+    def test_convex_quad_two_triangles_full_area(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 2), geompp.Point2D(0, 2)])
+        triangles = p.triangulate()
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), p.area())
+
+    def test_concave_polygon_correct_area_and_count(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4),
+            geompp.Point2D(2, 1), geompp.Point2D(0, 4)])
+        triangles = p.triangulate()
+        assert len(triangles) == 3
+        assert approx(sum(t.area() for t in triangles), p.area())
+
+    def test_monotone_polygon_strategy_raises(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 2), geompp.Point2D(0, 2)])
+        with pytest.raises(RuntimeError):
+            p.triangulate(geompp.TriangulationStrategy.MonotonePolygon)
+
+    def test_delaunay_strategy_raises(self):
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 2), geompp.Point2D(0, 2)])
+        with pytest.raises(RuntimeError):
+            p.triangulate(geompp.TriangulationStrategy.Delaunay)
+
+    def test_reflex_vertex_on_non_adjacent_diagonal_stays_inside_polygon(self):
+        # Regression test: this L-shape's reflex vertex (2, 2) sits exactly on the diagonal between
+        # the non-adjacent vertices (0, 4) and (4, 0) (all three satisfy x + y == 4). A strict
+        # point-in-triangle ear-validity check missed this collinear case and accepted a diagonal
+        # that actually exits the polygon through the notch.
+        p = geompp.Polygon2D.make([
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 2),
+            geompp.Point2D(2, 2), geompp.Point2D(2, 4), geompp.Point2D(0, 4)])
+        triangles = p.triangulate()
+        assert len(triangles) == 4
+        total_area = 0.0
+        for t in triangles:
+            assert p.contains(t.centroid()), f"triangle {t.to_wkt()} strays outside the polygon"
+            total_area += t.area()
+        assert approx(total_area, p.area())
+
+
+# --- Polygon3D.triangulate ---
+class TestPolygon3DTriangulate:
+    def test_flat_convex_quad_two_triangles_full_area(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 2, 0), geompp.Point3D(0, 2, 0)])
+        triangles = p.triangulate()
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), p.area())
+
+    def test_tilted_plane_quad_two_triangles_full_area(self):
+        # Non-XY plane (X-dominant-axis normal) — proves the polygon's own plane normal is used.
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+            geompp.Point3D(0, 4, 2), geompp.Point3D(0, 0, 2)])
+        triangles = p.triangulate()
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), p.area())
+
+    def test_monotone_polygon_strategy_raises(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 2, 0), geompp.Point3D(0, 2, 0)])
+        with pytest.raises(RuntimeError):
+            p.triangulate(geompp.TriangulationStrategy.MonotonePolygon)
+
+    def test_delaunay_strategy_raises(self):
+        p = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 2, 0), geompp.Point3D(0, 2, 0)])
+        with pytest.raises(RuntimeError):
+            p.triangulate(geompp.TriangulationStrategy.Delaunay)
+
+
+# --- triangulate() free function (2D and 3D) ---
+class TestTriangulate:
+    def test_2d_default_settings(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        triangles = geompp.triangulate(pts)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), 8.0)
+
+    def test_3d_with_explicit_normal(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+               geompp.Point3D(4, 2, 0), geompp.Point3D(0, 2, 0)]
+        triangles = geompp.triangulate(pts, geompp.Vector3D(0, 0, 1))
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), 8.0)
+
+    def test_3d_without_normal_fits_via_pca(self):
+        pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+               geompp.Point3D(4, 2, 0), geompp.Point3D(0, 2, 0)]
+        triangles = geompp.triangulate(pts)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), 8.0)
+
+    def test_fewer_than_three_points_raises(self):
+        with pytest.raises(ValueError):
+            geompp.triangulate([geompp.Point2D(0, 0), geompp.Point2D(1, 0)])
+
+    def test_winding_assert_raises_on_clockwise_input(self):
+        cw_square = [geompp.Point2D(0, 0), geompp.Point2D(0, 1), geompp.Point2D(1, 1), geompp.Point2D(1, 0)]
+        settings = geompp.TriangulationParams(ccw_winding=geompp.TriangulationWinding.Assert)
+        with pytest.raises(ValueError):
+            geompp.triangulate(cw_square, settings)
+
+    def test_winding_enforce_fixes_clockwise_input(self):
+        cw_square = [geompp.Point2D(0, 0), geompp.Point2D(0, 1), geompp.Point2D(1, 1), geompp.Point2D(1, 0)]
+        settings = geompp.TriangulationParams(ccw_winding=geompp.TriangulationWinding.Enforce)
+        triangles = geompp.triangulate(cw_square, settings)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), 1.0)
+
+    def test_collinearity_assert_raises_on_collinear_point(self):
+        with_collinear = [geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(4, 0),
+                          geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        settings = geompp.TriangulationParams(collinearity=geompp.TriangulationCollinearity.Assert)
+        with pytest.raises(ValueError):
+            geompp.triangulate(with_collinear, settings)
+
+    def test_collinearity_enforce_removes_collinear_point(self):
+        with_collinear = [geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(4, 0),
+                          geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        settings = geompp.TriangulationParams(collinearity=geompp.TriangulationCollinearity.Enforce)
+        triangles = geompp.triangulate(with_collinear, settings)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), 16.0)
+
+    def test_simplicity_assert_raises_on_self_intersecting_input(self):
+        bowtie = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1), geompp.Point2D(1, 1)]
+        settings = geompp.TriangulationParams(simplicity=geompp.TriangulationSimplicity.Assert)
+        with pytest.raises(ValueError):
+            geompp.triangulate(bowtie, settings)
+
+
 class TestPolyline3DPlanarConvex:
     def test_is_planar_xy(self):
         pl = geompp.Polyline3D.make([
@@ -6201,6 +6345,14 @@ class TestMesh2D:
         assert faces[0].almost_equals(mesh[0])
         assert faces[1].almost_equals(mesh[1])
 
+    def test_connect_preserves_size_and_area(self):
+        t0 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1))
+        t1 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1))
+        mesh = geompp.Mesh2D.from_triangles([t0, t1])
+        connected = mesh.connect()
+        assert connected.size() == mesh.size()
+        assert approx(connected.area(), mesh.area())
+
 
 class TestMesh3D:
     def test_from_triangles_empty_raises(self):
@@ -6222,6 +6374,14 @@ class TestMesh3D:
         assert approx(mesh.area(), 1.0)
         assert t0.almost_equals(mesh[0])
         assert t1.almost_equals(mesh[1])
+
+    def test_connect_preserves_size_and_area(self):
+        t0 = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0))
+        t1 = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0))
+        mesh = geompp.Mesh3D.from_triangles([t0, t1])
+        connected = mesh.connect()
+        assert connected.size() == mesh.size()
+        assert approx(connected.area(), mesh.area())
 
 
 # ─── ConnectedMesh2D ─────────────────────────────────────────────────────────────
@@ -6479,6 +6639,26 @@ class TestPolyMesh2D:
         faces = list(mesh)
         assert faces[0].almost_equals(mesh[0])
 
+    def test_triangulate_shared_edge_preserves_total_area(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        mesh = geompp.PolyMesh2D.from_polygons([p0, p1])
+        tri_mesh = mesh.triangulate()
+        assert tri_mesh.size() == 4
+        assert approx(tri_mesh.area(), mesh.area())
+
+    # Regression test: PolyMesh2D.triangulate() used to triangulate the whole (shared, deduplicated)
+    # vertex buffer as if it were a single ring, which only "worked" by coincidence for facets that
+    # happened to share welded edges. Two disjoint facets — no welding to paper over the bug — exposes
+    # it directly: the old code produced a wrong triangle count and a wrong total area.
+    def test_triangulate_disjoint_facets_preserves_total_area(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(5, 5), geompp.Point2D(6, 5), geompp.Point2D(6, 6), geompp.Point2D(5, 6)])
+        mesh = geompp.PolyMesh2D.from_polygons([p0, p1])
+        tri_mesh = mesh.triangulate()
+        assert tri_mesh.size() == 4
+        assert approx(tri_mesh.area(), mesh.area())
+
 
 class TestPolyMesh3D:
     def test_from_polygons_empty_raises(self):
@@ -6510,3 +6690,23 @@ class TestPolyMesh3D:
         assert approx(mesh.area(), 2.0)
         assert p0.almost_equals(mesh[0])
         assert p1.almost_equals(mesh[1])
+
+    def test_triangulate_shared_edge_preserves_total_area(self):
+        p0 = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)])
+        p1 = geompp.Polygon3D.make(
+            [geompp.Point3D(1, 0, 0), geompp.Point3D(2, 0, 0), geompp.Point3D(2, 1, 0), geompp.Point3D(1, 1, 0)])
+        mesh = geompp.PolyMesh3D.from_polygons([p0, p1])
+        tri_mesh = mesh.triangulate()
+        assert tri_mesh.size() == 4
+        assert approx(tri_mesh.area(), mesh.area())
+
+    def test_triangulate_disjoint_facets_preserves_total_area(self):
+        p0 = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)])
+        p1 = geompp.Polygon3D.make(
+            [geompp.Point3D(5, 5, 0), geompp.Point3D(6, 5, 0), geompp.Point3D(6, 6, 0), geompp.Point3D(5, 6, 0)])
+        mesh = geompp.PolyMesh3D.from_polygons([p0, p1])
+        tri_mesh = mesh.triangulate()
+        assert tri_mesh.size() == 4
+        assert approx(tri_mesh.area(), mesh.area())

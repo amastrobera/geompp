@@ -1,5 +1,6 @@
 #include "mesh3d.hpp"
 
+#include "connected_mesh3d.hpp"
 #include "point3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
@@ -86,6 +87,32 @@ TEST_F(Mesh3DTest, Faces_MatchesOperatorBracket) {
     ++i;
   }
   EXPECT_EQ(mesh.Size(), i);
+}
+
+TEST_F(Mesh3DTest, Connect_PreservesSizeAreaAndFaces) {
+  auto t0 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0));
+  auto t1 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0));
+  auto mesh = g::Mesh3D::FromTriangles({t0, t1});
+
+  auto connected = mesh.Connect();
+  EXPECT_EQ(mesh.Size(), connected.Size());
+  EXPECT_NEAR(mesh.Area(), connected.Area(), 1e-9);
+  for (std::size_t i = 0; i < mesh.Size(); ++i) {
+    EXPECT_TRUE(mesh[i].AlmostEquals(connected[i].Geometry())) << "face " << i << " mismatch after Connect()";
+  }
+}
+
+TEST_F(Mesh3DTest, Connect_SharedEdge_ExposesAdjacency) {
+  using Edge = g::detail::TriangleCompactNeighborRef::TriangleEdge;
+  auto mesh = g::Mesh3D::FromTriangles({
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)),
+  });
+
+  auto connected = mesh.Connect();
+  auto neighbor = connected[0].Neighbor(Edge::THIRD);
+  ASSERT_TRUE(neighbor.has_value());
+  EXPECT_EQ(1u, neighbor->ID());
 }
 
 }  // namespace geompp_tests

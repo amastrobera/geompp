@@ -46,22 +46,22 @@ namespace detail {
 // Adjacency table: for each of the 3 local edges of every triangle.
 struct TriangleCompactNeighborRef {
   // 0-indexed to prevent bit collision with INVALID (0xFFFFFFFF)
-  enum class TriangleEdge : uint32_t { INVALID = 0, FIRST = 1, SECOND = 2, THIRD = 3 };
+  enum class TriangleEdge : std::uint32_t { INVALID = 0, FIRST = 1, SECOND = 2, THIRD = 3 };
 
-  static constexpr uint32_t INVALID = 0xFFFFFFFF;  // Boundary sentinel
+  static constexpr std::uint32_t INVALID = 0xFFFFFFFF;  // Boundary sentinel
 
-  uint32_t data = INVALID;  // it contains at once, in only 4 bytes:
+  std::uint32_t data = INVALID;  // it contains at once, in only 4 bytes:
   // (1) triangle_id -> ID of adjacent triangle (-1 if boundary edge)
   // (2) edge_id -> Which local edge (0, 1, or 2) in the adjacent triangle
 
   TriangleCompactNeighborRef() = default;
 
   // Encode: triangle_id in top 30 bits, edge_id in bottom 2 bits
-  TriangleCompactNeighborRef(uint32_t tri_id, TriangleEdge local_edge_id);
+  TriangleCompactNeighborRef(std::uint32_t tri_id, TriangleEdge local_edge_id);
 
   [[nodiscard]] bool is_boundary() const;
 
-  [[nodiscard]] uint32_t triangle_id() const;
+  [[nodiscard]] std::uint32_t triangle_id() const;
 
   [[nodiscard]] TriangleEdge edge_id() const;
 };
@@ -103,17 +103,17 @@ std::string ToWkt(const std::vector<T>& items) {
 
 namespace detail {
 // Encode: triangle_id in top 30 bits, edge_id in bottom 2 bits
-inline TriangleCompactNeighborRef::TriangleCompactNeighborRef(uint32_t tri_id, TriangleEdge local_edge_id) {
+inline TriangleCompactNeighborRef::TriangleCompactNeighborRef(std::uint32_t tri_id, TriangleEdge local_edge_id) {
   if (tri_id == INVALID) {
     data = INVALID;
   } else {
-    data = (tri_id << 2) | (static_cast<uint32_t>(local_edge_id) & 0x3);
+    data = (tri_id << 2) | (static_cast<std::uint32_t>(local_edge_id) & 0x3);
   }
 }
 
 [[nodiscard]] inline bool TriangleCompactNeighborRef::is_boundary() const { return data == INVALID; }
 
-[[nodiscard]] inline uint32_t TriangleCompactNeighborRef::triangle_id() const { return data >> 2; }
+[[nodiscard]] inline std::uint32_t TriangleCompactNeighborRef::triangle_id() const { return data >> 2; }
 
 [[nodiscard]] inline TriangleCompactNeighborRef::TriangleEdge TriangleCompactNeighborRef::edge_id() const {
   return static_cast<TriangleEdge>(data & 0x3);

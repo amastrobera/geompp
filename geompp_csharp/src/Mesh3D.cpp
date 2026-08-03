@@ -1,5 +1,6 @@
 #include "Mesh3D.hpp"
 #include "Triangle3D.hpp"
+#include "ConnectedMesh3D.hpp"
 
 namespace GeomPP {
 
@@ -33,6 +34,10 @@ double Mesh3D::Area() {
 
 Triangle3D^ Mesh3D::default::get(int i) {
     return gcnew Triangle3D(new geompp::Triangle3D((*_native)[(std::size_t)i]));
+}
+
+ConnectedMesh3D^ Mesh3D::Connect() {
+    return gcnew ConnectedMesh3D(new geompp::ConnectedMesh3D(_native->Connect()));
 }
 
 System::String^ Mesh3D::ToString() {

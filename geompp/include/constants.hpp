@@ -123,4 +123,37 @@ struct PolylineExpansionParams {
   double min_segment_length = DOUBLE_EPSILON;
 };
 
+struct TriangulationParams {
+  enum class Strategy { EarClipping, MonotonePolygon, Delaunay };
+  /// @brief Triangulation algorithm.
+  ///        - EarClipping is the most robust and general-purpose, but slower than the others. O(n²) worst-case.
+  ///        - MonotonePolygon (which requires a monotone polygon). O(n log n) to O(n²) worst-case
+  ///        - Delaunay (which requires a point set and produces a triangulation of the convex hull, not a polygon).
+  ///          O(n log n) to O(n²) worst-case.
+  Strategy strategy = Strategy::EarClipping;
+
+  enum class Simplicity { Guaranteed, Assert, Enforce };
+  /// @brief How to handle non-simple input (self-intersecting polygons).
+  ///        - Guaranteed no check is carried out (the algo runs at your own risk);
+  ///        - Assert throws if the input isn't simple;
+  ///        - Enforce attempts to fix it (via simplify_rings) before triangulating.
+  Simplicity simplicity = Simplicity::Enforce;
+
+  enum class Winding { Guaranteed, Assert, Enforce };
+  /// @brief Vertices should be sorted in CCW order
+  ///        - Guaranteed no check is carried out (the algo runs at your own risk);
+  ///        - Assert throws if the input isn't CCW;
+  ///        - Enforce attempts to fix it (reversing the vertex order) before triangulating.
+  Winding ccw_winding = Winding::Enforce;
+
+  enum class Collinearity { Guaranteed, Assert, Enforce };
+  /// @brief The list of vertices should have no collinear points.
+  ///        A duplicate vertex is just the degenerate case of three collinear points (two of them
+  ///        coinciding), so a single collinearity check covers both — no separate duplicates check needed.
+  ///        - Guaranteed no check is carried out (the algo runs at your own risk);
+  ///        - Assert throws if the input has collinear (or duplicate) points;
+  ///        - Enforce attempts to fix it (using remove_collinear) before triangulating.
+  Collinearity collinearity = Collinearity::Enforce;
+};
+
 }  // namespace geompp

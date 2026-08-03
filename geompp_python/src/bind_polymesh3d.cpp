@@ -12,6 +12,11 @@ void bind_polymesh3d(py::module_& m) {
         .def(py::init<const geompp::PolyMesh3D&>())
         .def("size", &geompp::PolyMesh3D::Size, "The number of facets.")
         .def("area", &geompp::PolyMesh3D::Area, "Sum of each input polygon's own area, independent of welding.")
+        .def("triangulate", &geompp::PolyMesh3D::Triangulate,
+             "strategy"_a = geompp::TriangulationParams::Strategy::EarClipping,
+             "Returns a Mesh3D of triangles instead of n-gons — every facet is triangulated "
+             "independently (already simple/CCW/collinear-free by construction, so no re-validation) "
+             "and combined into one mesh.")
         .def("__len__", &geompp::PolyMesh3D::Size)
         .def("__getitem__", [](const geompp::PolyMesh3D& mesh, int i) -> geompp::Polygon3D {
             if (i < 0) {

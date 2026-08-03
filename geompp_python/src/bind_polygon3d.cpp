@@ -31,6 +31,11 @@ void bind_polygon3d(py::module_& m) {
         .def("simplify",    &geompp::Polygon3D::Simplify,
              "Decomposes a self-intersecting polygon into one or more simple polygons. "
              "Returns [self] if already simple.")
+        .def("triangulate", &geompp::Polygon3D::Triangulate,
+             "strategy"_a = geompp::TriangulationParams::Strategy::EarClipping,
+             "Breaks the polygon (outer ring only, holes are ignored) down into a list of Triangle3D, in "
+             "the polygon's own plane. make() already guarantees the outer ring is simple/CCW/collinear-"
+             "free, so this never re-validates.")
         .def("distance_to", &geompp::Polygon3D::DistanceTo,  "point"_a)
         .def("contains",       &geompp::Polygon3D::Contains,      "point"_a)
         .def("is_on_perimeter", &geompp::Polygon3D::IsOnPerimeter, "point"_a)

@@ -39,8 +39,12 @@ class Point2D {
 
 #pragma region Collection Operations
 
+/// @brief tells whether a point p is on the left of a line defined by (v1,v2).
+///        alternatively, it tells whether the vector (p-v1) forms a counter clockwise rotation to the vector (v2-v1)
 bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p);
 
+/// @brief tells whether a point p is on the right of a line defined by (v1,v2).
+///        alternatively, it tells whether the vector (p-v1) forms a clockwise rotation to the vector (v2-v1)
 bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p);
 
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3);

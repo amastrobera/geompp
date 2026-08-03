@@ -3,6 +3,7 @@
 #include "Line2D.hpp"
 #include "Ray2D.hpp"
 #include "LineSegment2D.hpp"
+#include "Triangle2D.hpp"
 
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
@@ -116,6 +117,19 @@ array<Polygon2D^>^ Polygon2D::Simplify() {
     auto arr = gcnew array<Polygon2D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Polygon2D(new geompp::Polygon2D(native[i]));
+    }
+    return arr;
+}
+
+array<Triangle2D^>^ Polygon2D::Triangulate() {
+    return Triangulate(TriangulationStrategy::EarClipping);
+}
+
+array<Triangle2D^>^ Polygon2D::Triangulate(TriangulationStrategy strategy) {
+    auto native = _native->Triangulate(static_cast<geompp::TriangulationParams::Strategy>(strategy));
+    auto arr = gcnew array<Triangle2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Triangle2D(new geompp::Triangle2D(native[i]));
     }
     return arr;
 }

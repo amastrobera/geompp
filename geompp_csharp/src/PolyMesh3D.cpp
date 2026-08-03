@@ -1,5 +1,6 @@
 #include "PolyMesh3D.hpp"
 #include "Polygon3D.hpp"
+#include "Mesh3D.hpp"
 
 namespace GeomPP {
 
@@ -33,6 +34,15 @@ double PolyMesh3D::Area() {
 
 Polygon3D^ PolyMesh3D::default::get(int i) {
     return gcnew Polygon3D(new geompp::Polygon3D((*_native)[(std::size_t)i]));
+}
+
+Mesh3D^ PolyMesh3D::Triangulate() {
+    return Triangulate(TriangulationStrategy::EarClipping);
+}
+
+Mesh3D^ PolyMesh3D::Triangulate(TriangulationStrategy strategy) {
+    return gcnew Mesh3D(new geompp::Mesh3D(
+        _native->Triangulate(static_cast<geompp::TriangulationParams::Strategy>(strategy))));
 }
 
 System::String^ PolyMesh3D::ToString() {

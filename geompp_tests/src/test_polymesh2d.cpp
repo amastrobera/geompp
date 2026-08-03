@@ -1,10 +1,13 @@
 #include "polymesh2d.hpp"
 
+#include "mesh2d.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
 #include "utils.hpp"
 
 #include <gtest/gtest.h>
+
+#include <iostream>
 
 namespace g = geompp;
 
@@ -84,6 +87,32 @@ TEST_F(PolyMesh2DTest, Faces_MatchesOperatorBracket) {
     ++i;
   }
   EXPECT_EQ(mesh.Size(), i);
+}
+
+TEST_F(PolyMesh2DTest, Triangulate_TwoFacetsSharedEdge_PreservesTotalArea) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+
+  auto tri_mesh = mesh.Triangulate();
+  EXPECT_EQ(4u, tri_mesh.Size());
+  EXPECT_NEAR(mesh.Area(), tri_mesh.Area(), 1e-9);
+}
+
+// Regression test: PolyMesh2D::Triangulate() used to triangulate the whole (shared, deduplicated)
+// VERTICES buffer as if it were a single ring, which only "worked" by coincidence for facets that
+// happened to share welded edges. Two disjoint facets — no welding to paper over the bug — exposes it
+// directly: the old code produced a wrong triangle count and a wrong total area.
+TEST_F(PolyMesh2DTest, Triangulate_TwoDisjointFacets_PreservesTotalArea) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(5, 5), g::Point2D(6, 5), g::Point2D(6, 6), g::Point2D(5, 6)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+
+  auto tri_mesh = mesh.Triangulate();
+  EXPECT_EQ(4u, tri_mesh.Size());
+  std::cout << "PolyMesh2D::Triangulate() on 2 disjoint quads: " << tri_mesh.Size() << " triangles, area="
+            << tri_mesh.Area() << " (mesh.Area()=" << mesh.Area() << ")\n";
+  EXPECT_NEAR(mesh.Area(), tri_mesh.Area(), 1e-9);
 }
 
 }  // namespace geompp_tests

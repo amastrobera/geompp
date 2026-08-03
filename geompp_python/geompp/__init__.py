@@ -64,6 +64,18 @@ Polyline expansion (corner rounding — the inverse of decimation):
                              min_distance=0.1, min_segment_length=DOUBLE_EPSILON)
     polyline_expansion(points, settings)
 
+Triangulation (2D or 3D, 3D input is assumed flat/planar):
+    TriangulationStrategy (EarClipping; MonotonePolygon and Delaunay not yet implemented)
+    TriangulationSimplicity, TriangulationWinding, TriangulationCollinearity
+        (each Guaranteed/Assert/Enforce — how to handle non-simple/non-CCW/collinear input)
+    TriangulationParams(strategy=EarClipping, simplicity=Enforce, ccw_winding=Enforce,
+                         collinearity=Enforce)
+    triangulate(points, settings) -> list[Triangle2D]
+    triangulate(points, normal, settings) -> list[Triangle3D]
+    triangulate(points, settings) -> list[Triangle3D]              # normal fitted via PCA
+    Polygon2D.triangulate(strategy), Polygon3D.triangulate(strategy) -> list[Triangle2D/3D]
+    PolyMesh2D.triangulate(strategy), PolyMesh3D.triangulate(strategy) -> Mesh2D/Mesh3D
+
 Precision
 ---------
     set_decimal_precision(dp)   # e.g. DP_THREE, DP_SIX, DP_NINE
@@ -170,6 +182,13 @@ from ._geompp import (  # noqa: F401
     PolylineExpansionMode,
     PolylineExpansionParams,
     polyline_expansion,
+    # triangulation
+    TriangulationStrategy,
+    TriangulationSimplicity,
+    TriangulationWinding,
+    TriangulationCollinearity,
+    TriangulationParams,
+    triangulate,
 )
 
 __version__ = "1.0.0"
@@ -197,4 +216,6 @@ __all__ = [
     "PolylineDecimationStrategy", "PolylineDecimationParams", "dist_decimation", "rdp_decimation", "vw_decimation",
     "bezier_smoothing_2",
     "PolylineExpansionMode", "PolylineExpansionParams", "polyline_expansion",
+    "TriangulationStrategy", "TriangulationSimplicity", "TriangulationWinding", "TriangulationCollinearity",
+    "TriangulationParams", "triangulate",
 ]

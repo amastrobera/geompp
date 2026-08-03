@@ -4848,4 +4848,299 @@ A quick list of code examples per topic is provided here.
 
 </details>
 
+<details open>
+<summary><b> &nbsp; &nbsp; 10.4 Converting between mesh representations</b></summary>
+
+  The three mesh types above share the same underlying data (unique welded vertices plus per-facet
+  indices), so moving between them doesn't mean rebuilding from scratch:
+
+  - **`Mesh2D`/`Mesh3D` → `ConnectedMesh2D`/`ConnectedMesh3D`**, via `Connect()`: same facets and
+    vertices, plus per-facet edge adjacency computed fresh. Use it when a mesh was built for fast
+    triangle-soup construction (`FromTriangles()`) and only later turns out to need face-to-face
+    navigation (pathfinding, flood-fill/region-growing, adjacency queries) — no need to have gone
+    through `ConnectedMesh` from the start.
+  - **`PolyMesh2D`/`PolyMesh3D` → `Mesh2D`/`Mesh3D`**, via `Triangulate()` (§11 below): triangulates
+    every arbitrary-sided facet independently and combines the results into one triangle mesh. Use it
+    when a mesh was authored/edited as flat n-gon panels (§10.2 — rooms, walls, CAD/BIM-style
+    geometry) but downstream code (rendering, physics/collision, GPU upload) needs triangle-only
+    input.
+
+  Both conversions return a new mesh object — neither mutates the source, and the source stays valid
+  and usable afterward.
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polymesh2d.hpp"
+  #include "mesh2d.hpp"
+  #include "connected_mesh2d.hpp"
+
+  namespace g = geompp;
+  using Edge = g::detail::TriangleCompactNeighborRef::TriangleEdge;
+
+  // Start from a PolyMesh2D: two quads sharing an edge (same shape as §10.2's example).
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto poly_mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+  GEOMPP_LOG(INFO) << "PolyMesh2D: " << poly_mesh.Size() << " facets, area " << poly_mesh.Area();
+
+  // PolyMesh2D -> Mesh2D: each n-gon facet is triangulated independently (ear clipping by default).
+  auto mesh = poly_mesh.Triangulate();
+  GEOMPP_LOG(INFO) << "Mesh2D: " << mesh.Size() << " triangular facets, area " << mesh.Area();
+
+  // Mesh2D -> ConnectedMesh2D: same facets/vertices, plus precomputed per-facet edge adjacency.
+  auto connected = mesh.Connect();
+  GEOMPP_LOG(INFO) << "ConnectedMesh2D: " << connected.Size() << " facets, area " << connected.Area();
+
+  auto neighbor = connected[0].Neighbor(Edge::THIRD);
+  GEOMPP_LOG(INFO) << "face 0 neighbor across THIRD: face " << neighbor->ID()
+                    << " -- " << neighbor->Geometry().ToWkt();
+  ```
+
+  ```bash
+  I20260803] PolyMesh2D: 2 facets, area 2
+  I20260803] Mesh2D: 4 triangular facets, area 2
+  I20260803] ConnectedMesh2D: 4 facets, area 2
+  I20260803] face 0 neighbor across THIRD: face 1 -- TRIANGLE (0 1, 1 0, 1 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # Start from a PolyMesh2D: two quads sharing an edge (same shape as 10.2's example).
+  p0 = g.Polygon2D.make([g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1), g.Point2D(0, 1)])
+  p1 = g.Polygon2D.make([g.Point2D(1, 0), g.Point2D(2, 0), g.Point2D(2, 1), g.Point2D(1, 1)])
+  poly_mesh = g.PolyMesh2D.from_polygons([p0, p1])
+  print(f"PolyMesh2D: {poly_mesh.size()} facets, area {poly_mesh.area()}")
+
+  # PolyMesh2D -> Mesh2D: each n-gon facet is triangulated independently (ear clipping by default).
+  mesh = poly_mesh.triangulate()
+  print(f"Mesh2D: {mesh.size()} triangular facets, area {mesh.area()}")
+
+  # Mesh2D -> ConnectedMesh2D: same facets/vertices, plus precomputed per-facet edge adjacency.
+  connected = mesh.connect()
+  print(f"ConnectedMesh2D: {connected.size()} facets, area {connected.area()}")
+
+  neighbor = connected[0].neighbor(g.TriangleEdge.THIRD)
+  print(f"face 0 neighbor across THIRD: face {neighbor.id()} -- {neighbor.geometry().to_wkt()}")
+  ```
+
+  ```
+  PolyMesh2D: 2 facets, area 2.0
+  Mesh2D: 4 triangular facets, area 2.0
+  ConnectedMesh2D: 4 facets, area 2.0
+  face 0 neighbor across THIRD: face 1 -- TRIANGLE (0 1, 1 0, 1 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // Start from a PolyMesh2D: two quads sharing an edge (same shape as 10.2's example).
+  var p0 = G.Polygon2D.Make(new G.Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var p1 = G.Polygon2D.Make(new G.Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+  var polyMesh = G.PolyMesh2D.FromPolygons(new[] { p0, p1 });
+  Console.WriteLine($"PolyMesh2D: {polyMesh.Size()} facets, area {polyMesh.Area()}");
+
+  // PolyMesh2D -> Mesh2D: each n-gon facet is triangulated independently (ear clipping by default).
+  var mesh = polyMesh.Triangulate();
+  Console.WriteLine($"Mesh2D: {mesh.Size()} triangular facets, area {mesh.Area()}");
+
+  // Mesh2D -> ConnectedMesh2D: same facets/vertices, plus precomputed per-facet edge adjacency.
+  var connected = mesh.Connect();
+  Console.WriteLine($"ConnectedMesh2D: {connected.Size()} facets, area {connected.Area()}");
+
+  var neighbor = connected[0].Neighbor(G.TriangleEdge.Third);
+  Console.WriteLine($"face 0 neighbor across Third: face {neighbor.Id()} -- {neighbor.Geometry().ToWkt()}");
+  ```
+
+  ```
+  PolyMesh2D: 2 facets, area 2
+  Mesh2D: 4 triangular facets, area 2
+  ConnectedMesh2D: 4 facets, area 2
+  face 0 neighbor across Third: face 1 -- TRIANGLE (0 1, 1 0, 1 1)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; 11. Triangulation</b></summary>
+
+  Every `Polygon2D`/`Polygon3D`'s outer ring, and every `PolyMesh2D`/`PolyMesh3D` facet, can be broken
+  down into triangles. All of it runs through one free function, `triangulate(points, settings)`: 2D
+  is native, and the 3D overload assumes flat/coplanar input, projected via either a caller-supplied
+  plane normal or one fitted automatically via PCA (`principal_normal`) when omitted.
+
+  `TriangulationParams` bundles the algorithm choice with how strictly to trust the input:
+
+  - **`Strategy`** — `EarClipping` (the default, and the only one implemented so far) walks the ring
+    clipping off convex "ear" vertices one at a time, tracking which vertices are reflex as it goes so
+    later ears can't accidentally clip through one. O(n²) worst case. `MonotonePolygon` and `Delaunay`
+    are declared but not yet implemented — both `throw`.
+  - **`Simplicity` / `Winding` / `Collinearity`** — each independently `Guaranteed` (skip the check,
+    run at your own risk), `Assert` (throw if violated), or `Enforce` (fix it in place — decompose
+    into simple rings, reverse to CCW, or strip collinear/duplicate points — before triangulating).
+
+  `Polygon2D/3D::Triangulate(strategy)` and `PolyMesh2D/3D::Triangulate(strategy)` (§10.4) are thin
+  wrappers around the same free function: since `Make()`/`FromPolygons()` already validated
+  simplicity/winding/collinearity at construction time, they pass `Guaranteed` for all three checks
+  and only expose the `Strategy` choice. Calling `triangulate()` directly on a raw point list is the
+  more general entry point — no `Polygon2D/3D` required, and full control over how much to trust the
+  input via `TriangulationParams`.
+
+  The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
+  at its inner corners. Every diagonal ear clipping adds happens to fan out from the same inner
+  vertex here, but that's a property of this particular vertex ordering, not something the algorithm
+  guarantees in general.
+
+  <p align="center">
+    <img src="./images/triangulation.png" width="640" alt="A 5-pointed star polygon before and after Triangulate(): 8 triangles, every diagonal (gold) fanning out from one of the star's inner vertices">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polygon2d.hpp"
+  #include "calc_utils2d.hpp"
+
+  namespace g = geompp;
+
+  // A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
+  auto poly = g::Polygon2D::Make({
+      g::Point2D(3.0, 6.0), g::Point2D(2.29, 3.97), g::Point2D(0.15, 3.93), g::Point2D(1.86, 2.63),
+      g::Point2D(1.24, 0.57), g::Point2D(3.0, 1.8), g::Point2D(4.76, 0.57), g::Point2D(4.14, 2.63),
+      g::Point2D(5.85, 3.93), g::Point2D(3.71, 3.97),
+  });
+
+  // As a method: strategy defaults to EarClipping. All TriangulationParams checks are Guaranteed --
+  // Make() already validated simplicity/winding/collinearity, so there's nothing left to check.
+  for (auto const& t : poly.Triangulate())
+      GEOMPP_LOG(INFO) << t.ToWkt();
+
+  // Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
+  // the same way on flat/planar 3D input. settings defaults to EarClipping + Enforce for all three
+  // input-quality checks, so it can be omitted entirely.
+  auto triangles = g::triangulate(poly.Perimeter());
+  GEOMPP_LOG(INFO) << triangles.size() << " triangles";
+  ```
+
+  ```bash
+  I20260803] TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  I20260803] TRIANGLE (3.71 3.97, 2.29 3.97, 0.15 3.93)
+  I20260803] TRIANGLE (3.71 3.97, 0.15 3.93, 1.86 2.63)
+  I20260803] TRIANGLE (3.71 3.97, 1.86 2.63, 1.24 0.57)
+  I20260803] TRIANGLE (3.71 3.97, 1.24 0.57, 3 1.8)
+  I20260803] TRIANGLE (3.71 3.97, 3 1.8, 4.76 0.57)
+  I20260803] TRIANGLE (3.71 3.97, 4.76 0.57, 4.14 2.63)
+  I20260803] TRIANGLE (3.71 3.97, 4.14 2.63, 5.85 3.93)
+  I20260803] 8 triangles
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
+  poly = g.Polygon2D.make([
+      g.Point2D(3.0, 6.0), g.Point2D(2.29, 3.97), g.Point2D(0.15, 3.93), g.Point2D(1.86, 2.63),
+      g.Point2D(1.24, 0.57), g.Point2D(3.0, 1.8), g.Point2D(4.76, 0.57), g.Point2D(4.14, 2.63),
+      g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
+  ])
+
+  # As a method: strategy defaults to EarClipping. All TriangulationParams checks are Guaranteed --
+  # make() already validated simplicity/winding/collinearity, so there's nothing left to check.
+  for t in poly.triangulate():
+      print(t.to_wkt())
+
+  # Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
+  # the same way on flat/planar 3D input. settings defaults to EarClipping + Enforce for all three
+  # input-quality checks, so it can be omitted entirely.
+  triangles = g.triangulate(poly.perimeter())
+  print(f"{len(triangles)} triangles")
+  ```
+
+  ```
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  TRIANGLE (3.71 3.97, 2.29 3.97, 0.15 3.93)
+  TRIANGLE (3.71 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (3.71 3.97, 1.86 2.63, 1.24 0.57)
+  TRIANGLE (3.71 3.97, 1.24 0.57, 3 1.8)
+  TRIANGLE (3.71 3.97, 3 1.8, 4.76 0.57)
+  TRIANGLE (3.71 3.97, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (3.71 3.97, 4.14 2.63, 5.85 3.93)
+  8 triangles
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+  using System.Collections.Generic;
+  using System.Linq;
+
+  // A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
+  var poly = G.Polygon2D.Make(new G.Point2D[] {
+      new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+      new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
+  });
+
+  // As a method: strategy defaults to EarClipping. All TriangulationParams checks are Guaranteed --
+  // Make() already validated simplicity/winding/collinearity, so there's nothing left to check.
+  foreach (var t in poly.Triangulate())
+      Console.WriteLine(t.ToWkt());
+
+  // Same algorithm via GeomUtil.Triangulate() on a raw point list -- 2D here, but 3D overloads work
+  // the same way on flat/planar input. Unlike the method above, GeomUtil.Triangulate() takes an
+  // explicit TriangulationParams (defaults to EarClipping + Enforce for all three checks).
+  var points = new List<G.Point2D>(poly.Perimeter());
+  var triangles = G.GeomUtil.Triangulate(points, new G.TriangulationParams());
+  Console.WriteLine($"{triangles.Count()} triangles");
+  ```
+
+  ```
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  TRIANGLE (3.71 3.97, 2.29 3.97, 0.15 3.93)
+  TRIANGLE (3.71 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (3.71 3.97, 1.86 2.63, 1.24 0.57)
+  TRIANGLE (3.71 3.97, 1.24 0.57, 3 1.8)
+  TRIANGLE (3.71 3.97, 3 1.8, 4.76 0.57)
+  TRIANGLE (3.71 3.97, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (3.71 3.97, 4.14 2.63, 5.85 3.93)
+  8 triangles
+  ```
+
+   </details>
+
+  </details>
+
 </details>

@@ -3,6 +3,7 @@
 namespace py = pybind11;
 
 void bind_precision(py::module_& m);
+void bind_triangulation_params(py::module_& m);
 void bind_point2d(py::module_& m);
 void bind_point3d(py::module_& m);
 void bind_vector2d(py::module_& m);
@@ -44,6 +45,7 @@ PYBIND11_MODULE(_geompp, m) {
     m.doc() = "geompp: C++ 2D/3D geometry library — Python bindings";
 
     bind_precision(m);
+    bind_triangulation_params(m);
     bind_point2d(m);
     bind_point3d(m);
     bind_vector2d(m);

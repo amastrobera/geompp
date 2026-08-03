@@ -3,6 +3,7 @@
 #include "line2d.hpp"
 #include "point2d.hpp"
 #include "ray2d.hpp"
+#include "triangle2d.hpp"
 #include "utils.hpp"
 #include "vector2d.hpp"
 
@@ -1504,6 +1505,75 @@ TEST_F(Polygon2DTest, DISABLED_Randomized_ResultsAreSimple) {
   }
 }
 
+
+#pragma endregion
+
+#pragma region Triangulate
+
+TEST_F(Polygon2DTest, Triangulate_ConvexQuad_ProducesTwoTrianglesCoveringFullArea) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(0, 2)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Triangulate_ConcavePolygon_ProducesCorrectAreaAndCount) {
+  // Same chevron shape as CalcUtils2DTest.Triangulate_ConcaveChevron_ExercisesReflexVertexHandling.
+  auto p = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(2, 1), g::Point2D(0, 4)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Triangulate_ReflexVertexOnNonAdjacentDiagonal_StaysInsidePolygon) {
+  // Regression test for a bug in ear_clipping_triangulation: this L-shape's reflex vertex (2, 2)
+  // sits exactly on the diagonal between the non-adjacent vertices (0, 4) and (4, 0) (all three
+  // satisfy x + y == 4). A strict point-in-triangle ear-validity check missed this collinear case
+  // and accepted a diagonal that actually exits the polygon through the notch.
+  auto p = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(2, 2), g::Point2D(2, 4), g::Point2D(0, 4)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 4u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+    EXPECT_TRUE(p.Contains(t.Centroid())) << "triangle " << t.ToWkt() << " strays outside the polygon";
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon2DTest, Triangulate_DefaultParams_UsesGuaranteedNoRevalidation) {
+  // Polygon2D::Make() already guarantees the outer ring is simple/CCW/collinear-free, so Triangulate()
+  // must not re-run those (Enforce-mode) checks — this would be redundant work, not a correctness bug,
+  // but confirms the Guaranteed wiring is actually reaching triangulate_impl.
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  EXPECT_NO_THROW(p.Triangulate(g::TriangulationParams::Strategy::EarClipping));
+}
+
+TEST_F(Polygon2DTest, Triangulate_MonotonePolygonStrategy_Throws) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(0, 2)});
+  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::MonotonePolygon), std::runtime_error);
+}
+
+TEST_F(Polygon2DTest, Triangulate_DelaunayStrategy_Throws) {
+  auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(0, 2)});
+  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::Delaunay), std::runtime_error);
+}
 
 #pragma endregion
 

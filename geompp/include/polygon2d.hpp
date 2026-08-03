@@ -59,6 +59,15 @@ class Polygon2D {
   bool HasHoles() const;
   /// @brief The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polygon has no holes.
   std::vector<std::vector<Point2D>> const& Holes() const;
+  /// @brief Breaks down the polygon (outer ring ONLY, holes are ignored) into a set of triangles.
+  /// Make() already guarantees the outer ring is simple, CCW-wound, and free of collinear/duplicate
+  /// points, so this always calls the free triangulate() with every TriangulationParams check set to
+  /// Guaranteed — no re-validation cost.
+  /// @param strategy which triangulation algorithm to run (see TriangulationParams::Strategy).
+  /// @returns one Triangle2D per triangle; Size() - 2 triangles.
+  /// @throws whatever the chosen @p strategy itself throws (e.g. std::runtime_error for a
+  /// not-yet-implemented strategy).
+  std::vector<Triangle2D> Triangulate(TriangulationParams::Strategy strategy) const;
 
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.
@@ -175,8 +184,7 @@ class Polygon2D {
   Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes,
             bool is_convex);
   Polygon2D(std::vector<Point2D>&& points, double perimeter, bool is_convex);
-  Polygon2D(std::vector<Point2D>&& points, double perimeter, std::vector<std::vector<Point2D>>&& holes,
-            bool is_convex);
+  Polygon2D(std::vector<Point2D>&& points, double perimeter, std::vector<std::vector<Point2D>>&& holes, bool is_convex);
 };
 
 #pragma region Operator Overloading
@@ -200,8 +208,8 @@ inline Polygon2D::Polygon2D(std::vector<Point2D> const& points, double perimeter
     : VERTICES(points), HOLES(holes), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 inline Polygon2D::Polygon2D(std::vector<Point2D>&& points, double perimeter, bool is_convex)
     : VERTICES(std::move(points)), HOLES{}, PERIMETER(perimeter), IS_CONVEX(is_convex) {}
-inline Polygon2D::Polygon2D(std::vector<Point2D>&& points, double perimeter,
-                            std::vector<std::vector<Point2D>>&& holes, bool is_convex)
+inline Polygon2D::Polygon2D(std::vector<Point2D>&& points, double perimeter, std::vector<std::vector<Point2D>>&& holes,
+                            bool is_convex)
     : VERTICES(std::move(points)), HOLES(std::move(holes)), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
 
 // Both const and non-const begin/end return const_iterator!

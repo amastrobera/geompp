@@ -170,7 +170,7 @@ GridCellMapForConnectedMesh2D GridCellMapForConnectedMesh2D::Make(std::vector<Tr
   std::vector<std::array<detail::TriangleCompactNeighborRef, 3>> neighbour_refs;
   neighbour_refs.reserve(n_triangles);
   //  \_ safery on numerical limits of this computer
-  if (triangle_indices.size() > std::numeric_limits<uint32_t>::max()) {
+  if (triangle_indices.size() > std::numeric_limits<std::uint32_t>::max()) {
     throw std::overflow_error("Mesh vertex count exceeds 32-bit limit (4.29B vertices).");
   }
   if (n_triangles >= (1ULL << 30)) {
@@ -191,7 +191,7 @@ GridCellMapForConnectedMesh2D GridCellMapForConnectedMesh2D::Make(std::vector<Tr
     assert(u <= std::numeric_limits<std::uint32_t>::max() && "Vertex index 'u' exceeds 32-bit limits!");
     assert(v <= std::numeric_limits<std::uint32_t>::max() && "Vertex index 'v' exceeds 32-bit limits!");
 
-    return (static_cast<uint64_t>(static_cast<std::uint32_t>(u)) << 32) | static_cast<std::uint32_t>(v);
+    return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(u)) << 32) | static_cast<std::uint32_t>(v);
   };
 
   for (std::size_t t = 0; t < n_triangles; ++t) {  // used to pick the specific triangle in the neighbour_refs array

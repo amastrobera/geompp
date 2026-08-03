@@ -5,6 +5,7 @@
 #include "plane.hpp"
 #include "point3d.hpp"
 #include "ray3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -1285,6 +1286,66 @@ TEST_F(Polygon3DTest, Intersection_Polygon_ParallelDistinctPlanes_ReturnsNullopt
   auto result = a.Intersection(b);
   EXPECT_FALSE(result.has_value());
   EXPECT_FALSE(a.Intersects(b));
+}
+
+#pragma endregion
+
+#pragma region Triangulate
+
+TEST_F(Polygon3DTest, Triangulate_FlatConvexQuad_ProducesTwoTrianglesCoveringFullArea) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0), g::Point3D(0, 2, 0)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+// Non-XY plane (tilted, X-dominant-axis normal) — proves Triangulate() correctly uses the polygon's own
+// plane normal rather than assuming a flat-on-XY input.
+TEST_F(Polygon3DTest, Triangulate_TiltedPlaneQuad_ProducesTwoTrianglesCoveringFullArea) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(0, 4, 2), g::Point3D(0, 0, 2)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon3DTest, Triangulate_ConcavePolygon_ProducesCorrectAreaAndCount) {
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+                               g::Point3D(2, 1, 0), g::Point3D(0, 4, 0)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon3DTest, Triangulate_MonotonePolygonStrategy_Throws) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0), g::Point3D(0, 2, 0)});
+  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::MonotonePolygon), std::runtime_error);
+}
+
+TEST_F(Polygon3DTest, Triangulate_DelaunayStrategy_Throws) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0), g::Point3D(0, 2, 0)});
+  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::Delaunay), std::runtime_error);
 }
 
 #pragma endregion

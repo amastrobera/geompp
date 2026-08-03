@@ -30,10 +30,11 @@ FetchContent_MakeAvailable(glog)
 
 # Add the library
 add_library(${PROJECT_NAME}
-    include/concepts.hpp
+    include/generic_concepts.hpp
     include/coordinate_frame.hpp
     include/segment_iterator2d.hpp
     include/segment_iterator3d.hpp
+    include/sweep_line2d.hpp
     src/constants.cpp
     src/geompp_log.cpp
     src/utils.cpp
@@ -50,6 +51,7 @@ add_library(${PROJECT_NAME}
     src/bbox2d.cpp
     src/bball2d.cpp
     src/brect2d.cpp
+    src/sweep_line2d.cpp
     src/calc_utils2d.cpp
     src/grid_cell2d.cpp
     src/mesh2d.cpp

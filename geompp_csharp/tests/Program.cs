@@ -5970,6 +5970,15 @@ Test("Mesh2D_ToString_ContainsSizeAndArea", () => {
   IsTrue(s.Contains("Mesh2D"), "missing Mesh2D label");
 });
 
+Test("Mesh2D_Connect_PreservesSizeAndArea", () => {
+  var t0 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(1, 1));
+  var t1 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 1), new Point2D(0, 1));
+  var mesh = Mesh2D.FromTriangles(new[] { t0, t1 });
+  var connected = mesh.Connect();
+  Eq(mesh.Size(), connected.Size(), 0);
+  Eq(mesh.Area(), connected.Area());
+});
+
 Test("Mesh3D_FromTriangles_Empty_Throws", () => {
   bool threw = false;
   try { Mesh3D.FromTriangles(new Triangle3D[] { }); }
@@ -6002,6 +6011,15 @@ Test("Mesh3D_ToString_ContainsSizeAndArea", () => {
   var mesh = Mesh3D.FromTriangles(new[] { t });
   var s = mesh.ToString();
   IsTrue(s.Contains("Mesh3D"), "missing Mesh3D label");
+});
+
+Test("Mesh3D_Connect_PreservesSizeAndArea", () => {
+  var t0 = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0));
+  var t1 = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0));
+  var mesh = Mesh3D.FromTriangles(new[] { t0, t1 });
+  var connected = mesh.Connect();
+  Eq(mesh.Size(), connected.Size(), 0);
+  Eq(mesh.Area(), connected.Area());
 });
 
 // ── ConnectedMesh2D ────────────────────────────────────────────────────────────
@@ -6337,6 +6355,204 @@ Test("PolyMesh3D_ToString_ContainsSizeAndArea", () => {
   var mesh = PolyMesh3D.FromPolygons(new[] { p });
   var s = mesh.ToString();
   IsTrue(s.Contains("PolyMesh3D"), "missing PolyMesh3D label");
+});
+
+// ── Triangulation ───────────────────────────────────────────────────────────────
+Console.WriteLine("\nTriangulation");
+
+double SumArea2D(System.Collections.Generic.IEnumerable<Triangle2D> triangles) {
+  double total = 0;
+  foreach (var t in triangles) total += t.Area();
+  return total;
+}
+double SumArea3D(System.Collections.Generic.IEnumerable<Triangle3D> triangles) {
+  double total = 0;
+  foreach (var t in triangles) total += t.Area();
+  return total;
+}
+int CountOf<T>(System.Collections.Generic.IEnumerable<T> items) {
+  int n = 0;
+  foreach (var _ in items) n++;
+  return n;
+}
+
+Test("Polygon2D_Triangulate_ConvexQuad_TwoTrianglesFullArea", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 2), new(0, 2) });
+  var triangles = p.Triangulate();
+  Eq(2, CountOf(triangles), 0);
+  Eq(p.Area(), SumArea2D(triangles));
+});
+
+Test("Polygon2D_Triangulate_ConcavePolygon_CorrectAreaAndCount", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(2, 1), new(0, 4) });
+  var triangles = p.Triangulate();
+  Eq(3, CountOf(triangles), 0);
+  Eq(p.Area(), SumArea2D(triangles));
+});
+
+Test("Polygon2D_Triangulate_MonotonePolygonStrategy_Throws", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 2), new(0, 2) });
+  bool threw = false;
+  try { p.Triangulate(TriangulationStrategy.MonotonePolygon); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected MonotonePolygon strategy to throw (not yet implemented)");
+});
+
+Test("Polygon2D_Triangulate_DelaunayStrategy_Throws", () => {
+  var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 2), new(0, 2) });
+  bool threw = false;
+  try { p.Triangulate(TriangulationStrategy.Delaunay); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected Delaunay strategy to throw (not yet implemented)");
+});
+
+// Regression test: this L-shape's reflex vertex (2, 2) sits exactly on the diagonal between the
+// non-adjacent vertices (0, 4) and (4, 0) (all three satisfy x + y == 4). A strict point-in-triangle
+// ear-validity check missed this collinear case and accepted a diagonal that actually exits the
+// polygon through the notch.
+Test("Polygon2D_Triangulate_ReflexVertexOnNonAdjacentDiagonal_StaysInsidePolygon", () => {
+  var p = Polygon2D.Make(new Point2D[] {
+      new(0, 0), new(4, 0), new(4, 2), new(2, 2), new(2, 4), new(0, 4) });
+  var triangles = p.Triangulate();
+  Eq(4, CountOf(triangles), 0);
+  double total = 0.0;
+  foreach (var t in triangles) {
+    IsTrue(p.Contains(t.Centroid()), $"triangle {t.ToWkt()} strays outside the polygon");
+    total += t.Area();
+  }
+  Eq(p.Area(), total);
+});
+
+Test("Polygon3D_Triangulate_FlatConvexQuad_TwoTrianglesFullArea", () => {
+  var p = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 2, 0), new(0, 2, 0) });
+  var triangles = p.Triangulate();
+  Eq(2, CountOf(triangles), 0);
+  Eq(p.Area(), SumArea3D(triangles));
+});
+
+Test("Polygon3D_Triangulate_TiltedPlaneQuad_TwoTrianglesFullArea", () => {
+  // Non-XY plane (X-dominant-axis normal) — proves the polygon's own plane normal is used.
+  var p = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(0, 4, 0), new(0, 4, 2), new(0, 0, 2) });
+  var triangles = p.Triangulate();
+  Eq(2, CountOf(triangles), 0);
+  Eq(p.Area(), SumArea3D(triangles));
+});
+
+Test("GeomUtil_Triangulate_2D_DefaultSettings", () => {
+  var pts = new System.Collections.Generic.List<Point2D> { new(0, 0), new(4, 0), new(4, 2), new(0, 2) };
+  var triangles = GeomUtil.Triangulate(pts, new TriangulationParams());
+  Eq(2, CountOf(triangles), 0);
+  Eq(8.0, SumArea2D(triangles));
+});
+
+Test("GeomUtil_Triangulate_3D_WithExplicitNormal", () => {
+  var pts = new System.Collections.Generic.List<Point3D> { new(0, 0, 0), new(4, 0, 0), new(4, 2, 0), new(0, 2, 0) };
+  var triangles = GeomUtil.Triangulate(pts, new Vector3D(0, 0, 1), new TriangulationParams());
+  Eq(2, CountOf(triangles), 0);
+  Eq(8.0, SumArea3D(triangles));
+});
+
+Test("GeomUtil_Triangulate_3D_WithoutNormal_FitsViaPCA", () => {
+  var pts = new System.Collections.Generic.List<Point3D> { new(0, 0, 0), new(4, 0, 0), new(4, 2, 0), new(0, 2, 0) };
+  var triangles = GeomUtil.Triangulate(pts, new TriangulationParams());
+  Eq(2, CountOf(triangles), 0);
+  Eq(8.0, SumArea3D(triangles));
+});
+
+Test("GeomUtil_Triangulate_FewerThanThreePoints_Throws", () => {
+  var pts = new System.Collections.Generic.List<Point2D> { new(0, 0), new(1, 0) };
+  bool threw = false;
+  try { var _ = GeomUtil.Triangulate(pts, new TriangulationParams()); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected fewer than 3 points to throw");
+});
+
+Test("GeomUtil_Triangulate_WindingAssert_ThrowsOnClockwiseInput", () => {
+  var cwSquare = new System.Collections.Generic.List<Point2D> { new(0, 0), new(0, 1), new(1, 1), new(1, 0) };
+  var settings = new TriangulationParams(TriangulationStrategy.EarClipping, TriangulationSimplicity.Guaranteed,
+                                         TriangulationWinding.Assert, TriangulationCollinearity.Guaranteed);
+  bool threw = false;
+  try { var _ = GeomUtil.Triangulate(cwSquare, settings); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected clockwise input to throw under Winding.Assert");
+});
+
+Test("GeomUtil_Triangulate_WindingEnforce_FixesClockwiseInput", () => {
+  var cwSquare = new System.Collections.Generic.List<Point2D> { new(0, 0), new(0, 1), new(1, 1), new(1, 0) };
+  var settings = new TriangulationParams(TriangulationStrategy.EarClipping, TriangulationSimplicity.Guaranteed,
+                                         TriangulationWinding.Enforce, TriangulationCollinearity.Guaranteed);
+  var triangles = GeomUtil.Triangulate(cwSquare, settings);
+  Eq(2, CountOf(triangles), 0);
+  Eq(1.0, SumArea2D(triangles));
+});
+
+Test("GeomUtil_Triangulate_CollinearityAssert_ThrowsOnCollinearPoint", () => {
+  var withCollinear = new System.Collections.Generic.List<Point2D> { new(0, 0), new(2, 0), new(4, 0), new(4, 4), new(0, 4) };
+  var settings = new TriangulationParams(TriangulationStrategy.EarClipping, TriangulationSimplicity.Guaranteed,
+                                         TriangulationWinding.Guaranteed, TriangulationCollinearity.Assert);
+  bool threw = false;
+  try { var _ = GeomUtil.Triangulate(withCollinear, settings); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected collinear point to throw under Collinearity.Assert");
+});
+
+Test("GeomUtil_Triangulate_CollinearityEnforce_RemovesCollinearPoint", () => {
+  var withCollinear = new System.Collections.Generic.List<Point2D> { new(0, 0), new(2, 0), new(4, 0), new(4, 4), new(0, 4) };
+  var settings = new TriangulationParams(TriangulationStrategy.EarClipping, TriangulationSimplicity.Guaranteed,
+                                         TriangulationWinding.Guaranteed, TriangulationCollinearity.Enforce);
+  var triangles = GeomUtil.Triangulate(withCollinear, settings);
+  Eq(2, CountOf(triangles), 0);
+  Eq(16.0, SumArea2D(triangles));
+});
+
+Test("GeomUtil_Triangulate_SimplicityAssert_ThrowsOnSelfIntersectingInput", () => {
+  var bowtie = new System.Collections.Generic.List<Point2D> { new(0, 0), new(1, 0), new(0, 1), new(1, 1) };
+  var settings = new TriangulationParams(TriangulationStrategy.EarClipping, TriangulationSimplicity.Assert,
+                                         TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed);
+  bool threw = false;
+  try { var _ = GeomUtil.Triangulate(bowtie, settings); }
+  catch (Exception) { threw = true; }
+  IsTrue(threw, "expected self-intersecting input to throw under Simplicity.Assert");
+});
+
+Test("PolyMesh2D_Triangulate_SharedEdge_PreservesTotalArea", () => {
+  var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+  var mesh = PolyMesh2D.FromPolygons(new[] { p0, p1 });
+  var triMesh = mesh.Triangulate();
+  Eq(4, triMesh.Size(), 0);
+  Eq(mesh.Area(), triMesh.Area());
+});
+
+// Regression test: PolyMesh2D.Triangulate() used to triangulate the whole (shared, deduplicated)
+// vertex buffer as if it were a single ring, which only "worked" by coincidence for facets that
+// happened to share welded edges. Two disjoint facets — no welding to paper over the bug — exposes
+// it directly: the old code produced a wrong triangle count and a wrong total area.
+Test("PolyMesh2D_Triangulate_DisjointFacets_PreservesTotalArea", () => {
+  var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var p1 = Polygon2D.Make(new Point2D[] { new(5, 5), new(6, 5), new(6, 6), new(5, 6) });
+  var mesh = PolyMesh2D.FromPolygons(new[] { p0, p1 });
+  var triMesh = mesh.Triangulate();
+  Eq(4, triMesh.Size(), 0);
+  Eq(mesh.Area(), triMesh.Area());
+});
+
+Test("PolyMesh3D_Triangulate_SharedEdge_PreservesTotalArea", () => {
+  var p0 = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+  var p1 = Polygon3D.Make(new Point3D[] { new(1, 0, 0), new(2, 0, 0), new(2, 1, 0), new(1, 1, 0) });
+  var mesh = PolyMesh3D.FromPolygons(new[] { p0, p1 });
+  var triMesh = mesh.Triangulate();
+  Eq(4, triMesh.Size(), 0);
+  Eq(mesh.Area(), triMesh.Area());
+});
+
+Test("PolyMesh3D_Triangulate_DisjointFacets_PreservesTotalArea", () => {
+  var p0 = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+  var p1 = Polygon3D.Make(new Point3D[] { new(5, 5, 0), new(6, 5, 0), new(6, 6, 0), new(5, 6, 0) });
+  var mesh = PolyMesh3D.FromPolygons(new[] { p0, p1 });
+  var triMesh = mesh.Triangulate();
+  Eq(4, triMesh.Size(), 0);
+  Eq(mesh.Area(), triMesh.Area());
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────

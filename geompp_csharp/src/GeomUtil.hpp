@@ -19,6 +19,8 @@ ref class Polygon3D;
 ref class Line2D;
 ref class Line3D;
 ref class PolylineExpansionParams;
+ref class Triangle2D;
+ref class Triangle3D;
 
 // The two vertices of a 2D shape extreme (least / greatest projection) along a direction.
 public ref class ExtremePoints2D sealed {
@@ -66,6 +68,88 @@ internal:
 private:
     LineSegment3D^ _left;
     LineSegment3D^ _right;
+};
+
+// Which triangulation algorithm to run — see TriangulationParams.
+public enum class TriangulationStrategy {
+    // O(n^2) worst case, but simple and robust for small polygons.
+    EarClipping = 0,
+    // O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone pieces).
+    // Not yet implemented.
+    MonotonePolygon = 1,
+    // O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny slivers).
+    // Not yet implemented.
+    Delaunay = 2
+};
+
+// How GeomUtil.Triangulate() handles a possibly self-intersecting input ring.
+public enum class TriangulationSimplicity {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if the input isn't simple.
+    Assert = 1,
+    // Decomposes non-simple input into simple pieces (via simplify_rings) before triangulating.
+    Enforce = 2
+};
+
+// How GeomUtil.Triangulate() handles input that may not be wound counter-clockwise (CCW).
+public enum class TriangulationWinding {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if the input isn't CCW.
+    Assert = 1,
+    // Reverses the input if it's CW, before triangulating.
+    Enforce = 2
+};
+
+// How GeomUtil.Triangulate() handles collinear points. A duplicate consecutive point is just the
+// degenerate case of three collinear points, so this covers both.
+public enum class TriangulationCollinearity {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if the input has collinear (or duplicate) points.
+    Assert = 1,
+    // Removes collinear/duplicate points before triangulating.
+    Enforce = 2
+};
+
+// Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for
+// GeomUtil.Triangulate(). Defaults to EarClipping, and Enforce for all three input-quality checks —
+// matching the native triangulate()'s own defaults. Polygon2D.Triangulate() / Polygon3D.Triangulate() /
+// PolyMesh2D.Triangulate() / PolyMesh3D.Triangulate() take just a TriangulationStrategy instead: their
+// input is already guaranteed simple/CCW/collinear-free by construction, so the other three checks
+// aren't exposed there.
+public ref class TriangulationParams {
+public:
+    TriangulationParams();
+    TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                        TriangulationWinding ccwWinding, TriangulationCollinearity collinearity);
+
+    property TriangulationStrategy Strategy {
+        TriangulationStrategy get() { return _strategy; }
+        void set(TriangulationStrategy value) { _strategy = value; }
+    }
+    property TriangulationSimplicity Simplicity {
+        TriangulationSimplicity get() { return _simplicity; }
+        void set(TriangulationSimplicity value) { _simplicity = value; }
+    }
+    property TriangulationWinding CcwWinding {
+        TriangulationWinding get() { return _ccwWinding; }
+        void set(TriangulationWinding value) { _ccwWinding = value; }
+    }
+    property TriangulationCollinearity Collinearity {
+        TriangulationCollinearity get() { return _collinearity; }
+        void set(TriangulationCollinearity value) { _collinearity = value; }
+    }
+
+internal:
+    geompp::TriangulationParams ToNative();
+
+private:
+    TriangulationStrategy _strategy;
+    TriangulationSimplicity _simplicity;
+    TriangulationWinding _ccwWinding;
+    TriangulationCollinearity _collinearity;
 };
 
 // Static utility class — wraps the geompp free functions that operate on point collections.
@@ -191,6 +275,16 @@ public:
     static PolygonTangents2D^ TangentsTo(Polygon2D^ polygon, Polygon2D^ other);
     static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Point3D^ point);
     static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Polygon3D^ other);
+
+    // Triangulate — breaks a simple polygon's outer loop (no holes) down into triangles, per the given
+    // TriangulationParams. 2D is native; the 3D overloads assume flat/coplanar input, projected via the
+    // given plane normal, or (when normal is omitted) one fitted via PCA (PrincipalNormal).
+    static System::Collections::Generic::IEnumerable<Triangle2D^>^ Triangulate(
+        System::Collections::Generic::List<Point2D^>^ points, TriangulationParams^ settings);
+    static System::Collections::Generic::IEnumerable<Triangle3D^>^ Triangulate(
+        System::Collections::Generic::List<Point3D^>^ points, Vector3D^ normal, TriangulationParams^ settings);
+    static System::Collections::Generic::IEnumerable<Triangle3D^>^ Triangulate(
+        System::Collections::Generic::List<Point3D^>^ points, TriangulationParams^ settings);
 };
 
 }  // namespace GeomPP

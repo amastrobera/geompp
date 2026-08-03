@@ -6,6 +6,7 @@
 #include "plane.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -455,6 +456,43 @@ TEST_F(CalcUtils3DTest, VwDecimation_ThresholdBelowAllAreas_KeepsAllPoints) {
   for (std::size_t i = 0; i < points.size(); ++i) {
     EXPECT_TRUE(result[i].AlmostEquals(points[i])) << "index " << i;
   }
+}
+
+// --------------------------------------------------------------------------------------------------
+// triangulate (free functions)
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils3DTest, Triangulate_WithExplicitNormal_ProducesCorrectAreaAndCount) {
+  std::vector<g::Point3D> quad = {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0),
+                                  g::Point3D(0, 2, 0)};
+  auto triangles = g::triangulate(quad, g::Vector3D(0, 0, 1));
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 8.0, 1e-9);
+}
+
+// No explicit normal — fits one via PCA (principal_normal) instead.
+TEST_F(CalcUtils3DTest, Triangulate_WithoutNormal_FitsNormalViaPCA) {
+  std::vector<g::Point3D> quad = {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0),
+                                  g::Point3D(0, 2, 0)};
+  auto triangles = g::triangulate(quad);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 8.0, 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, Triangulate_FewerThanThreePoints_Throws) {
+  std::vector<g::Point3D> too_few = {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)};
+  EXPECT_THROW(g::triangulate(too_few, g::Vector3D(0, 0, 1)), std::invalid_argument);
+  EXPECT_THROW(g::triangulate(too_few), std::invalid_argument);
 }
 
 }  // namespace geompp_tests

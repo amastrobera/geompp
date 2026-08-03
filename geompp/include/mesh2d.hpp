@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+class ConnectedMesh2D;
+
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 /// No adjacency structure is stored to find a face's neighbors.
 /// Each facet has no holes (a triangle cannot have one).
@@ -49,6 +51,8 @@ class Mesh2D {
 
 #pragma endregion
 
+  ConnectedMesh2D Connect() const;
+
  private:
   // shared_ptr, not plain vector: copying a Mesh2D (or handing its vertex buffer to a future
   // Polygonize()/Triangulate() conversion) becomes an O(1) refcount bump instead of an O(n) deep
@@ -75,8 +79,8 @@ inline double Mesh2D::Area() const { return AREA; }
 
 inline auto Mesh2D::Faces() const {
   return *FACE_INDICES | std::views::transform([this](const auto& idx) {
-           return Triangle2D::Make((*VERTICES)[idx[0]], (*VERTICES)[idx[1]], (*VERTICES)[idx[2]]);
-         });
+    return Triangle2D::Make((*VERTICES)[idx[0]], (*VERTICES)[idx[1]], (*VERTICES)[idx[2]]);
+  });
 }
 
 #pragma endregion

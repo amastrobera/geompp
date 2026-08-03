@@ -1,5 +1,6 @@
 #include "PolyMesh2D.hpp"
 #include "Polygon2D.hpp"
+#include "Mesh2D.hpp"
 
 namespace GeomPP {
 
@@ -33,6 +34,15 @@ double PolyMesh2D::Area() {
 
 Polygon2D^ PolyMesh2D::default::get(int i) {
     return gcnew Polygon2D(new geompp::Polygon2D((*_native)[(std::size_t)i]));
+}
+
+Mesh2D^ PolyMesh2D::Triangulate() {
+    return Triangulate(TriangulationStrategy::EarClipping);
+}
+
+Mesh2D^ PolyMesh2D::Triangulate(TriangulationStrategy strategy) {
+    return gcnew Mesh2D(new geompp::Mesh2D(
+        _native->Triangulate(static_cast<geompp::TriangulationParams::Strategy>(strategy))));
 }
 
 System::String^ PolyMesh2D::ToString() {

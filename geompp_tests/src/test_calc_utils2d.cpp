@@ -8,6 +8,7 @@
 #include "polygon2d.hpp"
 #include "polygon3d.hpp"
 #include "segment_iterator2d.hpp"
+#include "triangle2d.hpp"
 
 #include <gtest/gtest.h>
 
@@ -1285,5 +1286,269 @@ TEST_F(CalcUtils2DTest, Benchmark_BooleanOpVsBooleanOpMulti) {
               << "us  ratio=" << (old_us / new_us) << "x\n";
   }
 }
+
+// --------------------------------------------------------------------------------------------------
+// EarClippingTriangulation sanity check (n=5, convex) — the final leftover triangle after the main
+// while(n>3) loop is a known trouble spot (see git history): must cover the last 3 remaining vertices,
+// not reuse stale loop-local indices from an earlier iteration.
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils2DTest, Triangulate_ConvexPentagon_ProducesThreeTrianglesCoveringFullArea) {
+  std::vector<g::Point2D> pentagon = {{0, 0}, {4, 0}, {4, 3}, {2, 5}, {0, 3}};
+  ASSERT_TRUE(g::are_ccw(pentagon));
+
+  auto triangles = g::triangulate(pentagon);
+
+  ASSERT_EQ(triangles.size(), 3u);  // n - 2 triangles for a convex n-gon
+
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-6);  // shoelace area of the pentagon above
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConcaveChevron_ExercisesReflexVertexHandling) {
+  // "Chevron" with a notch at (2,1) — the one reflex vertex ear-clipping's optimization (only test
+  // candidate ears against reflex vertices) actually needs to exercise. Deliberately NOT (2,2): that
+  // point sits exactly on the (0,4)-(4,0) diagonal, a coincidental exact collinearity across a
+  // non-adjacent diagonal that's a known hard case for any strict-inequality point-in-triangle test.
+  std::vector<g::Point2D> chevron = {{0, 0}, {4, 0}, {4, 4}, {2, 1}, {0, 4}};
+  ASSERT_TRUE(g::are_ccw(chevron));
+
+  auto triangles = g::triangulate(chevron);
+
+  ASSERT_EQ(triangles.size(), 3u);  // n - 2 triangles
+
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 10.0, 1e-6);  // shoelace area of the chevron above
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_FewerThanThreePoints_Throws) {
+  std::vector<g::Point2D> too_few = {{0, 0}, {1, 0}};
+  EXPECT_THROW(g::triangulate(too_few), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_WindingAssert_ThrowsOnClockwiseInput) {
+  std::vector<g::Point2D> cw_square = {{0, 0}, {0, 1}, {1, 1}, {1, 0}};  // CW, not CCW
+  ASSERT_FALSE(g::are_ccw(cw_square));
+
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::EarClipping,
+                                  g::TriangulationParams::Simplicity::Guaranteed,
+                                  g::TriangulationParams::Winding::Assert,
+                                  g::TriangulationParams::Collinearity::Guaranteed};
+  EXPECT_THROW(g::triangulate(cw_square, settings), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_WindingEnforce_FixesClockwiseInput) {
+  std::vector<g::Point2D> cw_square = {{0, 0}, {0, 1}, {1, 1}, {1, 0}};  // CW, not CCW
+  ASSERT_FALSE(g::are_ccw(cw_square));
+
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::EarClipping,
+                                  g::TriangulationParams::Simplicity::Guaranteed,
+                                  g::TriangulationParams::Winding::Enforce,
+                                  g::TriangulationParams::Collinearity::Guaranteed};
+  auto triangles = g::triangulate(cw_square, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_CollinearityAssert_ThrowsOnCollinearPoint) {
+  // (2, 0) sits exactly on the edge from (0,0) to (4,0) — a collinear consecutive triplet.
+  std::vector<g::Point2D> with_collinear = {{0, 0}, {2, 0}, {4, 0}, {4, 4}, {0, 4}};
+
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::EarClipping,
+                                  g::TriangulationParams::Simplicity::Guaranteed,
+                                  g::TriangulationParams::Winding::Guaranteed,
+                                  g::TriangulationParams::Collinearity::Assert};
+  EXPECT_THROW(g::triangulate(with_collinear, settings), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_CollinearityEnforce_RemovesCollinearPointAndSucceeds) {
+  std::vector<g::Point2D> with_collinear = {{0, 0}, {2, 0}, {4, 0}, {4, 4}, {0, 4}};
+
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::EarClipping,
+                                  g::TriangulationParams::Simplicity::Guaranteed,
+                                  g::TriangulationParams::Winding::Guaranteed,
+                                  g::TriangulationParams::Collinearity::Enforce};
+  auto triangles = g::triangulate(with_collinear, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);  // (2,0) removed -> a 4-vertex square -> 2 triangles
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_SimplicityAssert_ThrowsOnSelfIntersectingInput) {
+  // Bowtie: edges (0,0)-(1,1) and (1,0)-(0,1) cross in the middle.
+  std::vector<g::Point2D> bowtie = {{0, 0}, {1, 0}, {0, 1}, {1, 1}};
+
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::EarClipping,
+                                  g::TriangulationParams::Simplicity::Assert,
+                                  g::TriangulationParams::Winding::Guaranteed,
+                                  g::TriangulationParams::Collinearity::Guaranteed};
+  EXPECT_THROW(g::triangulate(bowtie, settings), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygonStrategy_Throws) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  EXPECT_THROW(g::triangulate(square, settings), std::runtime_error);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_DelaunayStrategy_Throws) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
+  EXPECT_THROW(g::triangulate(square, settings), std::runtime_error);
+}
+
+#pragma region detail::view triangulation internals (is_ccw, has_collinears, ear_clipping_triangulation,
+// triangulate_impl) — C++-only, never bound to Python/C#, so this is their only test coverage.
+
+TEST_F(CalcUtils2DTest, IsCcw_CcwSquare_ReturnsTrue) {
+  std::vector<g::Point2D> ccw_square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(gd::view::is_ccw(ccw_square, g::View2D::XY()));
+}
+
+TEST_F(CalcUtils2DTest, IsCcw_CwSquare_ReturnsFalse) {
+  std::vector<g::Point2D> cw_square = {{0, 0}, {0, 1}, {1, 1}, {1, 0}};
+  EXPECT_FALSE(gd::view::is_ccw(cw_square, g::View2D::XY()));
+}
+
+TEST_F(CalcUtils2DTest, HasCollinears_CleanSquare_ReturnsFalse) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_FALSE(gd::view::has_collinears(square, g::View2D::XY()));
+}
+
+TEST_F(CalcUtils2DTest, HasCollinears_CollinearMidpoint_ReturnsTrue) {
+  // (2, 0) sits exactly on the edge from (0,0) to (4,0).
+  std::vector<g::Point2D> with_collinear = {{0, 0}, {2, 0}, {4, 0}, {4, 4}, {0, 4}};
+  EXPECT_TRUE(gd::view::has_collinears(with_collinear, g::View2D::XY()));
+}
+
+TEST_F(CalcUtils2DTest, HasCollinears_DuplicateConsecutivePoint_ReturnsTrue) {
+  // A duplicate is the degenerate case of collinearity: no separate check needed (see the function's
+  // own doc comment) — (1,0) repeated makes one edge vector the zero vector, so the cross product used
+  // to test the turn at that vertex is trivially zero too.
+  std::vector<g::Point2D> with_duplicate = {{0, 0}, {1, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(gd::view::has_collinears(with_duplicate, g::View2D::XY()));
+}
+
+TEST_F(CalcUtils2DTest, EarClippingTriangulation_ConvexSquare_ReturnsValidIndexTriplets) {
+  std::vector<g::Point2D> square = {{0, 0}, {2, 0}, {2, 2}, {0, 2}};
+  auto tri_indices = gd::view::ear_clipping_triangulation(square, g::View2D::XY());
+
+  ASSERT_EQ(tri_indices.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, square.size());  // every index must be a valid index into the input
+    }
+    total_area += g::Triangle2D::Make(square[tri[0]], square[tri[1]], square[tri[2]]).Area();
+  }
+  EXPECT_NEAR(total_area, 4.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, EarClippingTriangulation_ConcavePentagon_ReturnsValidIndexTriplets) {
+  // Same chevron shape as the public-API test above (area 10, one reflex vertex at index 3).
+  std::vector<g::Point2D> chevron = {{0, 0}, {4, 0}, {4, 4}, {2, 1}, {0, 4}};
+  auto tri_indices = gd::view::ear_clipping_triangulation(chevron, g::View2D::XY());
+
+  ASSERT_EQ(tri_indices.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, chevron.size());
+    }
+    total_area += g::Triangle2D::Make(chevron[tri[0]], chevron[tri[1]], chevron[tri[2]]).Area();
+  }
+  EXPECT_NEAR(total_area, 10.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, EarClippingTriangulation_ReflexVertexOnNonAdjacentDiagonal_StaysInsidePolygon) {
+  // L-shaped hexagon whose reflex vertex (2, 2) sits exactly on the diagonal between two OTHER
+  // (non-adjacent) vertices: (0, 4) and (4, 0) both satisfy x + y == 4, same as (2, 2). Regression
+  // test for a bug where the ear-validity check used a strict point-in-triangle test, so a
+  // collinear-but-not-strictly-inside reflex vertex failed to disqualify a diagonal that actually
+  // exits the polygon through the notch -- producing a triangle with real area outside the polygon
+  // even though the total triangle area still happened to sum correctly by coincidence elsewhere.
+  std::vector<g::Point2D> l_shape = {{0, 0}, {4, 0}, {4, 2}, {2, 2}, {2, 4}, {0, 4}};
+  auto tri_indices = gd::view::ear_clipping_triangulation(l_shape, g::View2D::XY());
+  auto polygon = g::Polygon2D::Make(l_shape);
+
+  ASSERT_EQ(tri_indices.size(), 4u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    auto t = g::Triangle2D::Make(l_shape[tri[0]], l_shape[tri[1]], l_shape[tri[2]]);
+    total_area += t.Area();
+    EXPECT_TRUE(polygon.Contains(t.Centroid())) << "triangle " << t.ToWkt() << " strays outside the polygon";
+  }
+  EXPECT_NEAR(total_area, polygon.Area(), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, EarClippingTriangulation_CollinearMidEdgeVertex_ProducesCorrectAreaAndCount) {
+  // A 4x4 square with a redundant vertex (2, 0) sitting exactly on the middle of the bottom edge --
+  // (0,0), (2,0), (4,0) are exactly collinear, so (2,0) is neither reflex nor a normal convex ear.
+  // Diagnostic for the new are_collinear() skip-branch in ear_clipping_triangulation: after skipping
+  // vertex (2,0), the loop must still visit every other vertex with CORRECT i_prev/i_next.
+  std::vector<g::Point2D> square_with_midpoint = {{0, 0}, {2, 0}, {4, 0}, {4, 4}, {0, 4}};
+  auto tri_indices = gd::view::ear_clipping_triangulation(square_with_midpoint, g::View2D::XY());
+  auto polygon = g::Polygon2D::Make({{0, 0}, {4, 0}, {4, 4}, {0, 4}});  // the "true" shape, area 16
+
+  ASSERT_EQ(tri_indices.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, square_with_midpoint.size()) << "index out of range -- stale i_prev/i_next?";
+    }
+    auto t = g::Triangle2D::Make(square_with_midpoint[tri[0]], square_with_midpoint[tri[1]],
+                                 square_with_midpoint[tri[2]]);
+    total_area += t.Area();
+    EXPECT_TRUE(polygon.Contains(t.Centroid())) << "triangle " << t.ToWkt() << " strays outside the polygon";
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, TriangulateImpl_CalledDirectly_GuaranteedPath_ProducesCorrectTriangles) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  g::TriangulationParams settings{};  // Strategy::EarClipping, everything Enforce by default
+
+  auto triangles = gd::view::triangulate_impl(square, g::View2D::XY(), settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += g::Triangle2D::Make(t[0], t[1], t[2]).Area();
+  }
+  EXPECT_NEAR(total_area, 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, TriangulateImpl_CalledDirectly_AssertPath_ThrowsOnBadInput) {
+  std::vector<g::Point2D> cw_square = {{0, 0}, {0, 1}, {1, 1}, {1, 0}};  // CW, not CCW
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::EarClipping,
+                                  g::TriangulationParams::Simplicity::Guaranteed,
+                                  g::TriangulationParams::Winding::Assert,
+                                  g::TriangulationParams::Collinearity::Guaranteed};
+
+  EXPECT_THROW(gd::view::triangulate_impl(cw_square, g::View2D::XY(), settings), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, TriangulateImpl_CalledDirectly_FewerThanThreePoints_Throws) {
+  std::vector<g::Point2D> too_few = {{0, 0}, {1, 0}};
+  EXPECT_THROW(gd::view::triangulate_impl(too_few, g::View2D::XY(), g::TriangulationParams{}),
+              std::invalid_argument);
+}
+
+#pragma endregion
 
 }  // namespace geompp_tests
