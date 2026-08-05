@@ -56,6 +56,22 @@ void bind_triangulation_params(py::module_& m) {
                "Removes collinear/duplicate points before triangulating.")
         .export_values();
 
+    py::enum_<geompp::AdjacencyConformity>(m, "AdjacencyConformity",
+        "How to handle a batch of facets that violate \"every edge has at most 1 neighbor\" -- no facet "
+        "vertex may lie in the interior of another facet's edge, only exactly at that edge's own "
+        "start/end vertex. Known elsewhere as: no \"hanging nodes\" (FEM), no \"T-junctions\" (graphics), "
+        "a valid PSLG (mesh generation). validate_adjacency() / fix_adjacency() (below) do the actual "
+        "checking/repair; Mesh2D/3D.from_triangles, PolyMesh2D/3D.from_polygons, and "
+        "ConnectedMesh2D/3D.from_triangles always Assert this at construction time.")
+        .value("Guaranteed", geompp::AdjacencyConformity::Guaranteed,
+               "No check is carried out (runs at your own risk).")
+        .value("Assert", geompp::AdjacencyConformity::Assert,
+               "Raises if any violation (T-junction or non-manifold edge) is found.")
+        .value("Enforce", geompp::AdjacencyConformity::Enforce,
+               "Auto-repairs every T-junction via fix_adjacency(); still raises on a non-manifold edge "
+               "(a full edge shared by 3+ facets) -- there's no principled automatic fix for that one.")
+        .export_values();
+
     py::class_<geompp::TriangulationParams>(m, "TriangulationParams",
         "Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for "
         "triangulate() / Polygon2D.triangulate() / Polygon3D.triangulate() / PolyMesh2D.triangulate() / "

@@ -23,6 +23,16 @@ public static class ConnectedMeshTests {
       IsTrue(threw, "expected empty triangle list to throw");
     });
 
+    Test("ConnectedMesh2D_FromTriangles_NonManifoldEdge_Throws", () => {
+      var a = Triangle2D.Make(new(0, 0), new(1, 0), new(0.5, 1));
+      var b = Triangle2D.Make(new(1, 0), new(0, 0), new(0.5, -1));
+      var c = Triangle2D.Make(new(0, 0), new(1, 0), new(0.5, -2));
+      bool threw = false;
+      try { ConnectedMesh2D.FromTriangles(new[] { a, b, c }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a non-manifold edge (3 facets sharing it) to throw");
+    });
+
     Test("ConnectedMesh2D_FromTriangles_Single", () => {
       var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1));
       var mesh = ConnectedMesh2D.FromTriangles(new[] { t });
@@ -143,6 +153,16 @@ public static class ConnectedMeshTests {
       try { ConnectedMesh3D.FromTriangles(new Triangle3D[] { }); }
       catch (Exception) { threw = true; }
       IsTrue(threw, "expected empty triangle list to throw");
+    });
+
+    Test("ConnectedMesh3D_FromTriangles_NonManifoldEdge_Throws", () => {
+      var a = Triangle3D.Make(new(0, 0, 0), new(1, 0, 0), new(0.5, 1, 0));
+      var b = Triangle3D.Make(new(1, 0, 0), new(0, 0, 0), new(0.5, 0, 1));
+      var c = Triangle3D.Make(new(0, 0, 0), new(1, 0, 0), new(0.5, -1, 0));
+      bool threw = false;
+      try { ConnectedMesh3D.FromTriangles(new[] { a, b, c }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a non-manifold edge (3 facets sharing it) to throw");
     });
 
     Test("ConnectedMesh3D_FromTriangles_Single", () => {

@@ -163,4 +163,21 @@ struct TriangulationParams {
   Collinearity collinearity = Collinearity::Enforce;
 };
 
+/// @brief How to handle a batch of facets (Polygon2D/3D outer rings, or Triangle2D/3D) that violate the
+/// mesh-conformity rule "every edge has at most 1 neighbor" — equivalently, no facet vertex may lie in
+/// the interior of another facet's edge, only exactly at that edge's own start/end vertex. Known
+/// elsewhere as: no "hanging nodes" (FEM), no "T-junctions" (graphics), a valid PSLG (mesh generation).
+/// See validate_adjacency() / fix_adjacency() (calc_utils2d.hpp/calc_utils3d.hpp).
+///
+/// Two distinct violation shapes exist, and only one is repairable:
+///   - A T-junction (a vertex partially overlapping an edge) — fixable: splice the vertex into the
+///     coarse edge.
+///   - A non-manifold edge (a full edge shared by 3+ facets) — NOT fixable: there's no principled way
+///     to pick which 2 of the 3+ facets are "the real pair", so even Enforce throws on this one.
+enum class AdjacencyConformity {
+  Guaranteed,  ///< No check is carried out (runs at your own risk).
+  Assert,      ///< Throws std::invalid_argument if any violation (of either kind) is found.
+  Enforce      ///< Auto-repairs every T-junction via fix_adjacency(); still throws on a non-manifold edge.
+};
+
 }  // namespace geompp

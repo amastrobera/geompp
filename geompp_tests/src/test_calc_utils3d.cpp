@@ -495,4 +495,77 @@ TEST_F(CalcUtils3DTest, Triangulate_FewerThanThreePoints_Throws) {
   EXPECT_THROW(g::triangulate(too_few), std::invalid_argument);
 }
 
+TEST_F(CalcUtils3DTest, ValidateAdjacency_ConformingSharedEdge_ReturnsNoViolations) {
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  EXPECT_TRUE(g::validate_adjacency(std::vector<g::Polygon3D>{p0, p1}).empty());
+}
+
+TEST_F(CalcUtils3DTest, ValidateAdjacency_TJunction_DetectsViolation) {
+  // Two unit squares side by side (y=0 plane), plus a roof triangle spanning both squares' top -- its
+  // base edge passes straight through the squares' shared vertex without that vertex being one of the
+  // roof's own endpoints. Classic T-junction, native 3D (not View2D-projected).
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+
+  auto violations = g::validate_adjacency(std::vector<g::Polygon3D>{p0, p1, roof});
+
+  ASSERT_FALSE(violations.empty());
+  for (auto const& v : violations) {
+    EXPECT_FALSE(v.is_non_manifold);
+  }
+}
+
+TEST_F(CalcUtils3DTest, ValidateAdjacency_NonManifoldEdge_DetectsViolation) {
+  // Three triangles all sharing the exact same edge (0,0,0)-(1,0,0), fanned into three different planes.
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0.5, 1, 0)});
+  auto b = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, 0, 1)});
+  auto c = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, -1, 0)});
+
+  auto violations = g::validate_adjacency(std::vector<g::Polygon3D>{a, b, c});
+
+  ASSERT_FALSE(violations.empty());
+  EXPECT_TRUE(violations.front().is_non_manifold);
+  EXPECT_EQ(violations.front().facet_indices.size(), 3u);
+}
+
+TEST_F(CalcUtils3DTest, FixAdjacency_TJunction_SplicesVertexAndPreservesTotalArea) {
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+  std::vector<g::Polygon3D> facets{p0, p1, roof};
+
+  double area_before = 0.0;
+  for (auto const& f : facets) {
+    area_before += f.Area();
+  }
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+  double area_after = 0.0;
+  for (auto const& ring : fixed) {
+    g::TriangulationParams guaranteed_collinearity;
+    guaranteed_collinearity.collinearity = g::TriangulationParams::Collinearity::Guaranteed;
+    for (auto const& t : g::triangulate(ring, g::Vector3D(0, -1, 0), guaranteed_collinearity)) {
+      area_after += t.Area();
+    }
+  }
+  EXPECT_NEAR(area_before, area_after, 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, FixAdjacency_NonManifoldEdge_Throws) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0.5, 1, 0)});
+  auto b = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, 0, 1)});
+  auto c = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, -1, 0)});
+  EXPECT_THROW(g::fix_adjacency(std::vector<g::Polygon3D>{a, b, c}), std::invalid_argument);
+}
+
 }  // namespace geompp_tests

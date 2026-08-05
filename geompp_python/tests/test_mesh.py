@@ -16,6 +16,14 @@ class TestMesh2D:
         with pytest.raises(ValueError):
             geompp.Mesh2D.from_triangles([])
 
+    def test_from_triangles_non_manifold_edge_raises(self):
+        # Three triangles all sharing the exact same edge (0,0)-(1,0) -- a full edge with 3 neighbors.
+        a = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1))
+        b = geompp.Triangle2D.make(geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -1))
+        c = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, -2))
+        with pytest.raises(ValueError):
+            geompp.Mesh2D.from_triangles([a, b, c])
+
     def test_from_triangles_single(self):
         t = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1))
         mesh = geompp.Mesh2D.from_triangles([t])
@@ -62,6 +70,14 @@ class TestMesh3D:
     def test_from_triangles_empty_raises(self):
         with pytest.raises(ValueError):
             geompp.Mesh3D.from_triangles([])
+
+    def test_from_triangles_non_manifold_edge_raises(self):
+        # Three triangles all sharing the exact same edge (0,0,0)-(1,0,0), fanned into three planes.
+        a = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0.5, 1, 0))
+        b = geompp.Triangle3D.make(geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0), geompp.Point3D(0.5, 0, 1))
+        c = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0.5, -1, 0))
+        with pytest.raises(ValueError):
+            geompp.Mesh3D.from_triangles([a, b, c])
 
     def test_from_triangles_single(self):
         t = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0))

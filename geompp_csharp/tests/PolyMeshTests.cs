@@ -33,6 +33,18 @@ public static class PolyMeshTests {
       IsTrue(threw, "expected polygon with holes to throw");
     });
 
+    Test("PolyMesh2D_FromPolygons_TJunction_Throws", () => {
+      // Two unit squares side by side, plus a roof triangle spanning both squares' top -- its base
+      // edge passes straight through the squares' shared vertex. Classic T-junction.
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
+      bool threw = false;
+      try { PolyMesh2D.FromPolygons(new[] { p0, p1, roof }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a T-junction to throw");
+    });
+
     Test("PolyMesh2D_FromPolygons_SingleQuad", () => {
       var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
       var mesh = PolyMesh2D.FromPolygons(new[] { p });
@@ -75,6 +87,16 @@ public static class PolyMeshTests {
       try { PolyMesh3D.FromPolygons(new[] { outer }); }
       catch (Exception) { threw = true; }
       IsTrue(threw, "expected polygon with holes to throw");
+    });
+
+    Test("PolyMesh3D_FromPolygons_TJunction_Throws", () => {
+      var p0 = Polygon3D.Make(new Point3D[] { new(0, 0, 1), new(1, 0, 1), new(1, 0, 0), new(0, 0, 0) });
+      var p1 = Polygon3D.Make(new Point3D[] { new(1, 0, 1), new(2, 0, 1), new(2, 0, 0), new(1, 0, 0) });
+      var roof = Polygon3D.Make(new Point3D[] { new(1, 0, 2), new(2, 0, 1), new(0, 0, 1) });
+      bool threw = false;
+      try { PolyMesh3D.FromPolygons(new[] { p0, p1, roof }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a T-junction to throw");
     });
 
     Test("PolyMesh3D_FromPolygons_SharedEdge_WeldsAndPreservesFaces", () => {

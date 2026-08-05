@@ -161,6 +161,68 @@ private:
     TriangulationCollinearity _collinearity;
 };
 
+// How to handle a batch of facets that violate "every edge has at most 1 neighbor" -- no facet vertex
+// may lie in the interior of another facet's edge, only exactly at that edge's own start/end vertex.
+// Known elsewhere as: no "hanging nodes" (FEM), no "T-junctions" (graphics), a valid PSLG (mesh
+// generation). GeomUtil.ValidateAdjacency() / FixAdjacency() do the actual checking/repair;
+// Mesh2D/3D.FromTriangles, PolyMesh2D/3D.FromPolygons, and ConnectedMesh2D/3D.FromTriangles always
+// Assert this at construction time. Values must stay in the same order as geompp::AdjacencyConformity
+// (converted via a raw static_cast by ordinal, same reasoning as TriangulationStrategy above).
+public enum class AdjacencyConformity {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if any violation (T-junction or non-manifold edge) is found.
+    Assert = 1,
+    // Auto-repairs every T-junction via FixAdjacency(); still throws on a non-manifold edge (a full
+    // edge shared by 3+ facets) -- there's no principled automatic fix for that one.
+    Enforce = 2
+};
+
+// One "more than 1 neighbor" violation found by GeomUtil.ValidateAdjacency() across a batch of 2D
+// facets. A T-junction (a vertex partially overlapping an edge) is fixable -- see OnVertex; a
+// non-manifold edge (a full edge shared by 3+ facets) is not, since there's no principled way to pick
+// which 2 of the 3+ facets are "the real pair".
+public ref class AdjacencyViolation2D sealed {
+public:
+    property Point2D^ EdgeP0 { Point2D^ get() { return _edgeP0; } }
+    property Point2D^ EdgeP1 { Point2D^ get() { return _edgeP1; } }
+    property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
+    property bool IsNonManifold { bool get() { return _isNonManifold; } }
+    property Point2D^ OnVertex { Point2D^ get() { return _onVertex; } }
+internal:
+    AdjacencyViolation2D(Point2D^ edgeP0, Point2D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
+                         bool isNonManifold, Point2D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+private:
+    Point2D^ _edgeP0;
+    Point2D^ _edgeP1;
+    System::Collections::Generic::List<int>^ _facetIndices;
+    bool _isNonManifold;
+    Point2D^ _onVertex;
+};
+
+// 3D counterpart of AdjacencyViolation2D -- same fields, operating on Point3D. Native 3D
+// collinearity/betweenness, not View2D-projected (a shared 2D projection would be wrong for a general
+// 3D mesh whose facets aren't all coplanar).
+public ref class AdjacencyViolation3D sealed {
+public:
+    property Point3D^ EdgeP0 { Point3D^ get() { return _edgeP0; } }
+    property Point3D^ EdgeP1 { Point3D^ get() { return _edgeP1; } }
+    property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
+    property bool IsNonManifold { bool get() { return _isNonManifold; } }
+    property Point3D^ OnVertex { Point3D^ get() { return _onVertex; } }
+internal:
+    AdjacencyViolation3D(Point3D^ edgeP0, Point3D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
+                         bool isNonManifold, Point3D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+private:
+    Point3D^ _edgeP0;
+    Point3D^ _edgeP1;
+    System::Collections::Generic::List<int>^ _facetIndices;
+    bool _isNonManifold;
+    Point3D^ _onVertex;
+};
+
 // Static utility class — wraps the geompp free functions that operate on point collections.
 // Consumed directly or via the Geompp.Extensions extension methods.
 public ref class GeomUtil abstract sealed {
@@ -294,6 +356,27 @@ public:
         System::Collections::Generic::List<Point3D^>^ points, Vector3D^ normal, TriangulationParams^ settings);
     static System::Collections::Generic::IEnumerable<Triangle3D^>^ Triangulate(
         System::Collections::Generic::List<Point3D^>^ points, TriangulationParams^ settings);
+
+    // ValidateAdjacency — checks a batch of facets for "every edge has at most 1 neighbor". Returns
+    // every violation found (both T-junctions and non-manifold edges); empty if conforming.
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ ValidateAdjacency(array<Polygon2D^>^ facets);
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ ValidateAdjacency(array<Triangle2D^>^ facets);
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ ValidateAdjacency(array<Polygon3D^>^ facets);
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ ValidateAdjacency(array<Triangle3D^>^ facets);
+
+    // FixAdjacency — repairs every T-junction ValidateAdjacency() would report, by splicing the
+    // foreign vertex into the coarse edge's facet. Throws on a non-manifold edge (not fixable). Returns
+    // raw point rings, NOT Polygon2D/3D -- Polygon2D/3D.Make() unconditionally strips collinear points,
+    // which would undo the splice.
+    static array<array<Point2D^>^>^ FixAdjacency(array<Polygon2D^>^ facets);
+    static array<array<Point3D^>^>^ FixAdjacency(array<Polygon3D^>^ facets);
+
+    // Triangulate (batch) — batch-triangulates a set of 2D polygon facets together, the free-function
+    // equivalent of PolyMesh2D.FromPolygons(polygons).Triangulate(). Unlike PolyMesh2D.FromPolygons
+    // (which always throws on bad adjacency), conformity is typically Enforce: auto-repairs a
+    // T-junction, still throws on a non-manifold edge.
+    static System::Collections::Generic::IEnumerable<Triangle2D^>^ Triangulate(
+        array<Polygon2D^>^ polygons, AdjacencyConformity conformity, TriangulationParams^ settings);
 };
 
 }  // namespace GeomPP

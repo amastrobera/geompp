@@ -125,3 +125,66 @@ class TestTriangulate:
         plain_wkt = {t.to_wkt() for t in plain}
         best_fit_wkt = {t.to_wkt() for t in best_fit}
         assert plain_wkt != best_fit_wkt
+
+    def test_validate_adjacency_conforming_returns_no_violations(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        assert geompp.validate_adjacency([p0, p1]) == []
+
+    def test_validate_adjacency_t_junction_detects_violation(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
+
+        violations = geompp.validate_adjacency([p0, p1, roof])
+
+        assert len(violations) > 0
+        assert all(not v.is_non_manifold for v in violations)
+
+    def test_validate_adjacency_non_manifold_edge_detects_violation(self):
+        a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1)])
+        b = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -1)])
+        c = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -2)])
+
+        violations = geompp.validate_adjacency([a, b, c])
+
+        assert len(violations) > 0
+        assert violations[0].is_non_manifold
+        assert len(list(violations[0].facet_indices)) == 3
+
+    def test_fix_adjacency_t_junction_splices_vertex_and_preserves_total_area(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
+        facets = [p0, p1, roof]
+        area_before = sum(f.area() for f in facets)
+
+        fixed = geompp.fix_adjacency(facets)
+
+        assert geompp.validate_adjacency(fixed) == []
+        guaranteed_collinearity = geompp.TriangulationParams(collinearity=geompp.TriangulationCollinearity.Guaranteed)
+        area_after = sum(t.area() for ring in fixed for t in geompp.triangulate(ring, guaranteed_collinearity))
+        assert approx(area_before, area_after)
+
+    def test_fix_adjacency_non_manifold_edge_raises(self):
+        a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1)])
+        b = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -1)])
+        c = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -2)])
+        with pytest.raises(ValueError):
+            geompp.fix_adjacency([a, b, c])
+
+    def test_triangulate_polygon_batch_default_enforce_fixes_t_junction(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
+
+        triangles = geompp.triangulate([p0, p1, roof])
+
+        assert approx(sum(t.area() for t in triangles), 3.0)
+
+    def test_triangulate_polygon_batch_assert_raises_on_t_junction(self):
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
+        with pytest.raises(ValueError):
+            geompp.triangulate([p0, p1, roof], geompp.AdjacencyConformity.Assert)

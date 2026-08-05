@@ -4474,6 +4474,32 @@ A quick list of code examples per topic is provided here.
     <img src="./images/grid_cell.png" width="420" alt="GridCell2D bucketing: near-duplicate points inside one cell weld to a single vertex; points straddling a cell boundary stay distinct even when closer together">
   </p>
 
+  #### The other invariant: every edge has at most 1 neighbor
+
+  Welding coincident points isn't the only thing `FromTriangles()`/`FromPolygons()` guarantee. Every one
+  of them (`Mesh2D/3D`, `PolyMesh2D/3D`, `ConnectedMesh2D/3D`) also rejects a **non-conforming** input: a
+  facet vertex is never allowed to land in the *interior* of another facet's edge — it may only touch a
+  neighboring facet exactly at that edge's own start or end vertex. Equivalently: every edge, across the
+  whole set of facets, has at most 1 neighbor (a boundary edge has 0, a normal shared interior edge has
+  1). This is the same rule known elsewhere as a "conforming mesh" / no "hanging nodes" (FEM, finite element method), 
+  no "T-junctions" (graphics), or a valid PSLG (planar straight line graph) mesh generation — 
+  not something invented for this library.
+
+  Two distinct violations get checked for, and only one of them is fixable:
+  - A **T-junction** — a vertex partially overlapping an edge (a wall's corner landing halfway along a
+    longer neighboring wall instead of meeting it exactly) — is fixable: the missing vertex can be
+    spliced into the coarse edge, same shape, same area, one extra flat-180°-angle vertex.
+  - A **non-manifold edge** — a *full* edge shared by 3 or more facets, not just 1 — is not fixable:
+    there's no principled way to guess which 2 of the 3+ facets are "the real pair" that should share it.
+
+  `validate_adjacency(facets)` reports every violation found (empty = conforming); `fix_adjacency(facets)`
+  repairs every T-junction it can and throws on the first non-manifold edge, since that one genuinely has
+  no valid automatic fix. `Mesh2D/3D::FromTriangles()`, `PolyMesh2D/3D::FromPolygons()`, and
+  `ConnectedMesh2D/3D::FromTriangles()` all call `validate_adjacency()` unconditionally and throw on any
+  violation — a non-conforming mesh is treated as invalid caller input at construction time, never
+  silently repaired. The batch `triangulate(vector<Polygon2D>, ...)` free function (§11) is the one place
+  that repairs instead of rejecting by default — see there for why.
+
 <details open>
 <summary><b> &nbsp; &nbsp; 10.1 Triangle mesh (Mesh2D / Mesh3D)</b></summary>
 
@@ -5034,6 +5060,16 @@ A quick list of code examples per topic is provided here.
   and only expose the `Strategy` choice. Calling `triangulate()` directly on a raw point list is the
   more general entry point — no `Polygon2D/3D` required, and full control over how much to trust the
   input via `TriangulationParams`.
+
+  A third overload, `triangulate(vector<Polygon2D>, conformity, settings)`, batches this across a whole
+  set of polygon facets at once — the free-function equivalent of
+  `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
+  constructing/keeping a full `PolyMesh2D`. Unlike `PolyMesh2D::FromPolygons()` (§10), which always
+  rejects a non-conforming set of facets outright, this overload defaults `conformity` to `Enforce`:
+  since the caller isn't building a persistent mesh object here, it's more useful to auto-repair
+  whatever's fixable (splice a stray T-junction vertex back in — see `fix_adjacency()`, §10) than to
+  simply refuse the input. It still throws on a non-manifold edge either way, since that one has no
+  valid automatic fix.
 
   The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
   at its inner corners — using `EarClippingBestFit`, the default. The first lap around the ring clips

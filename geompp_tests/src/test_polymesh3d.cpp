@@ -21,6 +21,16 @@ TEST_F(PolyMesh3DTest, FromPolygons_Empty_Throws) {
   EXPECT_THROW(g::PolyMesh3D::FromPolygons({}), std::invalid_argument);
 }
 
+TEST_F(PolyMesh3DTest, FromPolygons_TJunction_Throws) {
+  // Two unit squares side by side (in the y=0 plane), plus a roof triangle spanning both squares' top
+  // -- its base edge passes straight through the squares' shared vertex without that vertex being one
+  // of the roof's own endpoints. Classic T-junction.
+  auto p0 = g::Polygon3D::Make({g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make({g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+  EXPECT_THROW(g::PolyMesh3D::FromPolygons({p0, p1, roof}), std::invalid_argument);
+}
+
 TEST_F(PolyMesh3DTest, FromPolygons_PolygonWithHoles_Throws) {
   auto outer = g::Polygon3D::Make(
       {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)},

@@ -24,8 +24,10 @@ namespace geompp {
 // forward-declared in sweep_line2d.hpp for EventQueue2D's constructors — harmless redundancy, kept here so
 // this header stays self-sufficient regardless of what sweep_line2d.hpp needs internally).
 class Polygon2D;
+class Polygon3D;
 class Line2D;
 class Triangle2D;
+class Triangle3D;
 
 /// @brief The pair of points on a shape that are extreme (least / greatest) along a given direction.
 /// @tparam PointT Point2D or Point3D.
@@ -727,5 +729,92 @@ extern template std::vector<Point3D> polyline_expansion(std::vector<Point3D> con
 /// named by @p settings is violated.
 std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input,
                                     TriangulationParams const& settings = TriangulationParams{});
+
+/// @brief One "more than 1 neighbor" violation of the mesh-conformity rule found by validate_adjacency()
+/// across a batch of facets — see AdjacencyConformity's own docs for what the rule means and why a
+/// T-junction is fixable but a non-manifold edge isn't.
+/// @tparam PointT Point2D or Point3D. Not View2D-projected: unlike triangulation/convexity/winding,
+/// "does this vertex lie on this edge" is a well-defined, exact question in native space for either
+/// dimension. For a general 3D mesh (facets in many different planes -- a building's walls and roof,
+/// say), flattening through one shared 2D view would actually be WRONG here: it can manufacture a
+/// spurious overlap between two edges that don't actually touch in 3D, or miss a genuine touch,
+/// depending on the projection angle.
+template <typename PointT>
+struct AdjacencyViolation {
+  PointT edge_p0, edge_p1;                 ///< the shared/coarse edge the violation is on.
+  std::vector<std::size_t> facet_indices;  ///< every facet (index into the input) touching this edge.
+                                            ///< For a T-junction: facet_indices[0] owns the coarse edge
+                                            ///< (edge_p0, edge_p1) -- that's the one fix_adjacency()
+                                            ///< splices @ref on_vertex into.
+  bool is_non_manifold = false;            ///< true: a full edge shared by 3+ facets, not fixable.
+                                            ///< false: a T-junction, fixable -- see @ref on_vertex.
+  PointT on_vertex;                        ///< meaningful only when !is_non_manifold: the foreign vertex
+                                            ///< lying in the interior of (edge_p0, edge_p1).
+};
+
+/// @brief Checks a batch of facets for the mesh-conformity rule "every edge has at most 1 neighbor" --
+/// equivalently, no facet vertex may lie in the interior of another facet's edge, only exactly at that
+/// edge's own start/end vertex. The same rule Mesh2D/3D::FromTriangles/PolyMesh2D/3D::FromPolygons/
+/// ConnectedMesh2D/3D::FromTriangles enforce (always, via Assert) at construction time.
+/// @param facets each facet's outer ring (e.g. Polygon2D/3D::Perimeter(), or a Triangle2D/3D's 3 vertices).
+/// @returns every violation found (both T-junctions and non-manifold edges); empty if conforming.
+/// @note O(n²)-ish (pairwise edge/vertex comparisons) -- a validation/construction-time check, not
+/// intended to run in a hot loop.
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<Polygon2D> const& facets);
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<Triangle2D> const& facets);
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<Polygon3D> const& facets);
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<Triangle3D> const& facets);
+
+/// @brief validate_adjacency() overload for raw point rings (not yet wrapped in Polygon2D/3D) -- what
+/// fix_adjacency() below returns, and what its own detection pass runs on internally.
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<std::vector<Point2D>> const& facet_rings);
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<std::vector<Point3D>> const& facet_rings);
+
+/// @brief Repairs every T-junction validate_adjacency() would report, by splicing the foreign vertex
+/// into the coarse edge's facet (same shape, same area, one more flat-180°-angle vertex on that edge --
+/// the same kind of vertex TriangulationParams::Collinearity already treats as legitimate). Does NOT
+/// attempt to fix a non-manifold edge (a full edge shared by 3+ facets); there's no principled automatic
+/// repair for that, so it throws instead -- same as validate_adjacency() + Assert would.
+///
+/// Returns raw point rings, NOT reconstructed Polygon2D/3D objects: Polygon2D/3D::Make() unconditionally
+/// calls remove_collinear() on its input, which would immediately strip the just-spliced vertex back
+/// out again -- silently undoing the repair. Whatever triangulates these rings afterward must do so
+/// with Collinearity::Guaranteed (see triangulate(vector<Polygon2D>, ...) below), for the same reason.
+/// @throws std::invalid_argument if any non-manifold edge is found.
+std::vector<std::vector<Point2D>> fix_adjacency(std::vector<Polygon2D> const& facets);
+std::vector<std::vector<Point3D>> fix_adjacency(std::vector<Polygon3D> const& facets);
+
+/// @brief Batch-triangulates a set of polygon facets together. The free-function equivalent of
+/// `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
+/// constructing/keeping a full PolyMesh2D. Unlike PolyMesh2D::FromPolygons (which always Asserts, since
+/// bad input there is a straightforward construction error), this defaults to fixing what it can.
+/// @param polygons each facet's outer ring (no holes).
+/// @param conformity how to handle cross-facet adjacency violations (T-junctions / non-manifold edges)
+/// before triangulating -- see AdjacencyConformity. Defaults to Enforce.
+/// @param settings per-facet TriangulationParams (Strategy/Simplicity/Winding/Collinearity), same as the
+/// single-ring triangulate() overload above. Under Enforce, a facet that needed a conformity splice is
+/// always triangulated with Collinearity::Guaranteed regardless of @p settings -- otherwise the caller's
+/// own Collinearity::Enforce (the TriangulationParams default) would strip the just-spliced vertex right
+/// back out, silently undoing the repair and reintroducing the T-junction in the triangulated output.
+/// @returns every triangle from every facet, combined into one flat list.
+/// @throws std::invalid_argument on a non-manifold edge (any conformity mode other than Guaranteed), or
+/// on any violation at all under Assert.
+std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons,
+                                    AdjacencyConformity conformity = AdjacencyConformity::Enforce,
+                                    TriangulationParams const& settings = TriangulationParams{});
+
+namespace detail {
+
+/// @brief Throws std::invalid_argument with a descriptive message (naming the offending edge and
+/// facets) if @p violations is non-empty. Shared by Mesh2D/3D::FromTriangles, PolyMesh2D/3D::FromPolygons,
+/// and ConnectedMesh2D/3D::FromTriangles, which all unconditionally Assert this rule at construction
+/// time — a non-conforming mesh is treated as invalid caller input there, never silently repaired.
+template <typename PointT>
+void assert_adjacency(std::vector<AdjacencyViolation<PointT>> const& violations);
+
+extern template void assert_adjacency(std::vector<AdjacencyViolation<Point2D>> const&);
+extern template void assert_adjacency(std::vector<AdjacencyViolation<Point3D>> const&);
+
+}  // namespace detail
 
 }  // namespace geompp

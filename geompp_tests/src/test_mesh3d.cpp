@@ -21,6 +21,15 @@ TEST_F(Mesh3DTest, FromTriangles_Empty_Throws) {
   EXPECT_THROW(g::Mesh3D::FromTriangles({}), std::invalid_argument);
 }
 
+TEST_F(Mesh3DTest, FromTriangles_NonManifoldEdge_Throws) {
+  // Three triangles all sharing the exact same edge (0,0,0)-(1,0,0), fanned out into three different
+  // planes -- a full edge with 3 neighbors, not just 1.
+  auto a = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0.5, 1, 0));
+  auto b = g::Triangle3D::Make(g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, 0, 1));
+  auto c = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0.5, -1, 0));
+  EXPECT_THROW(g::Mesh3D::FromTriangles({a, b, c}), std::invalid_argument);
+}
+
 TEST_F(Mesh3DTest, FromTriangles_SingleTriangle) {
   auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
   auto mesh = g::Mesh3D::FromTriangles({t});

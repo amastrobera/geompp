@@ -1431,6 +1431,119 @@ TEST_F(CalcUtils2DTest, Triangulate_DelaunayStrategy_Throws) {
   EXPECT_THROW(g::triangulate(square, settings), std::runtime_error);
 }
 
+#pragma region validate_adjacency / fix_adjacency / triangulate(vector<Polygon2D>)
+
+TEST_F(CalcUtils2DTest, ValidateAdjacency_ConformingSharedEdge_ReturnsNoViolations) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  EXPECT_TRUE(g::validate_adjacency(std::vector<g::Polygon2D>{p0, p1}).empty());
+}
+
+TEST_F(CalcUtils2DTest, ValidateAdjacency_TJunction_DetectsViolation) {
+  // Two unit squares side by side (share edge (1,0)-(1,1)), plus a roof triangle spanning both squares'
+  // top -- its base edge (0,1)-(2,1) passes straight through (1,1) without the two squares' shared
+  // vertex being one of ITS endpoints. Classic T-junction.
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+
+  auto violations = g::validate_adjacency(std::vector<g::Polygon2D>{p0, p1, roof});
+
+  ASSERT_FALSE(violations.empty());
+  for (auto const& v : violations) {
+    EXPECT_FALSE(v.is_non_manifold);
+  }
+}
+
+TEST_F(CalcUtils2DTest, ValidateAdjacency_NonManifoldEdge_DetectsViolation) {
+  // Three triangles all sharing the exact same edge (0,0)-(1,0) -- a full edge with 3 neighbors, not
+  // just 1. No amount of vertex splicing can fix this (there's no missing vertex).
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1)});
+  auto c = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2)});
+
+  auto violations = g::validate_adjacency(std::vector<g::Polygon2D>{a, b, c});
+
+  ASSERT_FALSE(violations.empty());
+  EXPECT_TRUE(violations.front().is_non_manifold);
+  EXPECT_EQ(violations.front().facet_indices.size(), 3u);
+}
+
+TEST_F(CalcUtils2DTest, FixAdjacency_TJunction_SplicesVertexAndPreservesTotalArea) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+  std::vector<g::Polygon2D> facets{p0, p1, roof};
+
+  double area_before = 0.0;
+  for (auto const& f : facets) {
+    area_before += f.Area();
+  }
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+  // fixed rings carry a deliberately-collinear splice vertex, so they must be rebuilt with
+  // Collinearity::Guaranteed -- Polygon2D::Make() (which unconditionally strips collinear points)
+  // would undo the splice, same reasoning as triangulate(vector<Polygon2D>, Enforce, ...) itself.
+  double area_after = 0.0;
+  for (auto const& ring : fixed) {
+    g::TriangulationParams guaranteed_collinearity;
+    guaranteed_collinearity.collinearity = g::TriangulationParams::Collinearity::Guaranteed;
+    for (auto const& t : g::triangulate(ring, guaranteed_collinearity)) {
+      area_after += t.Area();
+    }
+  }
+  EXPECT_NEAR(area_before, area_after, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, FixAdjacency_NonManifoldEdge_Throws) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1)});
+  auto c = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2)});
+  EXPECT_THROW(g::fix_adjacency(std::vector<g::Polygon2D>{a, b, c}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_DefaultEnforce_FixesTJunctionAndTriangulates) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+
+  auto triangles = g::triangulate(std::vector<g::Polygon2D>{p0, p1, roof});
+
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 3.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_Assert_ThrowsOnTJunction) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+
+  EXPECT_THROW(g::triangulate(std::vector<g::Polygon2D>{p0, p1, roof}, g::AdjacencyConformity::Assert),
+              std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_Guaranteed_SkipsCheckAndStillTriangulatesEachFacet) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+
+  auto triangles =
+      g::triangulate(std::vector<g::Polygon2D>{p0, p1, roof}, g::AdjacencyConformity::Guaranteed);
+
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 3.0, 1e-9);
+}
+
+#pragma endregion
+
 #pragma region detail::view triangulation internals (is_ccw, has_collinears, ear_clipping_triangulation,
 // triangulate_impl) — C++-only, never bound to Python/C#, so this is their only test coverage.
 

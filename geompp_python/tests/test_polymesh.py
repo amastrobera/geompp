@@ -23,6 +23,15 @@ class TestPolyMesh2D:
         with pytest.raises(ValueError):
             geompp.PolyMesh2D.from_polygons([outer])
 
+    def test_from_polygons_t_junction_raises(self):
+        # Two unit squares side by side, plus a roof triangle spanning both squares' top -- its base
+        # edge passes straight through the squares' shared vertex. Classic T-junction.
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
+        with pytest.raises(ValueError):
+            geompp.PolyMesh2D.from_polygons([p0, p1, roof])
+
     def test_from_polygons_single_quad(self):
         p = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
         mesh = geompp.PolyMesh2D.from_polygons([p])
@@ -77,6 +86,17 @@ class TestPolyMesh3D:
             [[geompp.Point3D(1, 1, 0), geompp.Point3D(1, 2, 0), geompp.Point3D(2, 2, 0), geompp.Point3D(2, 1, 0)]])
         with pytest.raises(ValueError):
             geompp.PolyMesh3D.from_polygons([outer])
+
+    def test_from_polygons_t_junction_raises(self):
+        # Two unit squares side by side (y=0 plane), plus a roof triangle spanning both squares' top.
+        p0 = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 1), geompp.Point3D(1, 0, 1), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0)])
+        p1 = geompp.Polygon3D.make(
+            [geompp.Point3D(1, 0, 1), geompp.Point3D(2, 0, 1), geompp.Point3D(2, 0, 0), geompp.Point3D(1, 0, 0)])
+        roof = geompp.Polygon3D.make(
+            [geompp.Point3D(1, 0, 2), geompp.Point3D(2, 0, 1), geompp.Point3D(0, 0, 1)])
+        with pytest.raises(ValueError):
+            geompp.PolyMesh3D.from_polygons([p0, p1, roof])
 
     def test_from_polygons_single_quad(self):
         p = geompp.Polygon3D.make(

@@ -1,11 +1,14 @@
 #include "calc_utils2d.hpp"
 
 #include "line2d.hpp"
+#include "line_segment3d.hpp"
 #include "point3d.hpp"
 #include "polygon2d.hpp"
+#include "polygon3d.hpp"
 #include "segment_iterator2d.hpp"
 #include "sweep_line2d.hpp"
 #include "triangle2d.hpp"
+#include "triangle3d.hpp"
 #include "vector2d.hpp"
 #include "vector3d.hpp"
 
@@ -2788,5 +2791,301 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input, Triangula
   }
   return result;
 }
+
+namespace {
+
+// PointT-specific segment-containment test, dispatched by overload resolution -- native per dimension,
+// deliberately not View2D-projected (see AdjacencyViolation's own docs for why that would be wrong here).
+bool segment_contains(Point2D const& a, Point2D const& b, Point2D const& v) {
+  return LineSegment2D::Make(a, b).Contains(v);
+}
+bool segment_contains(Point3D const& a, Point3D const& b, Point3D const& v) {
+  return LineSegment3D::Make(a, b).Contains(v);
+}
+
+template <typename PointT>
+std::vector<AdjacencyViolation<PointT>> validate_adjacency_impl(std::vector<std::vector<PointT>> const& facet_rings) {
+  std::vector<AdjacencyViolation<PointT>> violations;
+
+  struct Edge {
+    std::size_t facet;
+    PointT a, b;
+  };
+  std::vector<Edge> edges;
+  for (std::size_t f = 0; f < facet_rings.size(); ++f) {
+    auto const& ring = facet_rings[f];
+    std::size_t n = ring.size();
+    for (std::size_t i = 0; i < n; ++i) {
+      edges.push_back({f, ring[i], ring[(i + 1) % n]});
+    }
+  }
+
+  // Pass 1: non-manifold edges -- group edges that are the exact same undirected segment; a group of
+  // more than 2 means more than 1 facet neighbors that edge (a normal boundary edge groups to 1, a
+  // normal shared interior edge groups to 2).
+  std::vector<bool> used(edges.size(), false);
+  for (std::size_t i = 0; i < edges.size(); ++i) {
+    if (used[i]) {
+      continue;
+    }
+    std::vector<std::size_t> group{i};
+    used[i] = true;
+    for (std::size_t j = i + 1; j < edges.size(); ++j) {
+      if (used[j]) {
+        continue;
+      }
+      bool same_dir = edges[i].a.AlmostEquals(edges[j].a) && edges[i].b.AlmostEquals(edges[j].b);
+      bool rev_dir = edges[i].a.AlmostEquals(edges[j].b) && edges[i].b.AlmostEquals(edges[j].a);
+      if (same_dir || rev_dir) {
+        group.push_back(j);
+        used[j] = true;
+      }
+    }
+
+    if (group.size() > 2) {
+      std::vector<std::size_t> facet_indices;
+      for (auto gi : group) {
+        facet_indices.push_back(edges[gi].facet);
+      }
+      violations.push_back({edges[group[0]].a, edges[group[0]].b, facet_indices, true, edges[group[0]].a});
+    }
+  }
+
+  // Pass 2: T-junctions -- a vertex from some facet lying in the interior of another facet's edge
+  // (excluding that edge's own two endpoints).
+  std::vector<PointT> unique_vertices;
+  std::vector<std::size_t> vertex_owner;
+  for (std::size_t f = 0; f < facet_rings.size(); ++f) {
+    for (auto const& p : facet_rings[f]) {
+      bool found = false;
+      for (auto const& q : unique_vertices) {
+        if (p.AlmostEquals(q)) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        unique_vertices.push_back(p);
+        vertex_owner.push_back(f);
+      }
+    }
+  }
+
+  for (auto const& e : edges) {
+    for (std::size_t vi = 0; vi < unique_vertices.size(); ++vi) {
+      auto const& v = unique_vertices[vi];
+      if (v.AlmostEquals(e.a) || v.AlmostEquals(e.b)) {
+        continue;
+      }
+      if (segment_contains(e.a, e.b, v)) {
+        violations.push_back({e.a, e.b, {e.facet, vertex_owner[vi]}, false, v});
+      }
+    }
+  }
+
+  return violations;
+}
+
+template <typename PointT>
+std::vector<std::vector<PointT>> fix_adjacency_impl(std::vector<std::vector<PointT>> const& facet_rings) {
+  auto violations = validate_adjacency_impl(facet_rings);
+
+  for (auto const& v : violations) {
+    if (v.is_non_manifold) {
+      throw std::invalid_argument("fix_adjacency: edge (" + v.edge_p0.ToWkt() + " -> " + v.edge_p1.ToWkt() +
+                                  ") is shared by " + std::to_string(v.facet_indices.size()) +
+                                  " facets (max 2 allowed) -- not automatically fixable");
+    }
+  }
+
+  struct SpliceKey {
+    std::size_t facet;
+    PointT a, b;
+  };
+  std::vector<std::pair<SpliceKey, std::vector<PointT>>> splices;
+
+  for (auto const& v : violations) {
+    std::size_t coarse_facet = v.facet_indices[0];
+
+    bool found = false;
+    for (auto& [key, pts] : splices) {
+      if (key.facet == coarse_facet && key.a.AlmostEquals(v.edge_p0) && key.b.AlmostEquals(v.edge_p1)) {
+        pts.push_back(v.on_vertex);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      splices.push_back({{coarse_facet, v.edge_p0, v.edge_p1}, {v.on_vertex}});
+    }
+  }
+
+  std::vector<std::vector<PointT>> new_perimeters = facet_rings;
+
+  for (auto const& [key, pts] : splices) {
+    auto& perim = new_perimeters[key.facet];
+    for (std::size_t i = 0; i < perim.size(); ++i) {
+      if (perim[i].AlmostEquals(key.a)) {
+        std::vector<PointT> sorted_pts = pts;
+        std::sort(sorted_pts.begin(), sorted_pts.end(), [&](PointT const& x, PointT const& y) {
+          return key.a.DistanceTo(x) < key.a.DistanceTo(y);
+        });
+        perim.insert(perim.begin() + static_cast<std::ptrdiff_t>(i) + 1, sorted_pts.begin(), sorted_pts.end());
+        break;
+      }
+    }
+  }
+
+  // NOTE: deliberately NOT rebuilt via Polygon2D/3D::Make() -- Make() unconditionally strips collinear
+  // points, which would immediately undo the splice above. These raw rings are the fix.
+  return new_perimeters;
+}
+
+}  // namespace
+
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<Polygon2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<Triangle2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<std::vector<Point2D>> const& facet_rings) {
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<Polygon3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<Triangle3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<std::vector<Point3D>> const& facet_rings) {
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<std::vector<Point2D>> fix_adjacency(std::vector<Polygon2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return fix_adjacency_impl(facet_rings);
+}
+
+std::vector<std::vector<Point3D>> fix_adjacency(std::vector<Polygon3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return fix_adjacency_impl(facet_rings);
+}
+
+std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, AdjacencyConformity conformity,
+                                    TriangulationParams const& settings) {
+  switch (conformity) {
+    case AdjacencyConformity::Guaranteed: {
+      std::vector<Triangle2D> result;
+      for (auto const& poly : polygons) {
+        auto tris = triangulate(poly.Perimeter(), settings);
+        result.insert(result.end(), std::make_move_iterator(tris.begin()), std::make_move_iterator(tris.end()));
+      }
+      return result;
+    }
+    case AdjacencyConformity::Assert: {
+      auto violations = validate_adjacency(polygons);
+      if (!violations.empty()) {
+        auto const& v = violations.front();
+        throw std::invalid_argument(
+            "triangulate: facets violate adjacency conformity at edge (" + v.edge_p0.ToWkt() + " -> " +
+            v.edge_p1.ToWkt() + ") -- " +
+            (v.is_non_manifold ? "shared by " + std::to_string(v.facet_indices.size()) + " facets (max 2 allowed)"
+                                : "vertex " + v.on_vertex.ToWkt() + " lies on this edge (a T-junction)"));
+      }
+      std::vector<Triangle2D> result;
+      for (auto const& poly : polygons) {
+        auto tris = triangulate(poly.Perimeter(), settings);
+        result.insert(result.end(), std::make_move_iterator(tris.begin()), std::make_move_iterator(tris.end()));
+      }
+      return result;
+    }
+    case AdjacencyConformity::Enforce: {
+      // fix_adjacency() returns raw rings that may carry a deliberately-collinear splice vertex --
+      // triangulate them with Collinearity::Guaranteed no matter what settings.collinearity says, or
+      // the caller's own default (Enforce) would strip that vertex right back out and silently
+      // reintroduce the T-junction in the triangulated output.
+      auto fixed_rings = fix_adjacency(polygons);
+      TriangulationParams fixed_settings = settings;
+      fixed_settings.collinearity = TriangulationParams::Collinearity::Guaranteed;
+
+      std::vector<Triangle2D> result;
+      for (auto const& ring : fixed_rings) {
+        auto tris = triangulate(ring, fixed_settings);
+        result.insert(result.end(), std::make_move_iterator(tris.begin()), std::make_move_iterator(tris.end()));
+      }
+      return result;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown adjacency conformity");
+    }
+  }
+}
+
+namespace detail {
+
+template <typename PointT>
+void assert_adjacency(std::vector<AdjacencyViolation<PointT>> const& violations) {
+  if (violations.empty()) {
+    return;
+  }
+  auto const& v = violations.front();
+  std::string facets_str;
+  for (std::size_t i = 0; i < v.facet_indices.size(); ++i) {
+    facets_str += std::to_string(v.facet_indices[i]);
+    if (i + 1 < v.facet_indices.size()) {
+      facets_str += ", ";
+    }
+  }
+
+  if (v.is_non_manifold) {
+    throw std::invalid_argument("facet(s) " + facets_str + " have an edge in common (" + v.edge_p0.ToWkt() + " -> " +
+                                v.edge_p1.ToWkt() + ") -- we only allow max 2 facets to share an edge");
+  }
+  throw std::invalid_argument("facet " + std::to_string(v.facet_indices[0]) + "'s edge (" + v.edge_p0.ToWkt() +
+                              " -> " + v.edge_p1.ToWkt() + ") has facet " + std::to_string(v.facet_indices[1]) +
+                              "'s vertex " + v.on_vertex.ToWkt() + " lying on it (a T-junction) -- a vertex may "
+                              "only touch a neighbor's edge at that edge's own start/end");
+}
+
+template void assert_adjacency(std::vector<AdjacencyViolation<Point2D>> const&);
+template void assert_adjacency(std::vector<AdjacencyViolation<Point3D>> const&);
+
+}  // namespace detail
 
 }  // namespace geompp

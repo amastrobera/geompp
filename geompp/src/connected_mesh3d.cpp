@@ -1,5 +1,6 @@
 #include "connected_mesh3d.hpp"
 
+#include "calc_utils2d.hpp"
 #include "grid_cell3d.hpp"
 #include "triangle3d.hpp"
 
@@ -9,6 +10,10 @@
 namespace geompp {
 
 ConnectedMesh3D ConnectedMesh3D::FromTriangles(std::vector<Triangle3D> const& triangles) {
+  // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
+  // adjacency is treated as invalid caller input here, never silently repaired.
+  detail::assert_adjacency(validate_adjacency(triangles));
+
   // GridCellMapForConnectedMesh3D::Make() throws std::invalid_argument if triangles is empty.
   auto mesh_maker = detail::GridCellMapForConnectedMesh3D::Make(triangles);
 

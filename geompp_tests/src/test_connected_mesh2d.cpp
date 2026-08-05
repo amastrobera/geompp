@@ -20,6 +20,14 @@ TEST_F(ConnectedMesh2DTest, FromTriangles_Empty_Throws) {
   EXPECT_THROW(g::ConnectedMesh2D::FromTriangles({}), std::invalid_argument);
 }
 
+TEST_F(ConnectedMesh2DTest, FromTriangles_NonManifoldEdge_Throws) {
+  // Three triangles all sharing the exact same edge (0,0)-(1,0) -- a full edge with 3 neighbors.
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1));
+  auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1));
+  auto c = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, -2));
+  EXPECT_THROW(g::ConnectedMesh2D::FromTriangles({a, b, c}), std::invalid_argument);
+}
+
 TEST_F(ConnectedMesh2DTest, FromTriangles_SingleTriangle) {
   auto t = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1));
   auto mesh = g::ConnectedMesh2D::FromTriangles({t});

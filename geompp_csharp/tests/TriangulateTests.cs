@@ -163,6 +163,90 @@ public static class TriangulateTests {
       foreach (var t in bestFit) bestFitWkt.Add(t.ToWkt());
       IsFalse(plainWkt.SetEquals(bestFitWkt), "expected EarClipping and EarClippingBestFit to pick different diagonals");
     });
+
+    // ── mesh-conformity checking ("every edge has at most 1 neighbor") ────────────────────────────
+    Console.WriteLine("\nGeomUtil.ValidateAdjacency / FixAdjacency (batch Triangulate)");
+
+    Test("GeomUtil_ValidateAdjacency_ConformingSharedEdge_ReturnsNoViolations", () => {
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var violations = GeomUtil.ValidateAdjacency(new[] { p0, p1 });
+      Eq(0, CountOf(violations), 0);
+    });
+
+    Test("GeomUtil_ValidateAdjacency_TJunction_DetectsViolation", () => {
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
+      var violations = GeomUtil.ValidateAdjacency(new[] { p0, p1, roof });
+      bool anyFound = false;
+      bool allTJunctions = true;
+      foreach (var v in violations) { anyFound = true; if (v.IsNonManifold) allTJunctions = false; }
+      IsTrue(anyFound, "expected at least one T-junction violation");
+      IsTrue(allTJunctions, "expected every violation to be a T-junction, not non-manifold");
+    });
+
+    Test("GeomUtil_ValidateAdjacency_NonManifoldEdge_DetectsViolation", () => {
+      var a = Triangle2D.Make(new(0, 0), new(1, 0), new(0.5, 1));
+      var b = Triangle2D.Make(new(1, 0), new(0, 0), new(0.5, -1));
+      var c = Triangle2D.Make(new(0, 0), new(1, 0), new(0.5, -2));
+      var violations = GeomUtil.ValidateAdjacency(new[] { a, b, c });
+      AdjacencyViolation2D first = null;
+      foreach (var v in violations) { first = v; break; }
+      NotNull(first, "expected at least one violation");
+      IsTrue(first.IsNonManifold, "expected a non-manifold-edge violation");
+      Eq(3, CountOf(first.FacetIndices), 0);
+    });
+
+    Test("GeomUtil_FixAdjacency_TJunction_SplicesVertexAndPreservesTotalArea", () => {
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
+      var facets = new[] { p0, p1, roof };
+      double areaBefore = p0.Area() + p1.Area() + roof.Area();
+
+      var fixedRings = GeomUtil.FixAdjacency(facets);
+      // roof's ring goes from 3 points to 4 -- the splice actually happened, not a no-op.
+      Eq(4, fixedRings[2].Length, 0);
+
+      var guaranteedCollinearity = new TriangulationParams(TriangulationStrategy.EarClippingBestFit,
+          TriangulationSimplicity.Guaranteed, TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed);
+      double areaAfter = 0.0;
+      foreach (var ring in fixedRings) {
+        var points = new System.Collections.Generic.List<Point2D>(ring);
+        foreach (var t in GeomUtil.Triangulate(points, guaranteedCollinearity))
+          areaAfter += t.Area();
+      }
+      Eq(areaBefore, areaAfter);
+    });
+
+    Test("GeomUtil_FixAdjacency_NonManifoldEdge_Throws", () => {
+      var a = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(0.5, 1) });
+      var b = Polygon2D.Make(new Point2D[] { new(1, 0), new(0, 0), new(0.5, -1) });
+      var c = Polygon2D.Make(new Point2D[] { new(1, 0), new(0, 0), new(0.5, -2) });
+      bool threw = false;
+      try { GeomUtil.FixAdjacency(new[] { a, b, c }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a non-manifold edge to throw");
+    });
+
+    Test("GeomUtil_Triangulate_PolygonBatch_DefaultEnforce_FixesTJunctionAndTriangulates", () => {
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
+      var triangles = GeomUtil.Triangulate(new[] { p0, p1, roof }, AdjacencyConformity.Enforce, new TriangulationParams());
+      Eq(3.0, SumArea2D(triangles));
+    });
+
+    Test("GeomUtil_Triangulate_PolygonBatch_Assert_ThrowsOnTJunction", () => {
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
+      bool threw = false;
+      try { GeomUtil.Triangulate(new[] { p0, p1, roof }, AdjacencyConformity.Assert, new TriangulationParams()); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected Assert to throw on a T-junction");
+    });
   }
 }
 

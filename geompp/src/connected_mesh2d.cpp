@@ -1,5 +1,6 @@
 #include "connected_mesh2d.hpp"
 
+#include "calc_utils2d.hpp"
 #include "grid_cell2d.hpp"
 #include "triangle2d.hpp"
 
@@ -9,6 +10,10 @@
 namespace geompp {
 
 ConnectedMesh2D ConnectedMesh2D::FromTriangles(std::vector<Triangle2D> const& triangles) {
+  // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
+  // adjacency is treated as invalid caller input here, never silently repaired.
+  detail::assert_adjacency(validate_adjacency(triangles));
+
   // GridCellMapForConnectedMesh2D::Make() throws std::invalid_argument if triangles is empty.
   auto mesh_maker = detail::GridCellMapForConnectedMesh2D::Make(triangles);
 

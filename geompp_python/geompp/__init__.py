@@ -189,6 +189,12 @@ from ._geompp import (  # noqa: F401
     TriangulationCollinearity,
     TriangulationParams,
     triangulate,
+    # mesh-conformity checking ("every edge has at most 1 neighbor")
+    AdjacencyConformity,
+    AdjacencyViolation2D,
+    AdjacencyViolation3D,
+    validate_adjacency,
+    fix_adjacency,
 )
 
 __version__ = "1.0.0"
@@ -218,4 +224,5 @@ __all__ = [
     "PolylineExpansionMode", "PolylineExpansionParams", "polyline_expansion",
     "TriangulationStrategy", "TriangulationSimplicity", "TriangulationWinding", "TriangulationCollinearity",
     "TriangulationParams", "triangulate",
+    "AdjacencyConformity", "AdjacencyViolation2D", "AdjacencyViolation3D", "validate_adjacency", "fix_adjacency",
 ]

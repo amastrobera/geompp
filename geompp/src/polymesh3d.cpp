@@ -12,6 +12,10 @@
 namespace geompp {
 
 PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons) {
+  // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
+  // adjacency is treated as invalid caller input here, never silently repaired.
+  detail::assert_adjacency(validate_adjacency(polygons));
+
   // GridCellMapForPolyMesh3D::Make() throws std::invalid_argument if polygons is empty or holed.
   auto mesh_maker = detail::GridCellMapForPolyMesh3D::Make(polygons);
 
