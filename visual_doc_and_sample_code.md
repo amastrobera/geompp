@@ -4487,8 +4487,10 @@ A quick list of code examples per topic is provided here.
 
   Two distinct violations get checked for, and only one of them is fixable:
   - A **T-junction** — a vertex partially overlapping an edge (a wall's corner landing halfway along a
-    longer neighboring wall instead of meeting it exactly) — is fixable: the missing vertex can be
-    spliced into the coarse edge, same shape, same area, one extra flat-180°-angle vertex.
+    longer neighboring wall instead of meeting it exactly) — is fixable: the missing vertex is spliced
+    into the coarse edge, then that facet is actually split around it — a diagonal cut for a `Polygon2D/3D`
+    facet, a re-triangulation for a `Triangle2D/3D` facet, since neither can just absorb the vertex and
+    keep its old shape (see §10.5 for the exact behavior of each, with pictures).
   - A **non-manifold edge** — a *full* edge shared by 3 or more facets, not just 1 — is not fixable:
     there's no principled way to guess which 2 of the 3+ facets are "the real pair" that should share it.
 
@@ -4895,7 +4897,7 @@ A quick list of code examples per topic is provided here.
   and usable afterward.
 
   <p align="center">
-    <img src="./images/polymesh2d_triangulate.png" width="460" alt="A house-shaped PolyMesh2D -- a wide rectangle base, two square facets for the body, a triangle roof (gold) -- next to the Mesh2D produced by Triangulate(): 7 triangles (cyan), same total area">
+    <img src="./images/polymesh2d_triangulate.png" width="460" alt="A twin-gable house-shaped PolyMesh2D -- two square bodies, each with its own matching base and roof triangle, 6 facets total, every edge conforming (gold) -- next to the Mesh2D produced by Triangulate(): 10 triangles (cyan), same total area">
   </p>
 
   <details closed>
@@ -5007,6 +5009,47 @@ A quick list of code examples per topic is provided here.
    </details>
 
   </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.5 Fixing a non-conforming mesh</b></summary>
+
+  `PolyMesh2D/3D::FromPolygons()` and `Mesh2D/3D::FromTriangles()` both always reject a non-conforming
+  batch of facets outright (§10, "every edge has at most 1 neighbor") — but a T-junction specifically is
+  repairable, and `fix_adjacency()` is the function that does it. Both `validate_adjacency()` and
+  `fix_adjacency()` are overloaded for `Polygon2D/3D`, `Triangle2D/3D`, and raw point rings, so the same
+  repair is available in 2D and 3D, for n-gon facets and for triangles alike.
+
+  For a `Polygon2D/3D` facet, the fix actually splits it: the foreign vertex is spliced into the coarse
+  edge's ring, then a diagonal is cut from it to its nearest ring vertex that forms a valid diagonal —
+  the standard "diagonal-to-nearest-vertex" polygon-splitting technique (a guaranteed-valid diagonal
+  always exists from any vertex of a simple polygon with ≥ 4 vertices, the same guarantee ear-clipping
+  itself relies on). The coarse facet becomes two facets sharing that new edge; an unaffected facet
+  passes through unchanged. The picture below is the same T-junction house from the batch-`triangulate()`
+  example, this time showing the repair itself: `validate_adjacency()` finds 4 T-junctions (red) — the
+  wide roof's apex edge crossing the two body squares' shared corner, and the wide base's top edge
+  crossing both of their bottom corners (three separate foreign vertices land on that one edge) — and
+  `fix_adjacency()` cuts a diagonal from each one, turning the original 4 facets into 8 while covering
+  the same total area. Because each cut goes to the *nearest* valid vertex rather than straight across,
+  the resulting pieces aren't necessarily tidy rectangles (the base splits into an irregular mix of
+  triangles and a quad) — the same tradeoff ear-clipping accepts elsewhere in this library: always a
+  valid split, not necessarily the prettiest one.
+
+  <p align="center">
+    <img src="./images/fix_adjacency_polymesh2d.png" width="600" alt="A set of adjacent polygons (invalid) with 4 T-junction vertices flagged red, next to the same set after fix_adjacency() cuts a nearest-vertex diagonal from each one -- 4 facets become 8, same total area, 0 violations left, and the right side is now a valid PolyMesh2D">
+  </p>
+
+  A `Triangle2D/3D` facet can't just absorb a spliced-in vertex and stay a triangle, so its
+  `fix_adjacency()` overload re-triangulates the coarse facet instead — via the same ear-clipping engine
+  `triangulate()` uses — into 2+ triangles covering the exact same area as the original one; any facet
+  the splice doesn't touch passes through unchanged. Below, a big triangle sits on two small ones; their
+  shared vertex lands in the interior of the big triangle's base edge (red), and `fix_adjacency()` cuts
+  that base triangle into two along the flagged vertex (green): 3 triangles become 4, area unchanged.
+
+  <p align="center">
+    <img src="./images/fix_adjacency_mesh2d.png" width="600" alt="3 adjacent triangles (invalid) with one T-junction vertex flagged red where two small triangles meet the base of a big one, next to the same set after fix_adjacency() re-triangulates the big triangle around that vertex (green) -- 3 triangles become 4, same total area, 0 violations left, and the right side is now a valid Mesh2D">
+  </p>
 
 </details>
 

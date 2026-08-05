@@ -198,7 +198,11 @@ public static class TriangulateTests {
       Eq(3, CountOf(first.FacetIndices), 0);
     });
 
-    Test("GeomUtil_FixAdjacency_TJunction_SplicesVertexAndPreservesTotalArea", () => {
+    Test("GeomUtil_FixAdjacency_TJunction_SplitsFacetAndPreservesTotalArea", () => {
+      // roof has exactly 1 T-junction (the shared p0/p1 corner (1,1) lands on its base edge).
+      // FixAdjacency() cuts a diagonal from that spliced vertex to its nearest valid ring vertex --
+      // here that's roof's apex, so roof splits clean into 2 triangles instead of growing into a
+      // single 4-vertex flat-vertex-laden ring.
       var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
       var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
       var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
@@ -206,8 +210,10 @@ public static class TriangulateTests {
       double areaBefore = p0.Area() + p1.Area() + roof.Area();
 
       var fixedRings = GeomUtil.FixAdjacency(facets);
-      // roof's ring goes from 3 points to 4 -- the splice actually happened, not a no-op.
-      Eq(4, fixedRings[2].Length, 0);
+
+      Eq(4, fixedRings.Length, 0);  // p0, p1 pass through unchanged, roof splits into 2
+      foreach (var ring in fixedRings)
+        IsTrue(ring.Length <= 4, "expected no ring to grow into a flat-vertex-laden polygon");
 
       var guaranteedCollinearity = new TriangulationParams(TriangulationStrategy.EarClippingBestFit,
           TriangulationSimplicity.Guaranteed, TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed);
@@ -224,6 +230,62 @@ public static class TriangulateTests {
       var a = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(0.5, 1) });
       var b = Polygon2D.Make(new Point2D[] { new(1, 0), new(0, 0), new(0.5, -1) });
       var c = Polygon2D.Make(new Point2D[] { new(1, 0), new(0, 0), new(0.5, -2) });
+      bool threw = false;
+      try { GeomUtil.FixAdjacency(new[] { a, b, c }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a non-manifold edge to throw");
+    });
+
+    Test("GeomUtil_FixAdjacency_MultipleTJunctionsOnOneEdge_SplitsIntoSeveralPieces", () => {
+      // The "T-junction house": a wide base spanning both squares plus their side overhangs, with 3
+      // foreign vertices ((0,0), (1,0), (2,0)) landing on its single top edge -- each cuts its own
+      // diagonal, carving the base into 4 rectangular strips instead of one 7-vertex polygon.
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var baseFacet = Polygon2D.Make(new Point2D[] { new(-0.5, -1.2), new(2.5, -1.2), new(2.5, 0), new(-0.5, 0) });
+      var facets = new[] { baseFacet, p0, p1 };
+      double areaBefore = baseFacet.Area() + p0.Area() + p1.Area();
+
+      var fixedRings = GeomUtil.FixAdjacency(facets);
+
+      Eq(6, fixedRings.Length, 0);  // base -> 4 strips, p0/p1 pass through unchanged (2)
+      foreach (var ring in fixedRings)
+        IsTrue(ring.Length <= 4, "expected no ring to grow into a flat-vertex-laden polygon");
+
+      var guaranteedCollinearity = new TriangulationParams(TriangulationStrategy.EarClippingBestFit,
+          TriangulationSimplicity.Guaranteed, TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed);
+      double areaAfter = 0.0;
+      foreach (var ring in fixedRings) {
+        var points = new System.Collections.Generic.List<Point2D>(ring);
+        foreach (var t in GeomUtil.Triangulate(points, guaranteedCollinearity))
+          areaAfter += t.Area();
+      }
+      Eq(areaBefore, areaAfter);
+    });
+
+    Test("GeomUtil_FixAdjacency_TriangleTJunction_ReTriangulatesAndPreservesTotalArea", () => {
+      // Big triangle A sitting on two small triangles B, C -- B and C's shared vertex (2,0) lies in
+      // the interior of A's base edge (0,0)-(4,0), a T-junction. A can't just absorb (2,0) and stay a
+      // triangle, so FixAdjacency() must re-triangulate it into 2 triangles covering the same area.
+      var a = Triangle2D.Make(new(0, 0), new(4, 0), new(2, 3));
+      var b = Triangle2D.Make(new(0, 0), new(1, -1.5), new(2, 0));
+      var c = Triangle2D.Make(new(2, 0), new(3, -1.5), new(4, 0));
+      var facets = new[] { a, b, c };
+      double areaBefore = a.Area() + b.Area() + c.Area();
+      Eq(9.0, areaBefore);
+
+      var fixedTriangles = GeomUtil.FixAdjacency(facets);
+      Eq(4, fixedTriangles.Length, 0);  // a -> 2 triangles, b and c pass through unchanged
+      Eq(0, CountOf(GeomUtil.ValidateAdjacency(fixedTriangles)), 0);
+
+      double areaAfter = SumArea2D(fixedTriangles);
+      Eq(areaBefore, areaAfter);
+    });
+
+    Test("GeomUtil_FixAdjacency_TriangleNonManifoldEdge_Throws", () => {
+      var a = Triangle2D.Make(new(0, 0), new(1, 0), new(0.5, 1));
+      var b = Triangle2D.Make(new(1, 0), new(0, 0), new(0.5, -1));
+      var c = Triangle2D.Make(new(1, 0), new(0, 0), new(0.5, -2));
       bool threw = false;
       try { GeomUtil.FixAdjacency(new[] { a, b, c }); }
       catch (Exception) { threw = true; }

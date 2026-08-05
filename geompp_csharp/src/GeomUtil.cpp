@@ -533,6 +533,22 @@ array<array<Point3D^>^>^ GeomUtil::FixAdjacency(array<Polygon3D^>^ facets) {
     return result;
 }
 
+array<Triangle2D^>^ GeomUtil::FixAdjacency(array<Triangle2D^>^ facets) {
+    auto native = geompp::fix_adjacency(ToNativeTriangles2D(facets));
+    auto result = gcnew array<Triangle2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < native.size(); ++i)
+        result[i] = gcnew Triangle2D(new geompp::Triangle2D(native[i]));
+    return result;
+}
+
+array<Triangle3D^>^ GeomUtil::FixAdjacency(array<Triangle3D^>^ facets) {
+    auto native = geompp::fix_adjacency(ToNativeTriangles3D(facets));
+    auto result = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < native.size(); ++i)
+        result[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
+    return result;
+}
+
 System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
     array<Polygon2D^>^ polygons, AdjacencyConformity conformity, TriangulationParams^ settings) {
     auto native = geompp::triangulate(ToNativePolygons2D(polygons),

@@ -166,10 +166,71 @@ class TestTriangulate:
         area_after = sum(t.area() for ring in fixed for t in geompp.triangulate(ring, guaranteed_collinearity))
         assert approx(area_before, area_after)
 
+    def test_fix_adjacency_t_junction_splits_coarse_facet_instead_of_just_splicing(self):
+        # roof has exactly 1 T-junction (the shared p0/p1 corner (1,1) lands on its base edge).
+        # fix_adjacency() cuts a diagonal from that spliced vertex to its nearest valid ring vertex --
+        # here that's roof's apex, so roof splits clean into 2 triangles.
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
+        facets = [p0, p1, roof]
+
+        fixed = geompp.fix_adjacency(facets)
+
+        assert len(fixed) == 4  # p0, p1 pass through unchanged, roof splits into 2
+        assert all(len(ring) <= 4 for ring in fixed)
+        assert geompp.validate_adjacency(fixed) == []
+
+    def test_fix_adjacency_multiple_t_junctions_on_one_edge_splits_into_several_pieces(self):
+        # The "T-junction house": a wide base spanning both squares plus their side overhangs, with 3
+        # foreign vertices ((0,0), (1,0), (2,0)) landing on its single top edge -- each cuts its own
+        # diagonal, carving the base into 4 rectangular strips instead of one 7-vertex polygon.
+        p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        base = geompp.Polygon2D.make([geompp.Point2D(-0.5, -1.2), geompp.Point2D(2.5, -1.2),
+                                      geompp.Point2D(2.5, 0), geompp.Point2D(-0.5, 0)])
+        facets = [base, p0, p1]
+        area_before = sum(f.area() for f in facets)
+
+        fixed = geompp.fix_adjacency(facets)
+
+        assert len(fixed) == 6  # base -> 4 strips, p0/p1 pass through unchanged (2)
+        assert geompp.validate_adjacency(fixed) == []
+
+        guaranteed_collinearity = geompp.TriangulationParams(collinearity=geompp.TriangulationCollinearity.Guaranteed)
+        area_after = sum(t.area() for ring in fixed for t in geompp.triangulate(ring, guaranteed_collinearity))
+        assert approx(area_before, area_after)
+
     def test_fix_adjacency_non_manifold_edge_raises(self):
         a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1)])
         b = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -1)])
         c = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -2)])
+        with pytest.raises(ValueError):
+            geompp.fix_adjacency([a, b, c])
+
+    def test_fix_adjacency_triangle_t_junction_retriangulates_and_preserves_total_area(self):
+        # Big triangle a sitting on two small triangles b, c -- b and c's shared vertex (2,0) lies in
+        # the interior of a's base edge (0,0)-(4,0), a T-junction. a can't just absorb (2,0) and stay
+        # a triangle, so fix_adjacency() must re-triangulate it into 2 triangles covering the same area.
+        a = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(2, 3))
+        b = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, -1.5), geompp.Point2D(2, 0))
+        c = geompp.Triangle2D.make(geompp.Point2D(2, 0), geompp.Point2D(3, -1.5), geompp.Point2D(4, 0))
+        facets = [a, b, c]
+        area_before = sum(f.area() for f in facets)
+        assert approx(area_before, 9.0)
+
+        assert len(geompp.validate_adjacency(facets)) > 0
+
+        fixed = geompp.fix_adjacency(facets)
+
+        assert len(fixed) == 4  # a -> 2 triangles, b and c pass through unchanged
+        assert geompp.validate_adjacency(fixed) == []
+        assert approx(sum(t.area() for t in fixed), area_before)
+
+    def test_fix_adjacency_triangle_non_manifold_edge_raises(self):
+        a = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1))
+        b = geompp.Triangle2D.make(geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -1))
+        c = geompp.Triangle2D.make(geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -2))
         with pytest.raises(ValueError):
             geompp.fix_adjacency([a, b, c])
 
@@ -188,3 +249,74 @@ class TestTriangulate:
         roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
         with pytest.raises(ValueError):
             geompp.triangulate([p0, p1, roof], geompp.AdjacencyConformity.Assert)
+
+    # ── native 3D adjacency (validate_adjacency / fix_adjacency), not View2D-projected ─────────────
+
+    def test_validate_adjacency_3d_polygon_t_junction_detects_violation(self):
+        # Two unit squares side by side (y=0 plane), plus a roof triangle spanning both squares' top --
+        # its base edge passes straight through the squares' shared vertex. Native 3D, not View2D.
+        p0 = geompp.Polygon3D.make([geompp.Point3D(0, 0, 1), geompp.Point3D(1, 0, 1),
+                                    geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0)])
+        p1 = geompp.Polygon3D.make([geompp.Point3D(1, 0, 1), geompp.Point3D(2, 0, 1),
+                                    geompp.Point3D(2, 0, 0), geompp.Point3D(1, 0, 0)])
+        roof = geompp.Polygon3D.make([geompp.Point3D(1, 0, 2), geompp.Point3D(2, 0, 1), geompp.Point3D(0, 0, 1)])
+
+        violations = geompp.validate_adjacency([p0, p1, roof])
+
+        assert len(violations) > 0
+        assert all(not v.is_non_manifold for v in violations)
+
+    def test_fix_adjacency_3d_polygon_t_junction_splices_vertex_and_preserves_total_area(self):
+        p0 = geompp.Polygon3D.make([geompp.Point3D(0, 0, 1), geompp.Point3D(1, 0, 1),
+                                    geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0)])
+        p1 = geompp.Polygon3D.make([geompp.Point3D(1, 0, 1), geompp.Point3D(2, 0, 1),
+                                    geompp.Point3D(2, 0, 0), geompp.Point3D(1, 0, 0)])
+        roof = geompp.Polygon3D.make([geompp.Point3D(1, 0, 2), geompp.Point3D(2, 0, 1), geompp.Point3D(0, 0, 1)])
+        facets = [p0, p1, roof]
+        area_before = sum(f.area() for f in facets)
+
+        fixed = geompp.fix_adjacency(facets)
+
+        assert geompp.validate_adjacency(fixed) == []
+        guaranteed_collinearity = geompp.TriangulationParams(collinearity=geompp.TriangulationCollinearity.Guaranteed)
+        area_after = sum(t.area() for ring in fixed for t in geompp.triangulate(ring, geompp.Vector3D(0, -1, 0), guaranteed_collinearity))
+        assert approx(area_before, area_after)
+
+    def test_fix_adjacency_3d_polygon_t_junction_splits_coarse_facet_instead_of_just_splicing(self):
+        p0 = geompp.Polygon3D.make([geompp.Point3D(0, 0, 1), geompp.Point3D(1, 0, 1),
+                                    geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0)])
+        p1 = geompp.Polygon3D.make([geompp.Point3D(1, 0, 1), geompp.Point3D(2, 0, 1),
+                                    geompp.Point3D(2, 0, 0), geompp.Point3D(1, 0, 0)])
+        roof = geompp.Polygon3D.make([geompp.Point3D(1, 0, 2), geompp.Point3D(2, 0, 1), geompp.Point3D(0, 0, 1)])
+        facets = [p0, p1, roof]
+
+        fixed = geompp.fix_adjacency(facets)
+
+        assert len(fixed) == 4  # p0, p1 pass through unchanged, roof splits into 2
+        assert all(len(ring) <= 4 for ring in fixed)
+        assert geompp.validate_adjacency(fixed) == []
+
+    def test_fix_adjacency_3d_triangle_t_junction_retriangulates_and_preserves_total_area(self):
+        # Native 3D analog of the 2D "big triangle over two small triangles" case (y=0 plane).
+        # Triangle3D.make() has no winding constraint, unlike Polygon3D.make() above.
+        a = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(2, 0, 3))
+        b = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, -1.5), geompp.Point3D(2, 0, 0))
+        c = geompp.Triangle3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(3, 0, -1.5), geompp.Point3D(4, 0, 0))
+        facets = [a, b, c]
+        area_before = sum(f.area() for f in facets)
+        assert approx(area_before, 9.0)
+
+        assert len(geompp.validate_adjacency(facets)) > 0
+
+        fixed = geompp.fix_adjacency(facets)
+
+        assert len(fixed) == 4
+        assert geompp.validate_adjacency(fixed) == []
+        assert approx(sum(t.area() for t in fixed), area_before)
+
+    def test_fix_adjacency_3d_non_manifold_edge_raises(self):
+        a = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0.5, 1, 0))
+        b = geompp.Triangle3D.make(geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0), geompp.Point3D(0.5, 0, 1))
+        c = geompp.Triangle3D.make(geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0), geompp.Point3D(0.5, -1, 0))
+        with pytest.raises(ValueError):
+            geompp.fix_adjacency([a, b, c])

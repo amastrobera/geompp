@@ -371,6 +371,13 @@ public:
     static array<array<Point2D^>^>^ FixAdjacency(array<Polygon2D^>^ facets);
     static array<array<Point3D^>^>^ FixAdjacency(array<Polygon3D^>^ facets);
 
+    // FixAdjacency (Triangle overload) — unlike a Polygon2D/3D facet, a triangle can't just absorb a
+    // spliced-in vertex and stay a triangle, so a repaired facet is re-triangulated into 2+ triangles
+    // covering the same area as the original one. An unaffected facet passes through unchanged. Throws
+    // on a non-manifold edge (not fixable).
+    static array<Triangle2D^>^ FixAdjacency(array<Triangle2D^>^ facets);
+    static array<Triangle3D^>^ FixAdjacency(array<Triangle3D^>^ facets);
+
     // Triangulate (batch) — batch-triangulates a set of 2D polygon facets together, the free-function
     // equivalent of PolyMesh2D.FromPolygons(polygons).Triangulate(). Unlike PolyMesh2D.FromPolygons
     // (which always throws on bad adjacency), conformity is typically Enforce: auto-repairs a

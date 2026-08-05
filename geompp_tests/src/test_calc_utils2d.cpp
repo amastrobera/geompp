@@ -1497,11 +1497,103 @@ TEST_F(CalcUtils2DTest, FixAdjacency_TJunction_SplicesVertexAndPreservesTotalAre
   EXPECT_NEAR(area_before, area_after, 1e-9);
 }
 
+TEST_F(CalcUtils2DTest, FixAdjacency_TJunction_SplitsCoarseFacetInsteadOfJustSplicing) {
+  // roof has exactly 1 T-junction (the shared p0/p1 corner (1,1) lands on its base edge). Unlike
+  // Triangle2D's re-triangulation, Polygon2D's fix_adjacency() now cuts a diagonal from the spliced
+  // vertex to its nearest valid ring vertex -- here that's roof's apex, so roof splits clean in two.
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+  std::vector<g::Polygon2D> facets{p0, p1, roof};
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_EQ(fixed.size(), 4u);  // p0, p1 pass through unchanged, roof splits into 2
+  for (auto const& ring : fixed) {
+    EXPECT_LE(ring.size(), 4u);  // no ring grew into a flat-vertex-laden polygon
+  }
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+}
+
+TEST_F(CalcUtils2DTest, FixAdjacency_MultipleTJunctionsOnOneEdge_SplitsIntoSeveralPieces) {
+  // The "T-junction house": a wide base spanning both squares plus their side overhangs, with 3
+  // foreign vertices ((0,0), (1,0), (2,0)) landing on its single top edge -- each should cut its own
+  // diagonal, carving the base into 4 rectangular strips instead of one 7-vertex polygon.
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto base =
+      g::Polygon2D::Make({g::Point2D(-0.5, -1.2), g::Point2D(2.5, -1.2), g::Point2D(2.5, 0), g::Point2D(-0.5, 0)});
+  std::vector<g::Polygon2D> facets{base, p0, p1};
+
+  double area_before = 0.0;
+  for (auto const& f : facets) {
+    area_before += f.Area();
+  }
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_EQ(fixed.size(), 6u);  // base -> 4 strips, p0/p1 pass through unchanged (2)
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+
+  g::TriangulationParams guaranteed_collinearity;
+  guaranteed_collinearity.collinearity = g::TriangulationParams::Collinearity::Guaranteed;
+  double area_after = 0.0;
+  for (auto const& ring : fixed) {
+    for (auto const& t : g::triangulate(ring, guaranteed_collinearity)) {
+      area_after += t.Area();
+    }
+  }
+  EXPECT_NEAR(area_before, area_after, 1e-9);
+}
+
 TEST_F(CalcUtils2DTest, FixAdjacency_NonManifoldEdge_Throws) {
   auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1)});
   auto b = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1)});
   auto c = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2)});
   EXPECT_THROW(g::fix_adjacency(std::vector<g::Polygon2D>{a, b, c}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, FixAdjacency_TriangleConformingSharedEdge_PassesThroughUnchanged) {
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1));
+  auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1));
+  auto fixed = g::fix_adjacency(std::vector<g::Triangle2D>{a, b});
+  ASSERT_EQ(fixed.size(), 2u);
+}
+
+TEST_F(CalcUtils2DTest, FixAdjacency_TriangleTJunction_ReTriangulatesAndPreservesTotalArea) {
+  // Big triangle A sitting on two small triangles B, C -- B and C's shared vertex (2,0) lies in the
+  // interior of A's base edge (0,0)-(4,0), a T-junction. A can't just absorb (2,0) and stay a
+  // triangle, so fix_adjacency() must re-triangulate it into 2 triangles covering the same area.
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, -1.5), g::Point2D(2, 0));
+  auto C = g::Triangle2D::Make(g::Point2D(2, 0), g::Point2D(3, -1.5), g::Point2D(4, 0));
+  std::vector<g::Triangle2D> facets{A, B, C};
+
+  double area_before = 0.0;
+  for (auto const& f : facets) {
+    area_before += f.Area();
+  }
+  EXPECT_NEAR(area_before, 9.0, 1e-9);
+
+  ASSERT_FALSE(g::validate_adjacency(facets).empty());
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_EQ(fixed.size(), 4u);  // A -> 2 triangles, B and C pass through unchanged
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+
+  double area_after = 0.0;
+  for (auto const& t : fixed) {
+    area_after += t.Area();
+  }
+  EXPECT_NEAR(area_before, area_after, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, FixAdjacency_TriangleNonManifoldEdge_Throws) {
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1));
+  auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1));
+  auto c = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2));
+  EXPECT_THROW(g::fix_adjacency(std::vector<g::Triangle2D>{a, b, c}), std::invalid_argument);
 }
 
 TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_DefaultEnforce_FixesTJunctionAndTriangulates) {

@@ -464,6 +464,16 @@ void bind_free_functions(py::module_& m) {
     m.def("fix_adjacency",
           [](const std::vector<geompp::Polygon3D>& facets) { return geompp::fix_adjacency(facets); },
           "facets"_a, "Same as the Polygon2D overload, for Polygon3D facets -> list[list[Point3D]].");
+    m.def("fix_adjacency",
+          [](const std::vector<geompp::Triangle2D>& facets) { return geompp::fix_adjacency(facets); },
+          "facets"_a,
+          "Triangle2D overload: unlike a Polygon2D facet, a triangle can't just absorb a spliced-in "
+          "vertex and stay a triangle -- a repaired facet is re-triangulated into 2+ triangles covering "
+          "the same area as the original one. Raises ValueError on a non-manifold edge. "
+          "Returns list[Triangle2D] (may be longer than the input).");
+    m.def("fix_adjacency",
+          [](const std::vector<geompp::Triangle3D>& facets) { return geompp::fix_adjacency(facets); },
+          "facets"_a, "Same as the Triangle2D overload, for Triangle3D facets -> list[Triangle3D].");
 
     m.def("triangulate",
           [](const std::vector<geompp::Polygon2D>& polygons, geompp::AdjacencyConformity conformity,

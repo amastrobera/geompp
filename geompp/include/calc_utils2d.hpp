@@ -784,6 +784,15 @@ std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<std::vec
 std::vector<std::vector<Point2D>> fix_adjacency(std::vector<Polygon2D> const& facets);
 std::vector<std::vector<Point3D>> fix_adjacency(std::vector<Polygon3D> const& facets);
 
+/// @brief Triangle overload of fix_adjacency(): unlike a Polygon2D/3D facet, a triangle can't just
+/// absorb a spliced-in vertex and stay a triangle -- a repaired facet is re-triangulated (via the same
+/// ear-clipping engine triangulate() uses, with Collinearity::Guaranteed for the same reason the
+/// Polygon overload avoids Polygon2D/3D::Make()) into 2+ triangles covering the exact same area as the
+/// original one. An unaffected facet passes through unchanged (still exactly 1 triangle).
+/// @throws std::invalid_argument if any non-manifold edge is found.
+std::vector<Triangle2D> fix_adjacency(std::vector<Triangle2D> const& facets);
+std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets);
+
 /// @brief Batch-triangulates a set of polygon facets together. The free-function equivalent of
 /// `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
 /// constructing/keeping a full PolyMesh2D. Unlike PolyMesh2D::FromPolygons (which always Asserts, since

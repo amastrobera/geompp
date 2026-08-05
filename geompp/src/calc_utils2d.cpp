@@ -1,5 +1,6 @@
 #include "calc_utils2d.hpp"
 
+#include "calc_utils3d.hpp"
 #include "line2d.hpp"
 #include "line_segment3d.hpp"
 #include "point3d.hpp"
@@ -2379,17 +2380,28 @@ std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<P
   }
 
   //  \_ reflex indices to analyze (reduce with a "swap and pop", the order doesn't matter)
+  // NOTE: this set also includes exactly-flat (180 degree, collinear-with-neighbors) vertices, not
+  // just strictly-reflex ones. The "only reflex vertices can lie inside a candidate ear" theorem the
+  // is_ear scan below relies on assumes a proper simple polygon with no 3 consecutive collinear
+  // points; a flat vertex is neither reflex nor a valid ear itself, but it CAN sit exactly on another
+  // candidate ear's boundary (is_point_in_triangle is inclusive of the boundary), so it must still be
+  // scanned as a blocker or that ear gets wrongly accepted and the flat vertex's own two edges never
+  // make it into the triangulation. Under Collinearity::Enforce/Assert this never comes up (no flat
+  // vertices reach here); Guaranteed callers (e.g. fix_adjacency()'s re-triangulation of a facet with
+  // a spliced-in collinear vertex) are exactly the case this guards.
   std::deque<std::size_t> reflex_indices;
   std::vector<std::uint8_t> is_reflex(n, 0);
   for (std::size_t i = 0; i < n; ++i) {
-    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view)) {
+    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view) ||
+        helpers::are_collinear(input[prev_id[i]], input[i], input[next_id[i]], view)) {
       reflex_indices.push_back(i);
       is_reflex[i] = 1;
     }
   }
 
   auto lambda_modify_reflex_status = [&](std::size_t idx) {
-    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
+    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view) ||
+                         helpers::are_collinear(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
 
     if (!is_now_reflex && is_reflex[idx]) {  // the opposite can never happen by a theorem: once an ear is cut,
                                              // the prev/next vertex can become convex, but never reflex
@@ -2488,17 +2500,22 @@ std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std:
   }
 
   //  \_ reflex indices to analyze (reduce with a "swap and pop", the order doesn't matter)
+  // NOTE: this set also includes exactly-flat (180 degree, collinear-with-neighbors) vertices, not
+  // just strictly-reflex ones -- see the matching comment in ear_clipping_triangulation() for why a
+  // flat vertex must still be scanned as a potential ear-blocker even though it's never a valid ear.
   std::deque<std::size_t> reflex_indices;
   std::vector<std::uint8_t> is_reflex(n, 0);
   for (std::size_t i = 0; i < n; ++i) {
-    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view)) {
+    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view) ||
+        helpers::are_collinear(input[prev_id[i]], input[i], input[next_id[i]], view)) {
       reflex_indices.push_back(i);
       is_reflex[i] = 1;
     }
   }
 
   auto lambda_modify_reflex_status = [&](std::size_t idx) {
-    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
+    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view) ||
+                         helpers::are_collinear(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
 
     if (!is_now_reflex && is_reflex[idx]) {  // the opposite can never happen by a theorem: once an ear is cut,
                                              // the prev/next vertex can become convex, but never reflex
@@ -2941,6 +2958,214 @@ std::vector<std::vector<PointT>> fix_adjacency_impl(std::vector<std::vector<Poin
   return new_perimeters;
 }
 
+// View2D to project a ring through for the diagonal-cut math below -- native XY for 2D, PCA-fitted
+// dominant-axis view for 3D (same pattern triangulate(vector<Point3D>, settings) uses when no normal
+// is supplied), dispatched by overload resolution like segment_contains() above.
+View2D view_for_ring(std::vector<Point2D> const&) { return View2D::XY(); }
+
+View2D view_for_ring(std::vector<Point3D> const& ring) {
+  auto frame = principal_axes(ring);
+  Axis dax = frame.Z.DominantAxis();
+  return (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+}
+
+// Standard proper (strict) segment-segment intersection: both segments must straddle each other.
+// Touching only at a shared endpoint, or running collinear/overlapping, does NOT count -- a valid
+// polygon diagonal is allowed to meet other edges only at its own two endpoints.
+template <typename PointT>
+bool segments_properly_intersect(PointT const& p1, PointT const& q1, PointT const& p2, PointT const& q2,
+                                 View2D const& view) {
+  double d1 = detail::view::helpers::area2(p2, q2, p1, view);
+  double d2 = detail::view::helpers::area2(p2, q2, q1, view);
+  double d3 = detail::view::helpers::area2(p1, q1, p2, view);
+  double d4 = detail::view::helpers::area2(p1, q1, q2, view);
+  bool straddles_p2q2 = (compare(d1, 0.0) > 0 && compare(d2, 0.0) < 0) || (compare(d1, 0.0) < 0 && compare(d2, 0.0) > 0);
+  bool straddles_p1q1 = (compare(d3, 0.0) > 0 && compare(d4, 0.0) < 0) || (compare(d3, 0.0) < 0 && compare(d4, 0.0) > 0);
+  return straddles_p2q2 && straddles_p1q1;
+}
+
+// Is (ring[i], ring[j]) a valid polygon diagonal? i is always a just-spliced, exactly-flat (180 degree)
+// vertex here, never a normal sharp one -- so unlike the general O'Rourke-style Diagonal()/InCone() test,
+// there's no "is b within i's interior angle cone" step: a flat vertex's cone IS the whole interior
+// half-plane, so any b on the interior side works there. What's still needed: (1) the segment can't
+// properly cross any OTHER edge of the ring, (2) it can't run collinear along i's own (flat) edge --
+// a "diagonal" along the boundary itself doesn't cut anything, (3) its midpoint must be strictly inside
+// the ring (winding-number test, robust to the ring's own other flat/collinear vertices).
+template <typename PointT>
+bool is_valid_diagonal(std::vector<PointT> const& ring, std::size_t i, std::size_t j, View2D const& view) {
+  std::size_t n = ring.size();
+  std::size_t i_next = (i + 1) % n;
+  std::size_t i_prev = (i + n - 1) % n;
+  if (j == i || j == i_next || j == i_prev) {
+    return false;
+  }
+
+  PointT const& a = ring[i];
+  PointT const& b = ring[j];
+
+  if (detail::view::helpers::are_collinear(ring[i_prev], a, b, view)) {
+    return false;
+  }
+
+  for (std::size_t k = 0; k < n; ++k) {
+    std::size_t k_next = (k + 1) % n;
+    if (k == i || k == j || k_next == i || k_next == j) {
+      continue;
+    }
+    if (segments_properly_intersect(a, b, ring[k], ring[k_next], view)) {
+      return false;
+    }
+  }
+
+  double mx = (view.x(a) + view.x(b)) / 2.0;
+  double my = (view.y(a) + view.y(b)) / 2.0;
+  return detail::view::polygon_contains(ring, std::vector<std::vector<PointT>>{}, view, mx, my);
+}
+
+// Splits a simple ring into two simple rings sharing the diagonal (ring[i], ring[j]) as an edge.
+template <typename PointT>
+std::pair<std::vector<PointT>, std::vector<PointT>> split_ring_at(std::vector<PointT> const& ring, std::size_t i,
+                                                                   std::size_t j) {
+  std::size_t n = ring.size();
+  std::vector<PointT> ring_a, ring_b;
+  for (std::size_t k = i;; k = (k + 1) % n) {
+    ring_a.push_back(ring[k]);
+    if (k == j) {
+      break;
+    }
+  }
+  for (std::size_t k = j;; k = (k + 1) % n) {
+    ring_b.push_back(ring[k]);
+    if (k == i) {
+      break;
+    }
+  }
+  return {ring_a, ring_b};
+}
+
+// The Polygon2D/3D flavor of fix_adjacency(): unlike the raw splice fix_adjacency_impl() above (still
+// used by the Triangle2D/3D overload as a first step before re-triangulating), this actually splits a
+// coarse facet into multiple facets -- one straight diagonal cut per spliced T-junction vertex, to its
+// nearest ring vertex that forms a valid diagonal. This is the standard "diagonal-to-nearest-vertex"
+// polygon-splitting technique (a guaranteed-valid diagonal always exists from any vertex of a simple
+// polygon with >= 4 vertices), same guarantee ear-clipping itself relies on. An unaffected facet passes
+// through unchanged.
+template <typename PointT>
+std::vector<std::vector<PointT>> split_facets_at_junctions_impl(std::vector<std::vector<PointT>> const& facet_rings) {
+  auto violations = validate_adjacency_impl(facet_rings);
+
+  for (auto const& v : violations) {
+    if (v.is_non_manifold) {
+      throw std::invalid_argument("fix_adjacency: edge (" + v.edge_p0.ToWkt() + " -> " + v.edge_p1.ToWkt() +
+                                  ") is shared by " + std::to_string(v.facet_indices.size()) +
+                                  " facets (max 2 allowed) -- not automatically fixable");
+    }
+  }
+
+  struct SpliceKey {
+    std::size_t facet;
+    PointT a, b;
+  };
+  std::vector<std::pair<SpliceKey, std::vector<PointT>>> splices;
+
+  for (auto const& v : violations) {
+    std::size_t coarse_facet = v.facet_indices[0];
+
+    bool found = false;
+    for (auto& [key, pts] : splices) {
+      if (key.facet == coarse_facet && key.a.AlmostEquals(v.edge_p0) && key.b.AlmostEquals(v.edge_p1)) {
+        pts.push_back(v.on_vertex);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      splices.push_back({{coarse_facet, v.edge_p0, v.edge_p1}, {v.on_vertex}});
+    }
+  }
+
+  std::vector<std::vector<PointT>> result;
+
+  for (std::size_t f = 0; f < facet_rings.size(); ++f) {
+    std::vector<PointT> ring = facet_rings[f];
+    std::vector<PointT> spliced_points;
+
+    for (auto const& [key, pts] : splices) {
+      if (key.facet != f) {
+        continue;
+      }
+      for (std::size_t i = 0; i < ring.size(); ++i) {
+        if (ring[i].AlmostEquals(key.a)) {
+          std::vector<PointT> sorted_pts = pts;
+          std::sort(sorted_pts.begin(), sorted_pts.end(), [&](PointT const& x, PointT const& y) {
+            return key.a.DistanceTo(x) < key.a.DistanceTo(y);
+          });
+          ring.insert(ring.begin() + static_cast<std::ptrdiff_t>(i) + 1, sorted_pts.begin(), sorted_pts.end());
+          spliced_points.insert(spliced_points.end(), sorted_pts.begin(), sorted_pts.end());
+          break;
+        }
+      }
+    }
+
+    if (spliced_points.empty()) {
+      result.push_back(std::move(ring));
+      continue;
+    }
+
+    View2D view = view_for_ring(ring);
+    std::vector<std::vector<PointT>> pieces = {std::move(ring)};
+
+    for (auto const& v : spliced_points) {
+      for (std::size_t pi = 0; pi < pieces.size(); ++pi) {
+        auto& piece = pieces[pi];
+
+        std::size_t vi = piece.size();
+        for (std::size_t k = 0; k < piece.size(); ++k) {
+          if (piece[k].AlmostEquals(v)) {
+            vi = k;
+            break;
+          }
+        }
+        if (vi == piece.size()) {
+          continue;  // v doesn't belong to this piece -- keep searching the others
+        }
+
+        std::vector<std::size_t> candidates;
+        for (std::size_t k = 0; k < piece.size(); ++k) {
+          if (k != vi) {
+            candidates.push_back(k);
+          }
+        }
+        std::sort(candidates.begin(), candidates.end(), [&](std::size_t ca, std::size_t cb) {
+          return v.DistanceTo(piece[ca]) < v.DistanceTo(piece[cb]);
+        });
+
+        std::size_t chosen = piece.size();
+        for (auto c : candidates) {
+          if (is_valid_diagonal(piece, vi, c, view)) {
+            chosen = c;
+            break;
+          }
+        }
+        if (chosen == piece.size()) {
+          throw std::logic_error("fix_adjacency: found no valid diagonal from a spliced T-junction vertex -- "
+                                 "every simple polygon with >= 4 vertices has one, so this indicates a bug");
+        }
+
+        auto [ring_a, ring_b] = split_ring_at(piece, vi, chosen);
+        pieces.erase(pieces.begin() + static_cast<std::ptrdiff_t>(pi));
+        pieces.push_back(std::move(ring_a));
+        pieces.push_back(std::move(ring_b));
+        break;  // this spliced vertex is handled -- move on to the next one
+      }
+    }
+
+    result.insert(result.end(), std::make_move_iterator(pieces.begin()), std::make_move_iterator(pieces.end()));
+  }
+
+  return result;
+}
+
 }  // namespace
 
 std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<Polygon2D> const& facets) {
@@ -2995,7 +3220,7 @@ std::vector<std::vector<Point2D>> fix_adjacency(std::vector<Polygon2D> const& fa
   for (auto const& f : facets) {
     facet_rings.push_back(f.Perimeter());
   }
-  return fix_adjacency_impl(facet_rings);
+  return split_facets_at_junctions_impl(facet_rings);
 }
 
 std::vector<std::vector<Point3D>> fix_adjacency(std::vector<Polygon3D> const& facets) {
@@ -3004,7 +3229,57 @@ std::vector<std::vector<Point3D>> fix_adjacency(std::vector<Polygon3D> const& fa
   for (auto const& f : facets) {
     facet_rings.push_back(f.Perimeter());
   }
-  return fix_adjacency_impl(facet_rings);
+  return split_facets_at_junctions_impl(facet_rings);
+}
+
+std::vector<Triangle2D> fix_adjacency(std::vector<Triangle2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+
+  auto fixed_rings = fix_adjacency_impl(facet_rings);
+
+  std::vector<Triangle2D> result;
+  TriangulationParams guaranteed_collinearity;
+  guaranteed_collinearity.collinearity = TriangulationParams::Collinearity::Guaranteed;
+  for (auto const& ring : fixed_rings) {
+    if (ring.size() == 3) {
+      result.push_back(Triangle2D::Make(ring[0], ring[1], ring[2]));
+      continue;
+    }
+    auto sub_triangles = triangulate(ring, guaranteed_collinearity);
+    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()), std::make_move_iterator(sub_triangles.end()));
+  }
+  return result;
+}
+
+std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+
+  auto fixed_rings = fix_adjacency_impl(facet_rings);
+
+  std::vector<Triangle3D> result;
+  TriangulationParams guaranteed_collinearity;
+  guaranteed_collinearity.collinearity = TriangulationParams::Collinearity::Guaranteed;
+  for (auto const& ring : fixed_rings) {
+    if (ring.size() == 3) {
+      result.push_back(Triangle3D::Make(ring[0], ring[1], ring[2]));
+      continue;
+    }
+    // The ring may now span more than 3 points (still planar -- the splice only added collinear
+    // points), so fit its normal via PCA rather than assuming a caller-supplied one.
+    auto sub_triangles = triangulate(ring, guaranteed_collinearity);
+    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()), std::make_move_iterator(sub_triangles.end()));
+  }
+  return result;
 }
 
 std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, AdjacencyConformity conformity,
@@ -3036,17 +3311,15 @@ std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, Adja
       return result;
     }
     case AdjacencyConformity::Enforce: {
-      // fix_adjacency() returns raw rings that may carry a deliberately-collinear splice vertex --
-      // triangulate them with Collinearity::Guaranteed no matter what settings.collinearity says, or
-      // the caller's own default (Enforce) would strip that vertex right back out and silently
-      // reintroduce the T-junction in the triangulated output.
+      // fix_adjacency() now actually splits a coarse facet via a diagonal cut per T-junction vertex
+      // (§10.5), rather than just splicing a flat vertex into its ring, so every returned ring is
+      // already a simple polygon with no leftover collinear points -- no need to force
+      // Collinearity::Guaranteed here the way an earlier version of this function had to.
       auto fixed_rings = fix_adjacency(polygons);
-      TriangulationParams fixed_settings = settings;
-      fixed_settings.collinearity = TriangulationParams::Collinearity::Guaranteed;
 
       std::vector<Triangle2D> result;
       for (auto const& ring : fixed_rings) {
-        auto tris = triangulate(ring, fixed_settings);
+        auto tris = triangulate(ring, settings);
         result.insert(result.end(), std::make_move_iterator(tris.begin()), std::make_move_iterator(tris.end()));
       }
       return result;
