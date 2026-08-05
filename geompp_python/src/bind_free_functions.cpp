@@ -457,10 +457,12 @@ void bind_free_functions(py::module_& m) {
     m.def("fix_adjacency",
           [](const std::vector<geompp::Polygon2D>& facets) { return geompp::fix_adjacency(facets); },
           "facets"_a,
-          "Repairs every T-junction validate_adjacency() would report, by splicing the foreign vertex "
-          "into the coarse edge's facet. Raises ValueError on a non-manifold edge (not fixable). "
-          "Returns raw point rings (list[list[Point2D]]), NOT Polygon2D — Polygon2D.make() "
-          "unconditionally strips collinear points, which would undo the splice.");
+          "Repairs every T-junction validate_adjacency() would report: splices the foreign vertex into "
+          "the coarse edge, then cuts a diagonal to the nearest ring vertex that forms a valid, "
+          "non-crossing diagonal, splitting the facet into pieces (a facet with several T-junctions on "
+          "one edge may split into several pieces). Raises ValueError on a non-manifold edge (not "
+          "fixable). Returns raw point rings (list[list[Point2D]]), NOT Polygon2D — the split pieces "
+          "have no guarantee of matching a valid Polygon2D winding/hole structure.");
     m.def("fix_adjacency",
           [](const std::vector<geompp::Polygon3D>& facets) { return geompp::fix_adjacency(facets); },
           "facets"_a, "Same as the Polygon2D overload, for Polygon3D facets -> list[list[Point3D]].");

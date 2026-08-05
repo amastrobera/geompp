@@ -364,10 +364,12 @@ public:
     static System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ ValidateAdjacency(array<Polygon3D^>^ facets);
     static System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ ValidateAdjacency(array<Triangle3D^>^ facets);
 
-    // FixAdjacency — repairs every T-junction ValidateAdjacency() would report, by splicing the
-    // foreign vertex into the coarse edge's facet. Throws on a non-manifold edge (not fixable). Returns
-    // raw point rings, NOT Polygon2D/3D -- Polygon2D/3D.Make() unconditionally strips collinear points,
-    // which would undo the splice.
+    // FixAdjacency — repairs every T-junction ValidateAdjacency() would report: splices the foreign
+    // vertex into the coarse edge, then cuts a diagonal to the nearest ring vertex that forms a valid,
+    // non-crossing diagonal, splitting the facet into pieces (several T-junctions on one edge can split
+    // a facet into several pieces). Throws on a non-manifold edge (not fixable). Returns raw point
+    // rings, NOT Polygon2D/3D -- the split pieces have no guarantee of matching a valid Polygon2D/3D
+    // winding/hole structure.
     static array<array<Point2D^>^>^ FixAdjacency(array<Polygon2D^>^ facets);
     static array<array<Point3D^>^>^ FixAdjacency(array<Polygon3D^>^ facets);
 

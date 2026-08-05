@@ -770,16 +770,18 @@ std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<Triangle
 std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<std::vector<Point2D>> const& facet_rings);
 std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<std::vector<Point3D>> const& facet_rings);
 
-/// @brief Repairs every T-junction validate_adjacency() would report, by splicing the foreign vertex
-/// into the coarse edge's facet (same shape, same area, one more flat-180°-angle vertex on that edge --
-/// the same kind of vertex TriangulationParams::Collinearity already treats as legitimate). Does NOT
-/// attempt to fix a non-manifold edge (a full edge shared by 3+ facets); there's no principled automatic
-/// repair for that, so it throws instead -- same as validate_adjacency() + Assert would.
+/// @brief Repairs every T-junction validate_adjacency() would report. For each foreign vertex, splices
+/// it into the coarse edge, then cuts a diagonal from that vertex to the nearest ring vertex that forms
+/// a valid, non-crossing diagonal (checked via proper-segment-intersection + a point-in-polygon interior
+/// test), splitting the facet into two pieces along it. A facet with several T-junctions on one edge
+/// ends up split into several pieces, not just spliced once. Does NOT attempt to fix a non-manifold edge
+/// (a full edge shared by 3+ facets); there's no principled automatic repair for that, so it throws
+/// instead -- same as validate_adjacency() + Assert would.
 ///
-/// Returns raw point rings, NOT reconstructed Polygon2D/3D objects: Polygon2D/3D::Make() unconditionally
-/// calls remove_collinear() on its input, which would immediately strip the just-spliced vertex back
-/// out again -- silently undoing the repair. Whatever triangulates these rings afterward must do so
-/// with Collinearity::Guaranteed (see triangulate(vector<Polygon2D>, ...) below), for the same reason.
+/// Returns raw point rings, NOT reconstructed Polygon2D/3D objects: the split pieces have no guarantee
+/// of matching a valid Polygon2D/3D winding/hole structure. Unlike the Triangle overload below, these
+/// pieces have no leftover flat (180°) vertices, so -- unlike that overload -- they can be triangulated
+/// afterward with the default Collinearity::Enforce; no special handling needed.
 /// @throws std::invalid_argument if any non-manifold edge is found.
 std::vector<std::vector<Point2D>> fix_adjacency(std::vector<Polygon2D> const& facets);
 std::vector<std::vector<Point3D>> fix_adjacency(std::vector<Polygon3D> const& facets);
