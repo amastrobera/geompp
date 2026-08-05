@@ -120,6 +120,49 @@ public static class TriangulateTests {
       Eq(3, CountOf(triangles), 0);
       Eq(16.0, SumArea2D(triangles));
     });
+
+    Test("TriangulationParams_DefaultStrategy_IsEarClippingBestFit", () => {
+      var settings = new TriangulationParams();
+      IsTrue(settings.Strategy == TriangulationStrategy.EarClippingBestFit,
+             $"expected default strategy EarClippingBestFit, got {settings.Strategy}");
+    });
+
+    Test("GeomUtil_Triangulate_EarClippingBestFitStrategy_Succeeds", () => {
+      var pts = new System.Collections.Generic.List<Point2D> { new(0, 0), new(4, 0), new(4, 2), new(0, 2) };
+      var settings = new TriangulationParams(TriangulationStrategy.EarClippingBestFit, TriangulationSimplicity.Enforce,
+                                             TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+      var triangles = GeomUtil.Triangulate(pts, settings);
+      Eq(2, CountOf(triangles), 0);
+      Eq(8.0, SumArea2D(triangles));
+    });
+
+    Test("GeomUtil_Triangulate_EarClippingBestFit_PicksDifferentDiagonalsThanPlainEarClipping", () => {
+      // A 5-pointed star: EarClipping (first valid ear in scan order) fans every triangle out from one
+      // vertex; EarClippingBestFit (best-scoring valid ear each step) clips all 5 outer points first,
+      // then fans only the remaining inner pentagon. Both are valid triangulations of the same polygon
+      // -- same triangle count and total area -- but via genuinely different diagonals.
+      var star = new System.Collections.Generic.List<Point2D> {
+          new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+          new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97) };
+
+      var plainSettings = new TriangulationParams(TriangulationStrategy.EarClipping, TriangulationSimplicity.Enforce,
+                                                   TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+      var bestFitSettings = new TriangulationParams(TriangulationStrategy.EarClippingBestFit, TriangulationSimplicity.Enforce,
+                                                     TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+
+      var plain = GeomUtil.Triangulate(star, plainSettings);
+      var bestFit = GeomUtil.Triangulate(star, bestFitSettings);
+
+      Eq(8, CountOf(plain), 0);
+      Eq(8, CountOf(bestFit), 0);
+      Eq(SumArea2D(plain), SumArea2D(bestFit));
+
+      var plainWkt = new System.Collections.Generic.HashSet<string>();
+      foreach (var t in plain) plainWkt.Add(t.ToWkt());
+      var bestFitWkt = new System.Collections.Generic.HashSet<string>();
+      foreach (var t in bestFit) bestFitWkt.Add(t.ToWkt());
+      IsFalse(plainWkt.SetEquals(bestFitWkt), "expected EarClipping and EarClippingBestFit to pick different diagonals");
+    });
   }
 }
 

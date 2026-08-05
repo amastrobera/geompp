@@ -37,7 +37,7 @@ Polygon3D^ PolyMesh3D::default::get(int i) {
 }
 
 Mesh3D^ PolyMesh3D::Triangulate() {
-    return Triangulate(TriangulationStrategy::EarClipping);
+    return Triangulate(TriangulationStrategy::EarClippingBestFit);
 }
 
 Mesh3D^ PolyMesh3D::Triangulate(TriangulationStrategy strategy) {

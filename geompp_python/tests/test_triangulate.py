@@ -90,3 +90,38 @@ class TestTriangulate:
         triangles = geompp.triangulate(square_with_midpoint, settings)
         assert len(triangles) == 3
         assert approx(sum(t.area() for t in triangles), 16.0)
+
+    def test_default_strategy_is_ear_clipping_best_fit(self):
+        assert geompp.TriangulationParams().strategy == geompp.TriangulationStrategy.EarClippingBestFit
+
+    def test_ear_clipping_best_fit_strategy_succeeds(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 2), geompp.Point2D(0, 2)]
+        settings = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.EarClippingBestFit)
+        triangles = geompp.triangulate(pts, settings)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), 8.0)
+
+    def test_ear_clipping_best_fit_picks_different_diagonals_than_plain_ear_clipping(self):
+        # A 5-pointed star: EarClipping (first valid ear in scan order) fans every triangle out from
+        # one vertex; EarClippingBestFit (best-scoring valid ear each step) clips all 5 outer points
+        # first, then fans only the remaining inner pentagon. Both are valid triangulations of the same
+        # polygon -- same triangle count and total area -- but via genuinely different diagonals.
+        star = [
+            geompp.Point2D(3.0, 6.0), geompp.Point2D(2.29, 3.97), geompp.Point2D(0.15, 3.93),
+            geompp.Point2D(1.86, 2.63), geompp.Point2D(1.24, 0.57), geompp.Point2D(3.0, 1.8),
+            geompp.Point2D(4.76, 0.57), geompp.Point2D(4.14, 2.63), geompp.Point2D(5.85, 3.93),
+            geompp.Point2D(3.71, 3.97),
+        ]
+        plain_settings = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.EarClipping)
+        best_fit_settings = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.EarClippingBestFit)
+
+        plain = geompp.triangulate(star, plain_settings)
+        best_fit = geompp.triangulate(star, best_fit_settings)
+
+        assert len(plain) == 8
+        assert len(best_fit) == 8
+        assert approx(sum(t.area() for t in plain), sum(t.area() for t in best_fit))
+
+        plain_wkt = {t.to_wkt() for t in plain}
+        best_fit_wkt = {t.to_wkt() for t in best_fit}
+        assert plain_wkt != best_fit_wkt

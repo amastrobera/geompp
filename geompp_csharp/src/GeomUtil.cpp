@@ -378,7 +378,7 @@ PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Polygon3D^ other) {
 }
 
 TriangulationParams::TriangulationParams()
-    : _strategy(TriangulationStrategy::EarClipping), _simplicity(TriangulationSimplicity::Enforce),
+    : _strategy(TriangulationStrategy::EarClippingBestFit), _simplicity(TriangulationSimplicity::Enforce),
       _ccwWinding(TriangulationWinding::Enforce), _collinearity(TriangulationCollinearity::Enforce) {}
 
 TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,

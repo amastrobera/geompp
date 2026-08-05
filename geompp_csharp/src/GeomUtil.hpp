@@ -70,16 +70,25 @@ private:
     LineSegment3D^ _right;
 };
 
-// Which triangulation algorithm to run — see TriangulationParams.
+// Which triangulation algorithm to run — see TriangulationParams. Values must stay in the same order
+// as geompp::TriangulationParams::Strategy: ToNative() converts via a raw static_cast by ordinal, not
+// by name, so inserting or reordering a value here without matching the C++ enum silently corrupts
+// every other value after it.
 public enum class TriangulationStrategy {
-    // O(n^2) worst case, but simple and robust for small polygons.
+    // Clips the first valid ear found in scan order. O(n^2) worst case, but often close to O(n) in
+    // practice. Doesn't optimize triangle shape, so it can produce a visually thin sliver purely from
+    // scan order, even on ordinary input.
     EarClipping = 0,
+    // Clips the best-scoring (least sliver-prone) valid ear every step instead of the first one found.
+    // Same termination guarantee as EarClipping, but unconditionally ~O(n^2) -- a full rescan of the
+    // current ring on every single clip, not just worst case. Default.
+    EarClippingBestFit = 1,
     // O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone pieces).
     // Not yet implemented.
-    MonotonePolygon = 1,
+    MonotonePolygon = 2,
     // O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny slivers).
     // Not yet implemented.
-    Delaunay = 2
+    Delaunay = 3
 };
 
 // How GeomUtil.Triangulate() handles a possibly self-intersecting input ring.

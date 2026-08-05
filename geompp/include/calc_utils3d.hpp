@@ -115,7 +115,15 @@ bool is_simple(std::vector<Point3D> const& points);
 /// @param normal the normal vector of the polygon's plane
 /// @param settings options for functions inner workings
 ///                 (1) triangulation strategy options: user decides what algorithm to run
-///                     - EarClipping: O(n^2) worst case, but simple and robust for small polygons
+///                     - EarClipping clips the first valid ear it finds in scan order. Most robust and
+///                                   general-purpose, and often close to O(n) in practice, but O(n²) worst-case -- and
+///                                   doesn't optimize triangle shape, so it can produce a visually thin sliver purely
+///                                   from scan order, even on ordinary input.
+///                     - EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step
+///                                   instead of the first one. Same termination guarantee as EarClipping, but
+///                                   unconditionally ~O(n²) -- a full rescan of the current ring on every single clip,
+///                                   not just worst-case.
+///                                   [Default: prefers shape quality over raw speed.]
 ///                     - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
 ///                                        into monotone pieces)
 ///                     - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle
@@ -145,7 +153,15 @@ std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input, Vector3D 
 /// @param input polygon's outer loop of points (assumed CCW against their own normal) and no holes allowed
 /// @param settings options for functions inner workings
 ///                 (1) triangulation strategy options: user decides what algorithm to run
-///                     - EarClipping: O(n^2) worst case, but simple and robust for small polygons
+///                     - EarClipping clips the first valid ear it finds in scan order. Most robust and
+///                                   general-purpose, and often close to O(n) in practice, but O(n²) worst-case -- and
+///                                   doesn't optimize triangle shape, so it can produce a visually thin sliver purely
+///                                   from scan order, even on ordinary input.
+///                     - EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step
+///                                   instead of the first one. Same termination guarantee as EarClipping, but
+///                                   unconditionally ~O(n²) -- a full rescan of the current ring on every single clip,
+///                                   not just worst-case.
+///                                   [Default: prefers shape quality over raw speed.]
 ///                     - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
 ///                                        into monotone pieces)
 ///                     - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle

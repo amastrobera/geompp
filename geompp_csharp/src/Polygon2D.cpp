@@ -122,7 +122,7 @@ array<Polygon2D^>^ Polygon2D::Simplify() {
 }
 
 array<Triangle2D^>^ Polygon2D::Triangulate() {
-    return Triangulate(TriangulationStrategy::EarClipping);
+    return Triangulate(TriangulationStrategy::EarClippingBestFit);
 }
 
 array<Triangle2D^>^ Polygon2D::Triangulate(TriangulationStrategy strategy) {

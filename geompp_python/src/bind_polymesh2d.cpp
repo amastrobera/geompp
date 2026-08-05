@@ -13,7 +13,7 @@ void bind_polymesh2d(py::module_& m) {
         .def("size", &geompp::PolyMesh2D::Size, "The number of facets.")
         .def("area", &geompp::PolyMesh2D::Area, "Sum of each input polygon's own area, independent of welding.")
         .def("triangulate", &geompp::PolyMesh2D::Triangulate,
-             "strategy"_a = geompp::TriangulationParams::Strategy::EarClipping,
+             "strategy"_a = geompp::TriangulationParams::Strategy::EarClippingBestFit,
              "Returns a Mesh2D of triangles instead of n-gons — every facet is triangulated "
              "independently (already simple/CCW/collinear-free by construction, so no re-validation) "
              "and combined into one mesh.")

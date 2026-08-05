@@ -124,13 +124,20 @@ struct PolylineExpansionParams {
 };
 
 struct TriangulationParams {
-  enum class Strategy { EarClipping, MonotonePolygon, Delaunay };
+  enum class Strategy { EarClipping, EarClippingBestFit, MonotonePolygon, Delaunay };
   /// @brief Triangulation algorithm.
-  ///        - EarClipping is the most robust and general-purpose, but slower than the others. O(n²) worst-case.
+  ///        - EarClipping clips the first valid ear it finds in scan order. Most robust and
+  ///          general-purpose, and often close to O(n) in practice, but O(n²) worst-case -- and doesn't
+  ///          optimize triangle shape, so it can produce a visually thin sliver purely from scan order,
+  ///          even on ordinary input.
+  ///        - EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step
+  ///          instead of the first one. Same termination guarantee as EarClipping, but unconditionally
+  ///          ~O(n²) -- a full rescan of the current ring on every single clip, not just worst-case.
+  ///          Default: prefers shape quality over raw speed.
   ///        - MonotonePolygon (which requires a monotone polygon). O(n log n) to O(n²) worst-case
   ///        - Delaunay (which requires a point set and produces a triangulation of the convex hull, not a polygon).
   ///          O(n log n) to O(n²) worst-case.
-  Strategy strategy = Strategy::EarClipping;
+  Strategy strategy = Strategy::EarClippingBestFit;
 
   enum class Simplicity { Guaranteed, Assert, Enforce };
   /// @brief How to handle non-simple input (self-intersecting polygons).

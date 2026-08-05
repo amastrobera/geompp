@@ -127,7 +127,7 @@ array<Polygon3D^>^ Polygon3D::Simplify() {
 }
 
 array<Triangle3D^>^ Polygon3D::Triangulate() {
-    return Triangulate(TriangulationStrategy::EarClipping);
+    return Triangulate(TriangulationStrategy::EarClippingBestFit);
 }
 
 array<Triangle3D^>^ Polygon3D::Triangulate(TriangulationStrategy strategy) {

@@ -11,7 +11,13 @@ void bind_triangulation_params(py::module_& m) {
     py::enum_<geompp::TriangulationParams::Strategy>(m, "TriangulationStrategy",
         "Which triangulation algorithm to run — see TriangulationParams.")
         .value("EarClipping", geompp::TriangulationParams::Strategy::EarClipping,
-               "O(n^2) worst case, but simple and robust for small polygons.")
+               "Clips the first valid ear found in scan order. O(n^2) worst case, but often close to "
+               "O(n) in practice. Doesn't optimize triangle shape, so it can produce a visually thin "
+               "sliver purely from scan order, even on ordinary input.")
+        .value("EarClippingBestFit", geompp::TriangulationParams::Strategy::EarClippingBestFit,
+               "Clips the best-scoring (least sliver-prone) valid ear every step instead of the first "
+               "one found. Same termination guarantee as EarClipping, but unconditionally ~O(n^2) — a "
+               "full rescan of the current ring on every single clip, not just worst case. Default.")
         .value("MonotonePolygon", geompp::TriangulationParams::Strategy::MonotonePolygon,
                "O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone "
                "pieces). Not yet implemented.")
@@ -53,8 +59,8 @@ void bind_triangulation_params(py::module_& m) {
     py::class_<geompp::TriangulationParams>(m, "TriangulationParams",
         "Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for "
         "triangulate() / Polygon2D.triangulate() / Polygon3D.triangulate() / PolyMesh2D.triangulate() / "
-        "PolyMesh3D.triangulate(). Defaults match triangulate()'s own defaults: EarClipping, and Enforce "
-        "for all three input-quality checks.")
+        "PolyMesh3D.triangulate(). Defaults match triangulate()'s own defaults: EarClippingBestFit, and "
+        "Enforce for all three input-quality checks.")
         .def(py::init([](geompp::TriangulationParams::Strategy strategy,
                           geompp::TriangulationParams::Simplicity simplicity,
                           geompp::TriangulationParams::Winding ccw_winding,
@@ -66,7 +72,7 @@ void bind_triangulation_params(py::module_& m) {
                  p.collinearity = collinearity;
                  return p;
              }),
-             "strategy"_a = geompp::TriangulationParams::Strategy::EarClipping,
+             "strategy"_a = geompp::TriangulationParams::Strategy::EarClippingBestFit,
              "simplicity"_a = geompp::TriangulationParams::Simplicity::Enforce,
              "ccw_winding"_a = geompp::TriangulationParams::Winding::Enforce,
              "collinearity"_a = geompp::TriangulationParams::Collinearity::Enforce)

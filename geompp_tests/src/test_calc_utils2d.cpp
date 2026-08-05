@@ -12,11 +12,13 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iostream>
 #include <optional>
 #include <random>
+#include <set>
 #include <vector>
 
 namespace g  = geompp;
@@ -1400,6 +1402,23 @@ TEST_F(CalcUtils2DTest, Triangulate_SimplicityAssert_ThrowsOnSelfIntersectingInp
   EXPECT_THROW(g::triangulate(bowtie, settings), std::invalid_argument);
 }
 
+TEST_F(CalcUtils2DTest, Triangulate_EarClippingBestFitStrategy_IsTheDefaultAndSucceeds) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+
+  g::TriangulationParams default_settings{};
+  EXPECT_EQ(default_settings.strategy, g::TriangulationParams::Strategy::EarClippingBestFit);
+
+  g::TriangulationParams explicit_settings{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto triangles = g::triangulate(square, explicit_settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 1.0, 1e-9);
+}
+
 TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygonStrategy_Throws) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
   g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
@@ -1562,9 +1581,104 @@ TEST_F(CalcUtils2DTest, EarClippingTriangulation_CollinearVertexAtRingStart_Does
   EXPECT_NEAR(total_area, 16.0, 1e-9);
 }
 
+TEST_F(CalcUtils2DTest, EarClippingBestFitTriangulation_ConcavePentagon_ReturnsValidIndexTriplets) {
+  // Same chevron shape as EarClippingTriangulation_ConcavePentagon_ReturnsValidIndexTriplets above.
+  std::vector<g::Point2D> chevron = {{0, 0}, {4, 0}, {4, 4}, {2, 1}, {0, 4}};
+  auto tri_indices = gd::view::ear_clipping_best_fit_triangulation(chevron, g::View2D::XY());
+
+  ASSERT_EQ(tri_indices.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, chevron.size());
+    }
+    total_area += g::Triangle2D::Make(chevron[tri[0]], chevron[tri[1]], chevron[tri[2]]).Area();
+  }
+  EXPECT_NEAR(total_area, 10.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, EarClippingBestFitTriangulation_CombPolygon_RequiresMultipleLapsPerClip) {
+  // Same 3-tooth comb as EarClippingTriangulation_CombPolygon_RequiresMultipleTraversalLaps. Every
+  // outer-loop iteration of the best-fit algorithm does a full lap over the current ring by design (to
+  // find the best-scoring ear before clipping exactly one), so this exercises that unconditionally,
+  // not just as an adversarial case.
+  std::vector<g::Point2D> comb = {
+      {5, 0}, {5, 10}, {4, 10}, {4, 9}, {3, 9}, {3, 10},
+      {2, 10}, {2, 9}, {1, 9}, {1, 10}, {0, 10}, {0, 0}};
+  auto tri_indices = gd::view::ear_clipping_best_fit_triangulation(comb, g::View2D::XY());
+
+  ASSERT_EQ(tri_indices.size(), 10u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, comb.size());
+    }
+    total_area += g::Triangle2D::Make(comb[tri[0]], comb[tri[1]], comb[tri[2]]).Area();
+  }
+  EXPECT_NEAR(total_area, 48.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, EarClippingBestFitTriangulation_CollinearVertexAtRingStart_DoesNotHang) {
+  // Same regression shape as EarClippingTriangulation_CollinearVertexAtRingStart_DoesNotHang, run
+  // against the best-fit algorithm's own (separate) scan loop -- it has its own do/while lap and its
+  // own risk of getting stuck if the "advance to next vertex" step isn't unconditional.
+  std::vector<g::Point2D> square_with_midpoint = {{2, 0}, {4, 0}, {4, 4}, {0, 4}, {0, 0}};
+  auto tri_indices = gd::view::ear_clipping_best_fit_triangulation(square_with_midpoint, g::View2D::XY());
+
+  ASSERT_EQ(tri_indices.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& tri : tri_indices) {
+    for (auto idx : tri) {
+      ASSERT_LT(idx, square_with_midpoint.size()) << "index out of range -- stale i_prev/i_next?";
+    }
+    total_area += g::Triangle2D::Make(square_with_midpoint[tri[0]], square_with_midpoint[tri[1]],
+                                      square_with_midpoint[tri[2]]).Area();
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, EarClippingBestFitTriangulation_Star_PicksDifferentDiagonalsThanPlainEarClipping) {
+  // A 5-pointed star: EarClipping (first valid ear in scan order) fans every triangle out from one
+  // vertex; EarClippingBestFit (best-scoring valid ear each step) clips all 5 outer points first, then
+  // fans only the remaining inner pentagon. Both are valid triangulations of the same polygon -- same
+  // triangle count and total area -- but via genuinely different diagonals. This is the concrete
+  // behavioral difference the two strategies exist to offer.
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+
+  auto plain = gd::view::ear_clipping_triangulation(star, g::View2D::XY());
+  auto best_fit = gd::view::ear_clipping_best_fit_triangulation(star, g::View2D::XY());
+
+  ASSERT_EQ(plain.size(), 8u);
+  ASSERT_EQ(best_fit.size(), 8u);
+
+  auto total_area = [&star](std::vector<std::array<std::size_t, 3>> const& tri_indices) {
+    double area = 0.0;
+    for (auto const& tri : tri_indices) {
+      area += g::Triangle2D::Make(star[tri[0]], star[tri[1]], star[tri[2]]).Area();
+    }
+    return area;
+  };
+  EXPECT_NEAR(total_area(plain), total_area(best_fit), 1e-9);
+
+  // Every triangle in `plain`'s fan shares the same one vertex (index 9, (3.71, 3.97)) -- BestFit's
+  // point-ears (e.g. the (2.29 3.97, 0.15 3.93, 1.86 2.63) triangle clipped from the star's tip) don't.
+  // Directly assert the two index-triplet sets differ, order/rotation aside.
+  auto normalize = [](std::array<std::size_t, 3> t) {
+    std::sort(t.begin(), t.end());
+    return t;
+  };
+  std::set<std::array<std::size_t, 3>> plain_set, best_fit_set;
+  for (auto const& t : plain) plain_set.insert(normalize(t));
+  for (auto const& t : best_fit) best_fit_set.insert(normalize(t));
+  EXPECT_NE(plain_set, best_fit_set);
+}
+
 TEST_F(CalcUtils2DTest, TriangulateImpl_CalledDirectly_GuaranteedPath_ProducesCorrectTriangles) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  g::TriangulationParams settings{};  // Strategy::EarClipping, everything Enforce by default
+  g::TriangulationParams settings{};  // Strategy::EarClippingBestFit, everything Enforce by default
 
   auto triangles = gd::view::triangulate_impl(square, g::View2D::XY(), settings);
 

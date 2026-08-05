@@ -4868,6 +4868,10 @@ A quick list of code examples per topic is provided here.
   Both conversions return a new mesh object — neither mutates the source, and the source stays valid
   and usable afterward.
 
+  <p align="center">
+    <img src="./images/polymesh2d_triangulate.png" width="460" alt="A house-shaped PolyMesh2D -- a wide rectangle base, two square facets for the body, a triangle roof (gold) -- next to the Mesh2D produced by Triangulate(): 7 triangles (cyan), same total area">
+  </p>
+
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
 
@@ -4992,10 +4996,34 @@ A quick list of code examples per topic is provided here.
 
   `TriangulationParams` bundles the algorithm choice with how strictly to trust the input:
 
-  - **`Strategy`** — `EarClipping` (the default, and the only one implemented so far) walks the ring
-    clipping off convex "ear" vertices one at a time, tracking which vertices are reflex as it goes so
-    later ears can't accidentally clip through one. O(n²) worst case. `MonotonePolygon` and `Delaunay`
-    are declared but not yet implemented — both `throw`.
+  - **`Strategy`** — four values, two implemented so far:
+    - `EarClipping` walks the ring and clips the *first* valid convex "ear" vertex it finds, in scan
+      order, tracking which vertices are reflex as it goes so later ears can't accidentally clip
+      through one. O(n²) worst case, but often close to O(n) in practice on well-behaved polygons —
+      clipping at one vertex frequently leaves its neighbor immediately clippable too. It has no
+      concept of triangle *quality*, though: taking whatever's first in scan order can produce a
+      visibly thin sliver triangle purely by luck of vertex ordering, even on an otherwise ordinary
+      polygon (not just adversarial input) — see the second picture below.
+    - `EarClippingBestFit` (**the default**) clips one ear at a time the same way, but each step first
+      does a full lap over the *current* ring to find the best-scoring valid ear — by a cheap,
+      scale-invariant shape-quality score, `|cross(prev, cur, next)| / (a² + b² + c²)` (proportional to
+      `4√3·Area/(a²+b²+c²)`, 1.0 for an equilateral triangle, → 0 for a sliver) — instead of just
+      taking the first one found. It never rejects a geometrically valid ear outright, only reorders
+      which one gets preferred, so it keeps the exact same termination guarantee (the Two Ears
+      Theorem) `EarClipping` relies on — critically, a strict angle/area floor that *rejects* thin
+      candidates instead of just deprioritizing them can't make that same promise, and risks never
+      terminating on a polygon with a genuinely sharp (but valid) vertex. The cost of the quality win:
+      unconditionally ~O(n²), since the full rescan runs on *every* clip, not only in the worst case —
+      so `EarClippingBestFit` is slower than `EarClipping` even on inputs `EarClipping` would finish
+      quickly.
+    - `MonotonePolygon` and `Delaunay` are declared but **not yet implemented** — both `throw`.
+      `MonotonePolygon` would decompose the ring into y-monotone pieces and triangulate each with a
+      stack-based sweep, O(n log n) worst case — faster than either ear-clipping strategy, but unlike
+      them can't triangulate an arbitrary simple polygon directly; it needs the monotone-decomposition
+      step first. `Delaunay` would triangulate a *point set's* convex hull rather than a polygon
+      boundary (a different problem — no notion of "outside" the input), O(n log n) worst case, and is
+      the only one of the four with a *provable* global shape guarantee: it maximizes the minimum angle
+      across the whole triangulation, rather than `EarClippingBestFit`'s local, per-step preference.
   - **`Simplicity` / `Winding` / `Collinearity`** — each independently `Guaranteed` (skip the check,
     run at your own risk), `Assert` (throw if violated), or `Enforce` (fix it in place — decompose
     into simple rings, reverse to CCW, or strip collinear/duplicate points — before triangulating).
@@ -5008,17 +5036,34 @@ A quick list of code examples per topic is provided here.
   input via `TriangulationParams`.
 
   The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
-  at its inner corners. Every diagonal ear clipping adds happens to fan out from the same inner
-  vertex here, but that's a property of this particular vertex ordering, not something the algorithm
-  guarantees in general. Alongside it, a 3-tooth "comb" — the classic *adversarial* shape for naive
-  ear-clipping: its deep, narrow notches mean some vertices get checked, rejected, and only clipped
-  later once an unrelated clip elsewhere in the ring shrinks the set of blocking reflex vertices, so
-  the algorithm needs more than one pass around it to finish.
+  at its inner corners — using `EarClippingBestFit`, the default. The first lap around the ring clips
+  each of the star's 5 points off as its own ear; what's left is the inner pentagon, which the second
+  lap then fans from one of its vertices. That two-stage split is a property of this particular vertex
+  ordering (and of how close a triple is to collinear), not something the algorithm guarantees in
+  general. Alongside it, a 3-tooth "comb" — the classic *adversarial* shape for naive ear-clipping: its
+  deep, narrow notches mean some vertices get checked, rejected, and only clipped later once an
+  unrelated clip elsewhere in the ring shrinks the set of blocking reflex vertices, so the algorithm
+  needs more than one pass around it to finish.
 
   <p align="center">
-    <img src="./images/triangulation.png" width="420" alt="A 5-pointed star polygon before and after Triangulate(): 8 triangles (every edge in gold), every diagonal fanning out from one of the star's inner vertices">
+    <img src="./images/triangulation.png" width="420" alt="A 5-pointed star polygon before and after Triangulate() with EarClippingBestFit: 8 triangles (every edge in gold) -- the 5 point-ears clipped first, the remaining pentagon fanned from one of its vertices">
     &nbsp;&nbsp;
-    <img src="./images/comb_triangulation.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate(): 10 triangles fanning from the base, the classic adversarial case that needs multiple traversal laps to fully clip">
+    <img src="./images/comb_triangulation.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate() with EarClippingBestFit: 10 triangles fanning from the base, the classic adversarial case that needs multiple traversal laps to fully clip">
+  </p>
+
+  The same two shapes again below, but with plain `EarClipping` (fast, first-found) instead of the
+  default. Same polygons, same triangle counts, same total area — both are valid triangulations — but
+  scan order alone produces two visibly thin sliver triangles in the star (flagged red) that
+  `EarClippingBestFit` avoids entirely, simply by preferring a fatter ear when one's available. The
+  comb's sliver, also flagged red, shows up under *both* strategies: that one is forced by the notch's
+  own geometry, not by which ear got picked first, and no re-triangulation of a *fixed* vertex set can
+  fix a triangle whose thinness is inherited from a genuinely sharp input angle — only inserting new
+  points (Steiner refinement, which neither strategy does) could.
+
+  <p align="center">
+    <img src="./images/triangulation_ear_clipping.png" width="420" alt="The same 5-pointed star triangulated with plain EarClipping: 8 triangles, gold = healthy edge, red = two sliver triangles produced purely by scan order">
+    &nbsp;&nbsp;
+    <img src="./images/comb_triangulation_ear_clipping.png" width="270" alt="The same 3-tooth comb triangulated with plain EarClipping: 10 triangles, red = the one sliver forced by the notch geometry itself, present under EarClippingBestFit too">
   </p>
 
   <details closed>
@@ -5040,28 +5085,30 @@ A quick list of code examples per topic is provided here.
       g::Point2D(5.85, 3.93), g::Point2D(3.71, 3.97),
   });
 
-  // As a method: strategy defaults to EarClipping. All TriangulationParams checks are Guaranteed --
-  // Make() already validated simplicity/winding/collinearity, so there's nothing left to check.
-  for (auto const& t : poly.Triangulate())
+  // As a method: Polygon2D/3D::Triangulate() takes strategy explicitly (no default at this layer --
+  // EarClippingBestFit is only TriangulationParams' own default, see the free function below). All
+  // TriangulationParams checks are Guaranteed -- Make() already validated
+  // simplicity/winding/collinearity, so there's nothing left to check.
+  for (auto const& t : poly.Triangulate(g::TriangulationParams::Strategy::EarClippingBestFit))
       GEOMPP_LOG(INFO) << t.ToWkt();
 
   // Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
-  // the same way on flat/planar 3D input. settings defaults to EarClipping + Enforce for all three
-  // input-quality checks, so it can be omitted entirely.
+  // the same way on flat/planar 3D input. settings defaults to EarClippingBestFit + Enforce for all
+  // three input-quality checks, so it can be omitted entirely.
   auto triangles = g::triangulate(poly.Perimeter());
   GEOMPP_LOG(INFO) << triangles.size() << " triangles";
   ```
 
   ```bash
-  I20260803] TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
-  I20260803] TRIANGLE (3.71 3.97, 2.29 3.97, 0.15 3.93)
-  I20260803] TRIANGLE (3.71 3.97, 0.15 3.93, 1.86 2.63)
-  I20260803] TRIANGLE (3.71 3.97, 1.86 2.63, 1.24 0.57)
-  I20260803] TRIANGLE (3.71 3.97, 1.24 0.57, 3 1.8)
-  I20260803] TRIANGLE (3.71 3.97, 3 1.8, 4.76 0.57)
-  I20260803] TRIANGLE (3.71 3.97, 4.76 0.57, 4.14 2.63)
-  I20260803] TRIANGLE (3.71 3.97, 4.14 2.63, 5.85 3.93)
-  I20260803] 8 triangles
+  I20260804] TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  I20260804] TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  I20260804] TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  I20260804] TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  I20260804] TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  I20260804] TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  I20260804] TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  I20260804] TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  I20260804] 8 triangles
   ```
 
    </details>
@@ -5079,27 +5126,28 @@ A quick list of code examples per topic is provided here.
       g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
   ])
 
-  # As a method: strategy defaults to EarClipping. All TriangulationParams checks are Guaranteed --
-  # make() already validated simplicity/winding/collinearity, so there's nothing left to check.
+  # As a method: strategy defaults to EarClippingBestFit. All TriangulationParams checks are
+  # Guaranteed -- make() already validated simplicity/winding/collinearity, so there's nothing left
+  # to check.
   for t in poly.triangulate():
       print(t.to_wkt())
 
   # Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
-  # the same way on flat/planar 3D input. settings defaults to EarClipping + Enforce for all three
-  # input-quality checks, so it can be omitted entirely.
+  # the same way on flat/planar 3D input. settings defaults to EarClippingBestFit + Enforce for all
+  # three input-quality checks, so it can be omitted entirely.
   triangles = g.triangulate(poly.perimeter())
   print(f"{len(triangles)} triangles")
   ```
 
   ```
   TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
-  TRIANGLE (3.71 3.97, 2.29 3.97, 0.15 3.93)
-  TRIANGLE (3.71 3.97, 0.15 3.93, 1.86 2.63)
-  TRIANGLE (3.71 3.97, 1.86 2.63, 1.24 0.57)
-  TRIANGLE (3.71 3.97, 1.24 0.57, 3 1.8)
-  TRIANGLE (3.71 3.97, 3 1.8, 4.76 0.57)
-  TRIANGLE (3.71 3.97, 4.76 0.57, 4.14 2.63)
-  TRIANGLE (3.71 3.97, 4.14 2.63, 5.85 3.93)
+  TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
   8 triangles
   ```
 
@@ -5119,14 +5167,15 @@ A quick list of code examples per topic is provided here.
       new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
   });
 
-  // As a method: strategy defaults to EarClipping. All TriangulationParams checks are Guaranteed --
-  // Make() already validated simplicity/winding/collinearity, so there's nothing left to check.
+  // As a method: strategy defaults to EarClippingBestFit. All TriangulationParams checks are
+  // Guaranteed -- Make() already validated simplicity/winding/collinearity, so there's nothing left
+  // to check.
   foreach (var t in poly.Triangulate())
       Console.WriteLine(t.ToWkt());
 
   // Same algorithm via GeomUtil.Triangulate() on a raw point list -- 2D here, but 3D overloads work
   // the same way on flat/planar input. Unlike the method above, GeomUtil.Triangulate() takes an
-  // explicit TriangulationParams (defaults to EarClipping + Enforce for all three checks).
+  // explicit TriangulationParams (defaults to EarClippingBestFit + Enforce for all three checks).
   var points = new List<G.Point2D>(poly.Perimeter());
   var triangles = G.GeomUtil.Triangulate(points, new G.TriangulationParams());
   Console.WriteLine($"{triangles.Count()} triangles");
@@ -5134,13 +5183,13 @@ A quick list of code examples per topic is provided here.
 
   ```
   TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
-  TRIANGLE (3.71 3.97, 2.29 3.97, 0.15 3.93)
-  TRIANGLE (3.71 3.97, 0.15 3.93, 1.86 2.63)
-  TRIANGLE (3.71 3.97, 1.86 2.63, 1.24 0.57)
-  TRIANGLE (3.71 3.97, 1.24 0.57, 3 1.8)
-  TRIANGLE (3.71 3.97, 3 1.8, 4.76 0.57)
-  TRIANGLE (3.71 3.97, 4.76 0.57, 4.14 2.63)
-  TRIANGLE (3.71 3.97, 4.14 2.63, 5.85 3.93)
+  TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
   8 triangles
   ```
 

@@ -65,7 +65,8 @@ class PolyMesh2D {
   /// @returns A Mesh2D with sum(facet_vertex_count - 2) triangles across every facet.
   /// @throws whatever the chosen @p strategy itself throws (e.g. std::runtime_error for a
   /// not-yet-implemented strategy).
-  Mesh2D Triangulate(TriangulationParams::Strategy strategy = TriangulationParams::Strategy::EarClipping) const;
+  Mesh2D Triangulate(
+      TriangulationParams::Strategy strategy = TriangulationParams::Strategy::EarClippingBestFit) const;
 
  private:
   // shared_ptr, not plain vector: copying a PolyMesh2D (or handing its vertex buffer to a future

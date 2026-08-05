@@ -49,21 +49,19 @@ namespace detail {
 // A vector type must be able to dot with another vector of the same type, yielding a scalar.
 template <typename T>
 concept VectorType = requires(T v) {
-  { v.Dot(v) }
-  ->std::convertible_to<double>;
+  { v.Dot(v) } -> std::convertible_to<double>;
 };
 
 // Uses composition (&&) to inherit all requirements from the Point concept automatically.
 template <typename P, typename V>
-concept ProjectablePointWith = Point<P>&& requires(P const& p, V const& v) {
-  { p.ToVector().Dot(v) }
-  ->std::convertible_to<double>;
+concept ProjectablePointWith = Point<P> && requires(P const& p, V const& v) {
+  { p.ToVector().Dot(v) } -> std::convertible_to<double>;
 };
 
 // A container where elements are guaranteed to be projectable with V.
 template <typename T, typename V>
-concept ProjectablePointContainerWith = std::ranges::random_access_range<T>&& std::ranges::sized_range<T>&&
-    ProjectablePointWith<std::ranges::range_value_t<T>, V>;
+concept ProjectablePointContainerWith = std::ranges::random_access_range<T> && std::ranges::sized_range<T> &&
+                                        ProjectablePointWith<std::ranges::range_value_t<T>, V>;
 
 /// @brief Indices of the two vertices extreme (least / greatest projection) along a direction.
 /// @tparam V a vector type supporting Dot (Vector2D / Vector3D).
@@ -234,12 +232,6 @@ bool is_ccw(Points const& points, View2D const& view);
 
 extern template bool is_ccw(std::vector<Point2D> const&, View2D const&);
 extern template bool is_ccw(std::vector<Point3D> const&, View2D const&);
-
-template <typename PointT>
-bool are_collinear(PointT const& p0, PointT const& p1, PointT const& p2, View2D const& view);
-
-extern template bool are_collinear(Point2D const&, Point2D const&, Point2D const&, View2D const&);
-extern template bool are_collinear(Point3D const&, Point3D const&, Point3D const&, View2D const&);
 
 /// @brief Whether a ring of points has any collinear consecutive triplet, projected through @p view — the
 /// building block behind triangulate_impl's Collinearity check. A duplicate vertex is just the degenerate
@@ -438,6 +430,26 @@ extern template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulati
                                                                                    View2D const& view);
 extern template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<Point3D> const& input,
                                                                                    View2D const& view);
+
+/// @brief Like ear_clipping_triangulation, but each step does a full lap over the current ring to clip
+/// the best-scoring valid ear (by shape quality) instead of the first one found — avoids gratuitously
+/// thin slivers that plain EarClipping can produce purely from scan order. Never rejects a
+/// geometrically valid ear outright (only reorders which one is preferred), so it keeps the same Two
+/// Ears Theorem termination guarantee as ear_clipping_triangulation. Unconditionally ~O(n²): a full
+/// O(current n) rescan runs on every single clip, where ear_clipping_triangulation's O(n²) is only a
+/// worst case.
+/// @param input ring vertices (Point2D or Point3D), simple, CCW, no consecutive duplicates or collinear
+/// points — the caller (triangulate_impl) is responsible for enforcing this via TriangulationParams.
+/// @param view projects each vertex to 2D x/y coordinates.
+/// @returns one `{i, j, k}` index triplet per triangle, indices into @p input, n - 2 triangles total.
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<PointT> const& input,
+                                                                            View2D const& view);
+
+extern template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(
+    std::vector<Point2D> const& input, View2D const& view);
+extern template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(
+    std::vector<Point3D> const& input, View2D const& view);
 
 /// @brief O(n log n)-worst-case triangulation of a monotone ring, projected through @p view.
 /// @param input ring vertices (Point2D or Point3D), simple, CCW, monotone with respect to some direction.
@@ -684,7 +696,15 @@ extern template std::vector<Point3D> polyline_expansion(std::vector<Point3D> con
 /// @param input polygon's outer loop of points (assumed CCW) and no holes allowed
 /// @param settings options for functions inner workings
 ///                 (1) triangulation strategy options: user decides what algorithm to run
-///                     - EarClipping: O(n^2) worst case, but simple and robust for small polygons
+///                     - EarClipping clips the first valid ear it finds in scan order. Most robust and
+///                                   general-purpose, and often close to O(n) in practice, but O(n²) worst-case -- and
+///                                   doesn't optimize triangle shape, so it can produce a visually thin sliver purely
+///                                   from scan order, even on ordinary input.
+///                     - EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step
+///                                   instead of the first one. Same termination guarantee as EarClipping, but
+///                                   unconditionally ~O(n²) -- a full rescan of the current ring on every single clip,
+///                                   not just worst-case.
+///                                   [Default: prefers shape quality over raw speed.]
 ///                     - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
 ///                                        into monotone pieces)
 ///                     - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle

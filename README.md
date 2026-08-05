@@ -164,7 +164,7 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; polygon extreme points along a line, polygon tangents; polyline decimation, Bezier corner smoothing, polyline expansion; polygon clipping; boolean operations (union, intersection, difference); Mesh2D/3D and PolyMesh2D/3D (triangle- and polygon-faced meshes with spatial-hash vertex welding, no adjacency structure); `ConnectedMesh2D`/`ConnectedMesh3D` (triangle mesh with precomputed per-facet edge adjacency, queried via a public `FaceView2D`/`FaceView3D` — `Geometry`/`Neighbor`/`NeighborEntryEdge` — bound in Python/C#); Triangulation (ear-clipping) — a free `triangulate()` function (2D, and 3D assumed flat/planar) plus `Polygon2D/3D.Triangulate()` and `PolyMesh2D/3D.Triangulate()` (per-facet, combined into one `Mesh2D/3D`); |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; polygon extreme points along a line, polygon tangents; polyline decimation, Bezier corner smoothing, polyline expansion; polygon clipping; boolean operations (union, intersection, difference); Mesh2D/3D and PolyMesh2D/3D (triangle- and polygon-faced meshes with spatial-hash vertex welding, no adjacency structure); `ConnectedMesh2D`/`ConnectedMesh3D` (triangle mesh with precomputed per-facet edge adjacency, queried via a public `FaceView2D`/`FaceView3D` — `Geometry`/`Neighbor`/`NeighborEntryEdge` — bound in Python/C#); Triangulation (ear-clipping, two strategies: `EarClipping` — fast, first valid ear found; `EarClippingBestFit` — clips the least sliver-prone valid ear each step, default) — a free `triangulate()` function (2D, and 3D assumed flat/planar) plus `Polygon2D/3D.Triangulate()` and `PolyMesh2D/3D.Triangulate()` (per-facet, combined into one `Mesh2D/3D`); |
   | Backlog | adjacency structure for `PolyMesh2D/3D`, polygonization, monotone-polygon and Delaunay triangulation strategies |
 
 
@@ -173,9 +173,9 @@
   | Metric | Count | Notes |
   |--------|-------|-------|
   | Public methods (C++) | ~513 | Excl. ctors/dtors/operators |
-  | C++ methods tested | ~493/513 | ~96% (998 TEST cases, 996 run, 2 disabled) |
-  | Python methods tested | 454/474 | ~96% (792 pytest cases) |
-  | C# methods tested | 514/581 | ~88% (898 harness tests) |
+  | C++ methods tested | ~493/513 | ~96% (1003 TEST cases, 1001 run, 2 disabled) |
+  | Python methods tested | 454/474 | ~96% (795 pytest cases) |
+  | C# methods tested | 514/581 | ~88% (901 harness tests) |
   | Stubs (not yet impl.) | 2 | `TriangulationParams::Strategy::MonotonePolygon`/`Delaunay` — intentional, see test_coverage_report.md |
 
 
@@ -200,10 +200,11 @@
   Build the library and (optionally) the Python bindings
   ```bash
   mkdir build && cd build
-  cmake .. [-DCMAKE_BUILD_TYPE=Release] [-DBUILD_PYTHON=ON]
+  cmake .. [-DCMAKE_BUILD_TYPE=Debug|Release] [-DBUILD_PYTHON=ON]
   make -j6
   ```
   The `-DBUILD_PYTHON=ON` will build locally the python bindings and be ready to run the smoke tests
+  The `-DCMAKE_BUILD_TYPE=Debug` is necessary only if you want to debug the project (test executables) with tools like `gdb` and if you want all the `assert` statements to print something out. 
 
   Run tests
   ```bash
@@ -214,6 +215,27 @@
 
   # or 
   ctest [--build-config Debug]
+  ```
+
+  If you want to debug this code (cpp tests)
+  ```bash
+  # build in debug mode
+  mkdir build && cd build
+  cmake .. -DCMAKE_BUILD_TYPE=Debug
+  make -j6
+
+  # install GDB if you have to (straightforward)
+
+  # use the LLDB debugger if needed
+  gdb --args '.\build_win\geompp_tests\Debug\geompp_tests.exe' '--gtest_filter="Polygon2D*Star*"'
+  # use commands as in gdb
+  # b test_polygon2d.cpp:1439  # break points
+  # r                          # run
+  # s                          # step in (function)
+  # n                          # next line
+  # p poly.ToWkt()            # print a variable / function 
+  # c                          # continue until next break point or end of program
+  # q                          # quit
   ```
 
   Python bindings and tests (if you did cmake with the flag -DBUILD_PYTHON=ON)
@@ -237,11 +259,11 @@
   ```powershell
   # from the main directory, geompp
   mkdir build_win
-  cmake -S . -B build_win -G "Visual Studio 18 2026" -A x64 [-DBUILD_PYTHON=ON]
+  cmake -S . -B build_win -G "Visual Studio 18 2026" -A x64 [-DBUILD_PYTHON=ON] [-DCMAKE_BUILD_TYPE=Debug|Release]
   cmake --build build_win --target geompp [--config Release]
   ```  
   The `-DBUILD_PYTHON=ON` will build locally the python bindings and be ready to run the smoke tests
-
+  The `-DCMAKE_BUILD_TYPE=Debug` is necessary only if you want to debug the project (test executables) with tools like `lldb.exe` (install LLVM via winget) and if you want all the `assert` statements to print something out. 
 
   Build and run the tests
   ```powershell
@@ -254,6 +276,28 @@
   # alternatively
   ctest --test-dir build_win/geompp_tests --build-config Debug
   [ctest --test-dir build_win/geompp_tests --build-config Release]
+  ```
+
+  If you want to debug this code (cpp tests)
+  ```powershell
+  # build in debug mode
+  cmake -S . -B build_win -G "Visual Studio 18 2026" -A x64 -DCMAKE_BUILD_TYPE=Debug
+  cmake --build build_win --target geompp --target geompp_tests
+
+  # install the LLVM package (for first time only)
+  # -> winget install LLVM.LLVM
+  # -> save the path C:\Program Files\LLVM\bin in your "Environment Variables" -> User -> Path.  
+
+  # use the LLDB debugger if needed
+  lldb .\build_win\geompp_tests\Debug\geompp_tests.exe [-- --gtest_filter="Polygon2D*Star*"]
+  # use commands as in gdb
+  # b test_polygon2d.cpp:1439  # break points
+  # r                          # run
+  # s                          # step in (function)
+  # n                          # next line
+  # p poly.ToWkt()            # print a variable / function 
+  # c                          # continue until next break point or end of program
+  # q                          # quit
   ```
 
   Python bindings and tests (if you did cmake with the flag -DBUILD_PYTHON=ON)

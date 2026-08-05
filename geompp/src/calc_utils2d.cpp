@@ -1152,27 +1152,19 @@ bool is_ccw(Points const& points, View2D const& view) {
 template bool is_ccw(std::vector<Point2D> const&, View2D const&);
 template bool is_ccw(std::vector<Point3D> const&, View2D const&);
 
-template <typename PointT>
-bool are_collinear(PointT const& p0, PointT const& p1, PointT const& p2, View2D const& view) {
-  auto [x0, y0] = view.xy(p0);
-  auto [x1, y1] = view.xy(p1);
-  auto [x2, y2] = view.xy(p2);
-
-  // A duplicate needs no separate check: if points[i] == points[i+1] (or points[i+1] == points[i+2]),
-  // one of the two edge vectors below is the zero vector, so the cross product is already trivially zero.
-  double cross = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);  // zero turn at points[i+1]
-
-  return compare(cross, 0.0) == 0;
-}
-
-template bool are_collinear(Point2D const&, Point2D const&, Point2D const&, View2D const&);
-template bool are_collinear(Point3D const&, Point3D const&, Point3D const&, View2D const&);
-
 template <PointContainer Points>
 bool has_collinears(Points const& points, View2D const& view) {
   std::size_t n = std::ranges::size(points);
   for (std::size_t i = 0; i < n; ++i) {
-    if (detail::view::are_collinear(points[i], points[(i + 1) % n], points[(i + 2) % n], view)) {
+    auto [x0, y0] = view.xy(points[i]);
+    auto [x1, y1] = view.xy(points[(i + 1) % n]);
+    auto [x2, y2] = view.xy(points[(i + 2) % n]);
+
+    // A duplicate needs no separate check: if points[i] == points[i+1] (or points[i+1] == points[i+2]),
+    // one of the two edge vectors below is the zero vector, so the cross product is already trivially zero.
+    double cross = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);  // zero turn at points[i+1]
+
+    if (compare(cross, 0.0) == 0) {
       return true;
     }
   }
@@ -1437,7 +1429,7 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
 
       auto D_compare_to_0 = compare(D, 0);
       if (D_compare_to_0 == 0) {  // line is parallel to edge e(i)
-        continue;  // skip — parallel to one edge does not mean the line misses the whole concave polygon
+        continue;                 // skip — parallel to one edge does not mean the line misses the whole concave polygon
       }
 
       double t = N / D;
@@ -2314,7 +2306,59 @@ template std::vector<Point3D> polyline_expansion(std::vector<Point3D> const& inp
 namespace detail {
 namespace view {
 
+namespace helpers {
+
+// helper lambdas
+template <typename PointT>
+double area2(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  auto [x0, y0] = view.xy(a);
+  auto [x1, y1] = view.xy(b);
+  auto [x2, y2] = view.xy(c);
+  return (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
+}
+
+template <typename PointT>
+bool is_reflex(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  return compare(helpers::area2(a, b, c, view), 0) < 0;
+}
+
+// Inclusive (>= 0, not > 0): a point exactly ON one of the candidate ear's edges must still
+// disqualify it, not just a point strictly inside. Without this, a non-adjacent vertex that happens
+// to be collinear with two of the ear's vertices (e.g. a reflex vertex sitting exactly on the
+// prev-next diagonal, as in an L-shaped polygon whose notch corner lies on that diagonal) is
+// invisible to a strict test, so the algorithm accepts a diagonal that actually exits the polygon.
+template <typename PointT>
+bool is_left_or_on(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  auto u_x = view.x(b) - view.x(a);
+  auto u_y = view.y(b) - view.y(a);
+
+  auto v_x = view.x(c) - view.x(a);
+  auto v_y = view.y(c) - view.y(a);
+
+  return compare(u_x * v_y - u_y * v_x, 0) >= 0;
+};
+
+template <typename PointT>
+bool is_point_in_triangle(PointT const& a, PointT const& b, PointT const& c, PointT const& p, View2D const& view) {
+  return helpers::is_left_or_on(a, b, p, view) && helpers::is_left_or_on(b, c, p, view) &&
+         helpers::is_left_or_on(c, a, p, view);
+};
+
+template <typename PointT>
+bool are_collinear(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  return compare(helpers::area2(a, b, c, view), 0.0) == 0;
+};
+
+}  // namespace helpers
+
 // triangulation functions
+
+// EarClipping: walks the ring and clips the first valid ear it finds, in traversal order. O(n^2)
+// worst case, but very often close to O(n) in practice for well-behaved (mostly-convex) polygons,
+// since clipping at i frequently leaves i_next immediately clippable too. Doesn't optimize triangle
+// shape -- a legitimate but geometrically thin ear can get clipped just because it was encountered
+// first, producing a sliver triangle even on perfectly ordinary input. See EarClippingBestFit below
+// for the shape-aware alternative and its own, steeper cost.
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<PointT> const& input,
                                                                    View2D const& view) {
@@ -2331,49 +2375,18 @@ std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<P
     prev_id[i] = (i + n - 1) % n;
   }
 
-  // helper lambdas
-  auto lambda_is_right = [&view](PointT const& a, PointT const& b, PointT const& c) -> bool {
-    auto u_x = view.x(b) - view.x(a);
-    auto u_y = view.y(b) - view.y(a);
-
-    auto v_x = view.x(c) - view.x(a);
-    auto v_y = view.y(c) - view.y(a);
-
-    return compare(u_x * v_y - u_y * v_x, 0) < 0;
-  };
-
-  // Inclusive (>= 0, not > 0): a point exactly ON one of the candidate ear's edges must still
-  // disqualify it, not just a point strictly inside. Without this, a non-adjacent vertex that happens
-  // to be collinear with two of the ear's vertices (e.g. a reflex vertex sitting exactly on the
-  // prev-next diagonal, as in an L-shaped polygon whose notch corner lies on that diagonal) is
-  // invisible to a strict test, so the algorithm accepts a diagonal that actually exits the polygon.
-  auto lambda_is_left_or_on = [&view](PointT const& a, PointT const& b, PointT const& c) -> bool {
-    auto u_x = view.x(b) - view.x(a);
-    auto u_y = view.y(b) - view.y(a);
-
-    auto v_x = view.x(c) - view.x(a);
-    auto v_y = view.y(c) - view.y(a);
-
-    return compare(u_x * v_y - u_y * v_x, 0) >= 0;
-  };
-
-  auto lambda_is_point_in_triangle = [&lambda_is_left_or_on](PointT const& a, PointT const& b, PointT const& c,
-                                                             PointT const& p) -> bool {
-    return lambda_is_left_or_on(a, b, p) && lambda_is_left_or_on(b, c, p) && lambda_is_left_or_on(c, a, p);
-  };
-
   //  \_ reflex indices to analyze (reduce with a "swap and pop", the order doesn't matter)
   std::deque<std::size_t> reflex_indices;
   std::vector<std::uint8_t> is_reflex(n, 0);
   for (std::size_t i = 0; i < n; ++i) {
-    if (lambda_is_right(input[prev_id[i]], input[i], input[next_id[i]])) {
+    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view)) {
       reflex_indices.push_back(i);
       is_reflex[i] = 1;
     }
   }
 
   auto lambda_modify_reflex_status = [&](std::size_t idx) {
-    bool is_now_reflex = lambda_is_right(input[prev_id[idx]], input[idx], input[next_id[idx]]);
+    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
 
     if (!is_now_reflex && is_reflex[idx]) {  // the opposite can never happen by a theorem: once an ear is cut,
                                              // the prev/next vertex can become convex, but never reflex
@@ -2398,14 +2411,14 @@ std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<P
 
       // it can happen that this vertex is not reflex, but also not convex!
       // the points may be collinear, making the triangle check fail, we want to avoid that
-      if (!detail::view::are_collinear(p_prev, p_cur, p_next, view)) {
+      if (!helpers::are_collinear(p_prev, p_cur, p_next, view)) {
         // check if the triangle is an ear
         bool is_ear = true;
         for (auto const& j : reflex_indices) {
           if (j == i_prev || j == i_next) {  // quick exit (we don't care of the prev/next indices to be reflex)
             continue;
           }
-          if (lambda_is_point_in_triangle(p_prev, p_cur, p_next, input[j])) {
+          if (helpers::is_point_in_triangle(p_prev, p_cur, p_next, input[j], view)) {
             is_ear = false;
             break;
           }
@@ -2448,6 +2461,154 @@ template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std:
                                                                             View2D const& view);
 template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<Point3D> const& input,
                                                                             View2D const& view);
+
+// EarClippingBestFit: like EarClipping, but each outer-loop iteration does a full lap over the
+// *current* ring to find the best-scoring valid ear (by shape quality, not just the first one found)
+// before clipping exactly one. Guaranteed termination via the same Two Ears Theorem EarClipping relies
+// on -- this only ever reorders which valid ear gets picked, never rejects one outright, so it can't
+// get stuck the way a strict angle/area floor would. Trades speed for shape: unconditionally ~O(n^2)
+// (a full O(current n) rescan per clip, every time), where EarClipping's O(n^2) is only a worst case.
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<PointT> const& input,
+                                                                            View2D const& view) {
+  std::size_t n = input.size();
+
+  // temporary container for output (excellent for unknown size list)
+  std::deque<std::array<std::size_t, 3>> triangles;
+
+  // temporary containers for calculations
+  //  \_ previous and next indices (keep them as they are)
+  std::vector<std::size_t> next_id(n), prev_id(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    next_id[i] = (i + 1) % n;
+    prev_id[i] = (i + n - 1) % n;
+  }
+
+  //  \_ reflex indices to analyze (reduce with a "swap and pop", the order doesn't matter)
+  std::deque<std::size_t> reflex_indices;
+  std::vector<std::uint8_t> is_reflex(n, 0);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view)) {
+      reflex_indices.push_back(i);
+      is_reflex[i] = 1;
+    }
+  }
+
+  auto lambda_modify_reflex_status = [&](std::size_t idx) {
+    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
+
+    if (!is_now_reflex && is_reflex[idx]) {  // the opposite can never happen by a theorem: once an ear is cut,
+                                             // the prev/next vertex can become convex, but never reflex
+      auto it = std::find(reflex_indices.begin(), reflex_indices.end(), idx);
+      if (it != reflex_indices.end()) {
+        // remove with a quick O(1) swap and pop
+        *it = reflex_indices.back();
+        reflex_indices.pop_back();
+      }
+
+      is_reflex[idx] = 0;
+    }
+  };
+
+  auto lambda_ear_quality = [&view](PointT const& a, PointT const& b, PointT const& c) -> double {
+    auto [x0, y0] = view.xy(a);  // p_prev
+    auto [x1, y1] = view.xy(b);  // p_cur
+    auto [x2, y2] = view.xy(c);  // p_next
+
+    // loose collinearity check already computes
+    double area2 = std::abs(helpers::area2(a, b, c, view));
+
+    double a2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);  // |cur  - next|^2, opposite p_prev
+    double b2 = (x2 - x0) * (x2 - x0) + (y2 - y0) * (y2 - y0);  // |prev - next|^2, opposite p_cur
+    double c2 = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);  // |cur  - prev|^2, opposite p_next
+
+    // the real formula is
+    //    ear_quality = 4*sqrt(3)* abs(cross(a,b,c)/2) / (a*a + b*b + c*c)
+    // however we remove 4*, sqrt(3), and /2 to save time
+    // because we only need this value for comparison and the real variables are the
+    // numerator cross(a,b,c) and the denominator (a2 + b2 + c2)
+    return area2 / (a2 + b2 + c2);
+  };
+
+  // main loop: while we have more than 3 vertices, try to find an ear and clip it
+  std::size_t i = 0, i_prev = prev_id[i], i_next = next_id[i];
+  while (n > 3) {  // LOOP(1): main of the Ear Cutting Algorithm
+
+    double best_ear_score = -1.0;  // sin(min-angle) or similar, always >= 0 for a valid ear
+    std::array<std::size_t, 3> best_ear;
+    std::size_t start = i;
+
+    do {                    // LOOP(2): improvement step making this a greedy algorithm with same O(n2)
+                            //          finds the best ear amongst all possible ones (based on area)
+      if (!is_reflex[i]) {  // the triplet could be an ear
+        PointT const& p_cur = input[i];
+        PointT const& p_prev = input[i_prev];
+        PointT const& p_next = input[i_next];
+
+        // it can happen that this vertex is not reflex, but also not convex!
+        // the points may be collinear, making the triangle check fail, we want to avoid that
+        if (!helpers::are_collinear(p_prev, p_cur, p_next, view)) {
+          // check if the triangle is an ear
+          bool is_ear = true;
+          for (auto const& j : reflex_indices) {
+            if (j == i_prev || j == i_next) {  // quick exit (we don't care of the prev/next indices to be reflex)
+              continue;
+            }
+            if (helpers::is_point_in_triangle(p_prev, p_cur, p_next, input[j], view)) {
+              is_ear = false;
+              break;
+            }
+          }
+
+          if (is_ear) {
+            // find the best cuttable ear (by area)
+            double score = lambda_ear_quality(p_prev, p_cur, p_next);
+            if (compare(score, best_ear_score) > 0) {
+              best_ear_score = score;
+              best_ear = {i_prev, i, i_next};
+            }
+          }
+        }
+      }
+
+      i = i_next, i_prev = prev_id[i], i_next = next_id[i];
+
+    } while (i != start);
+
+    i_prev = best_ear[0], i = best_ear[1], i_next = best_ear[2];
+
+    triangles.push_back(best_ear);
+
+    // set the prev/next indices to skip the current vertex
+    next_id[i_prev] = i_next;
+    prev_id[i_next] = i_prev;
+
+    // update reflex status of the previous and next vertices
+    lambda_modify_reflex_status(i_prev);
+    lambda_modify_reflex_status(i_next);
+
+    // remove one vertex from the list
+    --n;
+
+    // update the index to the next vertex
+    i = i_next, i_prev = prev_id[i], i_next = next_id[i];
+  }
+
+  // exactly 3 vertices remain, still linked via prev_id/next_id — the loop above only clips ears down to
+  // n == 3 and never emits this last, leftover triangle itself.
+  triangles.push_back({i_prev, i, i_next});
+
+  // transform the deque in vector (1 allocation, using move)
+  std::vector<std::array<std::size_t, 3>> triangles_output(std::make_move_iterator(triangles.begin()),
+                                                           std::make_move_iterator(triangles.end()));
+
+  return triangles_output;
+}
+
+template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<Point2D> const& input,
+                                                                                     View2D const& view);
+template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<Point3D> const& input,
+                                                                                     View2D const& view);
 
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
@@ -2573,6 +2734,13 @@ std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& i
     case TriangulationParams::Strategy::EarClipping: {
       for (auto const& loop : simple_loops) {
         auto loop_tri_indices = ear_clipping_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    case TriangulationParams::Strategy::EarClippingBestFit: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = ear_clipping_best_fit_triangulation(loop, view);
         tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
       }
       break;
