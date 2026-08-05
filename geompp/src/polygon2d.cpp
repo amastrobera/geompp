@@ -5,6 +5,7 @@
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "ray2d.hpp"
+#include "triangle2d.hpp"
 #include "utils.hpp"
 
 #include "geompp_log.hpp"
@@ -54,9 +55,7 @@ bool strictly_crosses(LineSegment2D const& a, LineSegment2D const& b) {
 
 #pragma region Constructors
 
-Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
-  auto unique_points = remove_collinear(points);
-
+Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points) {
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
         "cannot create polygon with less than 3 unique points; points  are too close with {} decimals precision",
@@ -75,13 +74,10 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) {
 
   bool is_poly_convex = detail::is_convex(unique_points, {});
 
-  return {unique_points, perimeter, is_poly_convex};
+  return {std::move(unique_points), perimeter, is_poly_convex};
 }
 
-Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes) {
-  auto unique_points =
-      remove_collinear(remove_consecutive_duplicates(points));  // remove duplicates and collinear points
-
+Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points, std::vector<std::vector<Point2D>> holes) {
   if (unique_points.size() < 3) {
     throw std::runtime_error(std::format(
         "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
@@ -93,8 +89,8 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
   }
 
   std::vector<std::vector<Point2D>> unique_holes_points;
-  for (auto const& hole : holes) {
-    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(hole));
+  for (auto& hole : holes) {
+    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(std::move(hole)));
 
     if (unique_hole_points.size() < 3) {
       throw std::runtime_error(std::format(
@@ -115,7 +111,7 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
       throw std::runtime_error("cannot create polygon holes in anti-clock-wise order");
     }
 
-    unique_holes_points.push_back(unique_hole_points);
+    unique_holes_points.push_back(std::move(unique_hole_points));
   }
 
   // Each hole is individually simple (checked above), but nothing yet stops two DIFFERENT holes from
@@ -173,10 +169,9 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
   // the same side of that boundary, so if the first is inside (or touching), the whole hole is.
   for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
     auto const& p = unique_holes_points[h].front();
-    bool contained = detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
-                                                     p.x(), p.y()) ||
-                      detail::view::polygon_contains(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(),
-                                                      p.x(), p.y());
+    bool contained =
+        detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(), p.x(), p.y()) ||
+        detail::view::polygon_contains(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(), p.x(), p.y());
     if (!contained) {
       GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
       throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
@@ -191,8 +186,24 @@ Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::v
 
   bool is_poly_convex = detail::is_convex(unique_points, unique_holes_points);
 
-  return {unique_points, perimeter, unique_holes_points, is_poly_convex};
+  return {std::move(unique_points), perimeter, std::move(unique_holes_points), is_poly_convex};
 }
+
+Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) { return FromUniquePoints(remove_collinear(points)); }
+
+Polygon2D Polygon2D::Make(std::vector<Point2D>&& points) {
+  return FromUniquePoints(remove_collinear(std::move(points)));
+}
+
+Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes) {
+  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(points)), holes);
+}
+
+Polygon2D Polygon2D::Make(std::vector<Point2D>&& points, std::vector<std::vector<Point2D>>&& holes) {
+  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(std::move(points))), std::move(holes));
+}
+
+#pragma endregion
 
 Polygon2D& Polygon2D::operator=(Polygon2D const& other) {
   if (this != &other) {
@@ -444,6 +455,16 @@ std::vector<Polygon2D> Polygon2D::Simplify() const {
     }
   }
   return results;
+}
+
+std::vector<Triangle2D> Polygon2D::Triangulate(TriangulationParams::Strategy strategy) const {
+  // Make() already guarantees VERTICES is simple, CCW-wound, and duplicate-free, so triangulate_impl's
+  // input-quality checks are all skipped.
+  auto tris = triangulate(
+      VERTICES, TriangulationParams{strategy, TriangulationParams::Simplicity::Guaranteed,
+                                    TriangulationParams::Winding::Guaranteed, TriangulationParams::Collinearity::Guaranteed});
+
+  return tris;
 }
 
 #pragma region Operator Overloading

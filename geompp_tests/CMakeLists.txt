@@ -73,6 +73,15 @@ add_executable(${PROJECT_NAME}
     src/test_calc_utils2d.cpp
     src/test_view2d.cpp
 
+    src/test_grid_cell2d.cpp
+    src/test_grid_cell3d.cpp
+    src/test_mesh2d.cpp
+    src/test_mesh3d.cpp
+    src/test_polymesh2d.cpp
+    src/test_polymesh3d.cpp
+    src/test_connected_mesh2d.cpp
+    src/test_connected_mesh3d.cpp
+
     main.cpp
 )
 

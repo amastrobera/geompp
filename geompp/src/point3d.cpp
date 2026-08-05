@@ -10,80 +10,16 @@
 #include <format>
 #include <fstream>
 #include <unordered_set>
+#include <utility>
 
 namespace geompp {
 
-bool Point3D::AlmostEquals(Point3D const& other, double epsilon) const {
-  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
-}
-
-Vector3D Point3D::ToVector() const { return {X, Y, Z}; }
-
-double Point3D::DistanceTo(Point3D const& other) const { return round((other - *this).Length()); }
-
-Point3D& Point3D::operator=(Point3D const& other) {
-  if (this != &other) {
-    X = other.X;
-    Y = other.Y;
-    Z = other.Z;
-  }
-  return *this;
-}
-
-#pragma region Collection Operations
-
-bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3) {
-  return compare((p2 - p1).Cross(p3 - p1).Length(), 0) == 0;
-}
-
-std::vector<Point3D> remove_consecutive_duplicates(std::vector<Point3D> const& points) {
-  if (points.size() < 2) {
-    return points;
-  }
-
-  std::vector<Point3D> unique_points{points.front()};
-  for (int i = 1; i < points.size(); ++i) {
-    if (!unique_points.back().AlmostEquals(points[i])) {
-      unique_points.push_back(points[i]);
-    }
-  }
-
-  return unique_points;
-}
-
-std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points) {
-  if (points.size() == 0) {
-    return points;
-  }
-
-  std::unordered_set<int> duplicates;
-  for (int i = 0; i < points.size() - 1; ++i) {
-    if (duplicates.count(i)) {
-      continue;
-    }
-    for (int j = i + 1; j < points.size(); ++j) {
-      if (!points[i].AlmostEquals(points[j])) {
-        break;
-      }
-      duplicates.insert(j);
-    }
-  }
-
-  std::vector<Point3D> unique_points;
-  for (int i = 0; i < points.size(); ++i) {
-    if (duplicates.count(i) == 0) {
-      unique_points.push_back(points[i]);
-    }
-  }
-
-  return unique_points;
-}
-
-std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points) {
-  if (points.size() < 3) {
-    return points;
-  }
-
+namespace {
+// Indices to drop from `points` so the remaining ones describe the same shape with no run of 3+
+// collinear points — shared between remove_collinear()'s const& (copies survivors into a fresh
+// vector) and && (compacts survivors in place) overloads, since the detection itself only ever
+// reads `points` regardless of which one the caller picked.
+std::unordered_set<int> collinear_duplicate_indices(std::vector<Point3D> const& points) {
   std::unordered_set<int> duplicates;
   int i1 = 0;
   int i2 = i1 + 1;
@@ -125,6 +61,82 @@ std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points) {
     --max_iter;
   }
 
+  return duplicates;
+}
+}  // namespace
+
+bool Point3D::AlmostEquals(Point3D const& other, double epsilon) const {
+  return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0 && compare(Z, other.Z, epsilon) == 0;
+}
+
+Vector3D Point3D::ToVector() const { return {X, Y, Z}; }
+
+double Point3D::DistanceTo(Point3D const& other) const { return round((other - *this).Length()); }
+
+Point3D& Point3D::operator=(Point3D const& other) {
+  if (this != &other) {
+    X = other.X;
+    Y = other.Y;
+    Z = other.Z;
+  }
+  return *this;
+}
+
+#pragma region Collection Operations
+
+bool are_collinear(Point3D const& p1, Point3D const& p2, Point3D const& p3) {
+  return compare((p2 - p1).Cross(p3 - p1).Length(), 0) == 0;
+}
+
+std::vector<Point3D> remove_consecutive_duplicates(std::vector<Point3D> const& points) {
+  if (points.size() < 2) {
+    return points;
+  }
+
+  std::vector<Point3D> unique_points{points.front()};
+  for (int i = 1; i < points.size(); ++i) {
+    if (!unique_points.back().AlmostEquals(points[i])) {
+      unique_points.push_back(points[i]);
+    }
+  }
+
+  return unique_points;
+}
+
+std::vector<Point3D> remove_consecutive_duplicates(std::vector<Point3D>&& points) {
+  if (points.size() < 2) {
+    return std::move(points);
+  }
+
+  std::size_t write = 1;
+  for (std::size_t i = 1; i < points.size(); ++i) {
+    if (!points[write - 1].AlmostEquals(points[i])) {
+      points[write++] = points[i];
+    }
+  }
+  points.erase(points.begin() + write, points.end());
+
+  return std::move(points);
+}
+
+std::vector<Point3D> remove_duplicates(std::vector<Point3D> const& points) {
+  if (points.size() == 0) {
+    return points;
+  }
+
+  std::unordered_set<int> duplicates;
+  for (int i = 0; i < points.size() - 1; ++i) {
+    if (duplicates.count(i)) {
+      continue;
+    }
+    for (int j = i + 1; j < points.size(); ++j) {
+      if (!points[i].AlmostEquals(points[j])) {
+        break;
+      }
+      duplicates.insert(j);
+    }
+  }
+
   std::vector<Point3D> unique_points;
   for (int i = 0; i < points.size(); ++i) {
     if (duplicates.count(i) == 0) {
@@ -133,6 +145,41 @@ std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points) {
   }
 
   return unique_points;
+}
+
+std::vector<Point3D> remove_collinear(std::vector<Point3D> const& points) {
+  if (points.size() < 3) {
+    return points;
+  }
+
+  auto duplicates = collinear_duplicate_indices(points);
+
+  std::vector<Point3D> unique_points;
+  for (int i = 0; i < points.size(); ++i) {
+    if (duplicates.count(i) == 0) {
+      unique_points.push_back(points[i]);
+    }
+  }
+
+  return unique_points;
+}
+
+std::vector<Point3D> remove_collinear(std::vector<Point3D>&& points) {
+  if (points.size() < 3) {
+    return std::move(points);
+  }
+
+  auto duplicates = collinear_duplicate_indices(points);
+
+  std::size_t write = 0;
+  for (std::size_t i = 0; i < points.size(); ++i) {
+    if (duplicates.count(static_cast<int>(i)) == 0) {
+      points[write++] = std::move(points[i]);
+    }
+  }
+  points.erase(points.begin() + write, points.end());
+
+  return std::move(points);
 }
 
 Point3D linear_combination(std::vector<Point3D> const& points, std::vector<double> const& weights) {

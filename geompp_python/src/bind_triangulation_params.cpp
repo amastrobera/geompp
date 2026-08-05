@@ -1,0 +1,99 @@
+#include "bind_helpers.hpp"
+
+// Registers TriangulationParams and its nested enums. Called early from bindings.cpp (before
+// bind_polygon2d / bind_polygon3d / bind_polymesh2d / bind_polymesh3d) because pybind11 resolves a
+// method's default *argument value* (e.g. Polygon2D.triangulate's strategy=EarClipping) at bind time,
+// not call time — unlike a plain parameter/return type, which only needs its type registered by the
+// time Python code actually calls the function. Registering these types late (e.g. inside
+// bind_free_functions, which used to hold them) breaks every other binding that defaults to one of
+// them, with an "into a Python object (type not registered yet?)" ImportError at import time.
+void bind_triangulation_params(py::module_& m) {
+    py::enum_<geompp::TriangulationParams::Strategy>(m, "TriangulationStrategy",
+        "Which triangulation algorithm to run — see TriangulationParams.")
+        .value("EarClipping", geompp::TriangulationParams::Strategy::EarClipping,
+               "Clips the first valid ear found in scan order. O(n^2) worst case, but often close to "
+               "O(n) in practice. Doesn't optimize triangle shape, so it can produce a visually thin "
+               "sliver purely from scan order, even on ordinary input.")
+        .value("EarClippingBestFit", geompp::TriangulationParams::Strategy::EarClippingBestFit,
+               "Clips the best-scoring (least sliver-prone) valid ear every step instead of the first "
+               "one found. Same termination guarantee as EarClipping, but unconditionally ~O(n^2) — a "
+               "full rescan of the current ring on every single clip, not just worst case. Default.")
+        .value("MonotonePolygon", geompp::TriangulationParams::Strategy::MonotonePolygon,
+               "O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone "
+               "pieces). Not yet implemented.")
+        .value("Delaunay", geompp::TriangulationParams::Strategy::Delaunay,
+               "O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny "
+               "slivers). Not yet implemented.")
+        .export_values();
+
+    py::enum_<geompp::TriangulationParams::Simplicity>(m, "TriangulationSimplicity",
+        "How triangulate() handles a possibly self-intersecting input ring.")
+        .value("Guaranteed", geompp::TriangulationParams::Simplicity::Guaranteed,
+               "No check is carried out (runs at your own risk).")
+        .value("Assert", geompp::TriangulationParams::Simplicity::Assert,
+               "Raises if the input isn't simple.")
+        .value("Enforce", geompp::TriangulationParams::Simplicity::Enforce,
+               "Decomposes non-simple input into simple pieces (via simplify_rings) before triangulating.")
+        .export_values();
+
+    py::enum_<geompp::TriangulationParams::Winding>(m, "TriangulationWinding",
+        "How triangulate() handles input that may not be wound counter-clockwise (CCW).")
+        .value("Guaranteed", geompp::TriangulationParams::Winding::Guaranteed,
+               "No check is carried out (runs at your own risk).")
+        .value("Assert", geompp::TriangulationParams::Winding::Assert, "Raises if the input isn't CCW.")
+        .value("Enforce", geompp::TriangulationParams::Winding::Enforce,
+               "Reverses the input if it's CW, before triangulating.")
+        .export_values();
+
+    py::enum_<geompp::TriangulationParams::Collinearity>(m, "TriangulationCollinearity",
+        "How triangulate() handles collinear points (a duplicate consecutive point is just the "
+        "degenerate case of three collinear points, so this covers both).")
+        .value("Guaranteed", geompp::TriangulationParams::Collinearity::Guaranteed,
+               "No check is carried out (runs at your own risk).")
+        .value("Assert", geompp::TriangulationParams::Collinearity::Assert,
+               "Raises if the input has collinear (or duplicate) points.")
+        .value("Enforce", geompp::TriangulationParams::Collinearity::Enforce,
+               "Removes collinear/duplicate points before triangulating.")
+        .export_values();
+
+    py::enum_<geompp::AdjacencyConformity>(m, "AdjacencyConformity",
+        "How to handle a batch of facets that violate \"every edge has at most 1 neighbor\" -- no facet "
+        "vertex may lie in the interior of another facet's edge, only exactly at that edge's own "
+        "start/end vertex. Known elsewhere as: no \"hanging nodes\" (FEM), no \"T-junctions\" (graphics), "
+        "a valid PSLG (mesh generation). validate_adjacency() / fix_adjacency() (below) do the actual "
+        "checking/repair; Mesh2D/3D.from_triangles, PolyMesh2D/3D.from_polygons, and "
+        "ConnectedMesh2D/3D.from_triangles always Assert this at construction time.")
+        .value("Guaranteed", geompp::AdjacencyConformity::Guaranteed,
+               "No check is carried out (runs at your own risk).")
+        .value("Assert", geompp::AdjacencyConformity::Assert,
+               "Raises if any violation (T-junction or non-manifold edge) is found.")
+        .value("Enforce", geompp::AdjacencyConformity::Enforce,
+               "Auto-repairs every T-junction via fix_adjacency(); still raises on a non-manifold edge "
+               "(a full edge shared by 3+ facets) -- there's no principled automatic fix for that one.")
+        .export_values();
+
+    py::class_<geompp::TriangulationParams>(m, "TriangulationParams",
+        "Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for "
+        "triangulate() / Polygon2D.triangulate() / Polygon3D.triangulate() / PolyMesh2D.triangulate() / "
+        "PolyMesh3D.triangulate(). Defaults match triangulate()'s own defaults: EarClippingBestFit, and "
+        "Enforce for all three input-quality checks.")
+        .def(py::init([](geompp::TriangulationParams::Strategy strategy,
+                          geompp::TriangulationParams::Simplicity simplicity,
+                          geompp::TriangulationParams::Winding ccw_winding,
+                          geompp::TriangulationParams::Collinearity collinearity) {
+                 geompp::TriangulationParams p;
+                 p.strategy = strategy;
+                 p.simplicity = simplicity;
+                 p.ccw_winding = ccw_winding;
+                 p.collinearity = collinearity;
+                 return p;
+             }),
+             "strategy"_a = geompp::TriangulationParams::Strategy::EarClippingBestFit,
+             "simplicity"_a = geompp::TriangulationParams::Simplicity::Enforce,
+             "ccw_winding"_a = geompp::TriangulationParams::Winding::Enforce,
+             "collinearity"_a = geompp::TriangulationParams::Collinearity::Enforce)
+        .def_readwrite("strategy", &geompp::TriangulationParams::strategy)
+        .def_readwrite("simplicity", &geompp::TriangulationParams::simplicity)
+        .def_readwrite("ccw_winding", &geompp::TriangulationParams::ccw_winding)
+        .def_readwrite("collinearity", &geompp::TriangulationParams::collinearity);
+}

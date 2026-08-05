@@ -22,6 +22,7 @@ endif()
 set(BINDING_SOURCES
     src/bindings.cpp
     src/bind_precision.cpp
+    src/bind_triangulation_params.cpp
     src/bind_point2d.cpp
     src/bind_point3d.cpp
     src/bind_vector2d.cpp
@@ -50,6 +51,14 @@ set(BINDING_SOURCES
     src/bind_geometry_collection2d.cpp
     src/bind_geometry_collection3d.cpp
     src/bind_view2d.cpp
+    src/bind_grid_cell2d.cpp
+    src/bind_grid_cell3d.cpp
+    src/bind_mesh2d.cpp
+    src/bind_mesh3d.cpp
+    src/bind_polymesh2d.cpp
+    src/bind_polymesh3d.cpp
+    src/bind_connected_mesh2d.cpp
+    src/bind_connected_mesh3d.cpp
 )
 
 # ─── Python extension module ─────────────────────────────────────────────────
@@ -129,6 +138,7 @@ else()
         ${GEOMPP_ROOT}/src/bbox2d.cpp
         ${GEOMPP_ROOT}/src/bball2d.cpp
         ${GEOMPP_ROOT}/src/brect2d.cpp
+        ${GEOMPP_ROOT}/src/sweep_line2d.cpp
         ${GEOMPP_ROOT}/src/calc_utils2d.cpp
         ${GEOMPP_ROOT}/src/point3d.cpp
         ${GEOMPP_ROOT}/src/vector3d.cpp
@@ -146,6 +156,14 @@ else()
         ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
         ${GEOMPP_ROOT}/src/calc_utils3d.cpp
         ${GEOMPP_ROOT}/src/view2d.cpp
+        ${GEOMPP_ROOT}/src/grid_cell2d.cpp
+        ${GEOMPP_ROOT}/src/grid_cell3d.cpp
+        ${GEOMPP_ROOT}/src/mesh2d.cpp
+        ${GEOMPP_ROOT}/src/mesh3d.cpp
+        ${GEOMPP_ROOT}/src/polymesh2d.cpp
+        ${GEOMPP_ROOT}/src/polymesh3d.cpp
+        ${GEOMPP_ROOT}/src/connected_mesh2d.cpp
+        ${GEOMPP_ROOT}/src/connected_mesh3d.cpp
     )
 
     # ── glog ─────────────────────────────────────────────────────────────────

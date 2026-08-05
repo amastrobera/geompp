@@ -4428,3 +4428,852 @@ A quick list of code examples per topic is provided here.
   </details>
 
 </details>
+
+<details open>
+<summary><b> &nbsp; 10. Meshes</b></summary>
+
+  `Mesh2D`/`Mesh3D` (triangle faces) and `PolyMesh2D`/`PolyMesh3D` (arbitrary-sided polygon faces) hold
+  a set of adjacent facets built from a list of `Triangle`/`Polygon` inputs. No adjacency structure is
+  stored (no "neighboring face" query), and `PolyMesh` facets cannot have holes — `FromPolygons()`
+  throws if any input polygon does. `ConnectedMesh2D`/`ConnectedMesh3D` (§10.3) are the same idea as
+  `Mesh2D`/`Mesh3D` but precompute per-facet edge adjacency internally, queryable via each facet's
+  `FaceView2D`/`FaceView3D`.
+
+  #### The problem: equating "the same" point twice
+
+  A triangle/polygon soup — the raw input to `FromTriangles()`/`FromPolygons()` — repeats every shared
+  vertex once per facet that touches it: two triangles sharing an edge each carry their own copy of
+  that edge's two endpoints. Building a mesh means collapsing those repeats back into one shared
+  vertex per physical point, so that adjacent facets actually reference the same index rather than two
+  numerically-almost-equal-but-distinct points. The naive way to detect "is this point one we've
+  already seen?" is an `AlmostEquals` scan against every previously-registered point — correct, but
+  O(n) per insertion and O(n²) overall for an n-vertex mesh, which gets slow fast on any mesh with more
+  than a few hundred facets.
+
+  #### The fix: GridCell
+
+  `GridCell2D`/`GridCell3D` turn that O(n) scan into an O(1) hash-map lookup: floor-divide each
+  coordinate by a resolution `epsilon` (`floor(x/ε)`, `floor(y/ε)`, ...) to get an integer cell
+  address, and use that address as the hash key. Two points that fall in the same cell are assumed to
+  be the same vertex and get welded; a point in a new cell is registered as a new unique vertex. This
+  is deliberately an *approximation* of `AlmostEquals`, not a replacement for it — it trades a small,
+  well-understood inaccuracy at cell boundaries for O(1) average-case welding:
+
+  - Two points **up to `√2·ε`** (2D) or **`√3·ε`** (3D) apart can still land in the **same** cell and
+    get welded, even though that's farther apart than `epsilon` alone would suggest (the cell's
+    diagonal, not its side, bounds the worst case).
+  - Two points **closer than `epsilon`** can land in **different** cells and stay **distinct**, if
+    they happen to fall on opposite sides of a cell boundary.
+
+  `epsilon` defaults to `DOUBLE_EPSILON`, which tracks the same thread-local `DECIMAL_PRECISION` every
+  `AlmostEquals` call in the library already uses — so tightening/loosening precision globally also
+  tightens/loosens mesh vertex welding, even though the comparison *algorithm* (grid bucketing vs.
+  direct distance) differs.
+
+  <p align="center">
+    <img src="./images/grid_cell.png" width="420" alt="GridCell2D bucketing: near-duplicate points inside one cell weld to a single vertex; points straddling a cell boundary stay distinct even when closer together">
+  </p>
+
+  #### The other invariant: every edge has at most 1 neighbor
+
+  Welding coincident points isn't the only thing `FromTriangles()`/`FromPolygons()` guarantee. Every one
+  of them (`Mesh2D/3D`, `PolyMesh2D/3D`, `ConnectedMesh2D/3D`) also rejects a **non-conforming** input: a
+  facet vertex is never allowed to land in the *interior* of another facet's edge — it may only touch a
+  neighboring facet exactly at that edge's own start or end vertex. Equivalently: every edge, across the
+  whole set of facets, has at most 1 neighbor (a boundary edge has 0, a normal shared interior edge has
+  1). This is the same rule known elsewhere as a "conforming mesh" / no "hanging nodes" (FEM, finite element method), 
+  no "T-junctions" (graphics), or a valid PSLG (planar straight line graph) mesh generation — 
+  not something invented for this library.
+
+  Two distinct violations get checked for, and only one of them is fixable:
+  - A **T-junction** — a vertex partially overlapping an edge (a wall's corner landing halfway along a
+    longer neighboring wall instead of meeting it exactly) — is fixable: the missing vertex is spliced
+    into the coarse edge, then that facet is actually split around it — a diagonal cut for a `Polygon2D/3D`
+    facet, a re-triangulation for a `Triangle2D/3D` facet, since neither can just absorb the vertex and
+    keep its old shape (see §10.5 for the exact behavior of each, with pictures).
+  - A **non-manifold edge** — a *full* edge shared by 3 or more facets, not just 1 — is not fixable:
+    there's no principled way to guess which 2 of the 3+ facets are "the real pair" that should share it.
+
+  `validate_adjacency(facets)` reports every violation found (empty = conforming); `fix_adjacency(facets)`
+  repairs every T-junction it can and throws on the first non-manifold edge, since that one genuinely has
+  no valid automatic fix. `Mesh2D/3D::FromTriangles()`, `PolyMesh2D/3D::FromPolygons()`, and
+  `ConnectedMesh2D/3D::FromTriangles()` all call `validate_adjacency()` unconditionally and throw on any
+  violation — a non-conforming mesh is treated as invalid caller input at construction time, never
+  silently repaired. The batch `triangulate(vector<Polygon2D>, ...)` free function (§11) is the one place
+  that repairs instead of rejecting by default — see there for why.
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.1 Triangle mesh (Mesh2D / Mesh3D)</b></summary>
+
+  Every facet is a `Triangle2D`/`Triangle3D` — always convex, always planar (in 3D, a triangle can't
+  be non-planar), and cheap to construct and reason about. `FromTriangles()` welds shared vertices via
+  `GridCell2D/3D` (see above) and stores each facet as a fixed `array<size_t, 3>` index triple — no
+  variable-length bookkeeping.
+
+  **Advantages**: fixed-size face records mean no indirection to find a facet's vertex count, and
+  triangulating arbitrary geometry (terrain, scanned surfaces, subdivision output) is a well-trodden
+  problem with mature algorithms to draw from. **Trade-off**: representing anything with flat faces
+  wider than 3 vertices (a cube's square side, say) means splitting it into 2+ triangles up front —
+  extra vertices/edges that convey no extra geometric information, and a seam down the middle of what
+  is conceptually one flat face.
+
+  <p align="center">
+    <img src="./images/mesh3d.png" width="420" alt="Mesh3D: a triangulated 3D dome, 18 triangular facets welded from 16 unique vertices">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "mesh2d.hpp"
+
+  namespace g = geompp;
+
+  // two triangles sharing an edge — a unit square split along its diagonal
+  auto t0 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1));
+  auto t1 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::Mesh2D::FromTriangles({t0, t1});
+
+  GEOMPP_LOG(INFO) << "facets: " << mesh.Size() << ", area: " << mesh.Area();
+  for (std::size_t i = 0; i < mesh.Size(); ++i)
+      GEOMPP_LOG(INFO) << "face " << i << ": " << mesh[i].ToWkt();
+  ```
+
+  ```bash
+  I20260725] facets: 2, area: 1
+  I20260725] face 0: TRIANGLE (0 0, 1 0, 1 1)
+  I20260725] face 1: TRIANGLE (0 0, 1 1, 0 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # two triangles sharing an edge — a unit square split along its diagonal
+  t0 = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1))
+  t1 = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 1), g.Point2D(0, 1))
+  mesh = g.Mesh2D.from_triangles([t0, t1])
+
+  print(f"facets: {mesh.size()}, area: {mesh.area()}")
+  for i, face in enumerate(mesh):
+      print(f"face {i}: {face.to_wkt()}")
+  ```
+
+  ```
+  facets: 2, area: 1.0
+  face 0: TRIANGLE (0 0, 1 0, 1 1)
+  face 1: TRIANGLE (0 0, 1 1, 0 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // two triangles sharing an edge — a unit square split along its diagonal
+  var t0 = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0), new G.Point2D(1, 1));
+  var t1 = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 1), new G.Point2D(0, 1));
+  var mesh = G.Mesh2D.FromTriangles(new[] { t0, t1 });
+
+  Console.WriteLine($"facets: {mesh.Size()}, area: {mesh.Area()}");
+  for (int i = 0; i < mesh.Size(); ++i)
+      Console.WriteLine($"face {i}: {mesh[i].ToWkt()}");
+  ```
+
+  ```
+  facets: 2, area: 1
+  face 0: TRIANGLE (0 0, 1 0, 1 1)
+  face 1: TRIANGLE (0 0, 1 1, 0 1)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.2 Polygon mesh (PolyMesh2D / PolyMesh3D)</b></summary>
+
+  Every facet is a `Polygon2D`/`Polygon3D` of whatever vertex count it naturally has — a quad stays a
+  quad, a hexagon stays a hexagon. `FromPolygons()` welds shared vertices the same way `Mesh` does, but
+  stores each facet as a *run* into a flat, variable-length index buffer (`FACE_INDICES` sliced by
+  `FACE_IDX_BEGINS`/`FACE_IDX_OFFSETS`) instead of a fixed `array<size_t, 3>`, since facets no longer
+  all have the same vertex count.
+
+  **Advantages**: one facet per real flat surface — no artificial split-triangle seam, and facet count
+  stays proportional to the geometry's actual faces rather than 2-3× as many for anything not
+  already triangular (a hexagonal prism's 2 caps are 1 facet each here, 4 triangles each as a `Mesh`).
+  This matches how CAD/BIM/architectural geometry is usually authored (rooms, panels, walls — genuinely
+  flat, multi-sided faces) and is the natural fit for boolean-op or extrusion pipelines built on
+  `Polygon2D/3D` already. **Trade-off**: facets aren't guaranteed convex or (in 3D) planar the way a
+  triangle always is — `Polygon2D::Make()`/`Polygon3D::Make()` still validate simplicity but a
+  near-planar quad from noisy input can be a worse approximation of the "real" flat surface than an
+  explicit triangulation would be; the variable-length index buffer also costs one extra indirection
+  (begin/offset lookup) per facet access versus `Mesh`'s direct fixed-size array.
+
+  <p align="center">
+    <img src="./images/polymesh3d.png" width="420" alt="PolyMesh3D: a hexagonal prism, 8 facets (2 hexagons + 6 quads) welded from 12 unique vertices">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polymesh2d.hpp"
+
+  namespace g = geompp;
+
+  // two quads sharing an edge — a 2x1 rectangle split down the middle
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+
+  GEOMPP_LOG(INFO) << "facets: " << mesh.Size() << ", area: " << mesh.Area();
+  for (std::size_t i = 0; i < mesh.Size(); ++i)
+      GEOMPP_LOG(INFO) << "face " << i << ": " << mesh[i].ToWkt();
+  ```
+
+  ```bash
+  I20260725] facets: 2, area: 2
+  I20260725] face 0: POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
+  I20260725] face 1: POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # two quads sharing an edge — a 2x1 rectangle split down the middle
+  p0 = g.Polygon2D.make([g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1), g.Point2D(0, 1)])
+  p1 = g.Polygon2D.make([g.Point2D(1, 0), g.Point2D(2, 0), g.Point2D(2, 1), g.Point2D(1, 1)])
+  mesh = g.PolyMesh2D.from_polygons([p0, p1])
+
+  print(f"facets: {mesh.size()}, area: {mesh.area()}")
+  for i, face in enumerate(mesh):
+      print(f"face {i}: {face.to_wkt()}")
+  ```
+
+  ```
+  facets: 2, area: 2.0
+  face 0: POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
+  face 1: POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // two quads sharing an edge — a 2x1 rectangle split down the middle
+  var p0 = G.Polygon2D.Make(new G.Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var p1 = G.Polygon2D.Make(new G.Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+  var mesh = G.PolyMesh2D.FromPolygons(new[] { p0, p1 });
+
+  Console.WriteLine($"facets: {mesh.Size()}, area: {mesh.Area()}");
+  for (int i = 0; i < mesh.Size(); ++i)
+      Console.WriteLine($"face {i}: {mesh[i].ToWkt()}");
+  ```
+
+  ```
+  facets: 2, area: 2
+  face 0: POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
+  face 1: POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.3 Connected mesh (ConnectedMesh2D / ConnectedMesh3D)</b></summary>
+
+  Same triangle-faced mesh as `Mesh2D`/`Mesh3D` — `FromTriangles()` welds shared vertices via
+  `GridCell2D`/`GridCell3D` the same way — but `ConnectedMesh2D`/`ConnectedMesh3D` additionally
+  precompute, for every facet's 3 edges, which other facet (and which of *its* edges) sits across that
+  edge, via a compact 4-byte `detail::TriangleCompactNeighborRef` per edge (`{triangle_id,
+  local_edge_id}`, or a boundary sentinel if the edge has no twin). That adjacency is built by an
+  edge-key hashmap over the welded triangle indices during `FromTriangles()` itself, so it costs
+  nothing to query later.
+
+  Indexing/iterating a `ConnectedMesh2D`/`ConnectedMesh3D` hands back a **`FaceView2D`**/**`FaceView3D`**
+  rather than a bare `Triangle2D`/`Triangle3D`: a lightweight, chainable handle onto one facet that
+  exposes both its geometry and that precomputed adjacency:
+  - `Geometry()` — the facet rebuilt as a `Triangle2D`/`Triangle3D` (same as `Mesh2D/3D`'s plain
+    accessor).
+  - `Neighbor(edge)` — crosses one of the facet's 3 edges (`FIRST`/`SECOND`/`THIRD`, numbered
+    `v0`-`v1`, `v1`-`v2`, `v2`-`v0`) and returns the `FaceView2D`/`FaceView3D` on the other side, or
+    nothing if that edge is a boundary edge with no twin (`std::nullopt` in C++, `None` in Python,
+    `null` in C#). Calls chain: `face.Neighbor(edge)->Geometry()`.
+  - `NeighborEntryEdge(edge)` — which edge of `Neighbor(edge)` was entered through (`INVALID` at a
+    boundary), so a caller can immediately cross back with `Neighbor(entry_edge)`.
+  - `TriangleEdge` (`FIRST`/`SECOND`/`THIRD`/`INVALID`) is one shared enum, used by both the 2D and 3D
+    `FaceView`.
+
+  A `FaceView2D`/`FaceView3D` must not outlive the `ConnectedMesh2D`/`ConnectedMesh3D` it came from (in
+  Python/C# this is enforced for you — see the bindings' lifetime notes — but it's still your job in
+  C++).
+
+  <p align="center">
+    <img src="./images/connected_mesh3d.png" width="380" alt="ConnectedMesh3D: the same dome mesh as Mesh3D, with one facet's 3 edges bolded in yellow and the 3 facets across those edges — its precomputed edge-adjacency neighbors — shaded yellow instead of teal">
+    &nbsp;&nbsp;
+    <img src="./images/connected_mesh2d_navigation.png" width="380" alt="ConnectedMesh2D FaceView navigation: a fan of 4 triangles highlighted gold end to end, with arrows crossing each shared edge labeled THIRD to FIRST, walking from face 0 (start) to face 3 (end, a boundary)">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "connected_mesh2d.hpp"
+
+  namespace g = geompp;
+  using Edge = g::detail::TriangleCompactNeighborRef::TriangleEdge;  // FIRST=1, SECOND=2, THIRD=3
+
+  // A fan of 4 triangles sharing the origin, each welded to the next along its THIRD edge.
+  auto mesh = g::ConnectedMesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(0, 1), g::Point2D(-1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(-1, 1), g::Point2D(-1, 0)),
+  });
+  GEOMPP_LOG(INFO) << "facets: " << mesh.Size() << ", area: " << mesh.Area();
+
+  // Walk the mesh left to right via Neighbor()/NeighborEntryEdge(), starting from face 0.
+  auto face = mesh[0];
+  GEOMPP_LOG(INFO) << "start at face " << face.ID() << ": " << face.Geometry().ToWkt();
+  while (true) {
+      auto next = face.Neighbor(Edge::THIRD);
+      if (!next.has_value()) {
+          GEOMPP_LOG(INFO) << "face " << face.ID() << ".THIRD is a boundary -- stop";
+          break;
+      }
+      GEOMPP_LOG(INFO) << "cross face " << face.ID() << ".THIRD -> face " << next->ID()
+                        << " (entered via " << static_cast<int>(face.NeighborEntryEdge(Edge::THIRD))
+                        << "): " << next->Geometry().ToWkt();
+      face = *next;
+  }
+  ```
+
+  ```bash
+  I20260729] facets: 4, area: 2
+  I20260729] start at face 0: TRIANGLE (0 0, 1 0, 1 1)
+  I20260729] cross face 0.THIRD -> face 1 (entered via 1): TRIANGLE (0 0, 1 1, 0 1)
+  I20260729] cross face 1.THIRD -> face 2 (entered via 1): TRIANGLE (0 0, 0 1, -1 1)
+  I20260729] cross face 2.THIRD -> face 3 (entered via 1): TRIANGLE (0 0, -1 1, -1 0)
+  I20260729] face 3.THIRD is a boundary -- stop
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # A fan of 4 triangles sharing the origin, each welded to the next along its THIRD edge.
+  mesh = g.ConnectedMesh2D.from_triangles([
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 1), g.Point2D(0, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(0, 1), g.Point2D(-1, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(-1, 1), g.Point2D(-1, 0)),
+  ])
+  print(f"facets: {mesh.size()}, area: {mesh.area()}")
+
+  # Walk the mesh left to right via neighbor()/neighbor_entry_edge(), starting from face 0.
+  face = mesh[0]
+  print(f"start at face {face.id()}: {face.geometry().to_wkt()}")
+  while True:
+      next_face = face.neighbor(g.TriangleEdge.THIRD)
+      if next_face is None:
+          print(f"face {face.id()}.THIRD is a boundary -- stop")
+          break
+      entry = face.neighbor_entry_edge(g.TriangleEdge.THIRD)
+      print(f"cross face {face.id()}.THIRD -> face {next_face.id()} (entered via {entry.name}): "
+            f"{next_face.geometry().to_wkt()}")
+      face = next_face
+  ```
+
+  ```
+  facets: 4, area: 2.0
+  start at face 0: TRIANGLE (0 0, 1 0, 1 1)
+  cross face 0.THIRD -> face 1 (entered via FIRST): TRIANGLE (0 0, 1 1, 0 1)
+  cross face 1.THIRD -> face 2 (entered via FIRST): TRIANGLE (0 0, 0 1, -1 1)
+  cross face 2.THIRD -> face 3 (entered via FIRST): TRIANGLE (0 0, -1 1, -1 0)
+  face 3.THIRD is a boundary -- stop
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // A fan of 4 triangles sharing the origin, each welded to the next along its Third edge.
+  var mesh = G.ConnectedMesh2D.FromTriangles(new[] {
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0), new G.Point2D(1, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 1), new G.Point2D(0, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(0, 1), new G.Point2D(-1, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(-1, 1), new G.Point2D(-1, 0)),
+  });
+  Console.WriteLine($"facets: {mesh.Size()}, area: {mesh.Area()}");
+
+  // Walk the mesh left to right via Neighbor()/NeighborEntryEdge(), starting from face 0.
+  var face = mesh[0];
+  Console.WriteLine($"start at face {face.Id()}: {face.Geometry().ToWkt()}");
+  while (true) {
+      var next = face.Neighbor(G.TriangleEdge.Third);
+      if (next == null) {
+          Console.WriteLine($"face {face.Id()}.Third is a boundary -- stop");
+          break;
+      }
+      var entry = face.NeighborEntryEdge(G.TriangleEdge.Third);
+      Console.WriteLine($"cross face {face.Id()}.Third -> face {next.Id()} (entered via {entry}): "
+                       + $"{next.Geometry().ToWkt()}");
+      face = next;
+  }
+  ```
+
+  ```
+  facets: 4, area: 2
+  start at face 0: TRIANGLE (0 0, 1 0, 1 1)
+  cross face 0.Third -> face 1 (entered via First): TRIANGLE (0 0, 1 1, 0 1)
+  cross face 1.Third -> face 2 (entered via First): TRIANGLE (0 0, 0 1, -1 1)
+  cross face 2.Third -> face 3 (entered via First): TRIANGLE (0 0, -1 1, -1 0)
+  face 3.Third is a boundary -- stop
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.4 Converting between mesh representations</b></summary>
+
+  The three mesh types above share the same underlying data (unique welded vertices plus per-facet
+  indices), so moving between them doesn't mean rebuilding from scratch:
+
+  - **`Mesh2D`/`Mesh3D` → `ConnectedMesh2D`/`ConnectedMesh3D`**, via `Connect()`: same facets and
+    vertices, plus per-facet edge adjacency computed fresh. Use it when a mesh was built for fast
+    triangle-soup construction (`FromTriangles()`) and only later turns out to need face-to-face
+    navigation (pathfinding, flood-fill/region-growing, adjacency queries) — no need to have gone
+    through `ConnectedMesh` from the start.
+  - **`PolyMesh2D`/`PolyMesh3D` → `Mesh2D`/`Mesh3D`**, via `Triangulate()` (§11 below): triangulates
+    every arbitrary-sided facet independently and combines the results into one triangle mesh. Use it
+    when a mesh was authored/edited as flat n-gon panels (§10.2 — rooms, walls, CAD/BIM-style
+    geometry) but downstream code (rendering, physics/collision, GPU upload) needs triangle-only
+    input.
+
+  Both conversions return a new mesh object — neither mutates the source, and the source stays valid
+  and usable afterward.
+
+  <p align="center">
+    <img src="./images/polymesh2d_triangulate.png" width="460" alt="A twin-gable house-shaped PolyMesh2D -- two square bodies, each with its own matching base and roof triangle, 6 facets total, every edge conforming (gold) -- next to the Mesh2D produced by Triangulate(): 10 triangles (cyan), same total area">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polymesh2d.hpp"
+  #include "mesh2d.hpp"
+  #include "connected_mesh2d.hpp"
+
+  namespace g = geompp;
+  using Edge = g::detail::TriangleCompactNeighborRef::TriangleEdge;
+
+  // Start from a PolyMesh2D: two quads sharing an edge (same shape as §10.2's example).
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto poly_mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+  GEOMPP_LOG(INFO) << "PolyMesh2D: " << poly_mesh.Size() << " facets, area " << poly_mesh.Area();
+
+  // PolyMesh2D -> Mesh2D: each n-gon facet is triangulated independently (ear clipping by default).
+  auto mesh = poly_mesh.Triangulate();
+  GEOMPP_LOG(INFO) << "Mesh2D: " << mesh.Size() << " triangular facets, area " << mesh.Area();
+
+  // Mesh2D -> ConnectedMesh2D: same facets/vertices, plus precomputed per-facet edge adjacency.
+  auto connected = mesh.Connect();
+  GEOMPP_LOG(INFO) << "ConnectedMesh2D: " << connected.Size() << " facets, area " << connected.Area();
+
+  auto neighbor = connected[0].Neighbor(Edge::THIRD);
+  GEOMPP_LOG(INFO) << "face 0 neighbor across THIRD: face " << neighbor->ID()
+                    << " -- " << neighbor->Geometry().ToWkt();
+  ```
+
+  ```bash
+  I20260803] PolyMesh2D: 2 facets, area 2
+  I20260803] Mesh2D: 4 triangular facets, area 2
+  I20260803] ConnectedMesh2D: 4 facets, area 2
+  I20260803] face 0 neighbor across THIRD: face 1 -- TRIANGLE (0 1, 1 0, 1 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # Start from a PolyMesh2D: two quads sharing an edge (same shape as 10.2's example).
+  p0 = g.Polygon2D.make([g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1), g.Point2D(0, 1)])
+  p1 = g.Polygon2D.make([g.Point2D(1, 0), g.Point2D(2, 0), g.Point2D(2, 1), g.Point2D(1, 1)])
+  poly_mesh = g.PolyMesh2D.from_polygons([p0, p1])
+  print(f"PolyMesh2D: {poly_mesh.size()} facets, area {poly_mesh.area()}")
+
+  # PolyMesh2D -> Mesh2D: each n-gon facet is triangulated independently (ear clipping by default).
+  mesh = poly_mesh.triangulate()
+  print(f"Mesh2D: {mesh.size()} triangular facets, area {mesh.area()}")
+
+  # Mesh2D -> ConnectedMesh2D: same facets/vertices, plus precomputed per-facet edge adjacency.
+  connected = mesh.connect()
+  print(f"ConnectedMesh2D: {connected.size()} facets, area {connected.area()}")
+
+  neighbor = connected[0].neighbor(g.TriangleEdge.THIRD)
+  print(f"face 0 neighbor across THIRD: face {neighbor.id()} -- {neighbor.geometry().to_wkt()}")
+  ```
+
+  ```
+  PolyMesh2D: 2 facets, area 2.0
+  Mesh2D: 4 triangular facets, area 2.0
+  ConnectedMesh2D: 4 facets, area 2.0
+  face 0 neighbor across THIRD: face 1 -- TRIANGLE (0 1, 1 0, 1 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // Start from a PolyMesh2D: two quads sharing an edge (same shape as 10.2's example).
+  var p0 = G.Polygon2D.Make(new G.Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+  var p1 = G.Polygon2D.Make(new G.Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+  var polyMesh = G.PolyMesh2D.FromPolygons(new[] { p0, p1 });
+  Console.WriteLine($"PolyMesh2D: {polyMesh.Size()} facets, area {polyMesh.Area()}");
+
+  // PolyMesh2D -> Mesh2D: each n-gon facet is triangulated independently (ear clipping by default).
+  var mesh = polyMesh.Triangulate();
+  Console.WriteLine($"Mesh2D: {mesh.Size()} triangular facets, area {mesh.Area()}");
+
+  // Mesh2D -> ConnectedMesh2D: same facets/vertices, plus precomputed per-facet edge adjacency.
+  var connected = mesh.Connect();
+  Console.WriteLine($"ConnectedMesh2D: {connected.Size()} facets, area {connected.Area()}");
+
+  var neighbor = connected[0].Neighbor(G.TriangleEdge.Third);
+  Console.WriteLine($"face 0 neighbor across Third: face {neighbor.Id()} -- {neighbor.Geometry().ToWkt()}");
+  ```
+
+  ```
+  PolyMesh2D: 2 facets, area 2
+  Mesh2D: 4 triangular facets, area 2
+  ConnectedMesh2D: 4 facets, area 2
+  face 0 neighbor across Third: face 1 -- TRIANGLE (0 1, 1 0, 1 1)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; 10.5 Fixing a non-conforming mesh</b></summary>
+
+  `PolyMesh2D/3D::FromPolygons()` and `Mesh2D/3D::FromTriangles()` both always reject a non-conforming
+  batch of facets outright (§10, "every edge has at most 1 neighbor") — but a T-junction specifically is
+  repairable, and `fix_adjacency()` is the function that does it. Both `validate_adjacency()` and
+  `fix_adjacency()` are overloaded for `Polygon2D/3D`, `Triangle2D/3D`, and raw point rings, so the same
+  repair is available in 2D and 3D, for n-gon facets and for triangles alike.
+
+  For a `Polygon2D/3D` facet, the fix actually splits it: the foreign vertex is spliced into the coarse
+  edge's ring, then a diagonal is cut from it to its nearest ring vertex that forms a valid diagonal —
+  the standard "diagonal-to-nearest-vertex" polygon-splitting technique (a guaranteed-valid diagonal
+  always exists from any vertex of a simple polygon with ≥ 4 vertices, the same guarantee ear-clipping
+  itself relies on). The coarse facet becomes two facets sharing that new edge; an unaffected facet
+  passes through unchanged. The picture below is the same T-junction house from the batch-`triangulate()`
+  example, this time showing the repair itself: `validate_adjacency()` finds 4 T-junctions (red) — the
+  wide roof's apex edge crossing the two body squares' shared corner, and the wide base's top edge
+  crossing both of their bottom corners (three separate foreign vertices land on that one edge) — and
+  `fix_adjacency()` cuts a diagonal from each one, turning the original 4 facets into 8 while covering
+  the same total area. Because each cut goes to the *nearest* valid vertex rather than straight across,
+  the resulting pieces aren't necessarily tidy rectangles (the base splits into an irregular mix of
+  triangles and a quad) — the same tradeoff ear-clipping accepts elsewhere in this library: always a
+  valid split, not necessarily the prettiest one.
+
+  <p align="center">
+    <img src="./images/fix_adjacency_polymesh2d.png" width="600" alt="A set of adjacent polygons (invalid) with 4 T-junction vertices flagged red, next to the same set after fix_adjacency() cuts a nearest-vertex diagonal from each one -- 4 facets become 8, same total area, 0 violations left, and the right side is now a valid PolyMesh2D">
+  </p>
+
+  A `Triangle2D/3D` facet can't just absorb a spliced-in vertex and stay a triangle, so its
+  `fix_adjacency()` overload re-triangulates the coarse facet instead — via the same ear-clipping engine
+  `triangulate()` uses — into 2+ triangles covering the exact same area as the original one; any facet
+  the splice doesn't touch passes through unchanged. Below, a big triangle sits on two small ones; their
+  shared vertex lands in the interior of the big triangle's base edge (red), and `fix_adjacency()` cuts
+  that base triangle into two along the flagged vertex (green): 3 triangles become 4, area unchanged.
+
+  <p align="center">
+    <img src="./images/fix_adjacency_mesh2d.png" width="600" alt="3 adjacent triangles (invalid) with one T-junction vertex flagged red where two small triangles meet the base of a big one, next to the same set after fix_adjacency() re-triangulates the big triangle around that vertex (green) -- 3 triangles become 4, same total area, 0 violations left, and the right side is now a valid Mesh2D">
+  </p>
+
+</details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; 11. Triangulation</b></summary>
+
+  Every `Polygon2D`/`Polygon3D`'s outer ring, and every `PolyMesh2D`/`PolyMesh3D` facet, can be broken
+  down into triangles. All of it runs through one free function, `triangulate(points, settings)`: 2D
+  is native, and the 3D overload assumes flat/coplanar input, projected via either a caller-supplied
+  plane normal or one fitted automatically via PCA (`principal_normal`) when omitted.
+
+  `TriangulationParams` bundles the algorithm choice with how strictly to trust the input:
+
+  - **`Strategy`** — four values, two implemented so far:
+    - `EarClipping` walks the ring and clips the *first* valid convex "ear" vertex it finds, in scan
+      order, tracking which vertices are reflex as it goes so later ears can't accidentally clip
+      through one. O(n²) worst case, but often close to O(n) in practice on well-behaved polygons —
+      clipping at one vertex frequently leaves its neighbor immediately clippable too. It has no
+      concept of triangle *quality*, though: taking whatever's first in scan order can produce a
+      visibly thin sliver triangle purely by luck of vertex ordering, even on an otherwise ordinary
+      polygon (not just adversarial input) — see the second picture below.
+    - `EarClippingBestFit` (**the default**) clips one ear at a time the same way, but each step first
+      does a full lap over the *current* ring to find the best-scoring valid ear — by a cheap,
+      scale-invariant shape-quality score, `|cross(prev, cur, next)| / (a² + b² + c²)` (proportional to
+      `4√3·Area/(a²+b²+c²)`, 1.0 for an equilateral triangle, → 0 for a sliver) — instead of just
+      taking the first one found. It never rejects a geometrically valid ear outright, only reorders
+      which one gets preferred, so it keeps the exact same termination guarantee (the Two Ears
+      Theorem) `EarClipping` relies on — critically, a strict angle/area floor that *rejects* thin
+      candidates instead of just deprioritizing them can't make that same promise, and risks never
+      terminating on a polygon with a genuinely sharp (but valid) vertex. The cost of the quality win:
+      unconditionally ~O(n²), since the full rescan runs on *every* clip, not only in the worst case —
+      so `EarClippingBestFit` is slower than `EarClipping` even on inputs `EarClipping` would finish
+      quickly.
+    - `MonotonePolygon` and `Delaunay` are declared but **not yet implemented** — both `throw`.
+      `MonotonePolygon` would decompose the ring into y-monotone pieces and triangulate each with a
+      stack-based sweep, O(n log n) worst case — faster than either ear-clipping strategy, but unlike
+      them can't triangulate an arbitrary simple polygon directly; it needs the monotone-decomposition
+      step first. `Delaunay` would triangulate a *point set's* convex hull rather than a polygon
+      boundary (a different problem — no notion of "outside" the input), O(n log n) worst case, and is
+      the only one of the four with a *provable* global shape guarantee: it maximizes the minimum angle
+      across the whole triangulation, rather than `EarClippingBestFit`'s local, per-step preference.
+  - **`Simplicity` / `Winding` / `Collinearity`** — each independently `Guaranteed` (skip the check,
+    run at your own risk), `Assert` (throw if violated), or `Enforce` (fix it in place — decompose
+    into simple rings, reverse to CCW, or strip collinear/duplicate points — before triangulating).
+
+  `Polygon2D/3D::Triangulate(strategy)` and `PolyMesh2D/3D::Triangulate(strategy)` (§10.4) are thin
+  wrappers around the same free function: since `Make()`/`FromPolygons()` already validated
+  simplicity/winding/collinearity at construction time, they pass `Guaranteed` for all three checks
+  and only expose the `Strategy` choice. Calling `triangulate()` directly on a raw point list is the
+  more general entry point — no `Polygon2D/3D` required, and full control over how much to trust the
+  input via `TriangulationParams`.
+
+  A third overload, `triangulate(vector<Polygon2D>, conformity, settings)`, batches this across a whole
+  set of polygon facets at once — the free-function equivalent of
+  `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
+  constructing/keeping a full `PolyMesh2D`. Unlike `PolyMesh2D::FromPolygons()` (§10), which always
+  rejects a non-conforming set of facets outright, this overload defaults `conformity` to `Enforce`:
+  since the caller isn't building a persistent mesh object here, it's more useful to auto-repair
+  whatever's fixable (splice a stray T-junction vertex back in — see `fix_adjacency()`, §10) than to
+  simply refuse the input. It still throws on a non-manifold edge either way, since that one has no
+  valid automatic fix.
+
+  The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
+  at its inner corners — using `EarClippingBestFit`, the default. The first lap around the ring clips
+  each of the star's 5 points off as its own ear; what's left is the inner pentagon, which the second
+  lap then fans from one of its vertices. That two-stage split is a property of this particular vertex
+  ordering (and of how close a triple is to collinear), not something the algorithm guarantees in
+  general. Alongside it, a 3-tooth "comb" — the classic *adversarial* shape for naive ear-clipping: its
+  deep, narrow notches mean some vertices get checked, rejected, and only clipped later once an
+  unrelated clip elsewhere in the ring shrinks the set of blocking reflex vertices, so the algorithm
+  needs more than one pass around it to finish.
+
+  <p align="center">
+    <img src="./images/triangulation.png" width="420" alt="A 5-pointed star polygon before and after Triangulate() with EarClippingBestFit: 8 triangles (every edge in gold) -- the 5 point-ears clipped first, the remaining pentagon fanned from one of its vertices">
+    &nbsp;&nbsp;
+    <img src="./images/comb_triangulation.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate() with EarClippingBestFit: 10 triangles fanning from the base, the classic adversarial case that needs multiple traversal laps to fully clip">
+  </p>
+
+  The same two shapes again below, but with plain `EarClipping` (fast, first-found) instead of the
+  default. Same polygons, same triangle counts, same total area — both are valid triangulations — but
+  scan order alone produces two visibly thin sliver triangles in the star (flagged red) that
+  `EarClippingBestFit` avoids entirely, simply by preferring a fatter ear when one's available. The
+  comb's sliver, also flagged red, shows up under *both* strategies: that one is forced by the notch's
+  own geometry, not by which ear got picked first, and no re-triangulation of a *fixed* vertex set can
+  fix a triangle whose thinness is inherited from a genuinely sharp input angle — only inserting new
+  points (Steiner refinement, which neither strategy does) could.
+
+  <p align="center">
+    <img src="./images/triangulation_ear_clipping.png" width="420" alt="The same 5-pointed star triangulated with plain EarClipping: 8 triangles, gold = healthy edge, red = two sliver triangles produced purely by scan order">
+    &nbsp;&nbsp;
+    <img src="./images/comb_triangulation_ear_clipping.png" width="270" alt="The same 3-tooth comb triangulated with plain EarClipping: 10 triangles, red = the one sliver forced by the notch geometry itself, present under EarClippingBestFit too">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polygon2d.hpp"
+  #include "calc_utils2d.hpp"
+
+  namespace g = geompp;
+
+  // A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
+  auto poly = g::Polygon2D::Make({
+      g::Point2D(3.0, 6.0), g::Point2D(2.29, 3.97), g::Point2D(0.15, 3.93), g::Point2D(1.86, 2.63),
+      g::Point2D(1.24, 0.57), g::Point2D(3.0, 1.8), g::Point2D(4.76, 0.57), g::Point2D(4.14, 2.63),
+      g::Point2D(5.85, 3.93), g::Point2D(3.71, 3.97),
+  });
+
+  // As a method: Polygon2D/3D::Triangulate() takes strategy explicitly (no default at this layer --
+  // EarClippingBestFit is only TriangulationParams' own default, see the free function below). All
+  // TriangulationParams checks are Guaranteed -- Make() already validated
+  // simplicity/winding/collinearity, so there's nothing left to check.
+  for (auto const& t : poly.Triangulate(g::TriangulationParams::Strategy::EarClippingBestFit))
+      GEOMPP_LOG(INFO) << t.ToWkt();
+
+  // Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
+  // the same way on flat/planar 3D input. settings defaults to EarClippingBestFit + Enforce for all
+  // three input-quality checks, so it can be omitted entirely.
+  auto triangles = g::triangulate(poly.Perimeter());
+  GEOMPP_LOG(INFO) << triangles.size() << " triangles";
+  ```
+
+  ```bash
+  I20260804] TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  I20260804] TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  I20260804] TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  I20260804] TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  I20260804] TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  I20260804] TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  I20260804] TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  I20260804] TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  I20260804] 8 triangles
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
+  poly = g.Polygon2D.make([
+      g.Point2D(3.0, 6.0), g.Point2D(2.29, 3.97), g.Point2D(0.15, 3.93), g.Point2D(1.86, 2.63),
+      g.Point2D(1.24, 0.57), g.Point2D(3.0, 1.8), g.Point2D(4.76, 0.57), g.Point2D(4.14, 2.63),
+      g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
+  ])
+
+  # As a method: strategy defaults to EarClippingBestFit. All TriangulationParams checks are
+  # Guaranteed -- make() already validated simplicity/winding/collinearity, so there's nothing left
+  # to check.
+  for t in poly.triangulate():
+      print(t.to_wkt())
+
+  # Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
+  # the same way on flat/planar 3D input. settings defaults to EarClippingBestFit + Enforce for all
+  # three input-quality checks, so it can be omitted entirely.
+  triangles = g.triangulate(poly.perimeter())
+  print(f"{len(triangles)} triangles")
+  ```
+
+  ```
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  8 triangles
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+  using System.Collections.Generic;
+  using System.Linq;
+
+  // A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
+  var poly = G.Polygon2D.Make(new G.Point2D[] {
+      new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+      new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
+  });
+
+  // As a method: strategy defaults to EarClippingBestFit. All TriangulationParams checks are
+  // Guaranteed -- Make() already validated simplicity/winding/collinearity, so there's nothing left
+  // to check.
+  foreach (var t in poly.Triangulate())
+      Console.WriteLine(t.ToWkt());
+
+  // Same algorithm via GeomUtil.Triangulate() on a raw point list -- 2D here, but 3D overloads work
+  // the same way on flat/planar input. Unlike the method above, GeomUtil.Triangulate() takes an
+  // explicit TriangulationParams (defaults to EarClippingBestFit + Enforce for all three checks).
+  var points = new List<G.Point2D>(poly.Perimeter());
+  var triangles = G.GeomUtil.Triangulate(points, new G.TriangulationParams());
+  Console.WriteLine($"{triangles.Count()} triangles");
+  ```
+
+  ```
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  8 triangles
+  ```
+
+   </details>
+
+  </details>
+
+</details>

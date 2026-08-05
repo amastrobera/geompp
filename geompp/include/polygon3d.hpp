@@ -22,6 +22,12 @@ class Polygon3D {
  public:
   static Polygon3D Make(std::vector<Point3D> const& points);
   static Polygon3D Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes);
+  /// @brief Same as the const& overload, but consumes @p points instead of copying it — every
+  /// point-cleanup step (collinear removal, etc.) reuses @p points' own storage instead of allocating
+  /// a fresh vector.
+  static Polygon3D Make(std::vector<Point3D>&& points);
+  /// @brief Same as the const& overload, but consumes both @p points and @p holes instead of copying them.
+  static Polygon3D Make(std::vector<Point3D>&& points, std::vector<std::vector<Point3D>>&& holes);
   Polygon3D(Polygon3D const&) = default;
   Polygon3D(Polygon3D&&) = default;
   ~Polygon3D() = default;
@@ -34,7 +40,7 @@ class Polygon3D {
   SegmentRange3D ToSegments() const;
   Point3D Centroid() const;
 
-  /// @brief Same convention as Polygon2D::Area(): holes are always simple (Make() rejects a
+  /// @brief Same convention as Polygon3D::Area(): holes are always simple (Make() rejects a
   /// self-intersecting hole outright) so their contribution is a direct O(1)-per-hole shoelace sum; the
   /// outer ring, if also simple, makes the whole thing O(n), otherwise it's decomposed at O(n log n) into
   /// its real bounded faces and their (plane-aware, not merely 2D-projected) areas summed.
@@ -53,6 +59,17 @@ class Polygon3D {
   /// @return {*this} if already simple; otherwise the set of simple polygons covering the same area.
   std::vector<Polygon3D> Simplify() const;
 
+  /// @brief Breaks down the polygon (outer ring ONLY, holes are ignored) into a set of triangles, in the
+  /// polygon's own plane (GetPlane().normal() supplies the projection — no PCA re-fit needed since it's
+  /// already known). Make() already guarantees the outer ring is simple, CCW-wound, and free of
+  /// collinear/duplicate points, so this always calls the free triangulate() with every
+  /// TriangulationParams check set to Guaranteed — no re-validation cost.
+  /// @param strategy which triangulation algorithm to run (see TriangulationParams::Strategy).
+  /// @returns one Triangle3D per triangle; Size() - 2 triangles.
+  /// @throws whatever the chosen @p strategy itself throws (e.g. std::runtime_error for a
+  /// not-yet-implemented strategy).
+  std::vector<Triangle3D> Triangulate(TriangulationParams::Strategy strategy) const;
+
   /// @brief Distance from a point to this polygon's closed region.
   /// @param point The point to measure distance to.
   /// @return 0 if @p point is inside the polygon (or on its boundary); otherwise the distance to the nearest edge.
@@ -64,6 +81,7 @@ class Polygon3D {
   static Polygon3D FromFile(std::string const& path);
 
   Polygon3D& operator=(Polygon3D const& other);
+  Polygon3D& operator=(Polygon3D&&) = default;
 
 #pragma region Geometrical Operations
 
@@ -119,7 +137,7 @@ class Polygon3D {
 
   /// @brief Intersection of this polygon with another.
   /// - Coplanar (same plane): the set intersection of the two areas, same semantics as
-  ///   Polygon2D::Intersection(Polygon2D) — zero or more result polygons.
+  ///   Polygon3D::Intersection(Polygon3D) — zero or more result polygons.
   /// - Not coplanar, planes crossing: the two flat regions can only share points along the planes'
   ///   common line, so the result is the chain of segments where both polygons' bounded regions cover
   ///   that line (empty chain omitted — reported as std::nullopt, not an empty vector).
@@ -152,6 +170,20 @@ class Polygon3D {
 
 #pragma endregion
 
+#pragma region Iterators
+
+  // Only expose const_iterator
+  using const_iterator = std::vector<Point3D>::const_iterator;
+
+  // Both const and non-const begin/end return const_iterator!
+  const_iterator begin() const;
+  const_iterator end() const;
+
+  const_iterator cbegin() const;
+  const_iterator cend() const;
+
+#pragma endregion
+
  private:
   std::vector<Point3D> VERTICES;
   std::vector<std::vector<Point3D>> HOLES;
@@ -159,9 +191,19 @@ class Polygon3D {
   double PERIMETER;
   bool IS_CONVEX;
 
+  // Shared by every Make() overload (const&/&& on points, with/without holes): validates an
+  // already-collinear-filtered outer ring (and, for the second overload, raw holes still needing their
+  // own per-hole cleanup) and wraps it. Taking everything by value lets each Make() overload hand off
+  // its data with a single move regardless of whether it started from a const& or && parameter.
+  static Polygon3D FromUniquePoints(std::vector<Point3D> unique_points);
+  static Polygon3D FromUniquePoints(std::vector<Point3D> unique_points, std::vector<std::vector<Point3D>> holes);
+
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex);
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
             std::vector<std::vector<Point3D>> const& holes, bool is_convex);
+  Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter, bool is_convex);
+  Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter,
+            std::vector<std::vector<Point3D>>&& holes, bool is_convex);
 };
 
 #pragma region Operator Overloading
@@ -184,6 +226,18 @@ inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& pla
 inline Polygon3D::Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,
                             std::vector<std::vector<Point3D>> const& holes, bool is_convex)
     : VERTICES(points), HOLES(holes), PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+inline Polygon3D::Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter, bool is_convex)
+    : VERTICES(std::move(points)), HOLES{}, PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+inline Polygon3D::Polygon3D(std::vector<Point3D>&& points, Plane const& plane, double perimeter,
+                            std::vector<std::vector<Point3D>>&& holes, bool is_convex)
+    : VERTICES(std::move(points)), HOLES(std::move(holes)), PLANE(plane), PERIMETER(perimeter), IS_CONVEX(is_convex) {}
+
+// Both const and non-const begin/end return const_iterator!
+inline Polygon3D::const_iterator Polygon3D::begin() const { return VERTICES.cbegin(); }
+inline Polygon3D::const_iterator Polygon3D::end() const { return VERTICES.cend(); }
+
+inline Polygon3D::const_iterator Polygon3D::cbegin() const { return VERTICES.cbegin(); }
+inline Polygon3D::const_iterator Polygon3D::cend() const { return VERTICES.cend(); }
 
 #pragma endregion
 

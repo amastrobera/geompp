@@ -5,6 +5,7 @@
 #include "plane.hpp"
 #include "point3d.hpp"
 #include "ray3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -116,6 +117,34 @@ TEST_F(Polygon3DTest, WithHoles_Valid) {
       g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
   auto p = g::Polygon3D::Make(outer, {hole});
   ASSERT_EQ(4, p.Size());  // outer ring has 4 vertices
+}
+
+TEST_F(Polygon3DTest, Make_MoveOverload_NoHoles_MatchesCopyOverload) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> outer_copy = outer;
+
+  auto p_copy = g::Polygon3D::Make(outer);
+  auto p_moved = g::Polygon3D::Make(std::move(outer_copy));
+
+  EXPECT_TRUE(p_copy.AlmostEquals(p_moved));
+  ASSERT_EQ(4, p_moved.Size());
+}
+
+TEST_F(Polygon3DTest, Make_MoveOverload_WithHoles_MatchesCopyOverload) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)};
+  std::vector<g::Point3D> outer_copy = outer;
+  std::vector<std::vector<g::Point3D>> holes_copy = {hole};
+
+  auto p_copy = g::Polygon3D::Make(outer, {hole});
+  auto p_moved = g::Polygon3D::Make(std::move(outer_copy), std::move(holes_copy));
+
+  EXPECT_TRUE(p_copy.AlmostEquals(p_moved));
+  ASSERT_TRUE(p_moved.HasHoles());
+  ASSERT_EQ(1u, p_moved.Holes().size());
 }
 
 TEST_F(Polygon3DTest, HasHoles_False_WhenNoHoles) {
@@ -724,6 +753,50 @@ TEST_F(Polygon3DTest, IsConvex_WithHole_False) {
   EXPECT_FALSE(p.IsConvex());
 }
 
+// ---- ConvexHull ---------------------------------------------------------------
+
+TEST_F(Polygon3DTest, ConvexHull_AlreadyConvex_ReturnsSamePoints) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto hull = p.ConvexHull();
+  EXPECT_TRUE(p.AlmostEquals(hull));
+}
+
+TEST_F(Polygon3DTest, ConvexHull_ConcavePolygon_DropsInnerVertex) {
+  // Arrow/dent shape in XY plane — the dent at (2,2,0) must be excluded from the hull
+  auto p = g::Polygon3D::Make({
+      g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+      g::Point3D(2, 2, 0), g::Point3D(0, 4, 0)});
+  auto hull = p.ConvexHull();
+
+  EXPECT_EQ(4u, hull.Size());
+  for (std::size_t i = 0; i < hull.Size(); ++i) {
+    EXPECT_FALSE(hull[i].AlmostEquals(g::Point3D(2, 2, 0))) << "dent vertex must not survive the hull";
+  }
+}
+
+TEST_F(Polygon3DTest, ConvexHull_TiltedPlane_ReturnsFourCorners) {
+  // Unit square in the YZ plane (X=0) — hull should keep exactly the 4 corners
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(0, 1, 0), g::Point3D(0, 1, 1), g::Point3D(0, 0, 1)});
+  auto hull = p.ConvexHull();
+  EXPECT_EQ(4u, hull.Size());
+  EXPECT_TRUE(hull.IsConvex());
+}
+
+TEST_F(Polygon3DTest, ConvexHull_WithHole_IgnoresHole) {
+  std::vector<g::Point3D> outer = {
+      g::Point3D(0, 0, 0), g::Point3D(3, 0, 0), g::Point3D(3, 3, 0), g::Point3D(0, 3, 0)};
+  std::vector<g::Point3D> hole = {
+      g::Point3D(1, 1, 0), g::Point3D(1, 2, 0), g::Point3D(2, 2, 0), g::Point3D(2, 1, 0)};
+  auto p = g::Polygon3D::Make(outer, {hole});
+
+  auto hull = p.ConvexHull();
+  EXPECT_EQ(4u, hull.Size());
+  EXPECT_NEAR(9.0, hull.Area(), 1e-9);
+  EXPECT_FALSE(hull.HasHoles());
+}
+
 // ---- Simplify ---------------------------------------------------------------
 
 TEST_F(Polygon3DTest, Simplify_AlreadySimple_ReturnsSelf) {
@@ -1213,6 +1286,66 @@ TEST_F(Polygon3DTest, Intersection_Polygon_ParallelDistinctPlanes_ReturnsNullopt
   auto result = a.Intersection(b);
   EXPECT_FALSE(result.has_value());
   EXPECT_FALSE(a.Intersects(b));
+}
+
+#pragma endregion
+
+#pragma region Triangulate
+
+TEST_F(Polygon3DTest, Triangulate_FlatConvexQuad_ProducesTwoTrianglesCoveringFullArea) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0), g::Point3D(0, 2, 0)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+// Non-XY plane (tilted, X-dominant-axis normal) — proves Triangulate() correctly uses the polygon's own
+// plane normal rather than assuming a flat-on-XY input.
+TEST_F(Polygon3DTest, Triangulate_TiltedPlaneQuad_ProducesTwoTrianglesCoveringFullArea) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(0, 4, 0), g::Point3D(0, 4, 2), g::Point3D(0, 0, 2)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon3DTest, Triangulate_ConcavePolygon_ProducesCorrectAreaAndCount) {
+  auto p = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0),
+                               g::Point3D(2, 1, 0), g::Point3D(0, 4, 0)});
+
+  auto triangles = p.Triangulate(g::TriangulationParams::Strategy::EarClipping);
+
+  ASSERT_EQ(triangles.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, p.Area(), 1e-9);
+}
+
+TEST_F(Polygon3DTest, Triangulate_MonotonePolygonStrategy_Throws) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0), g::Point3D(0, 2, 0)});
+  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::MonotonePolygon), std::runtime_error);
+}
+
+TEST_F(Polygon3DTest, Triangulate_DelaunayStrategy_Throws) {
+  auto p = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0), g::Point3D(0, 2, 0)});
+  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::Delaunay), std::runtime_error);
 }
 
 #pragma endregion

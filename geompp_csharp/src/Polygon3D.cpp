@@ -4,9 +4,12 @@
 #include "Line3D.hpp"
 #include "Ray3D.hpp"
 #include "LineSegment3D.hpp"
+#include "Triangle3D.hpp"
 
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
+
+#include <utility>
 
 namespace GeomPP {
 
@@ -28,11 +31,13 @@ Polygon3D::!Polygon3D() {
 // ── Factory ───────────────────────────────────────────────────────────────────
 
 Polygon3D^ Polygon3D::Make(array<Point3D^>^ points) {
+    // nativePoints is a fresh vector this function exclusively owns after marshalling — moving it
+    // into Make(vector&&) avoids the extra copy Make(vector const&) would otherwise make internally.
     std::vector<geompp::Point3D> nativePoints;
     nativePoints.reserve(points->Length);
     for each (Point3D^ p in points)
         nativePoints.push_back(*p->_native);
-    return gcnew Polygon3D(new geompp::Polygon3D(geompp::Polygon3D::Make(nativePoints)));
+    return gcnew Polygon3D(new geompp::Polygon3D(geompp::Polygon3D::Make(std::move(nativePoints))));
 }
 
 Polygon3D^ Polygon3D::Make(array<Point3D^>^ points, array<array<Point3D^>^>^ holes) {
@@ -47,10 +52,11 @@ Polygon3D^ Polygon3D::Make(array<Point3D^>^ points, array<array<Point3D^>^>^ hol
         nativeHole.reserve(hole->Length);
         for each (Point3D^ p in hole)
             nativeHole.push_back(*p->_native);
-        nativeHoles.push_back(nativeHole);
+        nativeHoles.push_back(std::move(nativeHole));
     }
 
-    return gcnew Polygon3D(new geompp::Polygon3D(geompp::Polygon3D::Make(nativePoints, nativeHoles)));
+    return gcnew Polygon3D(new geompp::Polygon3D(
+        geompp::Polygon3D::Make(std::move(nativePoints), std::move(nativeHoles))));
 }
 
 // ── Methods ──────────────────────────────────────────────────────────────────
@@ -116,6 +122,19 @@ array<Polygon3D^>^ Polygon3D::Simplify() {
     auto arr = gcnew array<Polygon3D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Polygon3D(new geompp::Polygon3D(native[i]));
+    }
+    return arr;
+}
+
+array<Triangle3D^>^ Polygon3D::Triangulate() {
+    return Triangulate(TriangulationStrategy::EarClippingBestFit);
+}
+
+array<Triangle3D^>^ Polygon3D::Triangulate(TriangulationStrategy strategy) {
+    auto native = _native->Triangulate(static_cast<geompp::TriangulationParams::Strategy>(strategy));
+    auto arr = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
     }
     return arr;
 }

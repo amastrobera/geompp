@@ -15,6 +15,8 @@
 #include "Line2D.hpp"
 #include "Line3D.hpp"
 #include "Polyline2D.hpp"
+#include "Triangle2D.hpp"
+#include "Triangle3D.hpp"
 
 namespace GeomPP {
 
@@ -373,6 +375,188 @@ PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Polygon3D^ other) {
     return gcnew PolygonTangents3D(
         gcnew LineSegment3D(new geompp::LineSegment3D(t.left)),
         gcnew LineSegment3D(new geompp::LineSegment3D(t.right)));
+}
+
+TriangulationParams::TriangulationParams()
+    : _strategy(TriangulationStrategy::EarClippingBestFit), _simplicity(TriangulationSimplicity::Enforce),
+      _ccwWinding(TriangulationWinding::Enforce), _collinearity(TriangulationCollinearity::Enforce) {}
+
+TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity)
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity) {}
+
+geompp::TriangulationParams TriangulationParams::ToNative() {
+    geompp::TriangulationParams native;
+    native.strategy = static_cast<geompp::TriangulationParams::Strategy>(_strategy);
+    native.simplicity = static_cast<geompp::TriangulationParams::Simplicity>(_simplicity);
+    native.ccw_winding = static_cast<geompp::TriangulationParams::Winding>(_ccwWinding);
+    native.collinearity = static_cast<geompp::TriangulationParams::Collinearity>(_collinearity);
+    return native;
+}
+
+System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
+    System::Collections::Generic::List<Point2D^>^ points, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNativePoints2D(points), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Triangle2D^>(static_cast<int>(native.size()));
+    for (auto const& t : native) {
+        list->Add(gcnew Triangle2D(new geompp::Triangle2D(t)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Triangle3D^>^ GeomUtil::Triangulate(
+    System::Collections::Generic::List<Point3D^>^ points, Vector3D^ normal, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNative(points), *normal->_native, settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Triangle3D^>(static_cast<int>(native.size()));
+    for (auto const& t : native) {
+        list->Add(gcnew Triangle3D(new geompp::Triangle3D(t)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Triangle3D^>^ GeomUtil::Triangulate(
+    System::Collections::Generic::List<Point3D^>^ points, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNative(points), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Triangle3D^>(static_cast<int>(native.size()));
+    for (auto const& t : native) {
+        list->Add(gcnew Triangle3D(new geompp::Triangle3D(t)));
+    }
+    return list;
+}
+
+// ── mesh-conformity checking ("every edge has at most 1 neighbor") ───────────────────────────────
+
+static std::vector<geompp::Polygon2D> ToNativePolygons2D(array<Polygon2D^>^ polygons) {
+    std::vector<geompp::Polygon2D> native;
+    native.reserve(polygons->Length);
+    for each (Polygon2D^ p in polygons)
+        native.push_back(*p->_native);
+    return native;
+}
+
+static std::vector<geompp::Polygon3D> ToNativePolygons3D(array<Polygon3D^>^ polygons) {
+    std::vector<geompp::Polygon3D> native;
+    native.reserve(polygons->Length);
+    for each (Polygon3D^ p in polygons)
+        native.push_back(*p->_native);
+    return native;
+}
+
+static std::vector<geompp::Triangle2D> ToNativeTriangles2D(array<Triangle2D^>^ triangles) {
+    std::vector<geompp::Triangle2D> native;
+    native.reserve(triangles->Length);
+    for each (Triangle2D^ t in triangles)
+        native.push_back(*t->_native);
+    return native;
+}
+
+static std::vector<geompp::Triangle3D> ToNativeTriangles3D(array<Triangle3D^>^ triangles) {
+    std::vector<geompp::Triangle3D> native;
+    native.reserve(triangles->Length);
+    for each (Triangle3D^ t in triangles)
+        native.push_back(*t->_native);
+    return native;
+}
+
+static System::Collections::Generic::List<int>^ ToManagedInts(std::vector<std::size_t> const& indices) {
+    auto list = gcnew System::Collections::Generic::List<int>(static_cast<int>(indices.size()));
+    for (auto i : indices)
+        list->Add(static_cast<int>(i));
+    return list;
+}
+
+static AdjacencyViolation2D^ ToManaged(geompp::AdjacencyViolation<geompp::Point2D> const& v) {
+    return gcnew AdjacencyViolation2D(gcnew Point2D(new geompp::Point2D(v.edge_p0)),
+                                      gcnew Point2D(new geompp::Point2D(v.edge_p1)), ToManagedInts(v.facet_indices),
+                                      v.is_non_manifold, gcnew Point2D(new geompp::Point2D(v.on_vertex)));
+}
+
+static AdjacencyViolation3D^ ToManaged(geompp::AdjacencyViolation<geompp::Point3D> const& v) {
+    return gcnew AdjacencyViolation3D(gcnew Point3D(new geompp::Point3D(v.edge_p0)),
+                                      gcnew Point3D(new geompp::Point3D(v.edge_p1)), ToManagedInts(v.facet_indices),
+                                      v.is_non_manifold, gcnew Point3D(new geompp::Point3D(v.on_vertex)));
+}
+
+System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ GeomUtil::ValidateAdjacency(array<Polygon2D^>^ facets) {
+    auto native = geompp::validate_adjacency(ToNativePolygons2D(facets));
+    auto list = gcnew System::Collections::Generic::List<AdjacencyViolation2D^>(static_cast<int>(native.size()));
+    for (auto const& v : native)
+        list->Add(ToManaged(v));
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ GeomUtil::ValidateAdjacency(array<Triangle2D^>^ facets) {
+    auto native = geompp::validate_adjacency(ToNativeTriangles2D(facets));
+    auto list = gcnew System::Collections::Generic::List<AdjacencyViolation2D^>(static_cast<int>(native.size()));
+    for (auto const& v : native)
+        list->Add(ToManaged(v));
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ GeomUtil::ValidateAdjacency(array<Polygon3D^>^ facets) {
+    auto native = geompp::validate_adjacency(ToNativePolygons3D(facets));
+    auto list = gcnew System::Collections::Generic::List<AdjacencyViolation3D^>(static_cast<int>(native.size()));
+    for (auto const& v : native)
+        list->Add(ToManaged(v));
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ GeomUtil::ValidateAdjacency(array<Triangle3D^>^ facets) {
+    auto native = geompp::validate_adjacency(ToNativeTriangles3D(facets));
+    auto list = gcnew System::Collections::Generic::List<AdjacencyViolation3D^>(static_cast<int>(native.size()));
+    for (auto const& v : native)
+        list->Add(ToManaged(v));
+    return list;
+}
+
+array<array<Point2D^>^>^ GeomUtil::FixAdjacency(array<Polygon2D^>^ facets) {
+    auto native = geompp::fix_adjacency(ToNativePolygons2D(facets));
+    auto result = gcnew array<array<Point2D^>^>(static_cast<int>(native.size()));
+    for (int i = 0; i < native.size(); ++i) {
+        auto ring = gcnew array<Point2D^>(static_cast<int>(native[i].size()));
+        for (int j = 0; j < native[i].size(); ++j)
+            ring[j] = gcnew Point2D(new geompp::Point2D(native[i][j]));
+        result[i] = ring;
+    }
+    return result;
+}
+
+array<array<Point3D^>^>^ GeomUtil::FixAdjacency(array<Polygon3D^>^ facets) {
+    auto native = geompp::fix_adjacency(ToNativePolygons3D(facets));
+    auto result = gcnew array<array<Point3D^>^>(static_cast<int>(native.size()));
+    for (int i = 0; i < native.size(); ++i) {
+        auto ring = gcnew array<Point3D^>(static_cast<int>(native[i].size()));
+        for (int j = 0; j < native[i].size(); ++j)
+            ring[j] = gcnew Point3D(new geompp::Point3D(native[i][j]));
+        result[i] = ring;
+    }
+    return result;
+}
+
+array<Triangle2D^>^ GeomUtil::FixAdjacency(array<Triangle2D^>^ facets) {
+    auto native = geompp::fix_adjacency(ToNativeTriangles2D(facets));
+    auto result = gcnew array<Triangle2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < native.size(); ++i)
+        result[i] = gcnew Triangle2D(new geompp::Triangle2D(native[i]));
+    return result;
+}
+
+array<Triangle3D^>^ GeomUtil::FixAdjacency(array<Triangle3D^>^ facets) {
+    auto native = geompp::fix_adjacency(ToNativeTriangles3D(facets));
+    auto result = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < native.size(); ++i)
+        result[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
+    return result;
+}
+
+System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
+    array<Polygon2D^>^ polygons, AdjacencyConformity conformity, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNativePolygons2D(polygons),
+                                      static_cast<geompp::AdjacencyConformity>(conformity), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Triangle2D^>(static_cast<int>(native.size()));
+    for (auto const& t : native)
+        list->Add(gcnew Triangle2D(new geompp::Triangle2D(t)));
+    return list;
 }
 
 }  // namespace GeomPP

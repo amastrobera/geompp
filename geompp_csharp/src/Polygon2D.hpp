@@ -5,12 +5,15 @@
 #include <polygon2d.hpp>
 #pragma managed(pop)
 
+#include "GeomUtil.hpp"  // TriangulationStrategy
+
 namespace GeomPP {
 
 ref class Point2D;
 ref class Line2D;
 ref class Ray2D;
 ref class LineSegment2D;
+ref class Triangle2D;
 
 public ref class Polygon2D {
 public:
@@ -36,6 +39,10 @@ public:
     bool     IsConvex();
     Polygon2D^                ConvexHull();
     array<Polygon2D^>^        Simplify();
+    // Breaks the polygon (outer ring only, holes are ignored) down into an array of Triangle2D. Make()
+    // already guarantees the outer ring is simple/CCW/collinear-free, so this never re-validates.
+    array<Triangle2D^>^ Triangulate();
+    array<Triangle2D^>^ Triangulate(TriangulationStrategy strategy);
     array<Point2D^>^          Perimeter();
     bool                      HasHoles();
     array<array<Point2D^>^>^  Holes();

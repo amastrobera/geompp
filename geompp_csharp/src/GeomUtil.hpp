@@ -19,6 +19,8 @@ ref class Polygon3D;
 ref class Line2D;
 ref class Line3D;
 ref class PolylineExpansionParams;
+ref class Triangle2D;
+ref class Triangle3D;
 
 // The two vertices of a 2D shape extreme (least / greatest projection) along a direction.
 public ref class ExtremePoints2D sealed {
@@ -66,6 +68,159 @@ internal:
 private:
     LineSegment3D^ _left;
     LineSegment3D^ _right;
+};
+
+// Which triangulation algorithm to run — see TriangulationParams. Values must stay in the same order
+// as geompp::TriangulationParams::Strategy: ToNative() converts via a raw static_cast by ordinal, not
+// by name, so inserting or reordering a value here without matching the C++ enum silently corrupts
+// every other value after it.
+public enum class TriangulationStrategy {
+    // Clips the first valid ear found in scan order. O(n^2) worst case, but often close to O(n) in
+    // practice. Doesn't optimize triangle shape, so it can produce a visually thin sliver purely from
+    // scan order, even on ordinary input.
+    EarClipping = 0,
+    // Clips the best-scoring (least sliver-prone) valid ear every step instead of the first one found.
+    // Same termination guarantee as EarClipping, but unconditionally ~O(n^2) -- a full rescan of the
+    // current ring on every single clip, not just worst case. Default.
+    EarClippingBestFit = 1,
+    // O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone pieces).
+    // Not yet implemented.
+    MonotonePolygon = 2,
+    // O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny slivers).
+    // Not yet implemented.
+    Delaunay = 3
+};
+
+// How GeomUtil.Triangulate() handles a possibly self-intersecting input ring.
+public enum class TriangulationSimplicity {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if the input isn't simple.
+    Assert = 1,
+    // Decomposes non-simple input into simple pieces (via simplify_rings) before triangulating.
+    Enforce = 2
+};
+
+// How GeomUtil.Triangulate() handles input that may not be wound counter-clockwise (CCW).
+public enum class TriangulationWinding {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if the input isn't CCW.
+    Assert = 1,
+    // Reverses the input if it's CW, before triangulating.
+    Enforce = 2
+};
+
+// How GeomUtil.Triangulate() handles collinear points. A duplicate consecutive point is just the
+// degenerate case of three collinear points, so this covers both.
+public enum class TriangulationCollinearity {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if the input has collinear (or duplicate) points.
+    Assert = 1,
+    // Removes collinear/duplicate points before triangulating.
+    Enforce = 2
+};
+
+// Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for
+// GeomUtil.Triangulate(). Defaults to EarClipping, and Enforce for all three input-quality checks —
+// matching the native triangulate()'s own defaults. Polygon2D.Triangulate() / Polygon3D.Triangulate() /
+// PolyMesh2D.Triangulate() / PolyMesh3D.Triangulate() take just a TriangulationStrategy instead: their
+// input is already guaranteed simple/CCW/collinear-free by construction, so the other three checks
+// aren't exposed there.
+public ref class TriangulationParams {
+public:
+    TriangulationParams();
+    TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                        TriangulationWinding ccwWinding, TriangulationCollinearity collinearity);
+
+    property TriangulationStrategy Strategy {
+        TriangulationStrategy get() { return _strategy; }
+        void set(TriangulationStrategy value) { _strategy = value; }
+    }
+    property TriangulationSimplicity Simplicity {
+        TriangulationSimplicity get() { return _simplicity; }
+        void set(TriangulationSimplicity value) { _simplicity = value; }
+    }
+    property TriangulationWinding CcwWinding {
+        TriangulationWinding get() { return _ccwWinding; }
+        void set(TriangulationWinding value) { _ccwWinding = value; }
+    }
+    property TriangulationCollinearity Collinearity {
+        TriangulationCollinearity get() { return _collinearity; }
+        void set(TriangulationCollinearity value) { _collinearity = value; }
+    }
+
+internal:
+    geompp::TriangulationParams ToNative();
+
+private:
+    TriangulationStrategy _strategy;
+    TriangulationSimplicity _simplicity;
+    TriangulationWinding _ccwWinding;
+    TriangulationCollinearity _collinearity;
+};
+
+// How to handle a batch of facets that violate "every edge has at most 1 neighbor" -- no facet vertex
+// may lie in the interior of another facet's edge, only exactly at that edge's own start/end vertex.
+// Known elsewhere as: no "hanging nodes" (FEM), no "T-junctions" (graphics), a valid PSLG (mesh
+// generation). GeomUtil.ValidateAdjacency() / FixAdjacency() do the actual checking/repair;
+// Mesh2D/3D.FromTriangles, PolyMesh2D/3D.FromPolygons, and ConnectedMesh2D/3D.FromTriangles always
+// Assert this at construction time. Values must stay in the same order as geompp::AdjacencyConformity
+// (converted via a raw static_cast by ordinal, same reasoning as TriangulationStrategy above).
+public enum class AdjacencyConformity {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if any violation (T-junction or non-manifold edge) is found.
+    Assert = 1,
+    // Auto-repairs every T-junction via FixAdjacency(); still throws on a non-manifold edge (a full
+    // edge shared by 3+ facets) -- there's no principled automatic fix for that one.
+    Enforce = 2
+};
+
+// One "more than 1 neighbor" violation found by GeomUtil.ValidateAdjacency() across a batch of 2D
+// facets. A T-junction (a vertex partially overlapping an edge) is fixable -- see OnVertex; a
+// non-manifold edge (a full edge shared by 3+ facets) is not, since there's no principled way to pick
+// which 2 of the 3+ facets are "the real pair".
+public ref class AdjacencyViolation2D sealed {
+public:
+    property Point2D^ EdgeP0 { Point2D^ get() { return _edgeP0; } }
+    property Point2D^ EdgeP1 { Point2D^ get() { return _edgeP1; } }
+    property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
+    property bool IsNonManifold { bool get() { return _isNonManifold; } }
+    property Point2D^ OnVertex { Point2D^ get() { return _onVertex; } }
+internal:
+    AdjacencyViolation2D(Point2D^ edgeP0, Point2D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
+                         bool isNonManifold, Point2D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+private:
+    Point2D^ _edgeP0;
+    Point2D^ _edgeP1;
+    System::Collections::Generic::List<int>^ _facetIndices;
+    bool _isNonManifold;
+    Point2D^ _onVertex;
+};
+
+// 3D counterpart of AdjacencyViolation2D -- same fields, operating on Point3D. Native 3D
+// collinearity/betweenness, not View2D-projected (a shared 2D projection would be wrong for a general
+// 3D mesh whose facets aren't all coplanar).
+public ref class AdjacencyViolation3D sealed {
+public:
+    property Point3D^ EdgeP0 { Point3D^ get() { return _edgeP0; } }
+    property Point3D^ EdgeP1 { Point3D^ get() { return _edgeP1; } }
+    property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
+    property bool IsNonManifold { bool get() { return _isNonManifold; } }
+    property Point3D^ OnVertex { Point3D^ get() { return _onVertex; } }
+internal:
+    AdjacencyViolation3D(Point3D^ edgeP0, Point3D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
+                         bool isNonManifold, Point3D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+private:
+    Point3D^ _edgeP0;
+    Point3D^ _edgeP1;
+    System::Collections::Generic::List<int>^ _facetIndices;
+    bool _isNonManifold;
+    Point3D^ _onVertex;
 };
 
 // Static utility class — wraps the geompp free functions that operate on point collections.
@@ -191,6 +346,46 @@ public:
     static PolygonTangents2D^ TangentsTo(Polygon2D^ polygon, Polygon2D^ other);
     static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Point3D^ point);
     static PolygonTangents3D^ TangentsTo(Polygon3D^ polygon, Polygon3D^ other);
+
+    // Triangulate — breaks a simple polygon's outer loop (no holes) down into triangles, per the given
+    // TriangulationParams. 2D is native; the 3D overloads assume flat/coplanar input, projected via the
+    // given plane normal, or (when normal is omitted) one fitted via PCA (PrincipalNormal).
+    static System::Collections::Generic::IEnumerable<Triangle2D^>^ Triangulate(
+        System::Collections::Generic::List<Point2D^>^ points, TriangulationParams^ settings);
+    static System::Collections::Generic::IEnumerable<Triangle3D^>^ Triangulate(
+        System::Collections::Generic::List<Point3D^>^ points, Vector3D^ normal, TriangulationParams^ settings);
+    static System::Collections::Generic::IEnumerable<Triangle3D^>^ Triangulate(
+        System::Collections::Generic::List<Point3D^>^ points, TriangulationParams^ settings);
+
+    // ValidateAdjacency — checks a batch of facets for "every edge has at most 1 neighbor". Returns
+    // every violation found (both T-junctions and non-manifold edges); empty if conforming.
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ ValidateAdjacency(array<Polygon2D^>^ facets);
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ ValidateAdjacency(array<Triangle2D^>^ facets);
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ ValidateAdjacency(array<Polygon3D^>^ facets);
+    static System::Collections::Generic::IEnumerable<AdjacencyViolation3D^>^ ValidateAdjacency(array<Triangle3D^>^ facets);
+
+    // FixAdjacency — repairs every T-junction ValidateAdjacency() would report: splices the foreign
+    // vertex into the coarse edge, then cuts a diagonal to the nearest ring vertex that forms a valid,
+    // non-crossing diagonal, splitting the facet into pieces (several T-junctions on one edge can split
+    // a facet into several pieces). Throws on a non-manifold edge (not fixable). Returns raw point
+    // rings, NOT Polygon2D/3D -- the split pieces have no guarantee of matching a valid Polygon2D/3D
+    // winding/hole structure.
+    static array<array<Point2D^>^>^ FixAdjacency(array<Polygon2D^>^ facets);
+    static array<array<Point3D^>^>^ FixAdjacency(array<Polygon3D^>^ facets);
+
+    // FixAdjacency (Triangle overload) — unlike a Polygon2D/3D facet, a triangle can't just absorb a
+    // spliced-in vertex and stay a triangle, so a repaired facet is re-triangulated into 2+ triangles
+    // covering the same area as the original one. An unaffected facet passes through unchanged. Throws
+    // on a non-manifold edge (not fixable).
+    static array<Triangle2D^>^ FixAdjacency(array<Triangle2D^>^ facets);
+    static array<Triangle3D^>^ FixAdjacency(array<Triangle3D^>^ facets);
+
+    // Triangulate (batch) — batch-triangulates a set of 2D polygon facets together, the free-function
+    // equivalent of PolyMesh2D.FromPolygons(polygons).Triangulate(). Unlike PolyMesh2D.FromPolygons
+    // (which always throws on bad adjacency), conformity is typically Enforce: auto-repairs a
+    // T-junction, still throws on a non-manifold edge.
+    static System::Collections::Generic::IEnumerable<Triangle2D^>^ Triangulate(
+        array<Polygon2D^>^ polygons, AdjacencyConformity conformity, TriangulationParams^ settings);
 };
 
 }  // namespace GeomPP

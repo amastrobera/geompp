@@ -6,12 +6,67 @@
 
 #include "geompp_log.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <fstream>
 #include <unordered_set>
+#include <utility>
 
 namespace geompp {
+
+namespace {
+// Indices to drop from `points` so the remaining ones describe the same shape with no run of 3+
+// collinear points — shared between remove_collinear()'s const& (copies survivors into a fresh
+// vector) and && (compacts survivors in place) overloads, since the detection itself only ever
+// reads `points` regardless of which one the caller picked.
+std::unordered_set<int> collinear_duplicate_indices(std::vector<Point2D> const& points) {
+  std::unordered_set<int> duplicates;
+  int i1 = 0;
+  int i2 = i1 + 1;
+  int i3 = i1 + 2;
+  int max_iter = points.size();
+  while (i1 < points.size() - 2 && i2 < points.size() - 1 && i3 < points.size() && max_iter > 0) {
+    if (duplicates.count(i1)) {
+      ++i1;
+      ++i2;
+      ++i3;
+      continue;
+    }
+
+    if (are_collinear(points[i1], points[i2], points[i3])) {  // test of collinearity
+
+      auto u = (points[i2] - points[i1]);
+      auto v = (points[i3] - points[i1]);
+
+      if (compare(u.Dot(v), 0) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
+        if (compare(points[i1].DistanceTo(points[i3]), points[i1].DistanceTo(points[i2])) >= 0) {
+          duplicates.insert(i2);
+          ++i2;
+          ++i3;
+
+        } else {
+          duplicates.insert(i3);
+          ++i3;
+        }
+
+      } else {  // not in the same direction, remove the point opposite to U-vector
+        duplicates.insert(i3);
+        ++i3;
+      }
+
+    } else {
+      ++i1;  // increment loop
+      i2 = i1 + 1;
+      i3 = i1 + 2;
+    }
+
+    --max_iter;
+  }
+
+  return duplicates;
+}
+}  // namespace
 
 bool Point2D::AlmostEquals(Point2D const& other, double epsilon) const {
   return compare(X, other.X, epsilon) == 0 && compare(Y, other.Y, epsilon) == 0;
@@ -58,6 +113,22 @@ std::vector<Point2D> remove_consecutive_duplicates(std::vector<Point2D> const& p
   return unique_points;
 }
 
+std::vector<Point2D> remove_consecutive_duplicates(std::vector<Point2D>&& points) {
+  if (points.size() < 2) {
+    return std::move(points);
+  }
+
+  std::size_t write = 1;
+  for (std::size_t i = 1; i < points.size(); ++i) {
+    if (!points[write - 1].AlmostEquals(points[i])) {
+      points[write++] = points[i];
+    }
+  }
+  points.erase(points.begin() + write, points.end());
+
+  return std::move(points);
+}
+
 std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points) {
   if (points.size() == 0) {
     return points;
@@ -91,48 +162,7 @@ std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points) {
     return points;
   }
 
-  std::unordered_set<int> duplicates;
-  int i1 = 0;
-  int i2 = i1 + 1;
-  int i3 = i1 + 2;
-  int max_iter = points.size();
-  while (i1 < points.size() - 2 && i2 < points.size() - 1 && i3 < points.size() && max_iter > 0) {
-    if (duplicates.count(i1)) {
-      ++i1;
-      ++i2;
-      ++i3;
-      continue;
-    }
-
-    if (are_collinear(points[i1], points[i2], points[i3])) {  // test of collinearity
-
-      auto u = (points[i2] - points[i1]);
-      auto v = (points[i3] - points[i1]);
-
-      if (compare(u.Dot(v), 0) >= 0) {  // same direction, pick the farthest point in the U-vector's direction
-        if (compare(points[i1].DistanceTo(points[i3]), points[i1].DistanceTo(points[i2])) >= 0) {
-          duplicates.insert(i2);
-          ++i2;
-          ++i3;
-
-        } else {
-          duplicates.insert(i3);
-          ++i3;
-        }
-
-      } else {  // not in the same direction, remove the point opposite to U-vector
-        duplicates.insert(i3);
-        ++i3;
-      }
-
-    } else {
-      ++i1;  // increment loop
-      i2 = i1 + 1;
-      i3 = i1 + 2;
-    }
-
-    --max_iter;
-  }
+  auto duplicates = collinear_duplicate_indices(points);
 
   std::vector<Point2D> unique_points;
   for (int i = 0; i < points.size(); ++i) {
@@ -142,6 +172,24 @@ std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points) {
   }
 
   return unique_points;
+}
+
+std::vector<Point2D> remove_collinear(std::vector<Point2D>&& points) {
+  if (points.size() < 3) {
+    return std::move(points);
+  }
+
+  auto duplicates = collinear_duplicate_indices(points);
+
+  std::size_t write = 0;
+  for (std::size_t i = 0; i < points.size(); ++i) {
+    if (duplicates.count(static_cast<int>(i)) == 0) {
+      points[write++] = std::move(points[i]);
+    }
+  }
+  points.erase(points.begin() + write, points.end());
+
+  return std::move(points);
 }
 
 Point2D linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights) {
@@ -373,7 +421,17 @@ std::vector<Point2D> sort_ccw(std::vector<Point2D> const& points) {
     return points;
   }
 
-  auto c = centroid(points);
+  // Arithmetic mean, not centroid(): centroid()'s shoelace formula assumes `points` is already a
+  // ring in order (and throws on zero signed area) — neither holds for an arbitrary, unordered
+  // input, which is exactly what sort_ccw exists to fix up.
+  Point2D c = average(points);
+
+  std::vector<Point2D> sorted_points = points;
+  std::sort(sorted_points.begin(), sorted_points.end(), [&c](Point2D const& a, Point2D const& b) {
+    return std::atan2(a.y() - c.y(), a.x() - c.x()) < std::atan2(b.y() - c.y(), b.x() - c.x());
+  });
+
+  return sorted_points;
 }
 
 std::vector<Point2D> convex_hull(std::vector<Point2D> const& points) {

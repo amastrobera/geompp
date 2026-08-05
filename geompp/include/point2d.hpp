@@ -39,21 +39,38 @@ class Point2D {
 
 #pragma region Collection Operations
 
+/// @brief tells whether a point p is on the left of a line defined by (v1,v2).
+///        alternatively, it tells whether the vector (p-v1) forms a counter clockwise rotation to the vector (v2-v1)
 bool is_left(Point2D const& v1, Point2D const& v2, Point2D const& p);
 
+/// @brief tells whether a point p is on the right of a line defined by (v1,v2).
+///        alternatively, it tells whether the vector (p-v1) forms a clockwise rotation to the vector (v2-v1)
 bool is_right(Point2D const& v1, Point2D const& v2, Point2D const& p);
 
 bool are_collinear(Point2D const& p1, Point2D const& p2, Point2D const& p3);
 
 std::vector<Point2D> remove_consecutive_duplicates(std::vector<Point2D> const& points);
+/// @brief Same as the const& overload, but compacts @p points in place (no fresh vector allocated)
+/// instead of copying survivors into a new one.
+std::vector<Point2D> remove_consecutive_duplicates(std::vector<Point2D>&& points);
 
 std::vector<Point2D> remove_duplicates(std::vector<Point2D> const& points);
 
 std::vector<Point2D> remove_collinear(std::vector<Point2D> const& points);
+/// @brief Same as the const& overload, but compacts @p points in place (no fresh vector allocated)
+/// instead of copying survivors into a new one.
+std::vector<Point2D> remove_collinear(std::vector<Point2D>&& points);
 
 Point2D linear_combination(std::vector<Point2D> const& points, std::vector<double> const& weights);
 
 Point2D average(std::vector<Point2D> const& points);
+
+/// @brief Sorts an arbitrary (not necessarily ring-ordered) set of points into counter-clockwise
+/// angular order around their arithmetic mean.
+/// @param points The points to sort. Order on input does not matter.
+/// @return @p points unchanged if it has fewer than 3 points (a warning is logged); otherwise a copy
+/// sorted by ascending angle (atan2) around `average(points)`.
+std::vector<Point2D> sort_ccw(std::vector<Point2D> const& points);
 
 std::vector<Point2D> convex_hull(std::vector<Point2D> const& points);
 

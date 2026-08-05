@@ -3,9 +3,12 @@
 #include "Line2D.hpp"
 #include "Ray2D.hpp"
 #include "LineSegment2D.hpp"
+#include "Triangle2D.hpp"
 
 #include <msclr/marshal_cppstd.h>
 using namespace msclr::interop;
+
+#include <utility>
 
 namespace GeomPP {
 
@@ -27,11 +30,13 @@ Polygon2D::!Polygon2D() {
 // ── Factory ───────────────────────────────────────────────────────────────────
 
 Polygon2D^ Polygon2D::Make(array<Point2D^>^ points) {
+    // nativePoints is a fresh vector this function exclusively owns after marshalling — moving it
+    // into Make(vector&&) avoids the extra copy Make(vector const&) would otherwise make internally.
     std::vector<geompp::Point2D> nativePoints;
     nativePoints.reserve(points->Length);
     for each (Point2D^ p in points)
         nativePoints.push_back(*p->_native);
-    return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(nativePoints)));
+    return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(std::move(nativePoints))));
 }
 
 Polygon2D^ Polygon2D::Make(array<Point2D^>^ points, array<array<Point2D^>^>^ holes) {
@@ -46,10 +51,11 @@ Polygon2D^ Polygon2D::Make(array<Point2D^>^ points, array<array<Point2D^>^>^ hol
         nativeHole.reserve(hole->Length);
         for each (Point2D^ p in hole)
             nativeHole.push_back(*p->_native);
-        nativeHoles.push_back(nativeHole);
+        nativeHoles.push_back(std::move(nativeHole));
     }
 
-    return gcnew Polygon2D(new geompp::Polygon2D(geompp::Polygon2D::Make(nativePoints, nativeHoles)));
+    return gcnew Polygon2D(new geompp::Polygon2D(
+        geompp::Polygon2D::Make(std::move(nativePoints), std::move(nativeHoles))));
 }
 
 // ── Methods ──────────────────────────────────────────────────────────────────
@@ -111,6 +117,19 @@ array<Polygon2D^>^ Polygon2D::Simplify() {
     auto arr = gcnew array<Polygon2D^>(static_cast<int>(native.size()));
     for (int i = 0; i < static_cast<int>(native.size()); ++i) {
         arr[i] = gcnew Polygon2D(new geompp::Polygon2D(native[i]));
+    }
+    return arr;
+}
+
+array<Triangle2D^>^ Polygon2D::Triangulate() {
+    return Triangulate(TriangulationStrategy::EarClippingBestFit);
+}
+
+array<Triangle2D^>^ Polygon2D::Triangulate(TriangulationStrategy strategy) {
+    auto native = _native->Triangulate(static_cast<geompp::TriangulationParams::Strategy>(strategy));
+    auto arr = gcnew array<Triangle2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < static_cast<int>(native.size()); ++i) {
+        arr[i] = gcnew Triangle2D(new geompp::Triangle2D(native[i]));
     }
     return arr;
 }

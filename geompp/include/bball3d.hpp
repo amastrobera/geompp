@@ -1,6 +1,6 @@
 #pragma once
 
-#include "concepts.hpp"
+#include "generic_concepts.hpp"
 #include "constants.hpp"
 #include "point3d.hpp"
 #include "utils.hpp"

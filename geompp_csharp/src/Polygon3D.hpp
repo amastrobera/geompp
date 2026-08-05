@@ -5,6 +5,8 @@
 #include <polygon3d.hpp>
 #pragma managed(pop)
 
+#include "GeomUtil.hpp"  // TriangulationStrategy
+
 namespace GeomPP {
 
 ref class Plane;
@@ -12,6 +14,7 @@ ref class Point3D;
 ref class Line3D;
 ref class Ray3D;
 ref class LineSegment3D;
+ref class Triangle3D;
 
 public ref class Polygon3D {
 public:
@@ -38,6 +41,11 @@ public:
     bool     IsOnPerimeter(Point3D^ point);
     Polygon3D^                ConvexHull();
     array<Polygon3D^>^        Simplify();
+    // Breaks the polygon (outer ring only, holes are ignored) down into an array of Triangle3D, in the
+    // polygon's own plane. Make() already guarantees the outer ring is simple/CCW/collinear-free, so
+    // this never re-validates.
+    array<Triangle3D^>^ Triangulate();
+    array<Triangle3D^>^ Triangulate(TriangulationStrategy strategy);
     array<Point3D^>^          Perimeter();
     bool                      HasHoles();
     array<array<Point3D^>^>^  Holes();

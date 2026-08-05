@@ -65,6 +65,7 @@ class Triangle2D {
   static Triangle2D FromFile(std::string const& path);
 
   Triangle2D& operator=(Triangle2D const& other);
+  Triangle2D& operator=(Triangle2D&&) = default;
 
 #pragma region Geometrical Operations
 
@@ -97,7 +98,8 @@ class Triangle2D {
 
   /// @brief Intersection of this triangle with a line.
   /// @param line The line.
-  /// @return A Point2D (line touches a vertex), a LineSegment2D (line cuts through interior), or std::nullopt if disjoint.
+  /// @return A Point2D (line touches a vertex), a LineSegment2D (line cuts through interior), or std::nullopt if
+  /// disjoint.
   ReturnSet Intersection(Line2D const& line) const;
 
   /// @brief Intersection of this triangle with a ray.

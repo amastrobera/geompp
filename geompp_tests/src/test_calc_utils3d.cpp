@@ -6,6 +6,7 @@
 #include "plane.hpp"
 #include "point3d.hpp"
 #include "polygon3d.hpp"
+#include "triangle3d.hpp"
 #include "utils.hpp"
 #include "vector3d.hpp"
 
@@ -455,6 +456,172 @@ TEST_F(CalcUtils3DTest, VwDecimation_ThresholdBelowAllAreas_KeepsAllPoints) {
   for (std::size_t i = 0; i < points.size(); ++i) {
     EXPECT_TRUE(result[i].AlmostEquals(points[i])) << "index " << i;
   }
+}
+
+// --------------------------------------------------------------------------------------------------
+// triangulate (free functions)
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils3DTest, Triangulate_WithExplicitNormal_ProducesCorrectAreaAndCount) {
+  std::vector<g::Point3D> quad = {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0),
+                                  g::Point3D(0, 2, 0)};
+  auto triangles = g::triangulate(quad, g::Vector3D(0, 0, 1));
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 8.0, 1e-9);
+}
+
+// No explicit normal — fits one via PCA (principal_normal) instead.
+TEST_F(CalcUtils3DTest, Triangulate_WithoutNormal_FitsNormalViaPCA) {
+  std::vector<g::Point3D> quad = {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0),
+                                  g::Point3D(0, 2, 0)};
+  auto triangles = g::triangulate(quad);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 8.0, 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, Triangulate_FewerThanThreePoints_Throws) {
+  std::vector<g::Point3D> too_few = {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)};
+  EXPECT_THROW(g::triangulate(too_few, g::Vector3D(0, 0, 1)), std::invalid_argument);
+  EXPECT_THROW(g::triangulate(too_few), std::invalid_argument);
+}
+
+TEST_F(CalcUtils3DTest, ValidateAdjacency_ConformingSharedEdge_ReturnsNoViolations) {
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  EXPECT_TRUE(g::validate_adjacency(std::vector<g::Polygon3D>{p0, p1}).empty());
+}
+
+TEST_F(CalcUtils3DTest, ValidateAdjacency_TJunction_DetectsViolation) {
+  // Two unit squares side by side (y=0 plane), plus a roof triangle spanning both squares' top -- its
+  // base edge passes straight through the squares' shared vertex without that vertex being one of the
+  // roof's own endpoints. Classic T-junction, native 3D (not View2D-projected).
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+
+  auto violations = g::validate_adjacency(std::vector<g::Polygon3D>{p0, p1, roof});
+
+  ASSERT_FALSE(violations.empty());
+  for (auto const& v : violations) {
+    EXPECT_FALSE(v.is_non_manifold);
+  }
+}
+
+TEST_F(CalcUtils3DTest, ValidateAdjacency_NonManifoldEdge_DetectsViolation) {
+  // Three triangles all sharing the exact same edge (0,0,0)-(1,0,0), fanned into three different planes.
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0.5, 1, 0)});
+  auto b = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, 0, 1)});
+  auto c = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, -1, 0)});
+
+  auto violations = g::validate_adjacency(std::vector<g::Polygon3D>{a, b, c});
+
+  ASSERT_FALSE(violations.empty());
+  EXPECT_TRUE(violations.front().is_non_manifold);
+  EXPECT_EQ(violations.front().facet_indices.size(), 3u);
+}
+
+TEST_F(CalcUtils3DTest, FixAdjacency_TJunction_SplicesVertexAndPreservesTotalArea) {
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+  std::vector<g::Polygon3D> facets{p0, p1, roof};
+
+  double area_before = 0.0;
+  for (auto const& f : facets) {
+    area_before += f.Area();
+  }
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+  double area_after = 0.0;
+  for (auto const& ring : fixed) {
+    g::TriangulationParams guaranteed_collinearity;
+    guaranteed_collinearity.collinearity = g::TriangulationParams::Collinearity::Guaranteed;
+    for (auto const& t : g::triangulate(ring, g::Vector3D(0, -1, 0), guaranteed_collinearity)) {
+      area_after += t.Area();
+    }
+  }
+  EXPECT_NEAR(area_before, area_after, 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, FixAdjacency_TJunction_SplitsCoarseFacetInsteadOfJustSplicing) {
+  // Same native-3D case as above (roof has exactly 1 T-junction), but checking that Polygon3D's
+  // fix_adjacency() actually cuts a diagonal -- roof splits into 2 -- rather than just splicing a flat
+  // vertex into a single grown ring.
+  auto p0 = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make(
+      {g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+  std::vector<g::Polygon3D> facets{p0, p1, roof};
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_EQ(fixed.size(), 4u);  // p0, p1 pass through unchanged, roof splits into 2
+  for (auto const& ring : fixed) {
+    EXPECT_LE(ring.size(), 4u);
+  }
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+}
+
+TEST_F(CalcUtils3DTest, FixAdjacency_NonManifoldEdge_Throws) {
+  auto a = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0.5, 1, 0)});
+  auto b = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, 0, 1)});
+  auto c = g::Polygon3D::Make({g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, -1, 0)});
+  EXPECT_THROW(g::fix_adjacency(std::vector<g::Polygon3D>{a, b, c}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils3DTest, FixAdjacency_TriangleTJunction_ReTriangulatesAndPreservesTotalArea) {
+  // Native 3D analog of the 2D "big triangle over two small triangles" case (y=0 plane).
+  // Triangle3D::Make() has no winding constraint, so unlike the Polygon3D tests above no
+  // reversed-vertex-order handling is needed here.
+  auto A = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(2, 0, 3));
+  auto B = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, -1.5), g::Point3D(2, 0, 0));
+  auto C = g::Triangle3D::Make(g::Point3D(2, 0, 0), g::Point3D(3, 0, -1.5), g::Point3D(4, 0, 0));
+  std::vector<g::Triangle3D> facets{A, B, C};
+
+  double area_before = 0.0;
+  for (auto const& f : facets) {
+    area_before += f.Area();
+  }
+  EXPECT_NEAR(area_before, 9.0, 1e-9);
+
+  ASSERT_FALSE(g::validate_adjacency(facets).empty());
+
+  auto fixed = g::fix_adjacency(facets);
+
+  EXPECT_EQ(fixed.size(), 4u);  // A -> 2 triangles, B and C pass through unchanged
+  EXPECT_TRUE(g::validate_adjacency(fixed).empty());
+
+  double area_after = 0.0;
+  for (auto const& t : fixed) {
+    area_after += t.Area();
+  }
+  EXPECT_NEAR(area_before, area_after, 1e-9);
+}
+
+TEST_F(CalcUtils3DTest, FixAdjacency_TriangleNonManifoldEdge_Throws) {
+  auto a = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0.5, 1, 0));
+  auto b = g::Triangle3D::Make(g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, 0, 1));
+  auto c = g::Triangle3D::Make(g::Point3D(1, 0, 0), g::Point3D(0, 0, 0), g::Point3D(0.5, -1, 0));
+  EXPECT_THROW(g::fix_adjacency(std::vector<g::Triangle3D>{a, b, c}), std::invalid_argument);
 }
 
 }  // namespace geompp_tests

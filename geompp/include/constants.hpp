@@ -123,4 +123,61 @@ struct PolylineExpansionParams {
   double min_segment_length = DOUBLE_EPSILON;
 };
 
+struct TriangulationParams {
+  enum class Strategy { EarClipping, EarClippingBestFit, MonotonePolygon, Delaunay };
+  /// @brief Triangulation algorithm.
+  ///        - EarClipping clips the first valid ear it finds in scan order. Most robust and
+  ///          general-purpose, and often close to O(n) in practice, but O(n²) worst-case -- and doesn't
+  ///          optimize triangle shape, so it can produce a visually thin sliver purely from scan order,
+  ///          even on ordinary input.
+  ///        - EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step
+  ///          instead of the first one. Same termination guarantee as EarClipping, but unconditionally
+  ///          ~O(n²) -- a full rescan of the current ring on every single clip, not just worst-case.
+  ///          Default: prefers shape quality over raw speed.
+  ///        - MonotonePolygon (which requires a monotone polygon). O(n log n) to O(n²) worst-case
+  ///        - Delaunay (which requires a point set and produces a triangulation of the convex hull, not a polygon).
+  ///          O(n log n) to O(n²) worst-case.
+  Strategy strategy = Strategy::EarClippingBestFit;
+
+  enum class Simplicity { Guaranteed, Assert, Enforce };
+  /// @brief How to handle non-simple input (self-intersecting polygons).
+  ///        - Guaranteed no check is carried out (the algo runs at your own risk);
+  ///        - Assert throws if the input isn't simple;
+  ///        - Enforce attempts to fix it (via simplify_rings) before triangulating.
+  Simplicity simplicity = Simplicity::Enforce;
+
+  enum class Winding { Guaranteed, Assert, Enforce };
+  /// @brief Vertices should be sorted in CCW order
+  ///        - Guaranteed no check is carried out (the algo runs at your own risk);
+  ///        - Assert throws if the input isn't CCW;
+  ///        - Enforce attempts to fix it (reversing the vertex order) before triangulating.
+  Winding ccw_winding = Winding::Enforce;
+
+  enum class Collinearity { Guaranteed, Assert, Enforce };
+  /// @brief The list of vertices should have no collinear points.
+  ///        A duplicate vertex is just the degenerate case of three collinear points (two of them
+  ///        coinciding), so a single collinearity check covers both — no separate duplicates check needed.
+  ///        - Guaranteed no check is carried out (the algo runs at your own risk);
+  ///        - Assert throws if the input has collinear (or duplicate) points;
+  ///        - Enforce attempts to fix it (using remove_collinear) before triangulating.
+  Collinearity collinearity = Collinearity::Enforce;
+};
+
+/// @brief How to handle a batch of facets (Polygon2D/3D outer rings, or Triangle2D/3D) that violate the
+/// mesh-conformity rule "every edge has at most 1 neighbor" — equivalently, no facet vertex may lie in
+/// the interior of another facet's edge, only exactly at that edge's own start/end vertex. Known
+/// elsewhere as: no "hanging nodes" (FEM), no "T-junctions" (graphics), a valid PSLG (mesh generation).
+/// See validate_adjacency() / fix_adjacency() (calc_utils2d.hpp/calc_utils3d.hpp).
+///
+/// Two distinct violation shapes exist, and only one is repairable:
+///   - A T-junction (a vertex partially overlapping an edge) — fixable: splice the vertex into the
+///     coarse edge.
+///   - A non-manifold edge (a full edge shared by 3+ facets) — NOT fixable: there's no principled way
+///     to pick which 2 of the 3+ facets are "the real pair", so even Enforce throws on this one.
+enum class AdjacencyConformity {
+  Guaranteed,  ///< No check is carried out (runs at your own risk).
+  Assert,      ///< Throws std::invalid_argument if any violation (of either kind) is found.
+  Enforce      ///< Auto-repairs every T-junction via fix_adjacency(); still throws on a non-manifold edge.
+};
+
 }  // namespace geompp

@@ -42,7 +42,19 @@ void bind_triangle2d(py::module_& m) {
         BIND_SERIALIZATION(Triangle2D)
         .def("intersects",
              [](const geompp::Triangle2D& t, const geompp::Line2D& l) { return t.Intersects(l); }, "line"_a)
+        .def("intersects",
+             [](const geompp::Triangle2D& t, const geompp::Ray2D& r) { return t.Intersects(r); }, "ray"_a)
+        .def("intersects",
+             [](const geompp::Triangle2D& t, const geompp::LineSegment2D& s) { return t.Intersects(s); }, "segment"_a)
+        .def("intersects_triangle",
+             [](const geompp::Triangle2D& t, const geompp::Triangle2D& other) { return t.Intersects(other); }, "other"_a)
         .def("intersection",
              [](const geompp::Triangle2D& t, const geompp::Line2D& l) -> py::object { return opt_variant_to_py(t.Intersection(l)); }, "line"_a)
+        .def("intersection",
+             [](const geompp::Triangle2D& t, const geompp::Ray2D& r) -> py::object { return opt_variant_to_py(t.Intersection(r)); }, "ray"_a)
+        .def("intersection",
+             [](const geompp::Triangle2D& t, const geompp::LineSegment2D& s) -> py::object { return opt_variant_to_py(t.Intersection(s)); }, "segment"_a)
+        .def("intersection",
+             [](const geompp::Triangle2D& t, const geompp::Triangle2D& other) -> py::object { return opt_variant_to_py(t.Intersection(other)); }, "other"_a)
         .def("__eq__", [](const geompp::Triangle2D& a, const geompp::Triangle2D& b) { return a == b; });
 }

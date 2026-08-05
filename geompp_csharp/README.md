@@ -120,6 +120,19 @@ All primitives support:
 Floating-point comparisons use a thread-local `DECIMAL_PRECISION` constant via `AlmostEquals()` methods, making the library robust against rounding errors while remaining configurable per thread.
 
 
+## Test Coverage
+
+This is the summary of the current test coverage. More on [test coverage](https://github.com/amastrobera/geompp/blob/master/test_coverage_report.md).
+
+| Metric | Count | Notes |
+|--------|-------|-------|
+| Public methods (C++) | ~491 | Excl. ctors/dtors/operators |
+| C++ methods tested | ~469/491 | ~95% (909 TEST cases, 907 run, 2 disabled) |
+| Python methods tested | 423/443 | ~95% (742 pytest cases) |
+| C# methods tested | 482/549 | ~88% (846 harness tests) |
+| Stubs (not yet impl.) | 0 | Previously 10 — all now implemented (see test_coverage_report.md) |
+
+
 ---
 
 ## How to use it
@@ -154,5 +167,7 @@ msbuild geompp_csharp\GeomPP.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\bu
 msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
 # run smoke tests, after build from the main directory geompp
-dotnet test geompp_csharp\tests\GeomPPTests.csproj [-p:GeomPPConfiguration=Release]
+# (GeomPPTests.csproj is an Exe-type console harness, not a Test SDK project —
+# `dotnet test` reports success but runs nothing; use `dotnet run`)
+dotnet run --project geompp_csharp\tests\GeomPPTests.csproj [-p:GeomPPConfiguration=Release]
 ```

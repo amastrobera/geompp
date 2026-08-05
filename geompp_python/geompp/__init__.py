@@ -17,6 +17,18 @@ Planar operations:
 Parser:
     WktParser
 
+Meshes (WIP — faces cannot have holes):
+    GridCell2D, GridCell3D (internal vertex-welding grid bucket, exposed for completeness)
+    Mesh2D, Mesh3D (triangle faces, no adjacency structure)
+    PolyMesh2D, PolyMesh3D (arbitrary-sided polygon faces, no adjacency structure)
+    ConnectedMesh2D, ConnectedMesh3D (triangle faces; per-facet edge adjacency precomputed
+                     internally and exposed via the FaceView2D/FaceView3D objects returned by
+                     indexing/iteration)
+    FaceView2D, FaceView3D (a facet of a ConnectedMesh2D/3D: .geometry(), .neighbor(edge),
+                     .neighbor_entry_edge(edge))
+    TriangleEdge (FIRST, SECOND, THIRD — which of a facet's 3 edges to cross; INVALID marks a
+                  boundary edge with no twin; shared by ConnectedMesh2D and ConnectedMesh3D)
+
 Free functions
 --------------
     are_collinear(p1, p2, p3)
@@ -51,6 +63,18 @@ Polyline expansion (corner rounding — the inverse of decimation):
     PolylineExpansionParams(smoothness=0.5, mode=FixedSegments, segments_per_corner=4,
                              min_distance=0.1, min_segment_length=DOUBLE_EPSILON)
     polyline_expansion(points, settings)
+
+Triangulation (2D or 3D, 3D input is assumed flat/planar):
+    TriangulationStrategy (EarClipping; MonotonePolygon and Delaunay not yet implemented)
+    TriangulationSimplicity, TriangulationWinding, TriangulationCollinearity
+        (each Guaranteed/Assert/Enforce — how to handle non-simple/non-CCW/collinear input)
+    TriangulationParams(strategy=EarClipping, simplicity=Enforce, ccw_winding=Enforce,
+                         collinearity=Enforce)
+    triangulate(points, settings) -> list[Triangle2D]
+    triangulate(points, normal, settings) -> list[Triangle3D]
+    triangulate(points, settings) -> list[Triangle3D]              # normal fitted via PCA
+    Polygon2D.triangulate(strategy), Polygon3D.triangulate(strategy) -> list[Triangle2D/3D]
+    PolyMesh2D.triangulate(strategy), PolyMesh3D.triangulate(strategy) -> Mesh2D/Mesh3D
 
 Precision
 ---------
@@ -106,6 +130,18 @@ from ._geompp import (  # noqa: F401
     View2D,
     # parser
     WktParser,
+    # meshes (WIP)
+    GridCell2D,
+    GridCell3D,
+    Mesh2D,
+    Mesh3D,
+    PolyMesh2D,
+    PolyMesh3D,
+    ConnectedMesh2D,
+    ConnectedMesh3D,
+    FaceView2D,
+    FaceView3D,
+    TriangleEdge,
     # free functions
     are_collinear,
     are_coplanar,
@@ -146,6 +182,19 @@ from ._geompp import (  # noqa: F401
     PolylineExpansionMode,
     PolylineExpansionParams,
     polyline_expansion,
+    # triangulation
+    TriangulationStrategy,
+    TriangulationSimplicity,
+    TriangulationWinding,
+    TriangulationCollinearity,
+    TriangulationParams,
+    triangulate,
+    # mesh-conformity checking ("every edge has at most 1 neighbor")
+    AdjacencyConformity,
+    AdjacencyViolation2D,
+    AdjacencyViolation3D,
+    validate_adjacency,
+    fix_adjacency,
 )
 
 __version__ = "1.0.0"
@@ -158,6 +207,8 @@ __all__ = [
     "Point3D", "Vector3D", "Line3D", "Ray3D", "LineSegment3D",
     "Polyline3D", "Triangle3D", "Polygon3D", "BBox3D", "BBall3D", "BPrism3D", "Plane", "GeometryCollection3D",
     "WktParser",
+    "GridCell2D", "GridCell3D", "Mesh2D", "Mesh3D", "PolyMesh2D", "PolyMesh3D",
+    "ConnectedMesh2D", "ConnectedMesh3D", "FaceView2D", "FaceView3D", "TriangleEdge",
     "Axis",
     "are_collinear", "are_coplanar", "closest_world_plane_to", "are_ccw", "are_cw",
     "remove_duplicates", "remove_consecutive_duplicates",
@@ -171,4 +222,7 @@ __all__ = [
     "PolylineDecimationStrategy", "PolylineDecimationParams", "dist_decimation", "rdp_decimation", "vw_decimation",
     "bezier_smoothing_2",
     "PolylineExpansionMode", "PolylineExpansionParams", "polyline_expansion",
+    "TriangulationStrategy", "TriangulationSimplicity", "TriangulationWinding", "TriangulationCollinearity",
+    "TriangulationParams", "triangulate",
+    "AdjacencyConformity", "AdjacencyViolation2D", "AdjacencyViolation3D", "validate_adjacency", "fix_adjacency",
 ]

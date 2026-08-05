@@ -1,9 +1,15 @@
 #include "calc_utils2d.hpp"
 
+#include "calc_utils3d.hpp"
 #include "line2d.hpp"
+#include "line_segment3d.hpp"
 #include "point3d.hpp"
 #include "polygon2d.hpp"
+#include "polygon3d.hpp"
 #include "segment_iterator2d.hpp"
+#include "sweep_line2d.hpp"
+#include "triangle2d.hpp"
+#include "triangle3d.hpp"
 #include "vector2d.hpp"
 #include "vector3d.hpp"
 
@@ -13,6 +19,8 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <deque>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -26,50 +34,6 @@
 
 namespace geompp {
 namespace detail {
-
-namespace {
-
-// build the LEFT / RIGHT events for every segment; works for any SegmentList (vector, SegmentRange2D, ...)
-template <SegmentList Segments>
-std::vector<Event2D> build_events(Segments const& segments) {
-  std::vector<Event2D> all;
-  all.reserve(segments.size() * 2);
-
-  for (std::size_t i = 0; i < segments.size(); ++i) {
-    auto const& seg = segments[i];  // ref to element (vector) or lifetime-extended temporary (range)
-
-    auto ev1 = Event2D{EventType2D::UNKN, seg.First(), i, std::nullopt};
-    auto ev2 = Event2D{EventType2D::UNKN, seg.Last(), i, std::nullopt};
-    if (ev1 < ev2) {
-      ev1.Type = EventType2D::LEFT;
-      ev2.Type = EventType2D::RIGHT;
-    } else {
-      ev1.Type = EventType2D::RIGHT;
-      ev2.Type = EventType2D::LEFT;
-    }
-
-    all.emplace_back(ev1);
-    all.emplace_back(ev2);
-  }
-
-  return all;
-}
-
-template <SegmentList Segments>
-double min_sweep_x(Segments const& segments) {
-  double min_x = std::numeric_limits<double>::infinity();
-  for (std::size_t i = 0; i < segments.size(); ++i) {
-    auto const& seg = segments[i];
-    min_x = std::min(min_x, std::min(seg.First().x(), seg.Last().x()));
-  }
-  return min_x;
-}
-
-}  // namespace
-
-bool shares_endpoint(LineSegment2D const& a, LineSegment2D const& b) {
-  return a.First() == b.First() || a.First() == b.Last() || a.Last() == b.First() || a.Last() == b.Last();
-}
 
 std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
                                          Point2D const& other_p1, double& sc, double& tc) {
@@ -98,306 +62,6 @@ std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, P
   }
   sc = tc = std::numeric_limits<double>::quiet_NaN();
   return std::nullopt;
-}
-
-std::partial_ordering compare_event_point(Point2D a, Point2D b) {
-  auto compare_x = compare(a.x(), b.x());
-  if (compare_x != std::partial_ordering::equivalent) {
-    return compare_x;
-  }
-  auto compare_y = compare(a.y(), b.y());
-  return compare_y;
-}
-
-// ------- event queue -------
-EventQueue2D::EventQueue2D(std::vector<LineSegment2D> const& segments) {
-  EVENTS = EventMinHeap(std::greater<Event2D>{}, build_events(segments));
-}
-
-EventQueue2D::EventQueue2D(SegmentRange2D const& segments) {
-  EVENTS = EventMinHeap(std::greater<Event2D>{}, build_events(segments));
-}
-
-EventQueue2D::EventQueue2D(Polygon2D const& polygon) : EventQueue2D(polygon.ToSegments()) {}
-
-bool Event2D::operator<(Event2D const& other) const {
-  // order by x coordinate, then by y coordinate, then by event type (LEFT < INTERSECTION < RIGHT)
-  auto compare_x = compare(Point.x(), other.Point.x());
-  if (compare_x != std::partial_ordering::equivalent) {
-    return compare_x < 0;
-  }
-
-  auto compare_y = compare(Point.y(), other.Point.y());
-  if (compare_y != std::partial_ordering::equivalent) {
-    return compare_y < 0;
-  }
-
-  return Type < other.Type;  // relies on the order of the EventType2D enum
-                             // prioritize LEFT < INTERSECTION < RIGHT events (guaranteed by EventType2D enum order)
-                             // note on D.Sunday book: helps to process edge cases
-}
-
-bool Event2D::operator>(Event2D const& other) const { return other < *this; }
-
-bool Event2D::operator==(Event2D const& other) const {
-  return Type == other.Type && Point == other.Point && SegmentId == other.SegmentId &&
-         InterSegmentId == other.InterSegmentId;
-}
-
-std::optional<Event2D> EventQueue2D::Top() const {
-  if (EVENTS.empty()) {
-    return std::nullopt;
-  }
-  return EVENTS.top();
-}
-
-std::optional<Event2D> EventQueue2D::Pop() {
-  if (EVENTS.empty()) {
-    return std::nullopt;
-  }
-  Event2D top = EVENTS.top();
-  EVENTS.pop();
-  return top;
-}
-
-bool EventQueue2D::Empty() const { return EVENTS.empty(); }
-
-void EventQueue2D::Push(Event2D const& event) { EVENTS.push(event); }
-
-bool EventQueue2D::Contains(Event2D const& event) const {
-  for (const auto& queued_event : EVENTS.c) {
-    if (queued_event == event) {
-      return true;
-    }
-    // INTERSECTION(A,B) and INTERSECTION(B,A) are the same geometric event: check the reversed pair too
-    if (event.Type == EventType2D::INTERSECTION && queued_event.Type == EventType2D::INTERSECTION &&
-        queued_event.Point == event.Point && event.InterSegmentId.has_value() &&
-        queued_event.InterSegmentId.has_value() && queued_event.SegmentId == event.InterSegmentId.value() &&
-        queued_event.InterSegmentId.value() == event.SegmentId) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// ------- sweep line -------
-
-bool IntersectionEvent2D::operator<(IntersectionEvent2D const& other) const {
-  return compare_event_point(Point, other.Point) < 0;  // order by the intersection point
-}
-
-bool IntersectionEvent2D::operator==(IntersectionEvent2D const& other) const {
-  return compare_event_point(Point, other.Point) == 0;  // order by the intersection point
-}
-
-template <SegmentList Segments>
-double SweepLineComparator<Segments>::GetYAtX(LineSegment2D const& seg, double x) const {
-  auto is_seg_reverse = compare_event_point(seg.First(), seg.Last()) > 0;
-
-  auto p0 = is_seg_reverse ? seg.Last() : seg.First();
-  auto p1 = is_seg_reverse ? seg.First() : seg.Last();
-
-  if (compare(x, p0.x()) < 0) {
-    return p0.y();
-  }
-
-  if (compare(x, p1.x()) > 0) {
-    return p1.y();
-  }
-
-  if (compare(p1.x(), p0.x()) == 0) {  // vertical segment: avoid division by zero
-    return (p0.y() + p1.y()) / 2.0;
-  }
-  // linear interpolation
-  return p0.y() + ((p1.y() - p0.y()) / (p1.x() - p0.x())) * (x - p0.x());
-}
-
-template <SegmentList Segments>
-bool SweepLineComparator<Segments>::operator()(std::size_t id1, std::size_t id2) const {
-  if (id1 >= segments->size() || id2 >= segments->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  double y1 = GetYAtX((*segments)[id1], sweep_x);
-  double y2 = GetYAtX((*segments)[id2], sweep_x);
-
-  if (compare(y1, y2) != std::partial_ordering::equivalent) {
-    return compare(y1, y2) < 0;
-  }
-  // Equal y at sweep_x: evaluate at the midpoint of the segments' active x-overlap.
-  // This is always strictly interior — avoids the endpoint ambiguity that plagues
-  // forward/backward delta looks (forward reverses shared-RIGHT order; backward
-  // reverses shared-LEFT order).
-  auto seg_left_x = [](LineSegment2D const& s) { return std::min(s.First().x(), s.Last().x()); };
-  auto seg_right_x = [](LineSegment2D const& s) { return std::max(s.First().x(), s.Last().x()); };
-  double overlap_lo = std::max(seg_left_x((*segments)[id1]), seg_left_x((*segments)[id2]));
-  double overlap_hi = std::min(seg_right_x((*segments)[id1]), seg_right_x((*segments)[id2]));
-  if (overlap_lo < overlap_hi) {
-    double mid_x = (overlap_lo + overlap_hi) * 0.5;
-    double y1_mid = GetYAtX((*segments)[id1], mid_x);
-    double y2_mid = GetYAtX((*segments)[id2], mid_x);
-    if (compare(y1_mid, y2_mid) != std::partial_ordering::equivalent) {
-      return compare(y1_mid, y2_mid) < 0;
-    }
-  }
-  return id1 < id2;  // final fallback (parallel / coincident segments)
-}
-
-// SweepLine2D template members: defined here, emitted for other TUs by the explicit instantiations below.
-// Each definition needs its own `template <SegmentList Segments>` and the SweepLine2D<Segments>:: qualifier.
-
-template <SegmentList Segments>
-SweepLine2D<Segments>::SweepLine2D(Segments const& segments)
-    : SWEEP_X(min_sweep_x(segments)), PTR_SEGMENTS(&segments) {}
-
-template <SegmentList Segments>
-std::optional<std::size_t> SweepLine2D<Segments>::FindIndex(std::size_t seg_id) const {
-  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
-  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
-
-  if (it == ACTIVE_SEGMENTS.end() || *it != seg_id) {
-    // lower_bound didn't land exactly on seg_id — either the comparator's tie-break sent it to the wrong
-    // slot, or seg_id genuinely isn't active. Since ids are unique in ACTIVE_SEGMENTS, an exact match can
-    // never be a false positive, so falling back to an O(n) linear scan whenever it ISN'T an exact match
-    // is always safe, regardless of how stale SWEEP_X is relative to the vector's true order.
-    it = std::find(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id);
-    if (it == ACTIVE_SEGMENTS.end()) {
-      return std::nullopt;
-    }
-  }
-  return static_cast<std::size_t>(std::distance(ACTIVE_SEGMENTS.begin(), it));
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Get(std::size_t seg_id) const {
-  if (seg_id >= PTR_SEGMENTS->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  auto idx = FindIndex(seg_id);
-  if (!idx) {
-    GEOMPP_LOG(WARNING) << "requested a segment ID missing from the SweepLine active list";
-    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
-  }
-
-  auto seg_elem = IdSegPair{ACTIVE_SEGMENTS[*idx], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[*idx]]};
-
-  std::optional<IdSegPair> above_elem = std::nullopt;
-  if (*idx + 1 < ACTIVE_SEGMENTS.size()) {
-    auto above_id = ACTIVE_SEGMENTS[*idx + 1];
-    if (above_id >= PTR_SEGMENTS->size()) {
-      throw std::out_of_range("SegmentId (above) is out of range of the segments list");
-    }
-    above_elem = IdSegPair{above_id, (*PTR_SEGMENTS)[above_id]};
-  }
-
-  std::optional<IdSegPair> below_elem = std::nullopt;
-  if (*idx > 0) {
-    auto below_id = ACTIVE_SEGMENTS[*idx - 1];
-    if (below_id >= PTR_SEGMENTS->size()) {
-      throw std::out_of_range("SegmentId (below) is out of range of the segments list");
-    }
-    below_elem = IdSegPair{below_id, (*PTR_SEGMENTS)[below_id]};
-  }
-
-  return SweepLineElement2D{seg_elem, above_elem, below_elem};
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Add(std::size_t seg_id) {
-  if (seg_id >= PTR_SEGMENTS->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  SweepLineComparator<Segments> comp{SWEEP_X, PTR_SEGMENTS};
-  auto it = std::lower_bound(ACTIVE_SEGMENTS.begin(), ACTIVE_SEGMENTS.end(), seg_id, comp);
-
-  if (it != ACTIVE_SEGMENTS.end() && *it == seg_id) {
-    throw std::logic_error("Attempted to insert a segment into the sweep line that is already active");
-  }
-
-  ACTIVE_SEGMENTS.insert(it, seg_id);
-  return Get(seg_id);
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::SweepLineElement2D SweepLine2D<Segments>::Remove(std::size_t seg_id) {
-  if (seg_id >= PTR_SEGMENTS->size()) {
-    throw std::out_of_range("SegmentId is out of range of the segments list");
-  }
-
-  auto idx = FindIndex(seg_id);
-  if (!idx) {
-    GEOMPP_LOG(ERROR) << "Attempted to remove a segment from the sweep line that is not active";
-    return SweepLineElement2D{std::nullopt, std::nullopt, std::nullopt};
-  }
-
-  auto triplet_before_remove = Get(seg_id);
-  ACTIVE_SEGMENTS.erase(ACTIVE_SEGMENTS.begin() + *idx);
-
-  return SweepLineElement2D{std::nullopt, triplet_before_remove.Above, triplet_before_remove.Below};
-}
-
-template <SegmentList Segments>
-typename SweepLine2D<Segments>::ReverseRunResult2D SweepLine2D<Segments>::ReverseRun(
-    std::vector<std::size_t> const& seg_ids) {
-  if (seg_ids.size() < 2) {
-    throw std::invalid_argument("ReverseRun requires at least 2 segment ids");
-  }
-
-  auto anchor_idx = FindIndex(seg_ids.front());
-  if (!anchor_idx) {
-    return ReverseRunResult2D{};  // Ok = false: not active at all — fully stale
-  }
-
-  std::set<std::size_t> wanted(seg_ids.begin(), seg_ids.end());
-
-  // Expand outward from the anchor by direct vector indexing only — no further comparator calls — to see
-  // whether the rest of `wanted` occupies the immediately-adjacent slots. Anything less than fully
-  // contiguous means the run isn't (or is no longer) intact, so the caller should treat it as stale.
-  std::size_t lo = *anchor_idx;
-  std::size_t hi = *anchor_idx;
-  std::size_t found = 1;
-
-  while (found < wanted.size() && lo > 0 && wanted.count(ACTIVE_SEGMENTS[lo - 1]) > 0) {
-    --lo;
-    ++found;
-  }
-  while (found < wanted.size() && hi + 1 < ACTIVE_SEGMENTS.size() && wanted.count(ACTIVE_SEGMENTS[hi + 1]) > 0) {
-    ++hi;
-    ++found;
-  }
-
-  if (found != wanted.size()) {
-    return ReverseRunResult2D{};  // Ok = false: not contiguous — stale event
-  }
-
-  std::reverse(ACTIVE_SEGMENTS.begin() + static_cast<std::ptrdiff_t>(lo),
-              ACTIVE_SEGMENTS.begin() + static_cast<std::ptrdiff_t>(hi) + 1);
-
-  ReverseRunResult2D result;
-  result.Ok = true;
-  result.NewTop = IdSegPair{ACTIVE_SEGMENTS[hi], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[hi]]};
-  result.NewBottom = IdSegPair{ACTIVE_SEGMENTS[lo], (*PTR_SEGMENTS)[ACTIVE_SEGMENTS[lo]]};
-  if (lo > 0) {
-    auto id = ACTIVE_SEGMENTS[lo - 1];
-    result.BelowRun = IdSegPair{id, (*PTR_SEGMENTS)[id]};
-  }
-  if (hi + 1 < ACTIVE_SEGMENTS.size()) {
-    auto id = ACTIVE_SEGMENTS[hi + 1];
-    result.AboveRun = IdSegPair{id, (*PTR_SEGMENTS)[id]};
-  }
-  return result;
-}
-
-template <SegmentList Segments>
-void SweepLine2D<Segments>::SetX(double val) {
-  SWEEP_X = val;
-}
-
-template <SegmentList Segments>
-double SweepLine2D<Segments>::GetX() const {
-  return SWEEP_X;
 }
 
 // ------- free functions -------
@@ -480,16 +144,6 @@ std::vector<IntersectionEvent2D> find_intersections(Segments const& segments) {
   run_bentley_ottmann(segments, visitor);
   return std::vector<IntersectionEvent2D>(visitor.Output.begin(), visitor.Output.end());
 }
-
-// explicit instantiations — emit the templated members/functions for each concrete SegmentList the driver uses.
-// Add a line here for every type you instantiate with; only these types will link.
-template class SweepLineComparator<std::vector<LineSegment2D>>;
-template class SweepLineComparator<SegmentRange2D>;
-
-// explicit instantiations — emit the templated members/functions for each concrete SegmentList the driver uses.
-// Add a line here for every type you instantiate with; only these types will link.
-template class SweepLine2D<std::vector<LineSegment2D>>;
-template class SweepLine2D<SegmentRange2D>;
 
 // for a free function template the instantiation deduces the parameter from the argument type:
 template bool has_intersections(std::vector<LineSegment2D> const&);
@@ -1305,7 +959,7 @@ struct SourceTaggedSegment {
 // COMBINED pool in one sweep (subject-clip crossings are exactly what boolean ops care about), matching
 // boolean_op's arrangement exactly — this only adds provenance to the result.
 std::vector<SourceTaggedSegment> split_segments_at_crossings_tagged(std::vector<LineSegment2D> const& subj_segs,
-                                                                     std::vector<LineSegment2D> const& clip_segs) {
+                                                                    std::vector<LineSegment2D> const& clip_segs) {
   std::vector<LineSegment2D> segs = subj_segs;
   segs.insert(segs.end(), clip_segs.begin(), clip_segs.end());
   std::size_t const subj_count = subj_segs.size();
@@ -1418,8 +1072,8 @@ bool piece_set_contains(RingPieces const& pieces, double px, double py) {
 // required to satisfy), so only the OTHER operand needs probing, left and right. Half the polygon_contains
 // calls of classify_and_orient, and the own side no longer depends on the nudge epsilon at all.
 std::vector<LineSegment2D> classify_and_orient_source_tagged(std::vector<SourceTaggedSegment> const& split,
-                                                              RingPieces const& subj_pieces,
-                                                              RingPieces const& clip_pieces, BooleanOp op) {
+                                                             RingPieces const& subj_pieces,
+                                                             RingPieces const& clip_pieces, BooleanOp op) {
   std::vector<LineSegment2D> result;
   result.reserve(split.size());
 
@@ -1488,6 +1142,43 @@ RingPieces boolean_op_multi(RingPieces const& subj_pieces, RingPieces const& cli
 namespace view {
 
 template <PointContainer Points>
+bool is_ccw(Points const& points, View2D const& view) {
+  std::size_t n = std::ranges::size(points);
+  double area2 = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    double x0 = view.x(points[i]), y0 = view.y(points[i]);
+    double x1 = view.x(points[(i + 1) % n]), y1 = view.y(points[(i + 1) % n]);
+    area2 += x0 * y1 - x1 * y0;
+  }
+  return compare(area2, 0.0) > 0;
+}
+
+template bool is_ccw(std::vector<Point2D> const&, View2D const&);
+template bool is_ccw(std::vector<Point3D> const&, View2D const&);
+
+template <PointContainer Points>
+bool has_collinears(Points const& points, View2D const& view) {
+  std::size_t n = std::ranges::size(points);
+  for (std::size_t i = 0; i < n; ++i) {
+    auto [x0, y0] = view.xy(points[i]);
+    auto [x1, y1] = view.xy(points[(i + 1) % n]);
+    auto [x2, y2] = view.xy(points[(i + 2) % n]);
+
+    // A duplicate needs no separate check: if points[i] == points[i+1] (or points[i+1] == points[i+2]),
+    // one of the two edge vectors below is the zero vector, so the cross product is already trivially zero.
+    double cross = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);  // zero turn at points[i+1]
+
+    if (compare(cross, 0.0) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template bool has_collinears(std::vector<Point2D> const&, View2D const&);
+template bool has_collinears(std::vector<Point3D> const&, View2D const&);
+
+template <PointContainer Points>
 bool is_convex(Points const& vertices, View2D const& view) {
   int n = static_cast<int>(vertices.size());
   bool seen_positive = false;
@@ -1515,6 +1206,15 @@ bool is_convex(Points const& vertices, View2D const& view) {
 
 template bool is_convex(std::vector<Point2D> const&, View2D const&);
 template bool is_convex(std::vector<Point3D> const&, View2D const&);
+
+template <PointContainer Points>
+bool is_simple(Points const& points, View2D const& view) {
+  auto segs = collect_ring_segments(points, std::vector<Points>{}, view);
+  return !has_intersections(segs);
+}
+
+template bool is_simple(std::vector<Point2D> const&, View2D const&);
+template bool is_simple(std::vector<Point3D> const&, View2D const&);
 
 }  // namespace view
 
@@ -1733,7 +1433,7 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
 
       auto D_compare_to_0 = compare(D, 0);
       if (D_compare_to_0 == 0) {  // line is parallel to edge e(i)
-        continue;  // skip — parallel to one edge does not mean the line misses the whole concave polygon
+        continue;                 // skip — parallel to one edge does not mean the line misses the whole concave polygon
       }
 
       double t = N / D;
@@ -2131,6 +1831,18 @@ PolygonTangents<LineSegment2D> tangents_to(Polygon2D const& polygon, Polygon2D c
   return {LineSegment2D::Make(polygon[RL_poly_i], other[RL_other_i]),
           LineSegment2D::Make(polygon[LR_poly_i], other[LR_other_i])};
 }
+
+std::vector<LineSegment2D> to_segments(std::vector<Point2D> const& points) {
+  SegmentRange2D range(points, true);
+  std::vector<LineSegment2D> segments;
+  segments.reserve(range.size());
+  for (auto const& seg : range) {
+    segments.push_back(seg);
+  }
+  return segments;
+}
+
+bool is_simple(std::vector<Point2D> const& points) { return detail::view::is_simple(points, View2D::XY()); }
 
 template <PointContainer Points>
 std::vector<Points> clip(Points const& clipper_loop, Points const& subject_loop) {
@@ -2594,5 +2306,1059 @@ template std::vector<Point2D> polyline_expansion(std::vector<Point2D> const& inp
                                                  PolylineExpansionParams const& settings);
 template std::vector<Point3D> polyline_expansion(std::vector<Point3D> const& input,
                                                  PolylineExpansionParams const& settings);
+
+namespace detail {
+namespace view {
+
+namespace helpers {
+
+// helper lambdas
+template <typename PointT>
+double area2(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  auto [x0, y0] = view.xy(a);
+  auto [x1, y1] = view.xy(b);
+  auto [x2, y2] = view.xy(c);
+  return (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
+}
+
+template <typename PointT>
+bool is_reflex(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  return compare(helpers::area2(a, b, c, view), 0) < 0;
+}
+
+// Inclusive (>= 0, not > 0): a point exactly ON one of the candidate ear's edges must still
+// disqualify it, not just a point strictly inside. Without this, a non-adjacent vertex that happens
+// to be collinear with two of the ear's vertices (e.g. a reflex vertex sitting exactly on the
+// prev-next diagonal, as in an L-shaped polygon whose notch corner lies on that diagonal) is
+// invisible to a strict test, so the algorithm accepts a diagonal that actually exits the polygon.
+template <typename PointT>
+bool is_left_or_on(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  auto u_x = view.x(b) - view.x(a);
+  auto u_y = view.y(b) - view.y(a);
+
+  auto v_x = view.x(c) - view.x(a);
+  auto v_y = view.y(c) - view.y(a);
+
+  return compare(u_x * v_y - u_y * v_x, 0) >= 0;
+};
+
+template <typename PointT>
+bool is_point_in_triangle(PointT const& a, PointT const& b, PointT const& c, PointT const& p, View2D const& view) {
+  return helpers::is_left_or_on(a, b, p, view) && helpers::is_left_or_on(b, c, p, view) &&
+         helpers::is_left_or_on(c, a, p, view);
+};
+
+template <typename PointT>
+bool are_collinear(PointT const& a, PointT const& b, PointT const& c, View2D const& view) {
+  return compare(helpers::area2(a, b, c, view), 0.0) == 0;
+};
+
+}  // namespace helpers
+
+// triangulation functions
+
+// EarClipping: walks the ring and clips the first valid ear it finds, in traversal order. O(n^2)
+// worst case, but very often close to O(n) in practice for well-behaved (mostly-convex) polygons,
+// since clipping at i frequently leaves i_next immediately clippable too. Doesn't optimize triangle
+// shape -- a legitimate but geometrically thin ear can get clipped just because it was encountered
+// first, producing a sliver triangle even on perfectly ordinary input. See EarClippingBestFit below
+// for the shape-aware alternative and its own, steeper cost.
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<PointT> const& input,
+                                                                   View2D const& view) {
+  std::size_t n = input.size();
+
+  // temporary container for output (excellent for unknown size list)
+  std::deque<std::array<std::size_t, 3>> triangles;
+
+  // temporary containers for calculations
+  //  \_ previous and next indices (keep them as they are)
+  std::vector<std::size_t> next_id(n), prev_id(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    next_id[i] = (i + 1) % n;
+    prev_id[i] = (i + n - 1) % n;
+  }
+
+  //  \_ reflex indices to analyze (reduce with a "swap and pop", the order doesn't matter)
+  // NOTE: this set also includes exactly-flat (180 degree, collinear-with-neighbors) vertices, not
+  // just strictly-reflex ones. The "only reflex vertices can lie inside a candidate ear" theorem the
+  // is_ear scan below relies on assumes a proper simple polygon with no 3 consecutive collinear
+  // points; a flat vertex is neither reflex nor a valid ear itself, but it CAN sit exactly on another
+  // candidate ear's boundary (is_point_in_triangle is inclusive of the boundary), so it must still be
+  // scanned as a blocker or that ear gets wrongly accepted and the flat vertex's own two edges never
+  // make it into the triangulation. Under Collinearity::Enforce/Assert this never comes up (no flat
+  // vertices reach here); Guaranteed callers (e.g. fix_adjacency()'s re-triangulation of a facet with
+  // a spliced-in collinear vertex) are exactly the case this guards.
+  std::deque<std::size_t> reflex_indices;
+  std::vector<std::uint8_t> is_reflex(n, 0);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view) ||
+        helpers::are_collinear(input[prev_id[i]], input[i], input[next_id[i]], view)) {
+      reflex_indices.push_back(i);
+      is_reflex[i] = 1;
+    }
+  }
+
+  auto lambda_modify_reflex_status = [&](std::size_t idx) {
+    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view) ||
+                         helpers::are_collinear(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
+
+    if (!is_now_reflex && is_reflex[idx]) {  // the opposite can never happen by a theorem: once an ear is cut,
+                                             // the prev/next vertex can become convex, but never reflex
+      auto it = std::find(reflex_indices.begin(), reflex_indices.end(), idx);
+      if (it != reflex_indices.end()) {
+        // remove with a quick O(1) swap and pop
+        *it = reflex_indices.back();
+        reflex_indices.pop_back();
+      }
+
+      is_reflex[idx] = 0;
+    }
+  };
+
+  // main loop: while we have more than 3 vertices, try to find an ear and clip it
+  std::size_t i = 0, i_prev = prev_id[i], i_next = next_id[i];
+  while (n > 3) {
+    if (!is_reflex[i]) {  // the triplet could be an ear
+      PointT const& p_cur = input[i];
+      PointT const& p_prev = input[i_prev];
+      PointT const& p_next = input[i_next];
+
+      // it can happen that this vertex is not reflex, but also not convex!
+      // the points may be collinear, making the triangle check fail, we want to avoid that
+      if (!helpers::are_collinear(p_prev, p_cur, p_next, view)) {
+        // check if the triangle is an ear
+        bool is_ear = true;
+        for (auto const& j : reflex_indices) {
+          if (j == i_prev || j == i_next) {  // quick exit (we don't care of the prev/next indices to be reflex)
+            continue;
+          }
+          if (helpers::is_point_in_triangle(p_prev, p_cur, p_next, input[j], view)) {
+            is_ear = false;
+            break;
+          }
+        }
+
+        if (is_ear) {
+          triangles.push_back({i_prev, i, i_next});
+
+          // set the prev/next indices to skip the current vertex
+          next_id[i_prev] = i_next;
+          prev_id[i_next] = i_prev;
+
+          // update reflex status of the previous and next vertices
+          lambda_modify_reflex_status(i_prev);
+          lambda_modify_reflex_status(i_next);
+
+          --n;
+        }
+      }
+    }
+
+    // update the index to the next vertex
+    i = i_next;
+    i_prev = prev_id[i];
+    i_next = next_id[i];
+  }
+
+  // exactly 3 vertices remain, still linked via prev_id/next_id — the loop above only clips ears down to
+  // n == 3 and never emits this last, leftover triangle itself.
+  triangles.push_back({i_prev, i, i_next});
+
+  // transform the deque in vector (1 allocation, using move)
+  std::vector<std::array<std::size_t, 3>> triangles_output(std::make_move_iterator(triangles.begin()),
+                                                           std::make_move_iterator(triangles.end()));
+
+  return triangles_output;
+}
+
+template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<Point2D> const& input,
+                                                                            View2D const& view);
+template std::vector<std::array<std::size_t, 3>> ear_clipping_triangulation(std::vector<Point3D> const& input,
+                                                                            View2D const& view);
+
+// EarClippingBestFit: like EarClipping, but each outer-loop iteration does a full lap over the
+// *current* ring to find the best-scoring valid ear (by shape quality, not just the first one found)
+// before clipping exactly one. Guaranteed termination via the same Two Ears Theorem EarClipping relies
+// on -- this only ever reorders which valid ear gets picked, never rejects one outright, so it can't
+// get stuck the way a strict angle/area floor would. Trades speed for shape: unconditionally ~O(n^2)
+// (a full O(current n) rescan per clip, every time), where EarClipping's O(n^2) is only a worst case.
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<PointT> const& input,
+                                                                            View2D const& view) {
+  std::size_t n = input.size();
+
+  // temporary container for output (excellent for unknown size list)
+  std::deque<std::array<std::size_t, 3>> triangles;
+
+  // temporary containers for calculations
+  //  \_ previous and next indices (keep them as they are)
+  std::vector<std::size_t> next_id(n), prev_id(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    next_id[i] = (i + 1) % n;
+    prev_id[i] = (i + n - 1) % n;
+  }
+
+  //  \_ reflex indices to analyze (reduce with a "swap and pop", the order doesn't matter)
+  // NOTE: this set also includes exactly-flat (180 degree, collinear-with-neighbors) vertices, not
+  // just strictly-reflex ones -- see the matching comment in ear_clipping_triangulation() for why a
+  // flat vertex must still be scanned as a potential ear-blocker even though it's never a valid ear.
+  std::deque<std::size_t> reflex_indices;
+  std::vector<std::uint8_t> is_reflex(n, 0);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (helpers::is_reflex(input[prev_id[i]], input[i], input[next_id[i]], view) ||
+        helpers::are_collinear(input[prev_id[i]], input[i], input[next_id[i]], view)) {
+      reflex_indices.push_back(i);
+      is_reflex[i] = 1;
+    }
+  }
+
+  auto lambda_modify_reflex_status = [&](std::size_t idx) {
+    bool is_now_reflex = helpers::is_reflex(input[prev_id[idx]], input[idx], input[next_id[idx]], view) ||
+                         helpers::are_collinear(input[prev_id[idx]], input[idx], input[next_id[idx]], view);
+
+    if (!is_now_reflex && is_reflex[idx]) {  // the opposite can never happen by a theorem: once an ear is cut,
+                                             // the prev/next vertex can become convex, but never reflex
+      auto it = std::find(reflex_indices.begin(), reflex_indices.end(), idx);
+      if (it != reflex_indices.end()) {
+        // remove with a quick O(1) swap and pop
+        *it = reflex_indices.back();
+        reflex_indices.pop_back();
+      }
+
+      is_reflex[idx] = 0;
+    }
+  };
+
+  auto lambda_ear_quality = [&view](PointT const& a, PointT const& b, PointT const& c) -> double {
+    auto [x0, y0] = view.xy(a);  // p_prev
+    auto [x1, y1] = view.xy(b);  // p_cur
+    auto [x2, y2] = view.xy(c);  // p_next
+
+    // loose collinearity check already computes
+    double area2 = std::abs(helpers::area2(a, b, c, view));
+
+    double a2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);  // |cur  - next|^2, opposite p_prev
+    double b2 = (x2 - x0) * (x2 - x0) + (y2 - y0) * (y2 - y0);  // |prev - next|^2, opposite p_cur
+    double c2 = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);  // |cur  - prev|^2, opposite p_next
+
+    // the real formula is
+    //    ear_quality = 4*sqrt(3)* abs(cross(a,b,c)/2) / (a*a + b*b + c*c)
+    // however we remove 4*, sqrt(3), and /2 to save time
+    // because we only need this value for comparison and the real variables are the
+    // numerator cross(a,b,c) and the denominator (a2 + b2 + c2)
+    return area2 / (a2 + b2 + c2);
+  };
+
+  // main loop: while we have more than 3 vertices, try to find an ear and clip it
+  std::size_t i = 0, i_prev = prev_id[i], i_next = next_id[i];
+  while (n > 3) {  // LOOP(1): main of the Ear Cutting Algorithm
+
+    double best_ear_score = -1.0;  // sin(min-angle) or similar, always >= 0 for a valid ear
+    std::array<std::size_t, 3> best_ear;
+    std::size_t start = i;
+
+    do {                    // LOOP(2): improvement step making this a greedy algorithm with same O(n2)
+                            //          finds the best ear amongst all possible ones (based on area)
+      if (!is_reflex[i]) {  // the triplet could be an ear
+        PointT const& p_cur = input[i];
+        PointT const& p_prev = input[i_prev];
+        PointT const& p_next = input[i_next];
+
+        // it can happen that this vertex is not reflex, but also not convex!
+        // the points may be collinear, making the triangle check fail, we want to avoid that
+        if (!helpers::are_collinear(p_prev, p_cur, p_next, view)) {
+          // check if the triangle is an ear
+          bool is_ear = true;
+          for (auto const& j : reflex_indices) {
+            if (j == i_prev || j == i_next) {  // quick exit (we don't care of the prev/next indices to be reflex)
+              continue;
+            }
+            if (helpers::is_point_in_triangle(p_prev, p_cur, p_next, input[j], view)) {
+              is_ear = false;
+              break;
+            }
+          }
+
+          if (is_ear) {
+            // find the best cuttable ear (by area)
+            double score = lambda_ear_quality(p_prev, p_cur, p_next);
+            if (compare(score, best_ear_score) > 0) {
+              best_ear_score = score;
+              best_ear = {i_prev, i, i_next};
+            }
+          }
+        }
+      }
+
+      i = i_next, i_prev = prev_id[i], i_next = next_id[i];
+
+    } while (i != start);
+
+    i_prev = best_ear[0], i = best_ear[1], i_next = best_ear[2];
+
+    triangles.push_back(best_ear);
+
+    // set the prev/next indices to skip the current vertex
+    next_id[i_prev] = i_next;
+    prev_id[i_next] = i_prev;
+
+    // update reflex status of the previous and next vertices
+    lambda_modify_reflex_status(i_prev);
+    lambda_modify_reflex_status(i_next);
+
+    // remove one vertex from the list
+    --n;
+
+    // update the index to the next vertex
+    i = i_next, i_prev = prev_id[i], i_next = next_id[i];
+  }
+
+  // exactly 3 vertices remain, still linked via prev_id/next_id — the loop above only clips ears down to
+  // n == 3 and never emits this last, leftover triangle itself.
+  triangles.push_back({i_prev, i, i_next});
+
+  // transform the deque in vector (1 allocation, using move)
+  std::vector<std::array<std::size_t, 3>> triangles_output(std::make_move_iterator(triangles.begin()),
+                                                           std::make_move_iterator(triangles.end()));
+
+  return triangles_output;
+}
+
+template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<Point2D> const& input,
+                                                                                     View2D const& view);
+template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<Point3D> const& input,
+                                                                                     View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
+                                                                       View2D const& view) {
+  throw std::runtime_error("not yet implemented");
+}
+
+template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point2D> const& input,
+                                                                                View2D const& view);
+template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point3D> const& input,
+                                                                                View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view) {
+  throw std::runtime_error("not yet implemented");
+}
+
+template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point2D> const& input,
+                                                                        View2D const& view);
+template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point3D> const& input,
+                                                                        View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& input, View2D const& view,
+                                                    TriangulationParams const& settings) {
+  if (input.size() < 3) {
+    throw std::invalid_argument("triangulate: input must have at least 3 points");
+  }
+
+  if (input.size() == 3) {
+    return {std::array<PointT, 3>{input[0], input[1], input[2]}};
+  }
+
+  // Working copy: Collinearity::Enforce may shrink it, Winding::Enforce may reverse it — every check below
+  // and the final index-back-into-points step at the bottom all operate on this, never on the original
+  // `input`.
+  std::vector<PointT> working = input;
+
+  switch (settings.collinearity) {
+    case TriangulationParams::Collinearity::Guaranteed: {
+      break;
+    }
+    case TriangulationParams::Collinearity::Assert: {
+      if (detail::view::has_collinears(working, view)) {
+        throw std::invalid_argument("triangulate: input has collinear (or duplicate) points");
+      }
+      break;
+    }
+    case TriangulationParams::Collinearity::Enforce: {
+      if (detail::view::has_collinears(working, view)) {
+        // remove_collinear() also catches duplicates as a byproduct: are_collinear(p0, p1, p2) is trivially
+        // true whenever any two of the three coincide, so a run of duplicate points collapses right along
+        // with genuinely collinear ones — no separate remove_consecutive_duplicates() pass needed.
+        working = remove_collinear(std::move(working));
+        if (working.size() < 3) {
+          throw std::invalid_argument("triangulate: fewer than 3 points remain after removing collinear points");
+        }
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown collinearity strategy");
+    }
+  }
+
+  switch (settings.ccw_winding) {
+    case TriangulationParams::Winding::Guaranteed: {
+      break;
+    }
+    case TriangulationParams::Winding::Assert: {
+      if (!detail::view::is_ccw(working, view)) {
+        throw std::invalid_argument("triangulate: input is not CCW wound");
+      }
+      break;
+    }
+    case TriangulationParams::Winding::Enforce: {
+      if (!detail::view::is_ccw(working, view)) {
+        std::reverse(working.begin(), working.end());
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown winding strategy");
+    }
+  }
+
+  // param check and creation of simple loops
+  std::vector<std::vector<PointT>> simple_loops;
+  switch (settings.simplicity) {
+    case TriangulationParams::Simplicity::Guaranteed: {
+      simple_loops.push_back(working);
+      break;
+    }
+    case TriangulationParams::Simplicity::Assert: {
+      if (!detail::view::is_simple(working, view)) {
+        throw std::invalid_argument("triangulate: input is not simple");
+      }
+      simple_loops.push_back(working);
+      break;
+    }
+    case TriangulationParams::Simplicity::Enforce: {
+      if (detail::view::is_simple(working, view)) {
+        simple_loops.push_back(working);
+      } else if constexpr (std::is_same_v<PointT, Point3D>) {
+        // TODO: simplify_rings() only ever returns 2D-projected rings (Point2D), so unprojecting them back
+        // to Point3D needs plane-aware reconstruction not wired up here yet.
+        throw std::runtime_error("not yet implemented");
+      } else {  // simplified rings are also guaranteed to be CCW sorted
+        for (auto const& loop : detail::view::simplify_rings(working, {}, view)) {
+          simple_loops.push_back(loop);
+        }
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown simplicity strategy");
+    }
+  }
+
+  std::vector<std::array<std::size_t, 3>> tri_indices;
+
+  switch (settings.strategy) {
+    case TriangulationParams::Strategy::EarClipping: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = ear_clipping_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    case TriangulationParams::Strategy::EarClippingBestFit: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = ear_clipping_best_fit_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    case TriangulationParams::Strategy::MonotonePolygon: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    case TriangulationParams::Strategy::Delaunay: {
+      for (auto const& loop : simple_loops) {
+        auto loop_tri_indices = delaunay_triangulation(loop, view);
+        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+      }
+      break;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown triangulation strategy");
+    }
+  }
+
+  std::vector<std::array<PointT, 3>> result;
+  result.reserve(tri_indices.size());
+  for (auto const& tri : tri_indices) {
+    result.push_back({working[tri[0]], working[tri[1]], working[tri[2]]});
+  }
+  return result;
+}
+
+template std::vector<std::array<Point2D, 3>> triangulate_impl(std::vector<Point2D> const& input, View2D const& view,
+                                                              TriangulationParams const& settings);
+template std::vector<std::array<Point3D, 3>> triangulate_impl(std::vector<Point3D> const& input, View2D const& view,
+                                                              TriangulationParams const& settings);
+}  // namespace view
+}  // namespace detail
+
+std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input, TriangulationParams const& settings) {
+  auto tris = detail::view::triangulate_impl(input, View2D::XY(), settings);
+  std::vector<Triangle2D> result;
+  result.reserve(tris.size());
+  for (auto const& t : tris) {
+    result.push_back(Triangle2D::Make(t[0], t[1], t[2]));
+  }
+  return result;
+}
+
+namespace {
+
+// PointT-specific segment-containment test, dispatched by overload resolution -- native per dimension,
+// deliberately not View2D-projected (see AdjacencyViolation's own docs for why that would be wrong here).
+bool segment_contains(Point2D const& a, Point2D const& b, Point2D const& v) {
+  return LineSegment2D::Make(a, b).Contains(v);
+}
+bool segment_contains(Point3D const& a, Point3D const& b, Point3D const& v) {
+  return LineSegment3D::Make(a, b).Contains(v);
+}
+
+template <typename PointT>
+std::vector<AdjacencyViolation<PointT>> validate_adjacency_impl(std::vector<std::vector<PointT>> const& facet_rings) {
+  std::vector<AdjacencyViolation<PointT>> violations;
+
+  struct Edge {
+    std::size_t facet;
+    PointT a, b;
+  };
+  std::vector<Edge> edges;
+  for (std::size_t f = 0; f < facet_rings.size(); ++f) {
+    auto const& ring = facet_rings[f];
+    std::size_t n = ring.size();
+    for (std::size_t i = 0; i < n; ++i) {
+      edges.push_back({f, ring[i], ring[(i + 1) % n]});
+    }
+  }
+
+  // Pass 1: non-manifold edges -- group edges that are the exact same undirected segment; a group of
+  // more than 2 means more than 1 facet neighbors that edge (a normal boundary edge groups to 1, a
+  // normal shared interior edge groups to 2).
+  std::vector<bool> used(edges.size(), false);
+  for (std::size_t i = 0; i < edges.size(); ++i) {
+    if (used[i]) {
+      continue;
+    }
+    std::vector<std::size_t> group{i};
+    used[i] = true;
+    for (std::size_t j = i + 1; j < edges.size(); ++j) {
+      if (used[j]) {
+        continue;
+      }
+      bool same_dir = edges[i].a.AlmostEquals(edges[j].a) && edges[i].b.AlmostEquals(edges[j].b);
+      bool rev_dir = edges[i].a.AlmostEquals(edges[j].b) && edges[i].b.AlmostEquals(edges[j].a);
+      if (same_dir || rev_dir) {
+        group.push_back(j);
+        used[j] = true;
+      }
+    }
+
+    if (group.size() > 2) {
+      std::vector<std::size_t> facet_indices;
+      for (auto gi : group) {
+        facet_indices.push_back(edges[gi].facet);
+      }
+      violations.push_back({edges[group[0]].a, edges[group[0]].b, facet_indices, true, edges[group[0]].a});
+    }
+  }
+
+  // Pass 2: T-junctions -- a vertex from some facet lying in the interior of another facet's edge
+  // (excluding that edge's own two endpoints).
+  std::vector<PointT> unique_vertices;
+  std::vector<std::size_t> vertex_owner;
+  for (std::size_t f = 0; f < facet_rings.size(); ++f) {
+    for (auto const& p : facet_rings[f]) {
+      bool found = false;
+      for (auto const& q : unique_vertices) {
+        if (p.AlmostEquals(q)) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        unique_vertices.push_back(p);
+        vertex_owner.push_back(f);
+      }
+    }
+  }
+
+  for (auto const& e : edges) {
+    for (std::size_t vi = 0; vi < unique_vertices.size(); ++vi) {
+      auto const& v = unique_vertices[vi];
+      if (v.AlmostEquals(e.a) || v.AlmostEquals(e.b)) {
+        continue;
+      }
+      if (segment_contains(e.a, e.b, v)) {
+        violations.push_back({e.a, e.b, {e.facet, vertex_owner[vi]}, false, v});
+      }
+    }
+  }
+
+  return violations;
+}
+
+template <typename PointT>
+std::vector<std::vector<PointT>> fix_adjacency_impl(std::vector<std::vector<PointT>> const& facet_rings) {
+  auto violations = validate_adjacency_impl(facet_rings);
+
+  for (auto const& v : violations) {
+    if (v.is_non_manifold) {
+      throw std::invalid_argument("fix_adjacency: edge (" + v.edge_p0.ToWkt() + " -> " + v.edge_p1.ToWkt() +
+                                  ") is shared by " + std::to_string(v.facet_indices.size()) +
+                                  " facets (max 2 allowed) -- not automatically fixable");
+    }
+  }
+
+  struct SpliceKey {
+    std::size_t facet;
+    PointT a, b;
+  };
+  std::vector<std::pair<SpliceKey, std::vector<PointT>>> splices;
+
+  for (auto const& v : violations) {
+    std::size_t coarse_facet = v.facet_indices[0];
+
+    bool found = false;
+    for (auto& [key, pts] : splices) {
+      if (key.facet == coarse_facet && key.a.AlmostEquals(v.edge_p0) && key.b.AlmostEquals(v.edge_p1)) {
+        pts.push_back(v.on_vertex);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      splices.push_back({{coarse_facet, v.edge_p0, v.edge_p1}, {v.on_vertex}});
+    }
+  }
+
+  std::vector<std::vector<PointT>> new_perimeters = facet_rings;
+
+  for (auto const& [key, pts] : splices) {
+    auto& perim = new_perimeters[key.facet];
+    for (std::size_t i = 0; i < perim.size(); ++i) {
+      if (perim[i].AlmostEquals(key.a)) {
+        std::vector<PointT> sorted_pts = pts;
+        std::sort(sorted_pts.begin(), sorted_pts.end(), [&](PointT const& x, PointT const& y) {
+          return key.a.DistanceTo(x) < key.a.DistanceTo(y);
+        });
+        perim.insert(perim.begin() + static_cast<std::ptrdiff_t>(i) + 1, sorted_pts.begin(), sorted_pts.end());
+        break;
+      }
+    }
+  }
+
+  // NOTE: deliberately NOT rebuilt via Polygon2D/3D::Make() -- Make() unconditionally strips collinear
+  // points, which would immediately undo the splice above. These raw rings are the fix.
+  return new_perimeters;
+}
+
+// View2D to project a ring through for the diagonal-cut math below -- native XY for 2D, PCA-fitted
+// dominant-axis view for 3D (same pattern triangulate(vector<Point3D>, settings) uses when no normal
+// is supplied), dispatched by overload resolution like segment_contains() above.
+View2D view_for_ring(std::vector<Point2D> const&) { return View2D::XY(); }
+
+View2D view_for_ring(std::vector<Point3D> const& ring) {
+  auto frame = principal_axes(ring);
+  Axis dax = frame.Z.DominantAxis();
+  return (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+}
+
+// Standard proper (strict) segment-segment intersection: both segments must straddle each other.
+// Touching only at a shared endpoint, or running collinear/overlapping, does NOT count -- a valid
+// polygon diagonal is allowed to meet other edges only at its own two endpoints.
+template <typename PointT>
+bool segments_properly_intersect(PointT const& p1, PointT const& q1, PointT const& p2, PointT const& q2,
+                                 View2D const& view) {
+  double d1 = detail::view::helpers::area2(p2, q2, p1, view);
+  double d2 = detail::view::helpers::area2(p2, q2, q1, view);
+  double d3 = detail::view::helpers::area2(p1, q1, p2, view);
+  double d4 = detail::view::helpers::area2(p1, q1, q2, view);
+  bool straddles_p2q2 = (compare(d1, 0.0) > 0 && compare(d2, 0.0) < 0) || (compare(d1, 0.0) < 0 && compare(d2, 0.0) > 0);
+  bool straddles_p1q1 = (compare(d3, 0.0) > 0 && compare(d4, 0.0) < 0) || (compare(d3, 0.0) < 0 && compare(d4, 0.0) > 0);
+  return straddles_p2q2 && straddles_p1q1;
+}
+
+// Is (ring[i], ring[j]) a valid polygon diagonal? i is always a just-spliced, exactly-flat (180 degree)
+// vertex here, never a normal sharp one -- so unlike the general O'Rourke-style Diagonal()/InCone() test,
+// there's no "is b within i's interior angle cone" step: a flat vertex's cone IS the whole interior
+// half-plane, so any b on the interior side works there. What's still needed: (1) the segment can't
+// properly cross any OTHER edge of the ring, (2) it can't run collinear along i's own (flat) edge --
+// a "diagonal" along the boundary itself doesn't cut anything, (3) its midpoint must be strictly inside
+// the ring (winding-number test, robust to the ring's own other flat/collinear vertices).
+template <typename PointT>
+bool is_valid_diagonal(std::vector<PointT> const& ring, std::size_t i, std::size_t j, View2D const& view) {
+  std::size_t n = ring.size();
+  std::size_t i_next = (i + 1) % n;
+  std::size_t i_prev = (i + n - 1) % n;
+  if (j == i || j == i_next || j == i_prev) {
+    return false;
+  }
+
+  PointT const& a = ring[i];
+  PointT const& b = ring[j];
+
+  if (detail::view::helpers::are_collinear(ring[i_prev], a, b, view)) {
+    return false;
+  }
+
+  for (std::size_t k = 0; k < n; ++k) {
+    std::size_t k_next = (k + 1) % n;
+    if (k == i || k == j || k_next == i || k_next == j) {
+      continue;
+    }
+    if (segments_properly_intersect(a, b, ring[k], ring[k_next], view)) {
+      return false;
+    }
+  }
+
+  double mx = (view.x(a) + view.x(b)) / 2.0;
+  double my = (view.y(a) + view.y(b)) / 2.0;
+  return detail::view::polygon_contains(ring, std::vector<std::vector<PointT>>{}, view, mx, my);
+}
+
+// Splits a simple ring into two simple rings sharing the diagonal (ring[i], ring[j]) as an edge.
+template <typename PointT>
+std::pair<std::vector<PointT>, std::vector<PointT>> split_ring_at(std::vector<PointT> const& ring, std::size_t i,
+                                                                   std::size_t j) {
+  std::size_t n = ring.size();
+  std::vector<PointT> ring_a, ring_b;
+  for (std::size_t k = i;; k = (k + 1) % n) {
+    ring_a.push_back(ring[k]);
+    if (k == j) {
+      break;
+    }
+  }
+  for (std::size_t k = j;; k = (k + 1) % n) {
+    ring_b.push_back(ring[k]);
+    if (k == i) {
+      break;
+    }
+  }
+  return {ring_a, ring_b};
+}
+
+// The Polygon2D/3D flavor of fix_adjacency(): unlike the raw splice fix_adjacency_impl() above (still
+// used by the Triangle2D/3D overload as a first step before re-triangulating), this actually splits a
+// coarse facet into multiple facets -- one straight diagonal cut per spliced T-junction vertex, to its
+// nearest ring vertex that forms a valid diagonal. This is the standard "diagonal-to-nearest-vertex"
+// polygon-splitting technique (a guaranteed-valid diagonal always exists from any vertex of a simple
+// polygon with >= 4 vertices), same guarantee ear-clipping itself relies on. An unaffected facet passes
+// through unchanged.
+template <typename PointT>
+std::vector<std::vector<PointT>> split_facets_at_junctions_impl(std::vector<std::vector<PointT>> const& facet_rings) {
+  auto violations = validate_adjacency_impl(facet_rings);
+
+  for (auto const& v : violations) {
+    if (v.is_non_manifold) {
+      throw std::invalid_argument("fix_adjacency: edge (" + v.edge_p0.ToWkt() + " -> " + v.edge_p1.ToWkt() +
+                                  ") is shared by " + std::to_string(v.facet_indices.size()) +
+                                  " facets (max 2 allowed) -- not automatically fixable");
+    }
+  }
+
+  struct SpliceKey {
+    std::size_t facet;
+    PointT a, b;
+  };
+  std::vector<std::pair<SpliceKey, std::vector<PointT>>> splices;
+
+  for (auto const& v : violations) {
+    std::size_t coarse_facet = v.facet_indices[0];
+
+    bool found = false;
+    for (auto& [key, pts] : splices) {
+      if (key.facet == coarse_facet && key.a.AlmostEquals(v.edge_p0) && key.b.AlmostEquals(v.edge_p1)) {
+        pts.push_back(v.on_vertex);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      splices.push_back({{coarse_facet, v.edge_p0, v.edge_p1}, {v.on_vertex}});
+    }
+  }
+
+  std::vector<std::vector<PointT>> result;
+
+  for (std::size_t f = 0; f < facet_rings.size(); ++f) {
+    std::vector<PointT> ring = facet_rings[f];
+    std::vector<PointT> spliced_points;
+
+    for (auto const& [key, pts] : splices) {
+      if (key.facet != f) {
+        continue;
+      }
+      for (std::size_t i = 0; i < ring.size(); ++i) {
+        if (ring[i].AlmostEquals(key.a)) {
+          std::vector<PointT> sorted_pts = pts;
+          std::sort(sorted_pts.begin(), sorted_pts.end(), [&](PointT const& x, PointT const& y) {
+            return key.a.DistanceTo(x) < key.a.DistanceTo(y);
+          });
+          ring.insert(ring.begin() + static_cast<std::ptrdiff_t>(i) + 1, sorted_pts.begin(), sorted_pts.end());
+          spliced_points.insert(spliced_points.end(), sorted_pts.begin(), sorted_pts.end());
+          break;
+        }
+      }
+    }
+
+    if (spliced_points.empty()) {
+      result.push_back(std::move(ring));
+      continue;
+    }
+
+    View2D view = view_for_ring(ring);
+    std::vector<std::vector<PointT>> pieces = {std::move(ring)};
+
+    for (auto const& v : spliced_points) {
+      for (std::size_t pi = 0; pi < pieces.size(); ++pi) {
+        auto& piece = pieces[pi];
+
+        std::size_t vi = piece.size();
+        for (std::size_t k = 0; k < piece.size(); ++k) {
+          if (piece[k].AlmostEquals(v)) {
+            vi = k;
+            break;
+          }
+        }
+        if (vi == piece.size()) {
+          continue;  // v doesn't belong to this piece -- keep searching the others
+        }
+
+        std::vector<std::size_t> candidates;
+        for (std::size_t k = 0; k < piece.size(); ++k) {
+          if (k != vi) {
+            candidates.push_back(k);
+          }
+        }
+        std::sort(candidates.begin(), candidates.end(), [&](std::size_t ca, std::size_t cb) {
+          return v.DistanceTo(piece[ca]) < v.DistanceTo(piece[cb]);
+        });
+
+        std::size_t chosen = piece.size();
+        for (auto c : candidates) {
+          if (is_valid_diagonal(piece, vi, c, view)) {
+            chosen = c;
+            break;
+          }
+        }
+        if (chosen == piece.size()) {
+          throw std::logic_error("fix_adjacency: found no valid diagonal from a spliced T-junction vertex -- "
+                                 "every simple polygon with >= 4 vertices has one, so this indicates a bug");
+        }
+
+        auto [ring_a, ring_b] = split_ring_at(piece, vi, chosen);
+        pieces.erase(pieces.begin() + static_cast<std::ptrdiff_t>(pi));
+        pieces.push_back(std::move(ring_a));
+        pieces.push_back(std::move(ring_b));
+        break;  // this spliced vertex is handled -- move on to the next one
+      }
+    }
+
+    result.insert(result.end(), std::make_move_iterator(pieces.begin()), std::make_move_iterator(pieces.end()));
+  }
+
+  return result;
+}
+
+}  // namespace
+
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<Polygon2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<Triangle2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point2D>> validate_adjacency(std::vector<std::vector<Point2D>> const& facet_rings) {
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<Polygon3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<Triangle3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<AdjacencyViolation<Point3D>> validate_adjacency(std::vector<std::vector<Point3D>> const& facet_rings) {
+  return validate_adjacency_impl(facet_rings);
+}
+
+std::vector<std::vector<Point2D>> fix_adjacency(std::vector<Polygon2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return split_facets_at_junctions_impl(facet_rings);
+}
+
+std::vector<std::vector<Point3D>> fix_adjacency(std::vector<Polygon3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    facet_rings.push_back(f.Perimeter());
+  }
+  return split_facets_at_junctions_impl(facet_rings);
+}
+
+std::vector<Triangle2D> fix_adjacency(std::vector<Triangle2D> const& facets) {
+  std::vector<std::vector<Point2D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+
+  auto fixed_rings = fix_adjacency_impl(facet_rings);
+
+  std::vector<Triangle2D> result;
+  TriangulationParams guaranteed_collinearity;
+  guaranteed_collinearity.collinearity = TriangulationParams::Collinearity::Guaranteed;
+  for (auto const& ring : fixed_rings) {
+    if (ring.size() == 3) {
+      result.push_back(Triangle2D::Make(ring[0], ring[1], ring[2]));
+      continue;
+    }
+    auto sub_triangles = triangulate(ring, guaranteed_collinearity);
+    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()), std::make_move_iterator(sub_triangles.end()));
+  }
+  return result;
+}
+
+std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets) {
+  std::vector<std::vector<Point3D>> facet_rings;
+  facet_rings.reserve(facets.size());
+  for (auto const& f : facets) {
+    auto [p0, p1, p2] = f.Vertices();
+    facet_rings.push_back({p0, p1, p2});
+  }
+
+  auto fixed_rings = fix_adjacency_impl(facet_rings);
+
+  std::vector<Triangle3D> result;
+  TriangulationParams guaranteed_collinearity;
+  guaranteed_collinearity.collinearity = TriangulationParams::Collinearity::Guaranteed;
+  for (auto const& ring : fixed_rings) {
+    if (ring.size() == 3) {
+      result.push_back(Triangle3D::Make(ring[0], ring[1], ring[2]));
+      continue;
+    }
+    // The ring may now span more than 3 points (still planar -- the splice only added collinear
+    // points), so fit its normal via PCA rather than assuming a caller-supplied one.
+    auto sub_triangles = triangulate(ring, guaranteed_collinearity);
+    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()), std::make_move_iterator(sub_triangles.end()));
+  }
+  return result;
+}
+
+std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, AdjacencyConformity conformity,
+                                    TriangulationParams const& settings) {
+  switch (conformity) {
+    case AdjacencyConformity::Guaranteed: {
+      std::vector<Triangle2D> result;
+      for (auto const& poly : polygons) {
+        auto tris = triangulate(poly.Perimeter(), settings);
+        result.insert(result.end(), std::make_move_iterator(tris.begin()), std::make_move_iterator(tris.end()));
+      }
+      return result;
+    }
+    case AdjacencyConformity::Assert: {
+      auto violations = validate_adjacency(polygons);
+      if (!violations.empty()) {
+        auto const& v = violations.front();
+        throw std::invalid_argument(
+            "triangulate: facets violate adjacency conformity at edge (" + v.edge_p0.ToWkt() + " -> " +
+            v.edge_p1.ToWkt() + ") -- " +
+            (v.is_non_manifold ? "shared by " + std::to_string(v.facet_indices.size()) + " facets (max 2 allowed)"
+                                : "vertex " + v.on_vertex.ToWkt() + " lies on this edge (a T-junction)"));
+      }
+      std::vector<Triangle2D> result;
+      for (auto const& poly : polygons) {
+        auto tris = triangulate(poly.Perimeter(), settings);
+        result.insert(result.end(), std::make_move_iterator(tris.begin()), std::make_move_iterator(tris.end()));
+      }
+      return result;
+    }
+    case AdjacencyConformity::Enforce: {
+      // fix_adjacency() now actually splits a coarse facet via a diagonal cut per T-junction vertex
+      // (§10.5), rather than just splicing a flat vertex into its ring, so every returned ring is
+      // already a simple polygon with no leftover collinear points -- no need to force
+      // Collinearity::Guaranteed here the way an earlier version of this function had to.
+      auto fixed_rings = fix_adjacency(polygons);
+
+      std::vector<Triangle2D> result;
+      for (auto const& ring : fixed_rings) {
+        auto tris = triangulate(ring, settings);
+        result.insert(result.end(), std::make_move_iterator(tris.begin()), std::make_move_iterator(tris.end()));
+      }
+      return result;
+    }
+    default: {
+      throw std::invalid_argument("triangulate: unknown adjacency conformity");
+    }
+  }
+}
+
+namespace detail {
+
+template <typename PointT>
+void assert_adjacency(std::vector<AdjacencyViolation<PointT>> const& violations) {
+  if (violations.empty()) {
+    return;
+  }
+  auto const& v = violations.front();
+  std::string facets_str;
+  for (std::size_t i = 0; i < v.facet_indices.size(); ++i) {
+    facets_str += std::to_string(v.facet_indices[i]);
+    if (i + 1 < v.facet_indices.size()) {
+      facets_str += ", ";
+    }
+  }
+
+  if (v.is_non_manifold) {
+    throw std::invalid_argument("facet(s) " + facets_str + " have an edge in common (" + v.edge_p0.ToWkt() + " -> " +
+                                v.edge_p1.ToWkt() + ") -- we only allow max 2 facets to share an edge");
+  }
+  throw std::invalid_argument("facet " + std::to_string(v.facet_indices[0]) + "'s edge (" + v.edge_p0.ToWkt() +
+                              " -> " + v.edge_p1.ToWkt() + ") has facet " + std::to_string(v.facet_indices[1]) +
+                              "'s vertex " + v.on_vertex.ToWkt() + " lying on it (a T-junction) -- a vertex may "
+                              "only touch a neighbor's edge at that edge's own start/end");
+}
+
+template void assert_adjacency(std::vector<AdjacencyViolation<Point2D>> const&);
+template void assert_adjacency(std::vector<AdjacencyViolation<Point3D>> const&);
+
+}  // namespace detail
 
 }  // namespace geompp

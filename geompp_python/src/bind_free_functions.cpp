@@ -8,6 +8,8 @@
 #include "line3d.hpp"
 #include "polygon2d.hpp"
 #include "polygon3d.hpp"
+#include "triangle2d.hpp"
+#include "triangle3d.hpp"
 
 void bind_free_functions(py::module_& m) {
     py::class_<geompp::CoordinateFrame>(m, "CoordinateFrame",
@@ -370,4 +372,119 @@ void bind_free_functions(py::module_& m) {
           "polygon"_a, "other"_a,
           "The two common outer tangent segments between two 3D polygons, as PolygonTangents3D(left, right). "
           "Both polygons must lie in the same plane; raises RuntimeError otherwise.");
+
+    // ── triangulation ──────────────────────────────────────────────────────────────────────────
+    // TriangulationParams and its enums are registered separately, earlier — see
+    // bind_triangulation_params.cpp for why.
+    m.def("triangulate",
+          [](const std::vector<geompp::Point2D>& pts, const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(pts, settings);
+          },
+          "points"_a, "settings"_a = geompp::TriangulationParams{},
+          "Breaks a simple 2D polygon's outer loop (no holes) down into triangles, per the given "
+          "TriangulationParams. Returns list[Triangle2D], points.size() - 2 triangles for a simple polygon.");
+
+    m.def("triangulate",
+          [](const std::vector<geompp::Point3D>& pts, const geompp::Vector3D& normal,
+             const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(pts, normal, settings);
+          },
+          "points"_a, "normal"_a, "settings"_a = geompp::TriangulationParams{},
+          "Breaks a simple, planar 3D polygon's outer loop (no holes) down into triangles, projected via "
+          "the given plane normal, per the given TriangulationParams. Input is assumed flat/coplanar. "
+          "Returns list[Triangle3D], points.size() - 2 triangles for a simple polygon.");
+
+    m.def("triangulate",
+          [](const std::vector<geompp::Point3D>& pts, const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(pts, settings);
+          },
+          "points"_a, "settings"_a = geompp::TriangulationParams{},
+          "Same as the (points, normal, settings) overload, but fits the plane normal via PCA "
+          "(principal_normal) automatically.");
+
+    // ── mesh-conformity checking ("every edge has at most 1 neighbor") ───────────────────────────
+    // AdjacencyConformity is registered separately, earlier — see bind_triangulation_params.cpp.
+    py::class_<geompp::AdjacencyViolation<geompp::Point2D>>(m, "AdjacencyViolation2D",
+        "One \"more than 1 neighbor\" violation found by validate_adjacency() across a batch of 2D "
+        "facets. A T-junction (a vertex partially overlapping an edge) is fixable — see on_vertex; a "
+        "non-manifold edge (a full edge shared by 3+ facets) is not, since there's no principled way "
+        "to pick which 2 of the 3+ facets are \"the real pair\".")
+        .def_readonly("edge_p0", &geompp::AdjacencyViolation<geompp::Point2D>::edge_p0, "The shared/coarse edge's first point.")
+        .def_readonly("edge_p1", &geompp::AdjacencyViolation<geompp::Point2D>::edge_p1, "The shared/coarse edge's second point.")
+        .def_readonly("facet_indices", &geompp::AdjacencyViolation<geompp::Point2D>::facet_indices,
+                      "Every facet (index into the input) touching this edge. For a T-junction, "
+                      "facet_indices[0] owns the coarse edge — the one fix_adjacency() splices on_vertex into.")
+        .def_readonly("is_non_manifold", &geompp::AdjacencyViolation<geompp::Point2D>::is_non_manifold,
+                      "True: a full edge shared by 3+ facets, not fixable. False: a T-junction, fixable.")
+        .def_readonly("on_vertex", &geompp::AdjacencyViolation<geompp::Point2D>::on_vertex,
+                      "Meaningful only when not is_non_manifold: the foreign vertex lying on the edge.");
+
+    py::class_<geompp::AdjacencyViolation<geompp::Point3D>>(m, "AdjacencyViolation3D",
+        "3D counterpart of AdjacencyViolation2D — same fields, operating on Point3D. Native 3D "
+        "collinearity/betweenness, not View2D-projected (a shared 2D projection would be wrong for a "
+        "general 3D mesh whose facets aren't all coplanar).")
+        .def_readonly("edge_p0", &geompp::AdjacencyViolation<geompp::Point3D>::edge_p0, "The shared/coarse edge's first point.")
+        .def_readonly("edge_p1", &geompp::AdjacencyViolation<geompp::Point3D>::edge_p1, "The shared/coarse edge's second point.")
+        .def_readonly("facet_indices", &geompp::AdjacencyViolation<geompp::Point3D>::facet_indices,
+                      "Every facet (index into the input) touching this edge. For a T-junction, "
+                      "facet_indices[0] owns the coarse edge — the one fix_adjacency() splices on_vertex into.")
+        .def_readonly("is_non_manifold", &geompp::AdjacencyViolation<geompp::Point3D>::is_non_manifold,
+                      "True: a full edge shared by 3+ facets, not fixable. False: a T-junction, fixable.")
+        .def_readonly("on_vertex", &geompp::AdjacencyViolation<geompp::Point3D>::on_vertex,
+                      "Meaningful only when not is_non_manifold: the foreign vertex lying on the edge.");
+
+    m.def("validate_adjacency",
+          [](const std::vector<geompp::Polygon2D>& facets) { return geompp::validate_adjacency(facets); },
+          "facets"_a, "Checks 2D polygon facets for \"every edge has at most 1 neighbor\". "
+          "Returns list[AdjacencyViolation2D], empty if conforming.");
+    m.def("validate_adjacency",
+          [](const std::vector<geompp::Triangle2D>& facets) { return geompp::validate_adjacency(facets); },
+          "facets"_a, "Same as the Polygon2D overload, for a list of Triangle2D facets.");
+    m.def("validate_adjacency",
+          [](const std::vector<std::vector<geompp::Point2D>>& facet_rings) { return geompp::validate_adjacency(facet_rings); },
+          "facet_rings"_a, "Same as the Polygon2D overload, for raw point rings (e.g. fix_adjacency()'s own output).");
+    m.def("validate_adjacency",
+          [](const std::vector<geompp::Polygon3D>& facets) { return geompp::validate_adjacency(facets); },
+          "facets"_a, "Checks 3D polygon facets for \"every edge has at most 1 neighbor\". "
+          "Returns list[AdjacencyViolation3D], empty if conforming.");
+    m.def("validate_adjacency",
+          [](const std::vector<geompp::Triangle3D>& facets) { return geompp::validate_adjacency(facets); },
+          "facets"_a, "Same as the Polygon3D overload, for a list of Triangle3D facets.");
+    m.def("validate_adjacency",
+          [](const std::vector<std::vector<geompp::Point3D>>& facet_rings) { return geompp::validate_adjacency(facet_rings); },
+          "facet_rings"_a, "Same as the Polygon3D overload, for raw point rings (e.g. fix_adjacency()'s own output).");
+
+    m.def("fix_adjacency",
+          [](const std::vector<geompp::Polygon2D>& facets) { return geompp::fix_adjacency(facets); },
+          "facets"_a,
+          "Repairs every T-junction validate_adjacency() would report: splices the foreign vertex into "
+          "the coarse edge, then cuts a diagonal to the nearest ring vertex that forms a valid, "
+          "non-crossing diagonal, splitting the facet into pieces (a facet with several T-junctions on "
+          "one edge may split into several pieces). Raises ValueError on a non-manifold edge (not "
+          "fixable). Returns raw point rings (list[list[Point2D]]), NOT Polygon2D — the split pieces "
+          "have no guarantee of matching a valid Polygon2D winding/hole structure.");
+    m.def("fix_adjacency",
+          [](const std::vector<geompp::Polygon3D>& facets) { return geompp::fix_adjacency(facets); },
+          "facets"_a, "Same as the Polygon2D overload, for Polygon3D facets -> list[list[Point3D]].");
+    m.def("fix_adjacency",
+          [](const std::vector<geompp::Triangle2D>& facets) { return geompp::fix_adjacency(facets); },
+          "facets"_a,
+          "Triangle2D overload: unlike a Polygon2D facet, a triangle can't just absorb a spliced-in "
+          "vertex and stay a triangle -- a repaired facet is re-triangulated into 2+ triangles covering "
+          "the same area as the original one. Raises ValueError on a non-manifold edge. "
+          "Returns list[Triangle2D] (may be longer than the input).");
+    m.def("fix_adjacency",
+          [](const std::vector<geompp::Triangle3D>& facets) { return geompp::fix_adjacency(facets); },
+          "facets"_a, "Same as the Triangle2D overload, for Triangle3D facets -> list[Triangle3D].");
+
+    m.def("triangulate",
+          [](const std::vector<geompp::Polygon2D>& polygons, geompp::AdjacencyConformity conformity,
+             const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(polygons, conformity, settings);
+          },
+          "polygons"_a, "conformity"_a = geompp::AdjacencyConformity::Enforce, "settings"_a = geompp::TriangulationParams{},
+          "Batch-triangulates a set of 2D polygon facets together (the free-function equivalent of "
+          "PolyMesh2D.from_polygons(polygons).triangulate()). Unlike PolyMesh2D.from_polygons (which "
+          "always raises on bad adjacency), conformity defaults to Enforce: auto-repairs a T-junction, "
+          "still raises on a non-manifold edge. Returns list[Triangle2D].");
 }
