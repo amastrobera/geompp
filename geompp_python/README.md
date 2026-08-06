@@ -1,4 +1,23 @@
-# GeomPP — Python Bindings
+# GeomPP 
+
+A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
+thoroughly tested, and usable from C++, C# (.Net 8/9/10 or .Net Framework 4.8), and Python 3.
+
+You may be a CAD or a Game developer using C#.Net, and you use APIs native to the platform you develop into. These native APIs are easy to get in, but may contain bugs that have not been fixed, or simply lack some functionalities. 
+You may be a Data Scientist using Python on a GIS project, and having to import 3+ libraries, and covert from data-structure to data-structure to use it. 
+You may be a C++ developer who wants to import a more lightweight library than those which already exist, and possibly more user friendly. 
+
+This library was born a few years ago to solve all these problems. It was recently augmented with the aim of using the most modern algorithms to solve a variety of geometrical problems. 
+
+The sources of these algorithms are to be found in several textbooks, such as 
+- Practical Geometry Algorithms (Danniel Sunday)
+- Computational Geometry in C (Joseph O'Rourke)
+- Computational Geometry (Mark de Berg, Marc van Kreveld, Mark Overmars, Otfried Schwarzkopf)
+
+Finally, the help of AI was used to validate algorithms (bug-free, guarantee the desired big-O), bind into other languages than C++, add edge cases to achieve a high test coverage, and build documentation. 
+
+
+# Python Bindings
 
 Python bindings for [geompp](https://github.com/amastrobera/geompp) — a C++ 2D/3D geometry library.
 
@@ -26,23 +45,27 @@ from source — you will need CMake ≥ 3.15 and a C++20-capable compiler.
 
 ## Classes
 
-| 2D | 3D |
-|----|----|
-| Point2D | Point3D |
-| Vector2D | Vector3D |
-| Line2D | Line3D |
-| Ray2D | Ray3D |
-| LineSegment2D | LineSegment3D |
-| Polyline2D | Polyline3D |
-| Triangle2D | Triangle3D |
-| Polygon2D | Polygon3D |
-| BBox2D | BBox3D |
-| BBall2D | BBall3D |
-| BRect2D | |
-| | BPrism3D |
-| GeometryCollection2D | GeometryCollection3D |
-| | Plane |
-| View2D | |
+Where not explicitely specified, both 2D and 3D variants are available for all core types:
+
+| Primitive        | Description                                              |
+|------------------|----------------------------------------------------------|
+| `Point`          | A coordinate in space                                    |
+| `Vector`         | Direction and magnitude                                  |
+| `Line`           | An infinite line through two points                      |
+| `Ray`            | A semi-infinite line from an origin in one direction     |
+| `LineSegment`    | A finite segment between two endpoints                   |
+| `Polyline`       | A connected chain of segments                            |
+| `Triangle`       | Three non-collinear points forming a closed face         |
+| `Polygon`        | A closed polygon defined by an ordered list of vertices  |
+| `BBox`           | Axis-aligned bounding box                                |
+| `BBall`          | Minimum bounding sphere (Ritter's algorithm)             |
+| `BRect2D`        | Minimum oriented bounding rectangle (rotating calipers) |
+| `BPrism3D`       | Minimum oriented bounding prism (PCA + rotating calipers) |
+| `Plane`          | A flat surface in 3D defined by a point and a normal     |
+| `View2D`         | A class that converts a 3D point into 2D quicker than plane|
+| `Mesh`           | A set of adjacent triangles that together make up a detailed 2D or 3D shape (**a surface or a solid**)|
+| `ConnectedMesh`  | This one keeps track of the neighbors of each triangle, so that going from a facet to its 0-3 neighbors is very quick|
+| `PolyMesh`       | Not just triangles, also polygons are allowed, in order to save on the number of vertices on the same planar regions of the surface|
 
 ## Algorithm overview
 
@@ -63,6 +86,7 @@ Each class supports a consistent set of spatial operations where applicable:
 - **Polyline operations** — `Polyline.reduce()` (decimation) and `Polyline.expand()` (Bezier corner smoothing), or the underlying free functions (`dist_decimation()`/`rdp_decimation()`/`vw_decimation()`, `bezier_smoothing_2()`, `polyline_expansion()`) for a plain point list.
 - **Polygon boolean operations** — `intersection()`, `union()`, `difference()`, `xor()` between two polygons (map-overlay method), or the free function `clip(clipper_loop, subject_loop)` for raw point loops without constructing a `Polygon` first.
 - **Point cloud operations** — `principal_axes()` (PCA) finds the empirical 3 directive axes of a list of points in space.
+- **Triangulation** — decomposition of a polygon into n-triangles, using several possible algorithms such as the _Ear Clip_, a _Best Fit Ear Clip_, _Monotone Polygon_ or _Constrained Delaunay_. 
 
 Return values are `None` on no-intersection, and sometimes a `Point`/`list[LineSegment]`/`list[Polygon]` depending on
 what the operation produced — check each method's docstring for the exact shape.
@@ -100,6 +124,7 @@ what the operation produced — check each method's docstring for the exact shap
 | `find_extreme_points(polygon, line)` | The two polygon vertices least/greatest projected along a line's direction |
 | `distance_to(polygon, line)` | Distance from a polygon to a line (zero if they intersect) |
 | `tangents_to(polygon, point_or_polygon)` | `PolygonTangents2D`/`PolygonTangents3D` (`.left`/`.right`) — tangent segments to a point, or common outer tangents to another polygon |
+| `triangulate(polygons, settings)` | Returns a set of adjacent triangles replacing the surface of 1+ polygons (the engine behind `Polygon::Triangulate()` and `PolyMesh::Triangulate()`), and with a robust input validation |
 
 ## Serialization
 

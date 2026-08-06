@@ -60,7 +60,7 @@
 
   ### Classes
 
-  Both 2D and 3D variants are available for all core types:
+  Where not explicitely specified, both 2D and 3D variants are available for all core types:
 
   | Primitive        | Description                                              |
   |------------------|----------------------------------------------------------|
