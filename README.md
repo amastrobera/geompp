@@ -62,22 +62,26 @@
 
   Both 2D and 3D variants are available for all core types:
 
-  | Primitive      | Description                                              |
-  |----------------|----------------------------------------------------------|
-  | `Point`        | A coordinate in space                                    |
-  | `Vector`       | Direction and magnitude                                  |
-  | `Line`         | An infinite line through two points                      |
-  | `Ray`          | A semi-infinite line from an origin in one direction     |
-  | `LineSegment`  | A finite segment between two endpoints                   |
-  | `Polyline`     | A connected chain of segments                            |
-  | `Triangle`     | Three non-collinear points forming a closed face         |
-  | `Polygon`      | A closed polygon defined by an ordered list of vertices  |
-  | `BBox`         | Axis-aligned bounding box                                |
-  | `BBall`        | Minimum bounding sphere (Ritter's algorithm)             |
-  | `BRect2D`      | Minimum oriented bounding rectangle (rotating calipers) |
-  | `BPrism3D`     | Minimum oriented bounding prism (PCA + rotating calipers) |
-  | `Plane`        | A flat surface in 3D defined by a point and a normal     |
-  | `View2D`       | A class that converts a 3D point into 2D quicker than plane|
+  | Primitive        | Description                                              |
+  |------------------|----------------------------------------------------------|
+  | `Point`          | A coordinate in space                                    |
+  | `Vector`         | Direction and magnitude                                  |
+  | `Line`           | An infinite line through two points                      |
+  | `Ray`            | A semi-infinite line from an origin in one direction     |
+  | `LineSegment`    | A finite segment between two endpoints                   |
+  | `Polyline`       | A connected chain of segments                            |
+  | `Triangle`       | Three non-collinear points forming a closed face         |
+  | `Polygon`        | A closed polygon defined by an ordered list of vertices  |
+  | `BBox`           | Axis-aligned bounding box                                |
+  | `BBall`          | Minimum bounding sphere (Ritter's algorithm)             |
+  | `BRect2D`        | Minimum oriented bounding rectangle (rotating calipers) |
+  | `BPrism3D`       | Minimum oriented bounding prism (PCA + rotating calipers) |
+  | `Plane`          | A flat surface in 3D defined by a point and a normal     |
+  | `View2D`         | A class that converts a 3D point into 2D quicker than plane|
+  | `Mesh`           | A set of adjacent triangles that together make up a detailed 2D or 3D shape (**a surface or a solid**)|
+  | `ConnectedMesh`  | This one keeps track of the neighbors of each triangle, so that going from a facet to its 0-3 neighbors is very quick|
+  | `PolyMesh`       | Not just triangles, also polygons are allowed, in order to save on the number of vertices on the same planar regions of the surface|
+  
 
   ### Algorithm overview
 
@@ -98,7 +102,8 @@
   - **Bounding containers** — tight-fitting containers around point clouds. Available in different varieties (axis-aligned bounding box, bounding ball, minimal oriented rectangle, convex-hull)
   - **Polyline operations** — given a `Polyline` it is possible to `Reduce()` it (or `Extend()` it) according to several decimation (or smoothing) algorithms. It is also possible to use the free functions `polyline_extension()` and `xxx_decimation()` (different algorithms available) for a list of consecutive points not into a polyline data-structure. 
   - **Polygon boolean operations** — Intersection, Union, Difference and Xor (either or) between two polygons are possible. One polygon clips the other with map-overlay method. 
-  - **Point cloud operations** — Principal Component Analysis (PCA) function `principal_axes()` helps you find the empirical 3 directive axis of a list of points in space. 
+  - **Point cloud operations** — Principal Component Analysis (PCA) function `principal_axes()` helps you find the empirical 3 directive axis of a list of points in space.
+  - **Triangulation** — decomposition of a polygon into n-triangles, using several possible algorithms such as the _Ear Clip_, a _Best Fit Ear Clip_, _Monotone Polygon_ or _Constrained Delaunay_. 
 
   Return types are often `optional` and sometimes `optional<variant<...>>` so callers can match on the exact geometry produced by an intersection without casting.
 
@@ -137,6 +142,7 @@
   | `find_extreme_points(polygon, line)` | The two polygon vertices least/greatest projected along a line's direction |
   | `distance_to(polygon, line)` | Distance from a polygon to a line (zero if they intersect) |
   | `tangents_to(polygon, point_or_polygon)` | Tangent segments from a point to a polygon, or common outer tangents between two polygons |
+  | `triangulate(polygons, settings)` | Returns a set of adjacent triangles replacing the surface of 1+ polygons (the engine behind `Polygon::Triangulate()` and `PolyMesh::Triangulate()`), and with a robust input validation |
   
   ### Serialization
 
