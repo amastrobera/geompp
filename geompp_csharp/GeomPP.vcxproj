@@ -191,7 +191,7 @@
 
   <!-- ── geompp native core (compiled without /clr so that GEOMPP_NO_THREAD_LOCAL ── -->
   <!-- ── makes DECIMAL_PRECISION / DOUBLE_EPSILON plain globals instead of TLS.  ── -->
-  <!-- ── All 26 source files are compiled here; geompp.lib is not linked.        ── -->
+  <!-- ── All 41 source files are compiled here; geompp.lib is not linked.        ── -->
   <ItemGroup>
     <ClCompile Include="$(ProjectDir)..\geompp\src\bbox2d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
@@ -318,6 +318,42 @@
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\view2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\sweep_line2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\grid_cell2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\grid_cell3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\mesh2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\mesh3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\polymesh2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\polymesh3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\connected_mesh2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\connected_mesh3d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
