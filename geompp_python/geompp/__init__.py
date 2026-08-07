@@ -51,8 +51,8 @@ Free functions
     dist_decimation(points, threshold)
     rdp_decimation(points, threshold)
     vw_decimation(points, threshold)
-    bezier_smoothing_2(p0, p1, p2, smoothness, min_distance, min_segment_length=DOUBLE_EPSILON)
-    bezier_smoothing_2(p0, p1, p2, smoothness, num_segments, min_segment_length=DOUBLE_EPSILON)
+    bezier_smoothing_2(p0, p1, p2, smoothness, min_distance_or_num_segments, min_segment_length=DOUBLE_EPSILON)
+        (a float dispatches to the min_distance behavior, an int to the num_segments behavior)
 
 Polyline decimation:
     PolylineDecimationStrategy (RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt)

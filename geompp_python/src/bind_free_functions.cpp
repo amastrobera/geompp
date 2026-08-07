@@ -231,45 +231,46 @@ void bind_free_functions(py::module_& m) {
           "its neighbors, while that area stays below threshold.");
 
     // ── quadratic Bezier corner smoothing ─────────────────────────────────────────────────────
-    // Two overloads sharing one Python name: pybind11 resolves them the same way C++ does here —
-    // a Python int matches the num_segments (int) overload with no conversion, a Python float
-    // matches the min_distance (double) overload with no conversion.
+    // min_distance and num_segments are folded into one py::object parameter and dispatched by
+    // *runtime* Python type instead of two overloads differing only in a numeric parameter type.
+    // pybind11 used to resolve int vs. double correctly via its no-conversion pass, but 3.1
+    // loosened strict-mode numeric conversions (float now accepts int there too, for PEP 484
+    // compatibility), so a Python int silently started matching the min_distance(double) overload
+    // registered first — see the "num_segments produces wrong point count" regression. Runtime
+    // dispatch sidesteps pybind11's overload resolution entirely, so it can't regress again on a
+    // future pybind11 version bump.
     m.def("bezier_smoothing_2",
           [](const geompp::Point2D& p0, const geompp::Point2D& p1, const geompp::Point2D& p2, double smoothness,
-             double min_distance, double min_segment_length) {
-              return geompp::bezier_smoothing_2(p0, p1, p2, smoothness, min_distance, min_segment_length);
+             py::object min_distance_or_num_segments, double min_segment_length) {
+              if (py::isinstance<py::int_>(min_distance_or_num_segments)) {
+                  return geompp::bezier_smoothing_2(p0, p1, p2, smoothness,
+                                                    min_distance_or_num_segments.cast<int>(), min_segment_length);
+              }
+              return geompp::bezier_smoothing_2(p0, p1, p2, smoothness,
+                                                min_distance_or_num_segments.cast<double>(), min_segment_length);
           },
           "p0"_a, "p1"_a, "p2"_a, "smoothness"_a, "min_distance"_a, "min_segment_length"_a = static_cast<double>(geompp::DOUBLE_EPSILON),
-          "Rounds the 2D corner at p1 with a quadratic Bezier arc tangent to p0-p1 and p1-p2, sampled roughly "
-          "min_distance apart. smoothness in [0,1] controls how much of the shorter adjacent edge is trimmed "
-          "into the tangent points. An adjacent edge at or below min_segment_length isn't trimmed into (both "
-          "at or below: the whole corner stays sharp).");
+          "Rounds the 2D corner at p1 with a quadratic Bezier arc tangent to p0-p1 and p1-p2. smoothness in "
+          "[0,1] controls how much of the shorter adjacent edge is trimmed into the tangent points. An "
+          "adjacent edge at or below min_segment_length isn't trimmed into (both at or below: the whole "
+          "corner stays sharp). min_distance (float): sampled roughly that far apart. num_segments (int): "
+          "sampled into exactly num_segments + 1 points regardless of the arc's length.");
     m.def("bezier_smoothing_2",
           [](const geompp::Point3D& p0, const geompp::Point3D& p1, const geompp::Point3D& p2, double smoothness,
-             double min_distance, double min_segment_length) {
-              return geompp::bezier_smoothing_2(p0, p1, p2, smoothness, min_distance, min_segment_length);
+             py::object min_distance_or_num_segments, double min_segment_length) {
+              if (py::isinstance<py::int_>(min_distance_or_num_segments)) {
+                  return geompp::bezier_smoothing_2(p0, p1, p2, smoothness,
+                                                    min_distance_or_num_segments.cast<int>(), min_segment_length);
+              }
+              return geompp::bezier_smoothing_2(p0, p1, p2, smoothness,
+                                                min_distance_or_num_segments.cast<double>(), min_segment_length);
           },
           "p0"_a, "p1"_a, "p2"_a, "smoothness"_a, "min_distance"_a, "min_segment_length"_a = static_cast<double>(geompp::DOUBLE_EPSILON),
-          "Rounds the 3D corner at p1 with a quadratic Bezier arc tangent to p0-p1 and p1-p2, sampled roughly "
-          "min_distance apart. smoothness in [0,1] controls how much of the shorter adjacent edge is trimmed "
-          "into the tangent points. An adjacent edge at or below min_segment_length isn't trimmed into (both "
-          "at or below: the whole corner stays sharp).");
-    m.def("bezier_smoothing_2",
-          [](const geompp::Point2D& p0, const geompp::Point2D& p1, const geompp::Point2D& p2, double smoothness,
-             int num_segments, double min_segment_length) {
-              return geompp::bezier_smoothing_2(p0, p1, p2, smoothness, num_segments, min_segment_length);
-          },
-          "p0"_a, "p1"_a, "p2"_a, "smoothness"_a, "num_segments"_a, "min_segment_length"_a = static_cast<double>(geompp::DOUBLE_EPSILON),
-          "Same as the min_distance overload, but samples an exact num_segments + 1 points regardless of the "
-          "arc's length.");
-    m.def("bezier_smoothing_2",
-          [](const geompp::Point3D& p0, const geompp::Point3D& p1, const geompp::Point3D& p2, double smoothness,
-             int num_segments, double min_segment_length) {
-              return geompp::bezier_smoothing_2(p0, p1, p2, smoothness, num_segments, min_segment_length);
-          },
-          "p0"_a, "p1"_a, "p2"_a, "smoothness"_a, "num_segments"_a, "min_segment_length"_a = static_cast<double>(geompp::DOUBLE_EPSILON),
-          "Same as the min_distance overload, but samples an exact num_segments + 1 points regardless of the "
-          "arc's length.");
+          "Rounds the 3D corner at p1 with a quadratic Bezier arc tangent to p0-p1 and p1-p2. smoothness in "
+          "[0,1] controls how much of the shorter adjacent edge is trimmed into the tangent points. An "
+          "adjacent edge at or below min_segment_length isn't trimmed into (both at or below: the whole "
+          "corner stays sharp). min_distance (float): sampled roughly that far apart. num_segments (int): "
+          "sampled into exactly num_segments + 1 points regardless of the arc's length.");
 
     m.def("polyline_expansion",
           [](const std::vector<geompp::Point2D>& pts, const geompp::PolylineExpansionParams& settings) {
