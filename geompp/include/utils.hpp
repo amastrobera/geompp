@@ -46,7 +46,7 @@ namespace detail {
 // Adjacency table: for each of the 3 local edges of every triangle.
 struct TriangleCompactNeighborRef {
   // 0-indexed to prevent bit collision with INVALID (0xFFFFFFFF)
-  enum class TriangleEdge : std::uint32_t { INVALID = 0, FIRST = 1, SECOND = 2, THIRD = 3 };
+  enum class TriangleEdge : std::uint32_t { FIRST = 0, SECOND = 1, THIRD = 2, INVALID = 3 };
 
   static constexpr std::uint32_t INVALID = 0xFFFFFFFF;  // Boundary sentinel
 
@@ -82,10 +82,9 @@ std::string string_join(std::vector<T> const& items, std::string const& delim = 
 }
 
 template <typename T>
-requires requires(T t) {
-  { t.ToWkt() }
-  ->std::convertible_to<std::string>;
-}
+  requires requires(T t) {
+    { t.ToWkt() } -> std::convertible_to<std::string>;
+  }
 std::string ToWkt(const std::vector<T>& items) {
   std::string out = "GEOMETRYCOLLECTION(";
   for (std::size_t i = 0; i < items.size(); ++i) {

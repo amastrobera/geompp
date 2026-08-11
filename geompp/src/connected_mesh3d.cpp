@@ -44,8 +44,8 @@ Triangle3D ConnectedMesh3D::FaceView3D::Geometry() const {
 
 std::optional<ConnectedMesh3D::FaceView3D> ConnectedMesh3D::FaceView3D::Neighbor(
     detail::TriangleCompactNeighborRef::TriangleEdge edge_id) const {
-  // TriangleEdge is 1-indexed (FIRST=1, SECOND=2, THIRD=3); NEIGHBORS is a 0-indexed std::array<T, 3>.
-  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id) - 1];
+  // TriangleEdge is 0-indexed (FIRST=0, SECOND=1, THIRD=2), matching NEIGHBORS' std::array<T, 3>.
+  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id)];
 
   if (neighbor_ref.is_boundary()) {
     return std::nullopt;
@@ -56,8 +56,8 @@ std::optional<ConnectedMesh3D::FaceView3D> ConnectedMesh3D::FaceView3D::Neighbor
 
 detail::TriangleCompactNeighborRef::TriangleEdge ConnectedMesh3D::FaceView3D::NeighborEntryEdge(
     detail::TriangleCompactNeighborRef::TriangleEdge edge_id) const {
-  // TriangleEdge is 1-indexed (FIRST=1, SECOND=2, THIRD=3); NEIGHBORS is a 0-indexed std::array<T, 3>.
-  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id) - 1];
+  // TriangleEdge is 0-indexed (FIRST=0, SECOND=1, THIRD=2), matching NEIGHBORS' std::array<T, 3>.
+  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id)];
 
   if (neighbor_ref.is_boundary()) {
     return detail::TriangleCompactNeighborRef::TriangleEdge::INVALID;

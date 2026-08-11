@@ -7,12 +7,24 @@ namespace GeomPP {
 namespace {
 using NativeEdge = geompp::detail::TriangleCompactNeighborRef::TriangleEdge;
 
+// Managed and native TriangleEdge enums are numbered independently, so the mapping is explicit
+// rather than a numeric cast (native is 0-indexed to match std::array; managed is not).
 NativeEdge ToNative(TriangleEdge edge) {
-    return static_cast<NativeEdge>(static_cast<int>(edge));
+    switch (edge) {
+        case TriangleEdge::First: return NativeEdge::FIRST;
+        case TriangleEdge::Second: return NativeEdge::SECOND;
+        case TriangleEdge::Third: return NativeEdge::THIRD;
+        default: return NativeEdge::INVALID;
+    }
 }
 
 TriangleEdge ToManaged(NativeEdge edge) {
-    return static_cast<TriangleEdge>(static_cast<int>(edge));
+    switch (edge) {
+        case NativeEdge::FIRST: return TriangleEdge::First;
+        case NativeEdge::SECOND: return TriangleEdge::Second;
+        case NativeEdge::THIRD: return TriangleEdge::Third;
+        default: return TriangleEdge::Invalid;
+    }
 }
 }  // namespace
 

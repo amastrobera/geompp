@@ -206,9 +206,8 @@ GridCellMapForConnectedMesh3D GridCellMapForConnectedMesh3D::Make(std::vector<Tr
       std::uint32_t u = triangle_indices[p_idx1];
       std::uint32_t v = triangle_indices[p_idx2];
 
-      // TriangleEdge is 1-indexed (FIRST=1, SECOND=2, THIRD=3) so that 0 stays free as an "invalid
-      // edge" sentinel distinct from a real edge; neighbour_refs stays 0-indexed to match std::array.
-      auto local_edge = static_cast<detail::TriangleCompactNeighborRef::TriangleEdge>(edge_id + 1);
+      // TriangleEdge is 0-indexed (FIRST=0, SECOND=1, THIRD=2), matching neighbour_refs' std::array.
+      auto local_edge = static_cast<detail::TriangleCompactNeighborRef::TriangleEdge>(edge_id);
 
       // Look for the opposite twin edge (v -> u)
       std::uint64_t twin_key = make_edge_key(v, u);
@@ -219,7 +218,7 @@ GridCellMapForConnectedMesh3D GridCellMapForConnectedMesh3D::Make(std::vector<Tr
 
         // Wire up both sides of the adjacency link
         neighbour_refs[t][edge_id] = neighbor_ref;
-        neighbour_refs[neighbor_ref.triangle_id()][static_cast<size_t>(neighbor_ref.edge_id()) - 1] =
+        neighbour_refs[neighbor_ref.triangle_id()][static_cast<size_t>(neighbor_ref.edge_id())] =
             detail::TriangleCompactNeighborRef(t, local_edge);
 
       } else {

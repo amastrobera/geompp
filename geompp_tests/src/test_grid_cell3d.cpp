@@ -88,21 +88,21 @@ TEST_F(GridCellMapForConnectedMesh3DTest, Make_SharedEdge_WiresMutualAdjacency) 
   using Edge = g::detail::TriangleCompactNeighborRef::TriangleEdge;
 
   // t0's THIRD edge (v2 -> v0) is shared with t1's FIRST edge (v0 -> v2).
-  auto const& t0_shared = (*neighbors)[0][static_cast<std::size_t>(Edge::THIRD) - 1];
+  auto const& t0_shared = (*neighbors)[0][static_cast<std::size_t>(Edge::THIRD)];
   EXPECT_FALSE(t0_shared.is_boundary());
   EXPECT_EQ(1u, t0_shared.triangle_id());
   EXPECT_EQ(Edge::FIRST, t0_shared.edge_id());
 
-  auto const& t1_shared = (*neighbors)[1][static_cast<std::size_t>(Edge::FIRST) - 1];
+  auto const& t1_shared = (*neighbors)[1][static_cast<std::size_t>(Edge::FIRST)];
   EXPECT_FALSE(t1_shared.is_boundary());
   EXPECT_EQ(0u, t1_shared.triangle_id());
   EXPECT_EQ(Edge::THIRD, t1_shared.edge_id());
 
   // Every other edge is a boundary edge (no twin).
-  EXPECT_TRUE((*neighbors)[0][static_cast<std::size_t>(Edge::FIRST) - 1].is_boundary());
-  EXPECT_TRUE((*neighbors)[0][static_cast<std::size_t>(Edge::SECOND) - 1].is_boundary());
-  EXPECT_TRUE((*neighbors)[1][static_cast<std::size_t>(Edge::SECOND) - 1].is_boundary());
-  EXPECT_TRUE((*neighbors)[1][static_cast<std::size_t>(Edge::THIRD) - 1].is_boundary());
+  EXPECT_TRUE((*neighbors)[0][static_cast<std::size_t>(Edge::FIRST)].is_boundary());
+  EXPECT_TRUE((*neighbors)[0][static_cast<std::size_t>(Edge::SECOND)].is_boundary());
+  EXPECT_TRUE((*neighbors)[1][static_cast<std::size_t>(Edge::SECOND)].is_boundary());
+  EXPECT_TRUE((*neighbors)[1][static_cast<std::size_t>(Edge::THIRD)].is_boundary());
 }
 
 TEST_F(GridCellMapForConnectedMesh3DTest, Make_SingleTriangle_AllEdgesAreBoundary) {
@@ -133,12 +133,12 @@ TEST_F(GridCellMapForConnectedMesh3DTest, Make_Fan_LastTriangleAdjacencyInBounds
   // Triangle i's THIRD edge (last vertex -> origin) is shared with triangle i+1's FIRST edge
   // (origin -> its first vertex), for i = 0, 1, 2.
   for (std::size_t i = 0; i + 1 < triangles.size(); ++i) {
-    auto const& fwd = (*neighbors)[i][static_cast<std::size_t>(Edge::THIRD) - 1];
+    auto const& fwd = (*neighbors)[i][static_cast<std::size_t>(Edge::THIRD)];
     ASSERT_FALSE(fwd.is_boundary()) << "triangle " << i << "'s THIRD edge should be shared";
     EXPECT_EQ(i + 1, fwd.triangle_id());
     EXPECT_EQ(Edge::FIRST, fwd.edge_id());
 
-    auto const& bwd = (*neighbors)[i + 1][static_cast<std::size_t>(Edge::FIRST) - 1];
+    auto const& bwd = (*neighbors)[i + 1][static_cast<std::size_t>(Edge::FIRST)];
     ASSERT_FALSE(bwd.is_boundary());
     EXPECT_EQ(i, bwd.triangle_id());
     EXPECT_EQ(Edge::THIRD, bwd.edge_id());
