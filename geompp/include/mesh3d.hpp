@@ -37,6 +37,13 @@ class Mesh3D {
   Mesh3D(Mesh3D&&) = default;
   ~Mesh3D() = default;
 
+  // Declaring the move constructor above suppresses the implicitly-declared copy assignment operator too
+  // (not just move assignment) -- without these, `mesh = transform(mesh, m)` would not compile. Both are
+  // correct as plain member-wise defaults: VERTICES/FACE_INDICES are shared_ptr, so copy-assignment is just
+  // two refcount bumps, not a deep copy.
+  Mesh3D& operator=(Mesh3D const&) = default;
+  Mesh3D& operator=(Mesh3D&&) = default;
+
   std::size_t Size() const;  // returns the number of facets
   double Area() const;       // sum of each input triangle's own Area(), independent of welding
 

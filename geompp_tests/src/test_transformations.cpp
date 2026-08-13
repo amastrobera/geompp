@@ -326,6 +326,30 @@ TEST(Transformations2DTest, ConnectedMesh_TranslateRotate_PreserveTotalArea) {
   EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
 }
 
+// Regression test: Mesh2D/PolyMesh2D/ConnectedMesh2D used to declare a copy AND move constructor but no
+// operator= at all, which (per the special-member rules) implicitly deletes copy-assignment too, not just
+// move-assignment -- so `mesh = rotate(mesh, ...)` was a hard compile error. This only needs to compile;
+// area preservation is already covered above.
+TEST(Transformations2DTest, MeshFamily_ReassignmentIdiom_Compiles) {
+  auto tri = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1));
+
+  g::Mesh2D mesh = g::Mesh2D::FromTriangles({tri});
+  mesh = gt::rotate(mesh, 0.5);
+  mesh = gt::transform(mesh, gm::Matrix3::Rotation(0.5));
+  EXPECT_EQ(mesh.Size(), 1u);
+
+  auto poly = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1)});
+  g::PolyMesh2D polymesh = g::PolyMesh2D::FromPolygons({poly});
+  polymesh = gt::rotate(polymesh, 0.5);
+  polymesh = gt::transform(polymesh, gm::Matrix3::Rotation(0.5));
+  EXPECT_EQ(polymesh.Size(), 1u);
+
+  g::ConnectedMesh2D cmesh = g::ConnectedMesh2D::FromTriangles({tri});
+  cmesh = gt::rotate(cmesh, 0.5);
+  cmesh = gt::transform(cmesh, gm::Matrix3::Rotation(0.5));
+  EXPECT_EQ(cmesh.Size(), 1u);
+}
+
 #pragma endregion
 
 #pragma region 3D fast-path (Point3D translate/rotate/scale, no matrix)
@@ -633,6 +657,31 @@ TEST(Transformations3DTest, ConnectedMesh_TranslateRotate_PreserveTotalArea) {
   EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
   auto turned = gt::rotate(mesh, 0.7, gm::Vector3(0, 1, 0));
   EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
+}
+
+// Regression test: Mesh3D/PolyMesh3D/ConnectedMesh3D used to declare a copy AND move constructor but no
+// operator= at all, which (per the special-member rules) implicitly deletes copy-assignment too, not just
+// move-assignment -- so `mesh = rotate(mesh, ...)` was a hard compile error. This only needs to compile;
+// area preservation is already covered above.
+TEST(Transformations3DTest, MeshFamily_ReassignmentIdiom_Compiles) {
+  auto tri = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
+  auto axis = gm::Vector3(0, 1, 0);
+
+  g::Mesh3D mesh = g::Mesh3D::FromTriangles({tri});
+  mesh = gt::rotate(mesh, 0.5, axis);
+  mesh = gt::transform(mesh, gm::Matrix4::Rotation(0.5, axis));
+  EXPECT_EQ(mesh.Size(), 1u);
+
+  auto poly = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0)});
+  g::PolyMesh3D polymesh = g::PolyMesh3D::FromPolygons({poly});
+  polymesh = gt::rotate(polymesh, 0.5, axis);
+  polymesh = gt::transform(polymesh, gm::Matrix4::Rotation(0.5, axis));
+  EXPECT_EQ(polymesh.Size(), 1u);
+
+  g::ConnectedMesh3D cmesh = g::ConnectedMesh3D::FromTriangles({tri});
+  cmesh = gt::rotate(cmesh, 0.5, axis);
+  cmesh = gt::transform(cmesh, gm::Matrix4::Rotation(0.5, axis));
+  EXPECT_EQ(cmesh.Size(), 1u);
 }
 
 #pragma endregion

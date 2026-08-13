@@ -38,6 +38,13 @@ class PolyMesh2D {
   PolyMesh2D(PolyMesh2D&&) = default;
   ~PolyMesh2D() = default;
 
+  // Declaring the move constructor above suppresses the implicitly-declared copy assignment operator too
+  // (not just move assignment) -- without these, `mesh = transform(mesh, m)` would not compile. Both are
+  // correct as plain member-wise defaults: all four buffers are shared_ptr, so copy-assignment is just
+  // refcount bumps, not a deep copy.
+  PolyMesh2D& operator=(PolyMesh2D const&) = default;
+  PolyMesh2D& operator=(PolyMesh2D&&) = default;
+
   std::size_t Size() const;  // returns the number of facets
   double Area() const;       // sum of each input polygon's own Area(), independent of welding
 
