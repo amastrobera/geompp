@@ -1108,6 +1108,122 @@ A quick list of code examples per topic is provided here.
 
 </details>
 
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.3.2 Triangle &times; Triangle </b></summary>
+
+  `Triangle2D::Intersection(Triangle2D)` returns the shared region directly: a `Triangle2D` when the
+  overlap happens to be a triangle, or a `Polygon2D` when clipping produces more vertices — as with two
+  triangles overlapping like a hexagram, shown below. `Triangle3D::Intersection(Triangle3D)` instead
+  handles the case where the two triangles' *planes cross* (are neither coincident nor parallel): it
+  returns the `LineSegment3D` chord where both triangles' bounded regions cover the planes' shared line,
+  or `std::nullopt` if that chord falls outside either triangle. Two triangles on the *same* plane use
+  `Overlap()` instead — see section 2.4.1. A mere touching vertex or edge, with no area or chord in
+  common, is not reported by either overload — see section 2.5.1.
+
+  <p align="center">
+    <img src="./images/img_2-3-2-triangle-intersection-2d.png" width="420" alt="Two overlapping triangles forming a hexagram, with their hexagonal Intersection() result filled in gold">
+    <img src="./images/img_2-3-3-triangle-intersection-3d.png" width="420" alt="Two triangles on crossing planes z=0 and y=2 sharing a chord segment where their bounded regions overlap">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "triangle2d.hpp"
+  #include "triangle3d.hpp"
+
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // 2D: two triangles overlapping like a hexagram
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(6, 0), g::Point2D(3, 6));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 4), g::Point2D(6, 4), g::Point2D(3, -2));
+  auto result = A.Intersection(B);
+  if (result && std::holds_alternative<g::Polygon2D>(*result))
+      GEOMPP_LOG(INFO) << std::get<g::Polygon2D>(*result).ToWkt();
+  // POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+
+  // 3D: triangles on crossing planes (z=0 and y=2) — Intersection() returns the shared chord
+  auto A3 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(6, 0, 0), g::Point3D(0, 6, 0));
+  auto B3 = g::Triangle3D::Make(g::Point3D(0, 2, -4), g::Point3D(8, 2, -4), g::Point3D(4, 2, 4));
+  auto chord = A3.Intersection(B3);
+  if (chord && std::holds_alternative<g::LineSegment3D>(*chord))
+      GEOMPP_LOG(INFO) << std::get<g::LineSegment3D>(*chord).ToWkt();
+  // LINESTRING (2 2 0, 4 2 0)
+  ```
+
+  ```bash
+  POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+  LINESTRING (2 2 0, 4 2 0)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  # 2D: two triangles overlapping like a hexagram
+  A = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(6, 0), g.Point2D(3, 6))
+  B = g.Triangle2D.make(g.Point2D(0, 4), g.Point2D(6, 4), g.Point2D(3, -2))
+  result = A.intersection(B)
+  print(result.to_wkt())
+  # POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+
+  # 3D: triangles on crossing planes (z=0 and y=2) — intersection() returns the shared chord
+  A3 = g.Triangle3D.make(g.Point3D(0, 0, 0), g.Point3D(6, 0, 0), g.Point3D(0, 6, 0))
+  B3 = g.Triangle3D.make(g.Point3D(0, 2, -4), g.Point3D(8, 2, -4), g.Point3D(4, 2, 4))
+  chord = A3.intersection(B3)
+  print(chord.to_wkt())
+  # LINESTRING (2 2 0, 4 2 0)
+  ```
+
+  ```
+  POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+  LINESTRING (2 2 0, 4 2 0)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+  G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+  // 2D: two triangles overlapping like a hexagram
+  var A = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(6, 0), new G.Point2D(3, 6));
+  var B = G.Triangle2D.Make(new G.Point2D(0, 4), new G.Point2D(6, 4), new G.Point2D(3, -2));
+  if (A.Intersection(B) is G.Polygon2D poly)
+      Console.WriteLine(poly.ToWkt());
+  // POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+
+  // 3D: triangles on crossing planes (z=0 and y=2) — Intersection() returns the shared chord
+  var A3 = G.Triangle3D.Make(new G.Point3D(0, 0, 0), new G.Point3D(6, 0, 0), new G.Point3D(0, 6, 0));
+  var B3 = G.Triangle3D.Make(new G.Point3D(0, 2, -4), new G.Point3D(8, 2, -4), new G.Point3D(4, 2, 4));
+  var chord = A3.Intersection(B3) as G.LineSegment3D;
+  Console.WriteLine(chord?.ToWkt());
+  // LINESTRING (2 2 0, 4 2 0)
+  ```
+
+  ```
+  POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+  LINESTRING (2 2 0, 4 2 0)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
 </details>
 
 <details open>
@@ -1324,6 +1440,113 @@ A quick list of code examples per topic is provided here.
 
   </details>
 
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.4.1 Triangle &times; Triangle (coplanar) </b></summary>
+
+  `Triangle3D::Overlaps(Triangle3D)` / `Overlap(Triangle3D)` complement `Intersection(Triangle3D)`
+  (section 2.3.2): they handle two triangles that lie on the *same* plane, returning the shared area as
+  a `Triangle3D` or `Polygon3D` — a mere touching vertex or edge, with no interior area in common, does
+  not count (see section 2.5.1). The two triangles' planes must have the *same* normal direction (i.e.
+  matching winding) to be considered the same plane here — a plane and its own reverse face compare
+  unequal, so `Overlap()` returns `std::nullopt` if the input windings disagree even though the
+  triangles are geometrically coplanar.
+
+  `Triangle2D` has no separate `Overlaps`/`Overlap` — in 2D every triangle pair is automatically
+  coplanar, so this coplanar-area case is exactly what `Intersection(Triangle2D)` already computes (the
+  hexagram example in section 2.3.2).
+
+  <p align="center">
+    <img src="./images/img_2-4-2-triangle-overlap-3d.png" width="420" alt="Two coplanar triangles on a tilted plane overlapping like a hexagram, with their hexagonal Overlap() result filled in gold">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "triangle3d.hpp"
+
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Two triangles on the same tilted plane (z = 0.35x), overlapping like a hexagram.
+  // D's vertices are ordered to match C's winding — Overlap() requires matching plane normals.
+  auto C = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(6, 0, 2.1), g::Point3D(3, 6, 1.05));
+  auto D = g::Triangle3D::Make(g::Point3D(0, 4, 0), g::Point3D(3, -2, 1.05), g::Point3D(6, 4, 2.1));
+
+  GEOMPP_LOG(INFO) << C.Overlaps(D);  // 1
+
+  auto ov = C.Overlap(D);
+  if (ov && std::holds_alternative<g::Polygon3D>(*ov))
+      GEOMPP_LOG(INFO) << std::get<g::Polygon3D>(*ov).ToWkt();
+  // POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+  ```bash
+  1
+  POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  # Two triangles on the same tilted plane (z = 0.35x), overlapping like a hexagram.
+  # D's vertices are ordered to match C's winding — overlap() requires matching plane normals.
+  C = g.Triangle3D.make(g.Point3D(0, 0, 0), g.Point3D(6, 0, 2.1), g.Point3D(3, 6, 1.05))
+  D = g.Triangle3D.make(g.Point3D(0, 4, 0), g.Point3D(3, -2, 1.05), g.Point3D(6, 4, 2.1))
+
+  print(C.overlaps(D))  # True
+
+  ov = C.overlap(D)
+  print(ov.to_wkt())
+  # POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+  ```
+  True
+  POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+  G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+  // Two triangles on the same tilted plane (z = 0.35x), overlapping like a hexagram.
+  // D's vertices are ordered to match C's winding — Overlap() requires matching plane normals.
+  var C = G.Triangle3D.Make(new G.Point3D(0, 0, 0), new G.Point3D(6, 0, 2.1), new G.Point3D(3, 6, 1.05));
+  var D = G.Triangle3D.Make(new G.Point3D(0, 4, 0), new G.Point3D(3, -2, 1.05), new G.Point3D(6, 4, 2.1));
+
+  Console.WriteLine(C.Overlaps(D));  // True
+
+  if (C.Overlap(D) is G.Polygon3D poly)
+      Console.WriteLine(poly.ToWkt());
+  // POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+  ```
+  True
+  POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
 </details>
 
 <details open>
@@ -1527,6 +1750,93 @@ A quick list of code examples per topic is provided here.
    </details>
 
   </details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.5.1 Triangle &times; Triangle (contact only) </b></summary>
+
+  Neither `Triangle2D`/`Triangle3D` nor `Polygon2D`/`Polygon3D` has a dedicated `Touches`/`Touch` pair.
+  A mere point or edge contact with no shared area is absorbed into the same result used for "no
+  overlap at all": `Intersects(other)` still reports `true` for a touch (the shapes *do* share a point),
+  but `Intersection(other)` (section 2.3.2) and `Overlaps`/`Overlap` (section 2.4.1) return
+  `std::nullopt` for it — exactly as for two fully disjoint triangles. There is no way to tell the two
+  cases apart from the return value alone; if that distinction matters, check `Intersects()` first. The
+  same rule holds in 3D, whether the touch is between two coplanar triangles (`Overlaps`/`Overlap`) or
+  between two triangles on crossing planes whose chord collapses to a single shared point
+  (`Intersects`/`Intersection`).
+
+  <p align="center">
+    <img src="./images/img_2-5-2-triangle-touch.png" width="420" alt="Two right triangles sharing exactly one vertex, with Intersects() true but Intersection() returning nullopt">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  namespace g = geompp;
+
+  // Two triangles sharing exactly one vertex, (4, 0) — no edge or area overlap
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 4));
+  auto E = g::Triangle2D::Make(g::Point2D(4, 0), g::Point2D(8, 0), g::Point2D(8, 4));
+
+  GEOMPP_LOG(INFO) << A.Intersects(E);                       // 1 (they do share a point)
+  GEOMPP_LOG(INFO) << (A.Intersection(E) == std::nullopt);   // 1 (no area/segment to report)
+  ```
+
+  ```bash
+  1
+  1
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # Two triangles sharing exactly one vertex, (4, 0) — no edge or area overlap
+  A = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(0, 4))
+  E = g.Triangle2D.make(g.Point2D(4, 0), g.Point2D(8, 0), g.Point2D(8, 4))
+
+  print(A.intersects(E))              # True  (they do share a point)
+  print(A.intersection(E) is None)    # True  (no area/segment to report)
+  ```
+
+  ```
+  True
+  True
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // Two triangles sharing exactly one vertex, (4, 0) — no edge or area overlap
+  var A = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(4, 0), new G.Point2D(0, 4));
+  var E = G.Triangle2D.Make(new G.Point2D(4, 0), new G.Point2D(8, 0), new G.Point2D(8, 4));
+
+  Console.WriteLine(A.Intersects(E));           // True  (they do share a point)
+  Console.WriteLine(A.Intersection(E) == null); // True  (no area/segment to report)
+  ```
+
+  ```
+  True
+  True
+  ```
+
+   </details>
+
+  </details>
+
+</details>
 
 </details>
 
@@ -5531,6 +5841,167 @@ A quick list of code examples per topic is provided here.
   deliberate mirror should expect to re-run `IsSimple()`/winding checks before feeding the result back
   through something that assumes CCW-outer/CW-holes.
 
+  All five, before/after, on the same square `S = POLYGON ((1 1, 4 1, 4 4, 1 4))`: dashed cyan is `S`
+  before, solid gold is `S'` after, and the dotted lines connect each vertex to where it lands.
+  `Rotate`/`Scale`/`Reflect` all pivot **about the origin** (marked in salmon where it falls inside the
+  frame) — that's why the square moves even though nothing in the call names a pivot point; there's no
+  "about this point" overload for the fast path or the `Matrix3` factories, so rotating/scaling/
+  reflecting about anywhere else means translating the pivot to the origin first, transforming, then
+  translating back (or composing that into one matrix with `TransformBuilder`/`Combine()`).
+  `Translate`/`Shear` don't reference the origin at all, so it's omitted from those two.
+
+  <p align="center">
+    <img src="./images/img_13-translate-square.png" width="330" alt="A square translated by offset (5, 2)">
+    <img src="./images/img_13-rotate-square.png" width="330" alt="A square rotated 30 degrees about the origin">
+  </p>
+  <p align="center">
+    <img src="./images/img_13-scale-square.png" width="330" alt="A square scaled 1.6x about the origin">
+    <img src="./images/img_13-shear-square.png" width="330" alt="A square sheared into a parallelogram">
+  </p>
+  <p align="center">
+    <img src="./images/img_13-reflect-square.png" width="330" alt="A square reflected across the X axis through the origin, its CCW winding flipped to CW">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples — the square above, one transform at a time</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "transformations.hpp"
+
+  namespace gt = geompp::transformations;
+  namespace gm = geompp::maths;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  auto square = g::Polygon2D::Make({
+      g::Point2D(1, 1), g::Point2D(4, 1), g::Point2D(4, 4), g::Point2D(1, 4)});
+
+  auto translated = gt::transform(square, gm::Matrix3::Translation(gm::Vector2(5, 2)));
+  GEOMPP_LOG(INFO) << translated.ToWkt();
+  // POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+
+  auto rotated = gt::transform(square, gm::Matrix3::Rotation(std::numbers::pi / 6.0));  // 30°, about the origin
+  GEOMPP_LOG(INFO) << rotated.ToWkt();
+  // POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+
+  auto scaled = gt::transform(square, gm::Matrix3::Scale(1.6));  // about the origin
+  GEOMPP_LOG(INFO) << scaled.ToWkt();
+  // POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+
+  auto sheared = gt::transform(square, gm::Matrix3::Shear(0.5, 0.0));  // x' = x + 0.5*y
+  GEOMPP_LOG(INFO) << sheared.ToWkt();
+  // POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+
+  // Reflection flips a CCW ring to CW -- see the note above.
+  auto reflected = gt::transform(square, gm::Matrix3::Reflection(gm::Vector2(0, 1)));  // across the X axis
+  GEOMPP_LOG(INFO) << reflected.ToWkt();
+  // POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+  ```bash
+  POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+  POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+  POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+  POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+  POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import math
+  import geompp
+  from geompp import maths, transformations as tf
+
+  geompp.set_decimal_precision(geompp.DP_THREE)
+
+  square = geompp.Polygon2D.make([
+      geompp.Point2D(1, 1), geompp.Point2D(4, 1), geompp.Point2D(4, 4), geompp.Point2D(1, 4)])
+
+  translated = tf.transform(square, maths.Matrix3.translation(maths.Vector2(5, 2)))
+  print(translated.to_wkt())
+  # POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+
+  rotated = tf.transform(square, maths.Matrix3.rotation(math.pi / 6))  # 30°, about the origin
+  print(rotated.to_wkt())
+  # POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+
+  scaled = tf.transform(square, maths.Matrix3.scale(1.6))  # about the origin
+  print(scaled.to_wkt())
+  # POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+
+  sheared = tf.transform(square, maths.Matrix3.shear(0.5, 0.0))  # x' = x + 0.5*y
+  print(sheared.to_wkt())
+  # POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+
+  # Reflection flips a CCW ring to CW -- see the note above.
+  reflected = tf.transform(square, maths.Matrix3.reflection(maths.Vector2(0, 1)))  # across the X axis
+  print(reflected.to_wkt())
+  # POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+  ```
+  POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+  POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+  POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+  POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+  POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using GeomPP;
+  using GeomPP.Maths;
+  using GeomPP.Transformations;
+
+  Precision.DecimalPrecision = Precision.DP_THREE;
+
+  var square = Polygon2D.Make(new Point2D[] {
+      new(1, 1), new(4, 1), new(4, 4), new(1, 4) });
+
+  var translated = Transform.Apply(square, Matrix3.Translation(new Vector2(5, 2)));
+  Console.WriteLine(translated.ToWkt());
+  // POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+
+  var rotated = Transform.Apply(square, Matrix3.Rotation(Math.PI / 6.0));  // 30°, about the origin
+  Console.WriteLine(rotated.ToWkt());
+  // POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+
+  var scaled = Transform.Apply(square, Matrix3.Scale(1.6));  // about the origin
+  Console.WriteLine(scaled.ToWkt());
+  // POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+
+  var sheared = Transform.Apply(square, Matrix3.Shear(0.5, 0.0));  // x' = x + 0.5*y
+  Console.WriteLine(sheared.ToWkt());
+  // POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+
+  // Reflection flips a CCW ring to CW -- see the note above.
+  var reflected = Transform.Apply(square, Matrix3.Reflection(new Vector2(0, 1)));  // across the X axis
+  Console.WriteLine(reflected.ToWkt());
+  // POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+  ```
+  POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+  POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+  POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+  POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+  POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+   </details>
+
+  </details>
+
   A worked example, using a right triangle: `TRIANGLE (0 0 0, 4 0 0, 0 3 0)`, area 6. Applying
   `TransformBuilder().Translate((5, 2, 0)).Rotate(30°, Z axis)` — a translation, then a 30° rotation
   about the Z axis applied to the *already-translated* triangle:
@@ -5543,8 +6014,8 @@ A quick list of code examples per topic is provided here.
   The area is unchanged — translation and rotation are both rigid (distance- and angle-preserving), so
   the triangle above is congruent to the original, just relocated and reoriented; only `Scale()` (or a
   `Combine()`d matrix with a non-unit determinant) changes area, by a factor of the scale squared in 2D
-  (cubed for volume in 3D). *(Space reserved for a before/after picture of this triangle, in the same
-  style as the ear-clipping/triangulation figures earlier in this doc — not yet captured.)*
+  (cubed for volume in 3D). *(The five square figures above each isolate a single transform; a
+  before/after picture of this specific translate-then-rotate composition is still not captured.)*
 
   <details closed>
   <summary><b> &nbsp; &nbsp; Samples</b></summary>

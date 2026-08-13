@@ -45,6 +45,7 @@ or in your `.csproj`:
 | Platform | .Net | .Net Framework |
 |---|---|---|
 | Windows x64  | 8 · 9 · 10 | 4.8 |
+||||
 
 
 ## Platform note
@@ -55,7 +56,47 @@ GeomPP is built with C++/CLI and is **Windows x64 only**. It will not run on Lin
 ---
 
 
-## Classes
+## Test Coverage
+
+This is the summary of the current test coverage. More on [test coverage](https://github.com/amastrobera/geompp/blob/master/test_coverage_report.md).
+
+| Metric | Count | Notes |
+|--------|-------|-------|
+| Public methods (C++) | ~491 | Excl. ctors/dtors/operators |
+| C++ methods tested | ~469/491 | ~95% (909 TEST cases, 907 run, 2 disabled) |
+| Python methods tested | 423/443 | ~95% (742 pytest cases) |
+| C# methods tested | 482/549 | ~88% (846 harness tests) |
+| Stubs (not yet impl.) | 0 | Previously 10 — all now implemented (see test_coverage_report.md) |
+||||
+
+
+---
+
+## How to use it
+
+You can look at the [test suite](./tests/) to see detailed usage. 
+
+A quick list of code examples per topic is provided here.
+
+👉 [Visual Documentation and Code Examples on Github](https://github.com/amastrobera/geompp/blob/master/visual_doc_and_sample_code.md)
+
+
+---
+
+## What it provides
+
+### Serialization
+
+All primitives support:
+- **WKT** (Well-Known Text) — `ToWkt()` / `FromWkt()` for standard text interchange
+- **Binary file I/O** — `ToFile()` / `FromFile()` for compact storage
+
+### Precision
+
+Floating-point comparisons use a thread-local `DECIMAL_PRECISION` constant via `AlmostEquals()` methods, making the library robust against rounding errors while remaining configurable per thread.
+
+
+### Classes
 
 Where not explicitely specified, both 2D and 3D variants are available for all core types:
 
@@ -78,9 +119,10 @@ Where not explicitely specified, both 2D and 3D variants are available for all c
 | `Mesh`           | A set of adjacent triangles that together make up a detailed 2D or 3D shape (**a surface or a solid**)|
 | `ConnectedMesh`  | This one keeps track of the neighbors of each triangle, so that going from a facet to its 0-3 neighbors is very quick|
 | `PolyMesh`       | Not just triangles, also polygons are allowed, in order to save on the number of vertices on the same planar regions of the surface|
+|||
 
 
-## Algorithm overview
+### Algorithm overview
 
 Each class supports a consistent set of spatial operations where applicable:
 
@@ -103,7 +145,7 @@ Each class supports a consistent set of spatial operations where applicable:
 
 Intersection-style methods return `object` (`null` on no intersection) — see the pattern-matching example above.
 
-## Free functions
+### Free functions
 
 `GeomUtil` is a static class wrapping the geompp free functions that operate on point/segment lists
 directly, without needing a class instance first:
@@ -131,41 +173,9 @@ directly, without needing a class instance first:
 | `GeomUtil.DistanceTo(polygon, line)` | Distance from a polygon to a line (zero if they intersect) |
 | `GeomUtil.TangentsTo(polygon, pointOrPolygon)` | Tangent segments from a point to a polygon, or common outer tangents between two polygons |
 | `GeomUtil.Triangulate(polygons, settings)` | Returns a set of adjacent triangles replacing the surface of 1+ polygons (the engine behind `Polygon::Triangulate()` and `PolyMesh::Triangulate()`), and with a robust input validation |
+|||
 
 
-## Serialization
-
-All primitives support:
-- **WKT** (Well-Known Text) — `ToWkt()` / `FromWkt()` for standard text interchange
-- **Binary file I/O** — `ToFile()` / `FromFile()` for compact storage
-
-## Precision
-
-Floating-point comparisons use a thread-local `DECIMAL_PRECISION` constant via `AlmostEquals()` methods, making the library robust against rounding errors while remaining configurable per thread.
-
-
-## Test Coverage
-
-This is the summary of the current test coverage. More on [test coverage](https://github.com/amastrobera/geompp/blob/master/test_coverage_report.md).
-
-| Metric | Count | Notes |
-|--------|-------|-------|
-| Public methods (C++) | ~491 | Excl. ctors/dtors/operators |
-| C++ methods tested | ~469/491 | ~95% (909 TEST cases, 907 run, 2 disabled) |
-| Python methods tested | 423/443 | ~95% (742 pytest cases) |
-| C# methods tested | 482/549 | ~88% (846 harness tests) |
-| Stubs (not yet impl.) | 0 | Previously 10 — all now implemented (see test_coverage_report.md) |
-
-
----
-
-## How to use it
-
-You can look at the [test suite](./tests/) to see detailed usage. 
-
-A quick list of code examples per topic is provided here.
-
-👉 [Visual Documentation and Code Examples on Github](https://github.com/amastrobera/geompp/blob/master/visual_doc_and_sample_code.md)
 
 
 
