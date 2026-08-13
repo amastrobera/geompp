@@ -582,7 +582,11 @@ std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vecto
       outer2d.emplace_back(view.x(outer[i]), view.y(outer[i]));
     }
   }
-  bool flipped = compare(signed_area(outer2d), 0.0) < 0;
+  // Qualified as geompp::signed_area (not a plain unqualified call): this function lives inside namespace
+  // detail, so an unqualified call would be ambiguous between this scope's own detail::signed_area and the
+  // public one pulled in via ADL on Point2D -- and outer2d/ring below are never proven collinear-free, so
+  // the full remove_collinear-checking public path is the correct one to use anyway.
+  bool flipped = compare(geompp::signed_area(outer2d), 0.0) < 0;
 
   std::vector<std::vector<Point2D>> interior_rings;
   interior_rings.reserve(rings.size());
@@ -593,7 +597,7 @@ std::vector<std::vector<Point2D>> simplify_rings(Points const& outer, std::vecto
     // Caught per-ring (matches what every caller of this function used to do individually) so one
     // degenerate trace doesn't take down the whole decomposition.
     try {
-      double sa = signed_area(ring);
+      double sa = geompp::signed_area(ring);
       bool is_interior = flipped ? compare(sa, 0.0) > 0 : compare(sa, 0.0) < 0;
       if (!is_interior) {
         continue;  // the single unbounded outside face (or a degenerate zero-area trace)
@@ -675,7 +679,11 @@ Point2D interior_sample_point(std::vector<Point2D> const& ring) {
   Point2D const& p1 = ring[(best_i + 1) % n];
   Vector2D dir = (p1 - p0).Normalize();
   Vector2D normal = dir.Perp();  // left normal — interior side for a CCW ring
-  if (!are_ccw(ring)) {
+  // Qualified as geompp::are_ccw (not a plain unqualified call): `ring` here is a boolean-op result ring,
+  // not proven collinear-free, so this must stay on the full remove_collinear-checking public path -- and
+  // since this function itself lives inside namespace detail, an unqualified call would be ambiguous
+  // between this scope's detail::are_ccw and the public one pulled in via ADL on Point2D.
+  if (!geompp::are_ccw(ring)) {
     normal = -normal;  // interior is to the right for a CW ring
   }
   Point2D mid = LineSegment2D::Make(p0, p1).Interpolate(0.5);
@@ -928,16 +936,19 @@ std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> 
     }
   }
 
+  // Qualified as geompp::are_ccw for the same reason as interior_sample_point() above: rings[i] isn't
+  // proven collinear-free, and an unqualified call here (inside namespace detail) would be ambiguous with
+  // this scope's own detail::are_ccw.
   std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> result;
   std::map<int, std::size_t> outer_index;
   for (int i = 0; i < n; ++i) {
-    if (depth[i] % 2 == 0 && are_ccw(rings[i])) {
+    if (depth[i] % 2 == 0 && geompp::are_ccw(rings[i])) {
       outer_index[i] = result.size();
       result.push_back({rings[i], {}});
     }
   }
   for (int i = 0; i < n; ++i) {
-    if (depth[i] % 2 == 1 && !are_ccw(rings[i])) {
+    if (depth[i] % 2 == 1 && !geompp::are_ccw(rings[i])) {
       auto it = outer_index.find(parent[i]);
       if (it != outer_index.end()) {
         result[it->second].second.push_back(rings[i]);
@@ -1311,17 +1322,21 @@ template <PointContainer Points, Point P>
 std::vector<std::pair<double, double>> compute_parametric_intersection_intervals(
     Points const& outer_coplanar_ccw, std::vector<Points> const& holes_coplanar_cw, bool is_convex_input,
     P const& line_p0, P const& line_p1, View2D const& view) {
-  // Debug-mode invariant checks. Disabled in Release (NDEBUG defined).
-  assert(are_ccw(outer_coplanar_ccw));
+  // Debug-mode invariant checks. Disabled in Release (NDEBUG defined). Qualified as geompp::are_ccw/
+  // are_coplanar/are_cw (not plain unqualified calls): this function lives inside namespace detail, so an
+  // unqualified call would be ambiguous between this scope's own detail:: overloads and the public ones
+  // pulled in via ADL on Points::value_type -- and these asserts exist specifically to VERIFY the
+  // collinear-free/CCW/coplanar invariant the caller claims, so the full-checking public path is correct.
+  assert(geompp::are_ccw(outer_coplanar_ccw));
   if constexpr (std::is_same_v<typename Points::value_type, Point3D>) {
-    assert(are_coplanar(outer_coplanar_ccw));
+    assert(geompp::are_coplanar(outer_coplanar_ccw));
   }
   assert(!is_convex_input || is_convex(outer_coplanar_ccw, view));
   assert(!is_convex_input || holes_coplanar_cw.empty());
   for (auto const& hole : holes_coplanar_cw) {
-    assert(are_cw(hole));
+    assert(geompp::are_cw(hole));
     if constexpr (std::is_same_v<typename Points::value_type, Point3D>) {
-      assert(are_coplanar(hole));
+      assert(geompp::are_coplanar(hole));
     }
   }
 

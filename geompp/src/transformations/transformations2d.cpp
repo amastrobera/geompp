@@ -1,5 +1,6 @@
 #include "transformations/transformations2d.hpp"
 
+#include <algorithm>
 #include <variant>
 
 namespace geompp::transformations {
@@ -52,15 +53,46 @@ std::vector<geometry::Point2D> transform_ring(std::vector<geometry::Point2D> con
 }  // namespace
 
 geometry::Polygon2D transform(geometry::Polygon2D const& poly, maths::Matrix3 const& m) {
-  if (!poly.HasHoles()) {
-    return geometry::Polygon2D::Make(transform_ring(poly.Perimeter(), m));
+  // A homogeneous 3x3 affine matrix's determinant equals its 2x2 linear submatrix's determinant (the
+  // bottom row [0,0,1] doesn't contribute), so this is exactly the sign that governs whether the
+  // transform preserves or flips orientation -- positive: rotation/uniform-or-non-uniform positive
+  // scale/shear all preserve CCW-outer/CW-hole winding; negative: a reflection (or any odd combination of
+  // negative scale factors) flips it. compare(det, 0) == 0 means a genuinely degenerate/singular
+  // transform (e.g. Scale(0, 1)) -- winding isn't reliably classifiable there, so that case falls back to
+  // the fully-validated Make() path instead of the fast one below.
+  double det = m.Determinant();
+  if (compare(det, 0.0) == 0) {
+    if (!poly.HasHoles()) {
+      return geometry::Polygon2D::Make(transform_ring(poly.Perimeter(), m));
+    }
+    std::vector<std::vector<geometry::Point2D>> holes;
+    holes.reserve(poly.Holes().size());
+    for (auto const& hole : poly.Holes()) {
+      holes.push_back(transform_ring(hole, m));
+    }
+    return geometry::Polygon2D::Make(transform_ring(poly.Perimeter(), m), holes);
   }
+
+  auto outer = transform_ring(poly.Perimeter(), m);
   std::vector<std::vector<geometry::Point2D>> holes;
   holes.reserve(poly.Holes().size());
   for (auto const& hole : poly.Holes()) {
     holes.push_back(transform_ring(hole, m));
   }
-  return geometry::Polygon2D::Make(transform_ring(poly.Perimeter(), m), holes);
+  if (det < 0) {
+    // Reversing both the outer ring AND every hole (not just the outer) is what keeps them correctly
+    // opposite each other post-transform: both windings flip under a reflection, so both need reversing
+    // to land back on CCW-outer/CW-hole.
+    std::reverse(outer.begin(), outer.end());
+    for (auto& hole : holes) {
+      std::reverse(hole.begin(), hole.end());
+    }
+  }
+
+  if (holes.empty()) {
+    return geometry::Polygon2D::FromUniqueCCWPoints(std::move(outer), poly.IsConvex());
+  }
+  return geometry::Polygon2D::FromUniqueCCWPoints(std::move(outer), std::move(holes), poly.IsConvex());
 }
 
 geometry::Mesh2D transform(geometry::Mesh2D const& mesh, maths::Matrix3 const& m) {

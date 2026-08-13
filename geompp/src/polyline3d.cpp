@@ -252,15 +252,18 @@ std::optional<std::vector<Point3D>> Polyline3D::Intersection(Polyline3D const& o
   return intersections;
 }
 
-bool Polyline3D::IsPlanar() const { return are_coplanar(KNOTS); }
+// KNOTS is already collinear-free (deduplicated once at construction, never mutated after), so the
+// detail:: overload skips redoing that pass.
+bool Polyline3D::IsPlanar() const { return detail::are_coplanar(KNOTS); }
 
 bool Polyline3D::IsSimple() const {
   if (!IsPlanar()) {
     throw std::logic_error("Polyline3D::IsSimple — polyline is not planar");
   }
 
-  // project onto the best-fit plane and check for 2D self-intersections
-  auto no_col = remove_collinear(KNOTS);
+  // project onto the best-fit plane and check for 2D self-intersections. KNOTS is already collinear-free
+  // (deduplicated once at construction, never mutated after), so no remove_collinear() pass is needed here.
+  auto const& no_col = KNOTS;
   Vector3D calc_normal = (no_col[1] - no_col[0]).Cross(no_col[2] - no_col[0]);
   Axis dax = calc_normal.DominantAxis();
 
@@ -294,8 +297,10 @@ bool Polyline3D::IsConvex() const {
     return false;
   }
 
-  // project onto 2D using the dominant normal axis, then check all cross products have the same sign
-  auto no_col = remove_collinear(KNOTS);
+  // project onto 2D using the dominant normal axis, then check all cross products have the same sign.
+  // KNOTS is already collinear-free (deduplicated once at construction, never mutated after), so no
+  // remove_collinear() pass is needed here -- the size check below still applies to KNOTS itself.
+  auto const& no_col = KNOTS;
   if (no_col.size() < 3) {
     return false;
   }

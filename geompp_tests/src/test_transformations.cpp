@@ -113,6 +113,36 @@ TEST(Transformations2DTest, TransformPolygon_WithHoles_PreservesAreaUnderRigidTr
   EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
 }
 
+// Regression: transform() used to hand the raw (now CW) reflected ring straight to Make(), which throws
+// on non-CCW input -- reflecting a Polygon2D via transform() used to be impossible. It now detects the
+// negative determinant and reverses the ring(s) before construction, so this succeeds.
+TEST(Transformations2DTest, TransformPolygon_Reflection_SucceedsAndPreservesArea) {
+  auto poly = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 3), g::Point2D(0, 3)});
+  auto moved = gt::transform(poly, gm::Matrix3::Reflection(gm::Vector2(1, 0)));
+  EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+}
+
+TEST(Transformations2DTest, TransformPolygon_WithHoles_Reflection_SucceedsAndPreservesAreaAndContainment) {
+  auto poly = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)},
+                                 {{g::Point2D(1, 1), g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1)}});
+  auto moved = gt::transform(poly, gm::Matrix3::Reflection(gm::Vector2(1, 0)));
+  EXPECT_TRUE(moved.HasHoles());
+  EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+  EXPECT_TRUE(moved.IsSimple());
+  // Reflecting across the Y axis (normal (1,0)) negates x: the hole (originally x in [1,3]) now sits at
+  // x in [-3,-1] -- still correctly a hole (excluded), with the surrounding ring still correctly included.
+  EXPECT_FALSE(moved.Contains(g::Point2D(-2, 2)));  // inside the (now-mirrored) hole
+  EXPECT_TRUE(moved.Contains(g::Point2D(-0.5, 2)));  // inside the donut ring
+}
+
+TEST(Transformations2DTest, TransformPolygon_DegenerateTransform_FallsBackAndThrows) {
+  auto poly = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 3), g::Point2D(0, 3)});
+  // Scale(0, 1) collapses the square onto a zero-width segment -- singular (det == 0), so transform()
+  // must fall back to the fully-validated slow path, which correctly rejects the collapsed input rather
+  // than silently producing a degenerate "polygon".
+  EXPECT_THROW(gt::transform(poly, gm::Matrix3::Scale(0.0, 1.0)), std::runtime_error);
+}
+
 TEST(Transformations2DTest, TransformMesh_PreservesTotalAreaUnderRigidTransform) {
   auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
@@ -382,6 +412,40 @@ TEST(Transformations3DTest, TransformPolygon_WithHoles_PreservesAreaUnderRigidTr
   auto moved = gt::transform(poly, m);
   EXPECT_TRUE(moved.HasHoles());
   EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+}
+
+// Regression: a plain rotation used to be able to spuriously throw (see the Polygon3D winding-invariance
+// fix) -- and separately, transform() used to hand a reflected (winding-flipped) ring straight to Make(),
+// which throws on the "wrong" winding, making reflection of a Polygon3D via transform() impossible.
+TEST(Transformations3DTest, TransformPolygon_RotationAboutNonPrincipalAxis_DoesNotThrow) {
+  auto poly = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  // This specific axis (X) is exactly the one that used to spuriously throw for a normal-+Z square: the
+  // rotated normal lands Y-dominant but negative, which the old world-axis-snap heuristic silently flipped.
+  auto moved = gt::transform(poly, gm::Matrix4::Rotation(std::numbers::pi / 2.0, gm::Vector3(1, 0, 0)));
+  EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+}
+
+TEST(Transformations3DTest, TransformPolygon_Reflection_SucceedsAndPreservesArea) {
+  auto poly = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 3, 0), g::Point3D(0, 3, 0)});
+  auto moved = gt::transform(poly, gm::Matrix4::Reflection(gm::Vector3(1, 0, 0)));
+  EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+}
+
+TEST(Transformations3DTest, TransformPolygon_WithHoles_Reflection_SucceedsAndPreservesAreaAndContainment) {
+  auto poly =
+      g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)},
+                         {{g::Point3D(1, 1, 0), g::Point3D(1, 3, 0), g::Point3D(3, 3, 0), g::Point3D(3, 1, 0)}});
+  auto moved = gt::transform(poly, gm::Matrix4::Reflection(gm::Vector3(1, 0, 0)));
+  EXPECT_TRUE(moved.HasHoles());
+  EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+  EXPECT_TRUE(moved.IsSimple());
+  EXPECT_FALSE(moved.Contains(g::Point3D(-2, 2, 0)));    // inside the (now-mirrored) hole
+  EXPECT_TRUE(moved.Contains(g::Point3D(-0.5, 2, 0)));   // inside the donut ring
+}
+
+TEST(Transformations3DTest, TransformPolygon_DegenerateTransform_FallsBackAndThrows) {
+  auto poly = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 3, 0), g::Point3D(0, 3, 0)});
+  EXPECT_THROW(gt::transform(poly, gm::Matrix4::Scale(0.0, 1.0, 1.0)), std::runtime_error);
 }
 
 TEST(Transformations3DTest, TransformMesh_PreservesTotalAreaUnderRigidTransform) {

@@ -64,7 +64,9 @@ Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points) {
         DECIMAL_PRECISION));
   }
 
-  if (!are_ccw(unique_points)) {
+  // unique_points is already collinear-free here -- Make() (the only caller) just ran remove_collinear()
+  // on it -- so the collinear-free-assuming detail:: overload skips redoing that pass.
+  if (!detail::are_ccw(unique_points)) {
     throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
@@ -86,7 +88,9 @@ Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points, std::v
         DECIMAL_PRECISION));
   }
 
-  if (!are_ccw(unique_points)) {
+  // unique_points is already collinear-free here -- Make() (the only caller) just ran remove_collinear()
+  // on it -- so the collinear-free-assuming detail:: overload skips redoing that pass.
+  if (!detail::are_ccw(unique_points)) {
     throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
   }
 
@@ -109,7 +113,9 @@ Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points, std::v
       throw std::runtime_error("cannot create polygon hole with self-intersections");
     }
 
-    if (!are_cw(unique_hole_points)) {
+    // unique_hole_points was just deduplicated above (remove_collinear), so the detail:: overload can
+    // skip redoing that pass.
+    if (!detail::are_cw(unique_hole_points)) {
       throw std::runtime_error("cannot create polygon holes in anti-clock-wise order");
     }
 
@@ -191,6 +197,94 @@ Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points, std::v
   return {std::move(unique_points), perimeter, std::move(unique_holes_points), is_poly_convex};
 }
 
+Polygon2D Polygon2D::FromUniqueCCWPoints(std::vector<Point2D> unique_points, bool is_convex) {
+  if (unique_points.size() < 3) {
+    throw std::runtime_error(std::format(
+        "cannot create polygon with less than 3 unique points; points  are too close with {} decimals precision",
+        DECIMAL_PRECISION));
+  }
+
+  double perimeter = 0;
+  int n0 = unique_points.size();
+  for (int i = 0; i < n0; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % n0]);
+  }
+
+  return {std::move(unique_points), perimeter, is_convex};
+}
+
+Polygon2D Polygon2D::FromUniqueCCWPoints(std::vector<Point2D> unique_points, std::vector<std::vector<Point2D>> holes,
+                                         bool is_convex) {
+  if (unique_points.size() < 3) {
+    throw std::runtime_error(std::format(
+        "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
+        DECIMAL_PRECISION));
+  }
+
+  std::vector<std::vector<Point2D>>& unique_holes_points = holes;
+  for (auto const& unique_hole_points : unique_holes_points) {
+    if (unique_hole_points.size() < 3) {
+      throw std::runtime_error(std::format(
+          "cannot create hole with less than 3 unique points; points are too close with {} decimals precision",
+          DECIMAL_PRECISION));
+    }
+
+    // Winding (are_ccw()/are_cw()) and collinear-cleanup are skipped here -- see this method's doc comment
+    // -- but self-intersection/containment are geometric relationships between rings, not affine-invariant
+    // under every transform (a degenerate one could in principle change them), so they're re-checked in
+    // full, same as FromUniquePoints().
+    if (detail::has_intersections(SegmentRange2D(unique_hole_points, true))) {
+      throw std::runtime_error("cannot create polygon hole with self-intersections");
+    }
+  }
+
+  for (std::size_t i = 0; i < unique_holes_points.size(); ++i) {
+    for (std::size_t j = i + 1; j < unique_holes_points.size(); ++j) {
+      auto combined = ring_segments(unique_holes_points[i]);
+      auto seg_j = ring_segments(unique_holes_points[j]);
+      combined.insert(combined.end(), seg_j.begin(), seg_j.end());
+      if (has_intersections(combined)) {
+        GEOMPP_LOG(ERROR) << "invalid polygon: hole " << i << " intersects hole " << j;
+        throw std::runtime_error("cannot create polygon with intersecting holes");
+      }
+    }
+  }
+
+  if (!unique_holes_points.empty()) {
+    auto outer_segs = ring_segments(unique_points);
+    for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
+      auto hole_segs = ring_segments(unique_holes_points[h]);
+      for (auto const& outer_seg : outer_segs) {
+        for (auto const& hole_seg : hole_segs) {
+          if (strictly_crosses(outer_seg, hole_seg)) {
+            GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " intersects the outer loop";
+            throw std::runtime_error("cannot create polygon with a hole that intersects the outer loop");
+          }
+        }
+      }
+    }
+  }
+
+  for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
+    auto const& p = unique_holes_points[h].front();
+    bool contained =
+        detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(), p.x(), p.y()) ||
+        detail::view::polygon_contains(unique_points, std::vector<std::vector<Point2D>>{}, View2D::XY(), p.x(), p.y());
+    if (!contained) {
+      GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
+      throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
+    }
+  }
+
+  double perimeter = 0;
+  int nh = unique_points.size();
+  for (int i = 0; i < nh; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % nh]);
+  }
+
+  return {std::move(unique_points), perimeter, std::move(unique_holes_points), is_convex};
+}
+
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points) { return FromUniquePoints(remove_collinear(points)); }
 
 Polygon2D Polygon2D::Make(std::vector<Point2D>&& points) {
@@ -253,7 +347,9 @@ Point2D Polygon2D::Centroid() const {
 
   if (outer_simple && HOLES.empty()) {
     // Common case, preserved as an exact shortcut: single region, no weighted average needed.
-    return centroid(VERTICES);
+    // VERTICES is already collinear-free (a class invariant maintained since construction), so the
+    // detail:: overload skips redoing that pass.
+    return detail::centroid(VERTICES);
   }
 
   // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)
@@ -262,8 +358,8 @@ Point2D Polygon2D::Centroid() const {
   double wy = 0.0;
 
   if (outer_simple) {
-    Point2D cs = centroid(VERTICES);
-    double sa = signed_area(VERTICES);
+    Point2D cs = detail::centroid(VERTICES);
+    double sa = detail::signed_area(VERTICES);
     total_sa = sa;
     wx = sa * cs.x();
     wy = sa * cs.y();
@@ -284,10 +380,11 @@ Point2D Polygon2D::Centroid() const {
   }
 
   // Holes are always individually simple (Make() rejects a self-intersecting hole outright), so this is
-  // always a direct, correct subtraction — hole areas are negative (CW), so they subtract.
+  // always a direct, correct subtraction — hole areas are negative (CW), so they subtract. Each hole is
+  // already collinear-free (same class invariant as VERTICES), so detail:: is used here too.
   for (auto const& hole : HOLES) {
-    double sa_h = signed_area(hole);
-    Point2D c_h = centroid(hole);
+    double sa_h = detail::signed_area(hole);
+    Point2D c_h = detail::centroid(hole);
     total_sa += sa_h;
     wx += sa_h * c_h.x();
     wy += sa_h * c_h.y();
@@ -300,14 +397,16 @@ double Polygon2D::Area() const {
   // Holes are always individually simple now — Make() rejects a self-intersecting hole outright (see its
   // own comment) — so this direct shoelace sum is always correct however the OUTER ring turns out; holes
   // never need decomposing or recursing into, unlike VERTICES below. O(N_holes) total.
+  // HOLES/VERTICES are already collinear-free (class invariant maintained since construction), so the
+  // detail:: overload skips redoing that pass.
   double total_hole_area = 0.0;
   for (auto const& hole : HOLES) {
-    total_hole_area += signed_area(hole);  // guaranteed CW (negative) by Make()
+    total_hole_area += detail::signed_area(hole);  // guaranteed CW (negative) by Make()
   }
 
   // FAST PATH: outer ring is simple too — pure O(n) shoelace, no decomposition at all.
   if (!detail::has_intersections(ToSegments())) {
-    return signed_area(VERTICES) + total_hole_area;
+    return detail::signed_area(VERTICES) + total_hole_area;
   }
 
   // SLOW PATH: self-intersecting outer ring (e.g. a bowtie) — decompose it, and ONLY it (holes are already

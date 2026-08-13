@@ -195,13 +195,16 @@ bool operator==(Plane const& lhs, Plane const& rhs) { return lhs.AlmostEquals(rh
 
 #pragma region Collection Operations
 
-namespace {
 // Newell's method (M. Newell, Utah — the standard industry technique for a robust polygon normal):
 // accumulates a per-edge contribution across EVERY edge of the ring, rather than trusting a single triple
 // of points to define it. No single vertex (reflex, near-collinear, or otherwise) can dominate the
 // result, unlike building the normal from just points[0..2] — for an exactly-planar, non-degenerate input
 // the two agree exactly, but Newell's stays well-conditioned on inputs where a single arbitrary triple
-// might not (see are_coplanar()'s call site).
+// might not (see are_coplanar()'s call site). Exposed (not file-local) so callers who need a single
+// consistent reference plane for MULTIPLE checks (e.g. Polygon3D::FromUniquePoints computing one
+// outer_plane and reusing it for both are_coplanar() and are_ccw()) can compute it once and pass it
+// through explicitly, rather than each check silently re-deriving its own -- see CHANGELOG for the
+// winding bug that motivated pulling this out from behind are_coplanar()'s wall.
 Vector3D newell_normal(std::vector<Point3D> const& points) {
   double nx = 0.0, ny = 0.0, nz = 0.0;
   std::size_t n = points.size();
@@ -214,19 +217,20 @@ Vector3D newell_normal(std::vector<Point3D> const& points) {
   }
   return Vector3D(nx, ny, nz);
 }
-}  // namespace
 
-bool are_coplanar(std::vector<Point3D> const& points) {
-  auto unique_points = remove_collinear(points);
+namespace detail {
+
+bool are_coplanar(std::vector<Point3D> const& unique_points, std::optional<Plane> plane) {
   if (unique_points.size() < 4) {
     return true;
   }
 
-  auto normal = newell_normal(unique_points);
+  Vector3D normal = plane.has_value() ? plane->normal() : newell_normal(unique_points);
+  Point3D origin = plane.has_value() ? plane->origin() : unique_points[0];
 
-  // if normal and Pi-P0 are not orthogonal, then the point is not in the plane the rest of the ring defines
-  for (std::size_t i = 1; i < unique_points.size(); ++i) {
-    if (compare(normal.Dot(unique_points[i] - unique_points[0]), 0) != 0) {
+  // if normal and Pi-origin are not orthogonal, then the point is not in the plane the rest of the ring defines
+  for (std::size_t i = 0; i < unique_points.size(); ++i) {
+    if (compare(normal.Dot(unique_points[i] - origin), 0) != 0) {
       return false;
     }
   }
@@ -234,8 +238,7 @@ bool are_coplanar(std::vector<Point3D> const& points) {
   return true;
 }
 
-Plane closest_world_plane_to(std::vector<Point3D> const& points) {
-  auto unique_points = remove_collinear(points);
+Plane closest_world_plane_to(std::vector<Point3D> const& unique_points) {
   if (unique_points.size() < 3) {
     throw std::runtime_error("closest_world_plane_to requires at least 3 non-collinear points");
   }
@@ -257,6 +260,18 @@ Plane closest_world_plane_to(std::vector<Point3D> const& points) {
   return Plane::FromOriginAndNormal(Point3D::Zero(), world_normal);
 }
 
+}  // namespace detail
+
+bool are_coplanar(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return detail::are_coplanar(remove_collinear(points), plane);
+}
+
+Plane closest_world_plane_to(std::vector<Point3D> const& points) {
+  return detail::closest_world_plane_to(remove_collinear(points));
+}
+
+namespace detail {
+
 // Snyder & Barr [1987] approach: pick the dominant normal axis, and project the polygon there
 //                                (simple drop of coordinate)
 //                                then compute the 2D signed area, and multiply by the normal
@@ -265,16 +280,18 @@ Plane closest_world_plane_to(std::vector<Point3D> const& points) {
 //       the 2D signed area function, thus avoiding code-redundancy. However, we preferred to invest in
 //       performance, avoiding the filling of a vector of 2D points and calling many constructors, I
 //       re-wrote the shoelace formuala in 3D.
-double signed_area(std::vector<Point3D> const& points, std::optional<Plane> plane) {
-  auto unique_points = remove_collinear(points);
+double signed_area(std::vector<Point3D> const& unique_points, std::optional<Plane> plane) {
   if (unique_points.size() < 3) {
     throw std::runtime_error(
         std::format("cannot compute area of a set of points with less than 3 unique points; points are too close with "
                     "{} decimals precision",
                     DECIMAL_PRECISION));
   }
+  // Qualified as detail::closest_world_plane_to (not a plain unqualified call) so ADL on Point3D's
+  // enclosing geompp::geometry namespace can't pull in the public overload -- same parameter type, so an
+  // unqualified call here would be genuinely ambiguous between the two.
   if (!plane.has_value()) {
-    plane = closest_world_plane_to(unique_points);
+    plane = detail::closest_world_plane_to(unique_points);
   }
 
   double signed_area = 0;
@@ -337,12 +354,13 @@ double signed_area(std::vector<Point3D> const& points, std::optional<Plane> plan
   return signed_area;
 }
 
-bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
-  return compare(signed_area(points, plane), 0) > 0;
+// Qualified as detail::signed_area (see detail::signed_area's own comment above re: ADL ambiguity).
+bool are_ccw(std::vector<Point3D> const& unique_points, std::optional<Plane> plane) {
+  return compare(detail::signed_area(unique_points, plane), 0) > 0;
 }
 
-bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
-  return compare(signed_area(points, plane), 0) < 0;
+bool are_cw(std::vector<Point3D> const& unique_points, std::optional<Plane> plane) {
+  return compare(detail::signed_area(unique_points, plane), 0) < 0;
 }
 
 // Calculates the centroid of the polygon
@@ -350,8 +368,7 @@ bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
 //       the 2D signed area function, thus avoiding code-redundancy. However, we preferred to invest in
 //       performance, avoiding the filling of a vector of 2D points and calling many constructors, I
 //       re-wrote the shoelace formuala in 3D.
-Point3D centroid(std::vector<Point3D> const& points, std::optional<Plane> plane) {
-  auto unique_points = remove_collinear(points);
+Point3D centroid(std::vector<Point3D> const& unique_points, std::optional<Plane> plane) {
   if (unique_points.size() <= 3) {
     return average(unique_points);
   }
@@ -464,6 +481,24 @@ Point3D centroid(std::vector<Point3D> const& points, std::optional<Plane> plane)
   }
 
   return Point3D(cx, cy, cz);
+}
+
+}  // namespace detail
+
+double signed_area(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return detail::signed_area(remove_collinear(points), plane);
+}
+
+bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return detail::are_ccw(remove_collinear(points), plane);
+}
+
+bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return detail::are_cw(remove_collinear(points), plane);
+}
+
+Point3D centroid(std::vector<Point3D> const& points, std::optional<Plane> plane) {
+  return detail::centroid(remove_collinear(points), plane);
 }
 
 #pragma endregion

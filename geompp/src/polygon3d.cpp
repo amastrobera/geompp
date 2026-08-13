@@ -31,20 +31,6 @@ inline namespace geometry {
 
 namespace {
 
-// Whether outer_plane's normal agrees with the canonical dominant-axis-positive direction
-// are_ccw(unique_points) already validated the polygon's winding against. Cheap (O(1)) rather than a
-// second are_ccw(unique_points, outer_plane) call (O(n), a full signed_area recomputation): every point in
-// unique_points is already known coplanar (checked earlier in Make()), so ANY local 3-point normal —
-// outer_plane's included — is exactly parallel or anti-parallel to that one true plane normal, never some
-// other direction. That means outer_plane and the canonical reference always share the same dominant axis;
-// only the sign can differ, so checking outer_plane's own dominant-axis component sign is sufficient.
-bool plane_matches_canonical_winding(Plane const& outer_plane) {
-  Vector3D n = outer_plane.normal();
-  Axis dax = n.DominantAxis();
-  double dominant_component = (dax == Axis::X) ? n.x() : (dax == Axis::Y) ? n.y() : n.z();
-  return compare(dominant_component, 0.0) >= 0;
-}
-
 // True only for a genuine STRICT-interior crossing (each segment struck strictly between its own two
 // endpoints, not at either one) — see Polygon2D::Make()'s identical helper (polygon2d.cpp) for the full
 // rationale: a hole touching the outer boundary at a vertex, a T-junction, or running flush along part of
@@ -66,22 +52,25 @@ Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points) {
         DECIMAL_PRECISION));
   }
 
-  if (!are_coplanar(unique_points)) {
+  // A single shared reference, computed once and reused for both checks below (and as the stored plane
+  // itself) -- Newell's method (see plane.cpp) is robust to any single reflex/near-collinear vertex, unlike
+  // building the normal from just 3 points, and unlike a world-axis-snapped heuristic it rotates exactly
+  // alongside the polygon (no discrete axis-crossing artifacts). Because it's derived from unique_points
+  // itself, in the SAME order given, it directly IS the plane that makes that given order read as positive
+  // -- no separate "does this candidate match" swap dance needed afterwards.
+  Plane outer_plane = Plane::FromOriginAndNormal(unique_points[0], newell_normal(unique_points).Normalize());
+
+  // unique_points is already collinear-free here -- Make() (the only caller) just ran remove_collinear()
+  // on it -- so the collinear-free-assuming detail:: overloads skip redoing that pass.
+  if (!detail::are_coplanar(unique_points, outer_plane)) {
     throw std::runtime_error("cannot create polygon with non-coplanar points");
   }
 
-  if (!are_ccw(unique_points)) {
-    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
-  }
-  // Plane::From3Points(unique_points[0..2]) is a LOCAL quantity — the turn pivoting at vertex 0 — which
-  // can point opposite the polygon's GLOBAL winding the are_ccw() check above just validated, whenever
-  // vertex 0 is a reflex corner. Swap which two points go into From3Points when that happens (see
-  // plane_matches_canonical_winding) — guarantees outer_plane's sign always matches the already-validated
-  // CCW winding, so downstream code (Area(), boolean ops' shared-view projection) never has to work around
-  // a possibly-wrong sign.
-  auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
-  if (!plane_matches_canonical_winding(outer_plane)) {
-    outer_plane = Plane::From3Points(unique_points[0], unique_points[2], unique_points[1]);
+  // Not a "wrong winding" gate (there's no externally-fixed convention to violate for a lone 3D ring --
+  // outer_plane already self-canonicalizes to whatever order was given), but still catches a genuinely
+  // degenerate case: a self-intersecting ring whose positive/negative sub-areas cancel to ~zero net area.
+  if (!detail::are_ccw(unique_points, outer_plane)) {
+    throw std::runtime_error("cannot create polygon with degenerate (zero net area) winding");
   }
 
   double perimeter = 0;
@@ -102,17 +91,18 @@ Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points, std::v
         DECIMAL_PRECISION));
   }
 
-  if (!are_coplanar(unique_points)) {
+  // See the no-holes overload above for why this single shared reference (Newell's method, computed once)
+  // replaces both the separate are_coplanar()/are_ccw() self-derived checks and the old candidate-swap dance.
+  Plane outer_plane = Plane::FromOriginAndNormal(unique_points[0], newell_normal(unique_points).Normalize());
+
+  // unique_points is already collinear-free here -- Make() (the only caller) just ran remove_collinear()
+  // on it -- so the collinear-free-assuming detail:: overloads skip redoing that pass.
+  if (!detail::are_coplanar(unique_points, outer_plane)) {
     throw std::runtime_error("cannot create polygon with non-coplanar points");
   }
 
-  if (!are_ccw(unique_points)) {
-    throw std::runtime_error("cannot create polygon with points in anti clock-wise order");
-  }
-
-  auto outer_plane = Plane::From3Points(unique_points[0], unique_points[1], unique_points[2]);
-  if (!plane_matches_canonical_winding(outer_plane)) {
-    outer_plane = Plane::From3Points(unique_points[0], unique_points[2], unique_points[1]);
+  if (!detail::are_ccw(unique_points, outer_plane)) {
+    throw std::runtime_error("cannot create polygon with degenerate (zero net area) winding");
   }
 
   Axis dax = outer_plane.normal().DominantAxis();
@@ -139,7 +129,9 @@ Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points, std::v
           DECIMAL_PRECISION));
     }
 
-    if (!are_coplanar(unique_hole_points)) {
+    // unique_hole_points was just deduplicated above (remove_collinear), so the detail:: overload can
+    // skip redoing that pass.
+    if (!detail::are_coplanar(unique_hole_points)) {
       throw std::runtime_error("cannot create polygon holes non-coplanar points");
     }
 
@@ -153,7 +145,11 @@ Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points, std::v
       throw std::runtime_error("cannot create polygon hole with self-intersections");
     }
 
-    if (!are_cw(unique_hole_points)) {
+    // Checked relative to outer_plane specifically -- not each hole's own self-derived reference -- since
+    // "hole winds opposite the outer ring" is inherently a comparison BETWEEN the two, not a property either
+    // ring has in isolation (a lone 3D ring has no externally meaningful CCW/CW of its own, see the no-holes
+    // overload's comment; passing outer_plane here is what makes the check mean something).
+    if (!detail::are_cw(unique_hole_points, outer_plane)) {
       throw std::runtime_error("cannot create polygon holes in anti-clock-wise order");
     }
 
@@ -233,6 +229,116 @@ Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points, std::v
   return {std::move(unique_points), outer_plane, perimeter, std::move(unique_holes_points), is_poly_convex};
 }
 
+Polygon3D Polygon3D::FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points, bool is_convex) {
+  if (unique_points.size() < 3) {
+    throw std::runtime_error(std::format(
+        "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
+        DECIMAL_PRECISION));
+  }
+
+  // outer_plane still has to be computed fresh (not redundant -- see this method's own doc comment in
+  // polygon3d.hpp) but are_coplanar()/are_ccw() are skipped, trusting the caller.
+  Plane outer_plane = Plane::FromOriginAndNormal(unique_points[0], newell_normal(unique_points).Normalize());
+
+  double perimeter = 0;
+  int n0 = unique_points.size();
+  for (int i = 0; i < n0; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % n0]);
+  }
+
+  return {std::move(unique_points), outer_plane, perimeter, is_convex};
+}
+
+Polygon3D Polygon3D::FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points,
+                                                 std::vector<std::vector<Point3D>> holes, bool is_convex) {
+  if (unique_points.size() < 3) {
+    throw std::runtime_error(std::format(
+        "cannot create polygon with less than 3 unique points; points are too close with {} decimals precision",
+        DECIMAL_PRECISION));
+  }
+
+  Plane outer_plane = Plane::FromOriginAndNormal(unique_points[0], newell_normal(unique_points).Normalize());
+
+  Axis dax = outer_plane.normal().DominantAxis();
+  View2D hole_view = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  auto project_hole = [&hole_view](std::vector<Point3D> const& ring) {
+    std::vector<LineSegment2D> segs;
+    int n = static_cast<int>(ring.size());
+    segs.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      segs.push_back(LineSegment2D::Make(Point2D(hole_view.x(ring[i]), hole_view.y(ring[i])),
+                                         Point2D(hole_view.x(ring[(i + 1) % n]), hole_view.y(ring[(i + 1) % n]))));
+    }
+    return segs;
+  };
+
+  std::vector<std::vector<Point3D>>& unique_holes_points = holes;
+  std::vector<std::vector<LineSegment2D>> unique_holes_segs_2d;
+  unique_holes_segs_2d.reserve(unique_holes_points.size());
+  for (auto const& unique_hole_points : unique_holes_points) {
+    if (unique_hole_points.size() < 3) {
+      throw std::runtime_error(std::format(
+          "cannot create hole with less than 3 unique points; points are too close with {} decimals precision",
+          DECIMAL_PRECISION));
+    }
+
+    // Winding/coplanarity-vs-outer_plane/collinear-cleanup are skipped here -- see this method's doc
+    // comment -- but self-intersection/containment are geometric relationships between rings, not
+    // affine-invariant under every transform, so they're re-checked in full, same as FromUniquePoints().
+    auto hole_segs = project_hole(unique_hole_points);
+    if (has_intersections(hole_segs)) {
+      throw std::runtime_error("cannot create polygon hole with self-intersections");
+    }
+
+    unique_holes_segs_2d.push_back(std::move(hole_segs));
+  }
+
+  for (std::size_t i = 0; i < unique_holes_segs_2d.size(); ++i) {
+    for (std::size_t j = i + 1; j < unique_holes_segs_2d.size(); ++j) {
+      auto combined = unique_holes_segs_2d[i];
+      combined.insert(combined.end(), unique_holes_segs_2d[j].begin(), unique_holes_segs_2d[j].end());
+      if (has_intersections(combined)) {
+        GEOMPP_LOG(ERROR) << "invalid polygon: hole " << i << " intersects hole " << j;
+        throw std::runtime_error("cannot create polygon with intersecting holes");
+      }
+    }
+  }
+
+  if (!unique_holes_segs_2d.empty()) {
+    auto outer_segs = project_hole(unique_points);
+    for (std::size_t h = 0; h < unique_holes_segs_2d.size(); ++h) {
+      for (auto const& outer_seg : outer_segs) {
+        for (auto const& hole_seg : unique_holes_segs_2d[h]) {
+          if (strictly_crosses(outer_seg, hole_seg)) {
+            GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " intersects the outer loop";
+            throw std::runtime_error("cannot create polygon with a hole that intersects the outer loop");
+          }
+        }
+      }
+    }
+  }
+
+  for (std::size_t h = 0; h < unique_holes_points.size(); ++h) {
+    auto const& p = unique_holes_points[h].front();
+    bool contained = detail::view::is_on_perimeter(unique_points, std::vector<std::vector<Point3D>>{}, hole_view,
+                                                   hole_view.x(p), hole_view.y(p)) ||
+                     detail::view::polygon_contains(unique_points, std::vector<std::vector<Point3D>>{}, hole_view,
+                                                    hole_view.x(p), hole_view.y(p));
+    if (!contained) {
+      GEOMPP_LOG(ERROR) << "invalid polygon: hole " << h << " lies outside the outer loop";
+      throw std::runtime_error("cannot create polygon with a hole outside the outer loop");
+    }
+  }
+
+  double perimeter = 0;
+  int nh = unique_points.size();
+  for (int i = 0; i < nh; ++i) {
+    perimeter += unique_points[i].DistanceTo(unique_points[(i + 1) % nh]);
+  }
+
+  return {std::move(unique_points), outer_plane, perimeter, std::move(unique_holes_points), is_convex};
+}
+
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points) { return FromUniquePoints(remove_collinear(points)); }
 
 Polygon3D Polygon3D::Make(std::vector<Point3D>&& points) {
@@ -309,7 +415,9 @@ Point3D Polygon3D::Centroid() const {
 
   if (outer_simple && HOLES.empty()) {
     // Common case, preserved as an exact shortcut: single region, no weighted average needed.
-    return centroid(VERTICES, PLANE);
+    // VERTICES is already collinear-free (a class invariant maintained since construction), so the
+    // detail:: overload skips redoing that pass.
+    return detail::centroid(VERTICES, PLANE);
   }
 
   // weighted average: c = Σ(aᵢ·cᵢ) / Σ(aᵢ)
@@ -319,8 +427,8 @@ Point3D Polygon3D::Centroid() const {
   double wz = 0.0;
 
   if (outer_simple) {
-    Point3D cs = centroid(VERTICES, PLANE);
-    double sa = signed_area(VERTICES, PLANE);
+    Point3D cs = detail::centroid(VERTICES, PLANE);
+    double sa = detail::signed_area(VERTICES, PLANE);
     total_sa = sa;
     wx = sa * cs.x();
     wy = sa * cs.y();
@@ -360,10 +468,11 @@ Point3D Polygon3D::Centroid() const {
   }
 
   // Holes are always individually simple (Make() rejects a self-intersecting hole outright), so this is
-  // always a direct, correct subtraction — hole areas are negative (CW), so they subtract.
+  // always a direct, correct subtraction — hole areas are negative (CW), so they subtract. Each hole is
+  // already collinear-free (same class invariant as VERTICES), so detail:: is used here too.
   for (auto const& hole : HOLES) {
-    double sa_h = signed_area(hole, PLANE);
-    Point3D c_h = centroid(hole, PLANE);
+    double sa_h = detail::signed_area(hole, PLANE);
+    Point3D c_h = detail::centroid(hole, PLANE);
     total_sa += sa_h;
     wx += sa_h * c_h.x();
     wy += sa_h * c_h.y();
@@ -377,9 +486,11 @@ double Polygon3D::Area() const {
   // Holes are always individually simple now — Make() rejects a self-intersecting hole outright (see its
   // own comment) — so this direct shoelace sum is always correct however the OUTER ring turns out; holes
   // never need decomposing or recursing into, unlike VERTICES below. O(N_holes) total.
+  // HOLES/VERTICES are already collinear-free (class invariant maintained since construction), so the
+  // detail:: overload skips redoing that pass.
   double total_hole_area = 0.0;
   for (auto const& hole : HOLES) {
-    total_hole_area += signed_area(hole, PLANE);  // guaranteed CW (negative) by Make()
+    total_hole_area += detail::signed_area(hole, PLANE);  // guaranteed CW (negative) by Make()
   }
 
   Axis dax = PLANE.normal().DominantAxis();
@@ -398,7 +509,7 @@ double Polygon3D::Area() const {
 
   if (!has_intersections(make_segs(VERTICES))) {
     // FAST PATH: outer ring is simple too — pure O(n) shoelace, no decomposition at all.
-    return signed_area(VERTICES, PLANE) + total_hole_area;
+    return detail::signed_area(VERTICES, PLANE) + total_hole_area;
   }
 
   // SLOW PATH: self-intersecting outer ring — decompose it, and ONLY it (holes are already handled

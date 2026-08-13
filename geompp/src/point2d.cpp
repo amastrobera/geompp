@@ -352,8 +352,9 @@ Point2D Point2D::FromFile(std::string const& path) {
 
 #pragma region Collection Operations
 
-double signed_area(std::vector<Point2D> const& points) {
-  auto unique_points = remove_collinear(points);
+namespace detail {
+
+double signed_area(std::vector<Point2D> const& unique_points) {
   if (unique_points.size() < 3) {
     throw std::runtime_error(
         std::format("cannot compute area of a set of points with less than 3 unique points; points are too close with "
@@ -386,12 +387,15 @@ double signed_area(std::vector<Point2D> const& points) {
   return signed_area;
 }
 
-bool are_ccw(std::vector<Point2D> const& points) { return compare(signed_area(points), 0) > 0; }
+// Qualified as detail::signed_area (not a plain unqualified call) so ADL on Point2D's enclosing
+// geompp::geometry namespace can't pull in the public signed_area() overload -- same parameter type, so an
+// unqualified call here would be genuinely ambiguous between the two.
+bool are_ccw(std::vector<Point2D> const& unique_points) { return compare(detail::signed_area(unique_points), 0) > 0; }
 
-bool are_cw(std::vector<Point2D> const& points) { return compare(signed_area(points), 0) < 0; }
+bool are_cw(std::vector<Point2D> const& unique_points) { return compare(detail::signed_area(unique_points), 0) < 0; }
 
-Point2D centroid(std::vector<Point2D> const& points) {
-  double sa = signed_area(points);
+Point2D centroid(std::vector<Point2D> const& unique_points) {
+  double sa = detail::signed_area(unique_points);
 
   if (compare(sa, 0) == 0) {
     throw std::runtime_error("centroid of a set of points with zero area");
@@ -399,11 +403,11 @@ Point2D centroid(std::vector<Point2D> const& points) {
 
   double cx = 0;
   double cy = 0;
-  std::size_t n = points.size();
+  std::size_t n = unique_points.size();
 
   for (int i = 0; i < n; ++i) {
-    auto const& p1 = points[i];
-    auto const& p2 = points[(i + 1) % n];
+    auto const& p1 = unique_points[i];
+    auto const& p2 = unique_points[(i + 1) % n];
     double shoelace =
         p1.x() * p2.y() - p2.x() * p1.y();  // replaces p1.ToVector().Cross(p2.ToVector()) with a single multiplication
                                             // and subtraction, and we avoid constructing the Vector2D
@@ -416,6 +420,16 @@ Point2D centroid(std::vector<Point2D> const& points) {
 
   return {cx, cy};
 }
+
+}  // namespace detail
+
+double signed_area(std::vector<Point2D> const& points) { return detail::signed_area(remove_collinear(points)); }
+
+bool are_ccw(std::vector<Point2D> const& points) { return detail::are_ccw(remove_collinear(points)); }
+
+bool are_cw(std::vector<Point2D> const& points) { return detail::are_cw(remove_collinear(points)); }
+
+Point2D centroid(std::vector<Point2D> const& points) { return detail::centroid(remove_collinear(points)); }
 
 std::vector<Point2D> sort_ccw(std::vector<Point2D> const& points) {
   if (points.size() < 3) {

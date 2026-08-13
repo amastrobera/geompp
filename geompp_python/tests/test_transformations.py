@@ -79,6 +79,37 @@ class TestTransformations2DGeneralPath:
         assert moved.has_holes()
         assert approx(moved.area(), poly.area())
 
+    # Regression: transform() used to hand the raw (now CW) reflected ring straight to make(), which
+    # raises on non-CCW input -- reflecting a Polygon2D via transform() used to be impossible. It now
+    # detects the negative determinant and reverses the ring(s) before construction, so this succeeds.
+    def test_transform_polygon_reflection_succeeds_and_preserves_area(self):
+        poly = geompp.Polygon2D.make(
+            [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 3), geompp.Point2D(0, 3)]
+        )
+        moved = tf.transform(poly, maths.Matrix3.reflection(maths.Vector2(1, 0)))
+        assert approx(moved.area(), poly.area())
+
+    def test_transform_polygon_with_holes_reflection_succeeds_and_preserves_containment(self):
+        poly = geompp.Polygon2D.make(
+            [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 4), geompp.Point2D(0, 4)],
+            [[geompp.Point2D(1, 1), geompp.Point2D(1, 3), geompp.Point2D(3, 3), geompp.Point2D(3, 1)]],
+        )
+        moved = tf.transform(poly, maths.Matrix3.reflection(maths.Vector2(1, 0)))
+        assert moved.has_holes()
+        assert approx(moved.area(), poly.area())
+        assert moved.is_simple()
+        # Reflecting across the Y axis (normal (1,0)) negates x: the hole (originally x in [1,3]) now
+        # sits at x in [-3,-1] -- still correctly a hole, with the surrounding ring still included.
+        assert not moved.contains(geompp.Point2D(-2, 2))    # inside the (now-mirrored) hole
+        assert moved.contains(geompp.Point2D(-0.5, 2))      # inside the donut ring
+
+    def test_transform_polygon_degenerate_transform_falls_back_and_raises(self):
+        poly = geompp.Polygon2D.make(
+            [geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(4, 3), geompp.Point2D(0, 3)]
+        )
+        with pytest.raises(Exception):
+            tf.transform(poly, maths.Matrix3.scale(0.0, 1.0))
+
     def test_transform_mesh_preserves_total_area(self):
         p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
         mesh = geompp.Mesh2D.from_triangles([
@@ -153,6 +184,53 @@ class TestTransformations3DGeneralPath:
         m = maths.Matrix4.rotation(0.5, maths.Vector3(1, 1, 1)) @ maths.Matrix4.translation(maths.Vector3(1, 2, 3))
         moved = tf.transform(tri, m)
         assert approx(moved.area(), tri.area())
+
+    def test_transform_polygon_with_holes_preserves_area(self):
+        poly = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(10, 0, 0), geompp.Point3D(10, 10, 0), geompp.Point3D(0, 10, 0)],
+            [[geompp.Point3D(4, 4, 0), geompp.Point3D(4, 6, 0), geompp.Point3D(6, 6, 0), geompp.Point3D(6, 4, 0)]],
+        )
+        m = maths.Matrix4.rotation(0.4, maths.Vector3(0, 0, 1)) @ maths.Matrix4.translation(maths.Vector3(-5, 8, 1))
+        moved = tf.transform(poly, m)
+        assert moved.has_holes()
+        assert approx(moved.area(), poly.area())
+
+    # Regression: a plain rotation used to be able to spuriously raise (see the Polygon3D winding-
+    # invariance fix) -- and separately, transform() used to hand a reflected (winding-flipped) ring
+    # straight to make(), which raises on the "wrong" winding, making reflection impossible.
+    def test_transform_polygon_rotation_about_non_principal_axis_does_not_raise(self):
+        poly = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)]
+        )
+        # This specific axis (X) is exactly the one that used to spuriously raise for a normal-+Z square.
+        moved = tf.transform(poly, maths.Matrix4.rotation(math.pi / 2, maths.Vector3(1, 0, 0)))
+        assert approx(moved.area(), poly.area())
+
+    def test_transform_polygon_reflection_succeeds_and_preserves_area(self):
+        poly = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0)]
+        )
+        moved = tf.transform(poly, maths.Matrix4.reflection(maths.Vector3(1, 0, 0)))
+        assert approx(moved.area(), poly.area())
+
+    def test_transform_polygon_with_holes_reflection_succeeds_and_preserves_containment(self):
+        poly = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0)],
+            [[geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0), geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0)]],
+        )
+        moved = tf.transform(poly, maths.Matrix4.reflection(maths.Vector3(1, 0, 0)))
+        assert moved.has_holes()
+        assert approx(moved.area(), poly.area())
+        assert moved.is_simple()
+        assert not moved.contains(geompp.Point3D(-2, 2, 0))
+        assert moved.contains(geompp.Point3D(-0.5, 2, 0))
+
+    def test_transform_polygon_degenerate_transform_falls_back_and_raises(self):
+        poly = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(4, 3, 0), geompp.Point3D(0, 3, 0)]
+        )
+        with pytest.raises(Exception):
+            tf.transform(poly, maths.Matrix4.scale(0.0, 1.0, 1.0))
 
     def test_transform_mesh_preserves_total_area(self):
         a = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0))

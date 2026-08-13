@@ -1,6 +1,7 @@
 #pragma once
 
 #include "constants.hpp"
+#include "maths.hpp"
 #include "plane.hpp"
 #include "point3d.hpp"
 #include "segment_iterator3d.hpp"
@@ -19,6 +20,17 @@ class Ray3D;
 class LineSegment3D;
 class Polyline3D;
 class Triangle3D;
+class Polygon3D;
+
+}  // namespace geometry
+
+namespace transformations {
+// Forward-declared so Polygon3D can friend this exact overload below -- transform() is the only caller
+// allowed to reach the private FromUniqueCoplanarCCWPoints() fast constructor (see its own doc comment).
+geometry::Polygon3D transform(geometry::Polygon3D const& poly, maths::Matrix4 const& m);
+}  // namespace transformations
+
+inline namespace geometry {
 
 class Polygon3D {
  public:
@@ -199,6 +211,21 @@ class Polygon3D {
   // its data with a single move regardless of whether it started from a const& or && parameter.
   static Polygon3D FromUniquePoints(std::vector<Point3D> unique_points);
   static Polygon3D FromUniquePoints(std::vector<Point3D> unique_points, std::vector<std::vector<Point3D>> holes);
+
+  // Same contract as FromUniquePoints, but ALSO trusts the caller that unique_points is already coplanar
+  // (skips are_coplanar()) and that is_convex is already known -- both true by construction for
+  // transform()'s own use: any affine map takes a plane to a plane (even a degenerate one, so this is
+  // always safe for a non-degenerate transform), and convexity is likewise affine-invariant, so the
+  // source polygon's own IsConvex() carries over unchanged. The outer_plane itself still has to be
+  // recomputed fresh via newell_normal() -- that's not redundant, it's the thing that makes the result
+  // correct regardless of the transform's determinant sign (see transformations3d.cpp). Private and
+  // friended to transform() specifically -- NOT exposed publicly, for the same reason as
+  // Polygon2D::FromUniqueCCWPoints (see its doc comment).
+  static Polygon3D FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points, bool is_convex);
+  static Polygon3D FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points,
+                                               std::vector<std::vector<Point3D>> holes, bool is_convex);
+
+  friend Polygon3D geompp::transformations::transform(Polygon3D const& poly, maths::Matrix4 const& m);
 
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex);
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,

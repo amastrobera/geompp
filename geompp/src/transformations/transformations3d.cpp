@@ -1,5 +1,6 @@
 #include "transformations/transformations3d.hpp"
 
+#include <algorithm>
 #include <variant>
 
 namespace geompp::transformations {
@@ -52,15 +53,43 @@ std::vector<geometry::Point3D> transform_ring(std::vector<geometry::Point3D> con
 }  // namespace
 
 geometry::Polygon3D transform(geometry::Polygon3D const& poly, maths::Matrix4 const& m) {
-  if (!poly.HasHoles()) {
-    return geometry::Polygon3D::Make(transform_ring(poly.Perimeter(), m));
+  // A homogeneous 4x4 affine matrix's determinant equals its 3x3 linear submatrix's determinant (the
+  // bottom row [0,0,0,1] doesn't contribute) -- same reasoning as the 2D overload's comment. In 3D,
+  // rotations always preserve winding (see the Polygon3D winding-invariance fix); a reflection (or any
+  // odd combination of negative scale factors) flips it, symmetric to 2D. compare(det, 0) == 0 is a
+  // genuinely degenerate/singular transform, which falls back to the fully-validated Make() path.
+  double det = m.Determinant();
+  if (compare(det, 0.0) == 0) {
+    if (!poly.HasHoles()) {
+      return geometry::Polygon3D::Make(transform_ring(poly.Perimeter(), m));
+    }
+    std::vector<std::vector<geometry::Point3D>> holes;
+    holes.reserve(poly.Holes().size());
+    for (auto const& hole : poly.Holes()) {
+      holes.push_back(transform_ring(hole, m));
+    }
+    return geometry::Polygon3D::Make(transform_ring(poly.Perimeter(), m), holes);
   }
+
+  auto outer = transform_ring(poly.Perimeter(), m);
   std::vector<std::vector<geometry::Point3D>> holes;
   holes.reserve(poly.Holes().size());
   for (auto const& hole : poly.Holes()) {
     holes.push_back(transform_ring(hole, m));
   }
-  return geometry::Polygon3D::Make(transform_ring(poly.Perimeter(), m), holes);
+  if (det < 0) {
+    // Reversing both the outer ring AND every hole -- see the 2D overload's identical comment for why
+    // both need it, not just the outer.
+    std::reverse(outer.begin(), outer.end());
+    for (auto& hole : holes) {
+      std::reverse(hole.begin(), hole.end());
+    }
+  }
+
+  if (holes.empty()) {
+    return geometry::Polygon3D::FromUniqueCoplanarCCWPoints(std::move(outer), poly.IsConvex());
+  }
+  return geometry::Polygon3D::FromUniqueCoplanarCCWPoints(std::move(outer), std::move(holes), poly.IsConvex());
 }
 
 geometry::Mesh3D transform(geometry::Mesh3D const& mesh, maths::Matrix4 const& m) {

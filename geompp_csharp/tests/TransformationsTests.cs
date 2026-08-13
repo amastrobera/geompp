@@ -85,6 +85,36 @@ public static class TransformationsTests {
       Eq(poly.Area(), moved.Area(), 9);
     });
 
+    // Regression: transform() used to hand the raw (now CW) reflected ring straight to Make(), which
+    // throws on non-CCW input -- reflecting a Polygon2D via transform() used to be impossible. It now
+    // detects the negative determinant and reverses the ring(s) before construction, so this succeeds.
+    Test("Transform_Apply_Polygon2D_Reflection_SucceedsAndPreservesArea", () => {
+      var poly = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 3), new(0, 3) });
+      var moved = Transform.Apply(poly, Matrix3.Reflection(new Vector2(1, 0)));
+      Eq(poly.Area(), moved.Area(), 9);
+    });
+
+    Test("Transform_Apply_Polygon2D_WithHoles_Reflection_SucceedsAndPreservesContainment", () => {
+      var outer = new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) };
+      var hole = new Point2D[] { new(1, 1), new(1, 3), new(3, 3), new(3, 1) };
+      var poly = Polygon2D.Make(outer, new Point2D[][] { hole });
+      var moved = Transform.Apply(poly, Matrix3.Reflection(new Vector2(1, 0)));
+      IsTrue(moved.HasHoles());
+      Eq(poly.Area(), moved.Area(), 9);
+      IsTrue(moved.IsSimple());
+      // Reflecting across the Y axis (normal (1,0)) negates x: the hole (originally x in [1,3]) now sits
+      // at x in [-3,-1] -- still correctly a hole, with the surrounding ring still correctly included.
+      IsTrue(!moved.Contains(new Point2D(-2, 2)), "expected the mirrored hole location to be excluded");
+      IsTrue(moved.Contains(new Point2D(-0.5, 2)), "expected the donut ring to still be included");
+    });
+
+    Test("Transform_Apply_Polygon2D_DegenerateTransform_FallsBackAndThrows", () => {
+      var poly = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 3), new(0, 3) });
+      bool threw = false;
+      try { Transform.Apply(poly, Matrix3.Scale(0.0, 1.0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a singular (det==0) transform to fall back to Make() and throw");
+    });
+
     Test("Transform_Apply_Mesh2D_PreservesTotalArea", () => {
       var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
       var t0 = Triangle2D.Make(p0[0], p0[1], p0[2]);
@@ -163,6 +193,51 @@ public static class TransformationsTests {
       var m = Matrix4.Rotation(0.5, new Vector3(1, 1, 1)) * Matrix4.Translation(new Vector3(1, 2, 3));
       var moved = Transform.Apply(tri, m);
       Eq(tri.Area(), moved.Area(), 9);
+    });
+
+    Test("Transform_Apply_Polygon3D_WithHoles_PreservesArea", () => {
+      var outer = new Point3D[] { new(0, 0, 0), new(10, 0, 0), new(10, 10, 0), new(0, 10, 0) };
+      var hole = new Point3D[] { new(4, 4, 0), new(4, 6, 0), new(6, 6, 0), new(6, 4, 0) };
+      var poly = Polygon3D.Make(outer, new Point3D[][] { hole });
+      var m = Matrix4.Rotation(0.4, new Vector3(0, 0, 1)) * Matrix4.Translation(new Vector3(-5, 8, 1));
+      var moved = Transform.Apply(poly, m);
+      IsTrue(moved.HasHoles());
+      Eq(poly.Area(), moved.Area(), 9);
+    });
+
+    // Regression: a plain rotation used to be able to spuriously throw (see the Polygon3D winding-
+    // invariance fix) -- and separately, transform() used to hand a reflected (winding-flipped) ring
+    // straight to Make(), which throws on the "wrong" winding, making reflection impossible.
+    Test("Transform_Apply_Polygon3D_RotationAboutNonPrincipalAxis_DoesNotThrow", () => {
+      var poly = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+      // This specific axis (X) is exactly the one that used to spuriously throw for a normal-+Z square.
+      var moved = Transform.Apply(poly, Matrix4.Rotation(Math.PI / 2.0, new Vector3(1, 0, 0)));
+      Eq(poly.Area(), moved.Area(), 9);
+    });
+
+    Test("Transform_Apply_Polygon3D_Reflection_SucceedsAndPreservesArea", () => {
+      var poly = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 3, 0), new(0, 3, 0) });
+      var moved = Transform.Apply(poly, Matrix4.Reflection(new Vector3(1, 0, 0)));
+      Eq(poly.Area(), moved.Area(), 9);
+    });
+
+    Test("Transform_Apply_Polygon3D_WithHoles_Reflection_SucceedsAndPreservesContainment", () => {
+      var outer = new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0) };
+      var hole = new Point3D[] { new(1, 1, 0), new(1, 3, 0), new(3, 3, 0), new(3, 1, 0) };
+      var poly = Polygon3D.Make(outer, new Point3D[][] { hole });
+      var moved = Transform.Apply(poly, Matrix4.Reflection(new Vector3(1, 0, 0)));
+      IsTrue(moved.HasHoles());
+      Eq(poly.Area(), moved.Area(), 9);
+      IsTrue(moved.IsSimple());
+      IsTrue(!moved.Contains(new Point3D(-2, 2, 0)), "expected the mirrored hole location to be excluded");
+      IsTrue(moved.Contains(new Point3D(-0.5, 2, 0)), "expected the donut ring to still be included");
+    });
+
+    Test("Transform_Apply_Polygon3D_DegenerateTransform_FallsBackAndThrows", () => {
+      var poly = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 3, 0), new(0, 3, 0) });
+      bool threw = false;
+      try { Transform.Apply(poly, Matrix4.Scale(0.0, 1.0, 1.0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a singular (det==0) transform to fall back to Make() and throw");
     });
 
     Test("Transform_Apply_Mesh3D_PreservesTotalArea", () => {

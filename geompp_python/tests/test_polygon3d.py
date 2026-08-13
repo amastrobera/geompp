@@ -45,12 +45,15 @@ class TestPolygon3D:
         p = geompp.Polygon3D.make(pts)
         assert len(p) == 4
 
-    def test_cw_outer_throws(self):
-        with pytest.raises(Exception):
-            geompp.Polygon3D.make([
-                geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
-                geompp.Point3D(4, 4, 0), geompp.Point3D(4, 0, 0),
-            ])
+    def test_cw_outer_auto_canonicalizes(self):
+        # A lone outer ring has no externally meaningful CCW/CW of its own in 3D (unlike 2D, there's no
+        # fixed "which side are you viewing from" convention) -- a "CW" (relative to +Z) ring is legitimate
+        # input, auto-canonicalized to whichever plane normal makes the GIVEN order read as positive.
+        poly = geompp.Polygon3D.make([
+            geompp.Point3D(0, 0, 0), geompp.Point3D(0, 4, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(4, 0, 0),
+        ])
+        assert poly.area() == pytest.approx(16.0)
 
     def test_with_holes_valid(self):
         outer = [
