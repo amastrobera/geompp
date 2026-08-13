@@ -13,6 +13,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 Plane Plane::From3Points(Point3D p1, Point3D p2, Point3D p3) { return FromOriginAndAxes(p1, p2 - p1, p3 - p1); }
 
 Plane Plane::FromOriginAndAxes(Point3D origin, Vector3D u, Vector3D v) {
@@ -465,5 +467,7 @@ Point3D centroid(std::vector<Point3D> const& points, std::optional<Plane> plane)
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

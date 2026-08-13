@@ -7,6 +7,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 // clang-format off
 
 template <typename T>
@@ -22,5 +24,7 @@ concept PointContainer =
     && Point<std::ranges::range_value_t<T>>;  // Enforces that the element type is a Point
 
 // clang-format on
+
+}  // namespace geometry
 
 }  // namespace geompp

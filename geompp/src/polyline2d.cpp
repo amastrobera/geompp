@@ -19,6 +19,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 #pragma region Constructors
 
 Polyline2D Polyline2D::Make(std::vector<Point2D> const& points) {
@@ -587,5 +589,7 @@ Polyline2D Polyline2D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

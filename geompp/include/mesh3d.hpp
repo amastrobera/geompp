@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class ConnectedMesh3D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
@@ -84,5 +86,7 @@ inline auto Mesh3D::Faces() const {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

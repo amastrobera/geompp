@@ -7,6 +7,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point2D;
 
 class Vector2D {
@@ -75,5 +77,7 @@ inline Vector2D Vector2D::BasisX() { return Vector2D(1, 0); }
 inline Vector2D Vector2D::BasisY() { return Vector2D(0, 1); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

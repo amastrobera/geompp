@@ -15,6 +15,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 GridCell3D GridCell3D::FromPoint(Point3D const& p, double epsilon) {
   return {static_cast<std::int64_t>(std::floor(p.x() / epsilon)),
           static_cast<std::int64_t>(std::floor(p.y() / epsilon)),
@@ -239,5 +241,7 @@ GridCellMapForConnectedMesh3D GridCellMapForConnectedMesh3D::Make(std::vector<Tr
 }
 
 }  // namespace detail
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -21,6 +21,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 namespace {
 // Standalone edges of a closed ring, as a flat segment list (not a path) — what has_intersections()'s
 // Shamos-Hoey sweep needs to test crossings between two INDEPENDENT rings, since concatenating two rings'
@@ -874,5 +876,7 @@ Polygon2D Polygon2D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

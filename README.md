@@ -170,7 +170,7 @@
 
   | Status | Area |
   |--------|------|
-  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; polygon extreme points along a line, polygon tangents; polyline decimation, Bezier corner smoothing, polyline expansion; polygon clipping; boolean operations (union, intersection, difference); Mesh2D/3D and PolyMesh2D/3D (triangle- and polygon-faced meshes with spatial-hash vertex welding and mesh-conformity validation — every edge has at most 1 neighbor, no T-junctions/non-manifold edges — but no queryable adjacency structure); `ConnectedMesh2D`/`ConnectedMesh3D` (triangle mesh with precomputed per-facet edge adjacency, queried via a public `FaceView2D`/`FaceView3D` — `Geometry`/`Neighbor`/`NeighborEntryEdge` — bound in Python/C#); Triangulation (ear-clipping, two strategies: `EarClipping` — fast, first valid ear found; `EarClippingBestFit` — clips the least sliver-prone valid ear each step, default) — a free `triangulate()` function (2D, and 3D assumed flat/planar) plus `Polygon2D/3D.Triangulate()` and `PolyMesh2D/3D.Triangulate()` (per-facet, combined into one `Mesh2D/3D`); |
+  | Done | 2D primitives, operations, tests, WKT/file I/O, GitHub Actions CI, Docker (Linux), [C# bindings (NuGet)](./geompp_csharp/README.md), [Python bindings (PyPI)](./geompp_python/README.md); 3D primitives, operations, tests, serialization; Planes and projections; Intersections of Ray/Line/Segments; Intersections of a set of Segments; Simple vs Complex Polygons; Contains(Point); Bounding Containers and Convex Hulls; Polylines; View2D and common algorithms between 2D and 3D; Overlap and Touch concepts; polygon extreme points along a line, polygon tangents; polyline decimation, Bezier corner smoothing, polyline expansion; polygon clipping; boolean operations (union, intersection, difference); Mesh2D/3D and PolyMesh2D/3D (triangle- and polygon-faced meshes with spatial-hash vertex welding and mesh-conformity validation — every edge has at most 1 neighbor, no T-junctions/non-manifold edges — but no queryable adjacency structure); `ConnectedMesh2D`/`ConnectedMesh3D` (triangle mesh with precomputed per-facet edge adjacency, queried via a public `FaceView2D`/`FaceView3D` — `Geometry`/`Neighbor`/`NeighborEntryEdge` — bound in Python/C#); Triangulation (ear-clipping, two strategies: `EarClipping` — fast, first valid ear found; `EarClippingBestFit` — clips the least sliver-prone valid ear each step, default) — a free `triangulate()` function (2D, and 3D assumed flat/planar) plus `Polygon2D/3D.Triangulate()` and `PolyMesh2D/3D.Triangulate()` (per-facet, combined into one `Mesh2D/3D`); `geompp::maths` — fixed-size linear algebra (`Vector2/3/4`, `Matrix2/3/4`), Gauss/Cramer solvers, homogeneous-transform factories, bound in Python/C#; `geompp::transformations` — affine transforms (`translate`/`rotate`/`scale`, `transform(primitive, matrix)`, `TransformBuilder`) for every primitive from `Point2D/3D` to `PolyMesh2D/3D`, bound in Python/C#; |
   | Backlog | adjacency structure for `PolyMesh2D/3D`, polygonization, monotone-polygon and Delaunay triangulation strategies |
 
 
@@ -178,10 +178,10 @@
 
   | Metric | Count | Notes |
   |--------|-------|-------|
-  | Public methods (C++) | ~513 | Excl. ctors/dtors/operators |
-  | C++ methods tested | ~493/513 | ~96% (1030 TEST cases, 1028 run, 2 disabled) |
-  | Python methods tested | 454/474 | ~96% (817 pytest cases) |
-  | C# methods tested | 514/581 | ~88% (917 harness tests) |
+  | Public methods (C++) | ~513 | Excl. ctors/dtors/operators. `geompp::maths`/`geompp::transformations` (templated/free-function, header-only) tracked separately, see test_coverage_report.md |
+  | C++ methods tested | ~493/513 | ~96% (1097 TEST cases, 1095 run, 2 disabled — incl. 37 for `geompp::maths`, 30 for `geompp::transformations`) |
+  | Python methods tested | 454/474 | ~96% (868 pytest cases — incl. 27 for `geompp.maths`, 24 for `geompp.transformations`) |
+  | C# methods tested | 514/581 | ~88% (964 harness tests — incl. 24 for `GeomPP.Maths`, 23 for `GeomPP.Transformations`) |
   | Stubs (not yet impl.) | 2 | `TriangulationParams::Strategy::MonotonePolygon`/`Delaunay` — intentional, see test_coverage_report.md |
 
 

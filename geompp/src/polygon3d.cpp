@@ -27,6 +27,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 namespace {
 
 // Whether outer_plane's normal agrees with the canonical dominant-axis-positive direction
@@ -1084,5 +1086,7 @@ Polygon3D Polygon3D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

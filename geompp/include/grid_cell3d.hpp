@@ -10,6 +10,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point3D;
 class Triangle3D;
 class Polygon3D;
@@ -169,5 +171,7 @@ GridCellMapForConnectedMesh3D::GetNeighborRefs() {
 }
 
 }  // namespace detail
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -35,6 +35,22 @@ add_library(${PROJECT_NAME}
     include/segment_iterator2d.hpp
     include/segment_iterator3d.hpp
     include/sweep_line2d.hpp
+
+    include/maths.hpp
+    include/maths/maths_concepts.hpp
+    include/maths/vector.hpp
+    include/maths/matrix.hpp
+    include/maths/solvers.hpp
+    include/maths/detail/linear_algebra_detail.hpp
+
+    include/transformations.hpp
+    include/transformations/transform_builder.hpp
+    include/transformations/transformations2d.hpp
+    include/transformations/transformations3d.hpp
+    src/transformations/transform_builder.cpp
+    src/transformations/transformations2d.cpp
+    src/transformations/transformations3d.cpp
+
     src/constants.cpp
     src/geompp_log.cpp
     src/utils.cpp

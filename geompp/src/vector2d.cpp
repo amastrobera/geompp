@@ -10,6 +10,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 Vector2D& Vector2D::operator=(Vector2D const& other) {
   if (this != &other) {
     X = other.X;
@@ -164,5 +166,7 @@ Vector2D Vector2D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

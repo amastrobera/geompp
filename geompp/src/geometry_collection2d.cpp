@@ -18,6 +18,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 bool GeometryCollection2D::AlmostEquals(GeometryCollection2D const& other, double epsilon) const {
   if (GEOMETRIES.size() != other.GEOMETRIES.size()) {
     return false;
@@ -364,5 +366,7 @@ GeometryCollection2D GeometryCollection2D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

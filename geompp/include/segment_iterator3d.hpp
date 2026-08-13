@@ -10,6 +10,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class SegmentIterator3D {
  public:
   using value_type        = LineSegment3D;
@@ -61,6 +63,8 @@ class SegmentRange3D {
   std::vector<Point3D> const* PTS;
   bool CLOSED;
 };
+
+}  // namespace geometry
 
 }  // namespace geompp
 

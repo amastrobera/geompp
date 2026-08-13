@@ -15,6 +15,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 #pragma region Constructors
 
 Line2D Line2D::Make(Point2D const& p0, Point2D const& p1) {
@@ -243,5 +245,7 @@ Line2D Line2D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

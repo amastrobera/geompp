@@ -5104,15 +5104,18 @@ A quick list of code examples per topic is provided here.
   more general entry point — no `Polygon2D/3D` required, and full control over how much to trust the
   input via `TriangulationParams`.
 
-  A third overload, `triangulate(vector<Polygon2D>, conformity, settings)`, batches this across a whole
-  set of polygon facets at once — the free-function equivalent of
+  A third overload, `triangulate(vector<Polygon2D>, settings)`, batches this across a whole set of
+  polygon facets at once — the free-function equivalent of
   `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
-  constructing/keeping a full `PolyMesh2D`. Unlike `PolyMesh2D::FromPolygons()` (§10), which always
-  rejects a non-conforming set of facets outright, this overload defaults `conformity` to `Enforce`:
-  since the caller isn't building a persistent mesh object here, it's more useful to auto-repair
-  whatever's fixable (splice a stray T-junction vertex back in — see `fix_adjacency()`, §10) than to
-  simply refuse the input. It still throws on a non-manifold edge either way, since that one has no
-  valid automatic fix.
+  constructing/keeping a full `PolyMesh2D`. It reads one extra field off the same `TriangulationParams`,
+  **`AdjacencyConformity conformity`**, that the single-ring overload ignores: `Guaranteed` skips the
+  cross-facet check entirely, `Assert` throws on any violation, `Enforce` (the default) auto-repairs a
+  T-junction and still throws on a non-manifold edge. Unlike `PolyMesh2D::FromPolygons()` (§10), which
+  always rejects a non-conforming set of facets outright, this overload defaults `conformity` to
+  `Enforce`: since the caller isn't building a persistent mesh object here, it's more useful to
+  auto-repair whatever's fixable (splice a stray T-junction vertex back in — see `fix_adjacency()`, §10)
+  than to simply refuse the input. It still throws on a non-manifold edge either way, since that one has
+  no valid automatic fix.
 
   The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
   at its inner corners — using `EarClippingBestFit`, the default. The first lap around the ring clips
@@ -5270,6 +5273,326 @@ A quick list of code examples per topic is provided here.
   TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
   TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
   8 triangles
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; 12. geompp::maths — Linear Algebra</b></summary>
+
+  Everything above lives in `geompp::geometry` — as of this section, an *inline* C++ namespace nested
+  inside `geompp` (`namespace geompp { inline namespace geometry { ... } }`), so `geompp::Point2D` and
+  `geompp::geometry::Point2D` name the exact same type and every existing call site keeps compiling
+  unchanged. `geompp::maths` sits alongside it as a sibling, *not* inline — a deliberately separate,
+  independent module for fixed-size linear algebra, with no dependency on any geometry class. Python and
+  C# have no equivalent to an inline namespace, so the split is mirrored there as a real submodule
+  instead: `geompp.maths` (Python) and `GeomPP.Maths` (C#).
+
+  The core types are `Vector<T, N>` and `Matrix<T, Rows, Cols>` — both compile-time-dimensioned (`N`,
+  `Rows`, `Cols` are template parameters, not runtime fields) and constrained to `Numeric<T>`
+  (`std::is_arithmetic_v<T>`). `geompp::maths` only ever instantiates them at `double` and the sizes
+  geometry actually needs, exposed as six aliases: `Vector2`/`Vector3`/`Vector4` and
+  `Matrix2`/`Matrix3`/`Matrix4` (the last three square). This is a deliberately different kind of vector
+  from `geompp::geometry::Vector2D`/`Vector3D`: the geometry vectors are WKT-serializable, carry a
+  `DECIMAL_PRECISION`-aware `AlmostEquals()`, and exist to be added to `Point2D`/`Point3D`; `maths::Vector3`
+  is a bare 3-tuple of doubles with no geometric meaning of its own — just the column vector a `Matrix4`
+  multiplies. `geompp::transformations` (§13) is what bridges the two.
+
+  Because size is part of the type, operand compatibility for `+`/`-`/matrix products is a **compile-time**
+  question: `Matrix3{} * Vector2{}` is a compiler error, not a runtime exception — a stronger guarantee
+  than a check-and-throw, and one the caller can't forget to hit. Runtime `throw`/`ValueError`/exception is
+  reserved for genuinely runtime-only failures: `Normalized()` on a zero-length vector, `Inverse()` /
+  `solve_gauss()` / `solve_cramer()` on a singular matrix, `Rotation()` about a zero-length axis.
+
+  `Matrix::Determinant()` uses recursive cofactor (Laplace) expansion; `Matrix::Inverse()` and
+  `solve_gauss()` share one Gauss-Jordan elimination routine (partial pivoting) under the hood, so a
+  fix to the elimination logic fixes both at once. `solve_cramer()` solves the same `A x = b` system a
+  different way — replace column `i` of `A` with `b`, `x_i = det(A_i) / det(A)` — useful when a caller
+  specifically wants that closed form (e.g. to inspect one unknown's ratio in isolation) rather than the
+  faster, more numerically stable elimination `solve_gauss()` runs.
+
+  `Matrix4` additionally provides four static factories building the elementary 4x4 *homogeneous*
+  affine-transform matrices — `Identity()`/`Translation(offset)`/`Rotation(angle_rad, axis)` (axis-angle,
+  Rodrigues' formula)/`Scale(factor)`/`Scale(sx, sy, sz)` — the building blocks
+  `geompp::transformations::TransformBuilder` (§13) composes via ordinary `Matrix4` multiplication.
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "maths.hpp"
+
+  namespace gm = geompp::maths;
+
+  // Solve a 3x3 linear system two ways and confirm they agree.
+  gm::Matrix3 a(1, 1, 1,
+                0, 2, 5,
+                2, 5, -1);
+  gm::Vector3 b(6, -4, 27);
+
+  auto x_gauss  = gm::solve_gauss(a, b);
+  auto x_cramer = gm::solve_cramer(a, b);
+  GEOMPP_LOG(INFO) << "gauss:  " << x_gauss;
+  GEOMPP_LOG(INFO) << "cramer: " << x_cramer;
+
+  // Inverse() round-trips back to the identity.
+  GEOMPP_LOG(INFO) << "A * A^-1 =\n" << a * a.Inverse();
+
+  // Matrix4 homogeneous-transform factories -- what TransformBuilder (§13) composes.
+  auto move  = gm::Matrix4::Translation(gm::Vector3(10, 0, 0));
+  auto spin  = gm::Matrix4::Rotation(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
+  gm::Vector4 p(1, 0, 0, 1);  // homogeneous point
+  GEOMPP_LOG(INFO) << "moved: "  << move * p;
+  GEOMPP_LOG(INFO) << "spun:  "  << spin * p;
+  ```
+
+  ```bash
+  I20260813] gauss:  (5, 3, -2)
+  I20260813] cramer: (5, 3, -2)
+  I20260813] A * A^-1 =
+  [1, -5.55112e-17, 5.55112e-17]
+   [0, 1, 0]
+   [-2.22045e-16, 5.55112e-17, 1]
+  I20260813] moved: (11, 0, 0, 1)
+  I20260813] spun:  (6.12323e-17, 1, 0, 1)
+  ```
+
+  (`Matrix`/`Vector::ToString()` does no rounding, unlike `geompp::geometry`'s `ToWkt()` which rounds to
+  `DECIMAL_PRECISION` -- the `1e-16`/`1e-17` terms above are ordinary IEEE 754 double-precision roundoff
+  from `cos(pi/2)` not being exactly zero, not a bug. Compare with `AlmostEquals()`-style tolerance rather
+  than `==` when checking a computed `Matrix`/`Vector` against an expected value.)
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using GeomPP.Maths;
+
+  // Solve a 3x3 linear system two ways and confirm they agree.
+  var a = new Matrix3(1, 1, 1,
+                      0, 2, 5,
+                      2, 5, -1);
+  var b = new Vector3(6, -4, 27);
+
+  var xGauss  = Solvers.SolveGauss(a, b);
+  var xCramer = Solvers.SolveCramer(a, b);
+  Console.WriteLine($"gauss:  {xGauss}");
+  Console.WriteLine($"cramer: {xCramer}");
+
+  // Inverse() round-trips back to the identity.
+  Console.WriteLine($"A * A^-1 =\n{a * a.Inverse()}");
+
+  // Matrix4 homogeneous-transform factories -- what TransformBuilder (§13) composes.
+  var move = Matrix4.Translation(new Vector3(10, 0, 0));
+  var spin = Matrix4.Rotation(Math.PI / 2.0, new Vector3(0, 0, 1));
+  var p = new Vector4(1, 0, 0, 1);  // homogeneous point
+  Console.WriteLine($"moved: {move * p}");
+  Console.WriteLine($"spun:  {spin * p}");
+  ```
+
+  ```
+  gauss:  (5, 3, -2)
+  cramer: (5, 3, -2)
+  A * A^-1 =
+  [1, -5.55112e-17, 5.55112e-17]
+   [0, 1, 0]
+   [-2.22045e-16, 5.55112e-17, 1]
+  moved: (11, 0, 0, 1)
+  spun:  (6.12323e-17, 1, 0, 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  from geompp import maths as gm
+
+  # Solve a 3x3 linear system two ways and confirm they agree.
+  a = gm.Matrix3([1, 1, 1,
+                  0, 2, 5,
+                  2, 5, -1])
+  b = gm.Vector3(6, -4, 27)
+
+  x_gauss = gm.solve_gauss(a, b)
+  x_cramer = gm.solve_cramer(a, b)
+  print(f"gauss:  {x_gauss}")
+  print(f"cramer: {x_cramer}")
+
+  # inverse() round-trips back to the identity.
+  print(f"A @ A^-1 =\n{a @ a.inverse()}")
+
+  # Matrix4 homogeneous-transform factories -- what TransformBuilder (§13) composes.
+  move = gm.Matrix4.translation(gm.Vector3(10, 0, 0))
+  spin = gm.Matrix4.rotation(3.14159265 / 2.0, gm.Vector3(0, 0, 1))
+  p = gm.Vector4(1, 0, 0, 1)  # homogeneous point
+  print(f"moved: {move @ p}")
+  print(f"spun:  {spin @ p}")
+  ```
+
+  ```
+  gauss:  (5, 3, -2)
+  cramer: (5, 3, -2)
+  A @ A^-1 =
+  [1, -5.55112e-17, 5.55112e-17]
+   [0, 1, 0]
+   [-2.22045e-16, 5.55112e-17, 1]
+  moved: (11, 0, 0, 1)
+  spun:  (6.12323e-17, 1, 0, 1)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; 13. geompp::transformations — Affine Transforms</b></summary>
+
+  `geompp::transformations` is the third module built on top of `geompp::geometry`: affine transforms
+  (translate/rotate/scale) for every `geompp::geometry` primitive, built entirely on `geompp::maths`
+  (§12) rather than on hand-derived per-primitive formulas. Two distinct families cover different needs:
+
+  - **`translate()`/`rotate()`/`scale()`** — the fast path, direct arithmetic on a single `Point2D`/
+    `Point3D`, no matrix ever constructed. `rotate()` in 2D takes a scalar angle (rotation about the
+    origin, in the XY plane); in 3D it takes an axis-angle pair (Rodrigues' formula, throws on a
+    zero-length axis). This is the cheapest possible path when all you have is one point.
+  - **`transform(primitive, matrix)`** — the general path: a 3x3 (`Matrix3`, 2D) or 4x4 (`Matrix4`, 3D)
+    homogeneous matrix applied to *any* primitive, from `Point2D/3D`/`Vector2D/3D` through
+    `LineSegment`/`Polyline`/`Triangle`/`Polygon` (outer ring **and** every hole ring) to `Mesh`/
+    `PolyMesh` — 16 overloads in total (8 per dimension). A composite primitive is rebuilt by
+    transforming each constituent point and re-validating through the type's own `Make()`/
+    `FromTriangles()`/`FromPolygons()`, so a single matrix combining rotation *and* translation applies
+    to an entire `Polygon2D` or `Mesh3D` in one call. `Vector2D`/`Vector3D` are the one exception worth
+    calling out: their homogeneous coordinate is `0` rather than `1`, so any translation baked into the
+    matrix has **no effect** on a transformed vector — correct, since a displacement has no position to
+    translate, only a direction/length to rotate and scale.
+
+  `TransformBuilder` is a fluent composer for a single `Matrix4`: each `Translate()`/`Rotate()`/
+  `Scale()`/`Combine()` call **pre-multiplies** the new operation onto the matrix accumulated so far, so
+  chained calls apply in the order they're *written*, left to right — `builder.Translate(t).Rotate(r)`
+  moves a point by `t` first, then rotates the *result* by `r`, matching how a reader expects a chain of
+  method calls to read ("do this, then this"). Reversing the chain (`Rotate` then `Translate`) produces a
+  genuinely different transform, not just a different-looking call — see the worked example below.
+
+  A worked example, using a right triangle: `TRIANGLE (0 0 0, 4 0 0, 0 3 0)`, area 6. Applying
+  `TransformBuilder().Translate((5, 2, 0)).Rotate(30°, Z axis)` — a translation, then a 30° rotation
+  about the Z axis applied to the *already-translated* triangle:
+
+  | | Before | After |
+  |---|---|---|
+  | WKT | `TRIANGLE (0 0 0, 4 0 0, 0 3 0)` | `TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0)` |
+  | Area | 6.0 | 6.0 |
+
+  The area is unchanged — translation and rotation are both rigid (distance- and angle-preserving), so
+  the triangle above is congruent to the original, just relocated and reoriented; only `Scale()` (or a
+  `Combine()`d matrix with a non-unit determinant) changes area, by a factor of the scale squared in 2D
+  (cubed for volume in 3D). *(Space reserved for a before/after picture of this triangle, in the same
+  style as the ear-clipping/triangulation figures earlier in this doc — not yet captured.)*
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "transformations.hpp"
+
+  namespace gt = geompp::transformations;
+  namespace gm = geompp::maths;
+
+  auto tri = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 3, 0));
+  GEOMPP_LOG(INFO) << "before: " << tri.ToWkt() << ", area " << tri.Area();
+
+  // Translate first, then rotate the *result* -- TransformBuilder pre-multiplies each call onto the
+  // matrix accumulated so far, so chained ops apply in the order they're written.
+  gt::TransformBuilder builder;
+  builder.Translate(gm::Vector3(5, 2, 0)).Rotate(std::numbers::pi / 6.0, gm::Vector3(0, 0, 1));
+  auto moved = gt::transform(tri, builder.Get());
+
+  GEOMPP_LOG(INFO) << "after:  " << moved.ToWkt() << ", area " << moved.Area();
+
+  // The fast path needs no matrix at all for a single point.
+  auto p = gt::translate(g::Point2D(1, 1), gm::Vector2(2, 0));
+  GEOMPP_LOG(INFO) << "fast-path translate: " << p.ToWkt();
+  ```
+
+  ```bash
+  I20260813] before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6
+  I20260813] after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6
+  I20260813] fast-path translate: POINT (3 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using GeomPP;
+  using GeomPP.Maths;
+  using GeomPP.Transformations;
+
+  var tri = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0), new Point3D(0, 3, 0));
+  Console.WriteLine($"before: {tri.ToWkt()}, area {tri.Area()}");
+
+  var builder = new TransformBuilder();
+  builder.Translate(new Vector3(5, 2, 0)).Rotate(Math.PI / 6.0, new Vector3(0, 0, 1));
+  var moved = Transform.Apply(tri, builder.Get());
+
+  Console.WriteLine($"after:  {moved.ToWkt()}, area {moved.Area()}");
+
+  // The fast path needs no matrix at all for a single point.
+  var p = Transform.Translate(new Point2D(1, 1), new Vector2(2, 0));
+  Console.WriteLine($"fast-path translate: {p.ToWkt()}");
+  ```
+
+  ```
+  before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6
+  after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6
+  fast-path translate: POINT (3 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import math
+  import geompp
+  from geompp import maths, transformations as tf
+
+  tri = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 3, 0))
+  print(f"before: {tri.to_wkt()}, area {tri.area()}")
+
+  builder = tf.TransformBuilder()
+  builder.translate(maths.Vector3(5, 2, 0)).rotate(math.pi / 6, maths.Vector3(0, 0, 1))
+  moved = tf.transform(tri, builder.get())
+
+  print(f"after:  {moved.to_wkt()}, area {moved.area()}")
+
+  # The fast path needs no matrix at all for a single point.
+  p = tf.translate(geompp.Point2D(1, 1), maths.Vector2(2, 0))
+  print(f"fast-path translate: {p.to_wkt()}")
+  ```
+
+  ```
+  before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6.0
+  after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6.0
+  fast-path translate: POINT (3 1)
   ```
 
    </details>

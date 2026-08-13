@@ -4,6 +4,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 void init_logging() {
   static std::once_flag flag;
   std::call_once(flag, []() {
@@ -13,5 +15,7 @@ void init_logging() {
     }
   });
 }
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -2,6 +2,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 #ifdef GEOMPP_NO_THREAD_LOCAL
 int DECIMAL_PRECISION = DP_THREE;
 DynamicEpsilon DOUBLE_EPSILON;
@@ -9,5 +11,7 @@ DynamicEpsilon DOUBLE_EPSILON;
 thread_local int DECIMAL_PRECISION = DP_THREE;
 thread_local DynamicEpsilon DOUBLE_EPSILON;
 #endif
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 double round(double x, int decimal_precision = DECIMAL_PRECISION);
 
 std::partial_ordering compare(double a, double b, double epsilon = DOUBLE_EPSILON);
@@ -59,10 +61,13 @@ struct TriangleCompactNeighborRef {
   // Encode: triangle_id in top 30 bits, edge_id in bottom 2 bits
   TriangleCompactNeighborRef(std::uint32_t tri_id, TriangleEdge local_edge_id);
 
+  /// @brief if true, the class is invalid: it means this is no neighbor, it is a boundary of the triangle mesh
   [[nodiscard]] bool is_boundary() const;
 
+  /// @brief allows to find the triangle in its container (often index of a triangle array)
   [[nodiscard]] std::uint32_t triangle_id() const;
 
+  /// @brief the entering edge of the neighbor triangle (0,1,2 - unless invalid)
   [[nodiscard]] TriangleEdge edge_id() const;
 };
 }  // namespace detail
@@ -120,5 +125,7 @@ inline TriangleCompactNeighborRef::TriangleCompactNeighborRef(std::uint32_t tri_
 }  // namespace detail
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

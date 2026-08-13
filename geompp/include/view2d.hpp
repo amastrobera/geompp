@@ -9,6 +9,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 enum class ProjectionType { XY, YZ, ZX, Custom };
 
 class View2D {
@@ -79,5 +81,7 @@ inline double View2D::y(Point2D const& p) const { return p.y(); }
 inline std::pair<double, double> View2D::xy(Point2D const& p) const { return {p.x(), p.y()}; }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

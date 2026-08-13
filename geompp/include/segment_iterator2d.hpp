@@ -13,6 +13,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class SegmentIterator2D {
  public:
   using value_type        = LineSegment2D;
@@ -79,6 +81,8 @@ class SegmentRange2D {
   std::vector<Point2D> const* PTS;
   bool CLOSED;
 };
+
+}  // namespace geometry
 
 }  // namespace geompp
 

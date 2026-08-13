@@ -15,6 +15,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line3D;
 class Ray3D;
 // class Polyline3D;
@@ -175,5 +177,7 @@ inline std::tuple<Point3D, Point3D, Point3D> const Triangle3D::Vertices() const 
 inline Triangle3D::Triangle3D(Point3D const& p0, Point3D const& p1, Point3D const& p2) : P0(p0), P1(p1), P2(p2) {}
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Mesh2D;
 
 /// @brief A mesh made of adjacent, arbitrary-sided polygonal faces, stored as a flat index buffer for efficiency
@@ -123,5 +125,7 @@ inline auto PolyMesh2D::Faces() const {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

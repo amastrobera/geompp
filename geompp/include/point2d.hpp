@@ -9,6 +9,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point2D {
  public:
   Point2D(double x, double y);
@@ -138,5 +140,7 @@ inline double Point2D::y() const { return Y; }
 inline Point2D Point2D::Zero() { return Point2D(0, 0); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

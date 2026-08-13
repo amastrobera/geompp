@@ -88,7 +88,45 @@ Intersection return values
 the geometry object of the intersection otherwise.  For polylines and triangles
 the return can be a single point *or* a list of points / a segment / a polygon
 depending on the geometry involved — use ``isinstance()`` to discriminate.
+
+geompp.maths submodule
+-----------------------
+Fixed-size linear algebra, independent of the geometry classes above:
+    Vector2, Vector3, Vector4 -- indexing, x/y/z/w, dot/cross (Vector3 only), length,
+                                  normalized(), arithmetic operators
+    Matrix2, Matrix3, Matrix4 -- element access via m(r, c)/.set(r, c, v), zero()/identity(),
+                                  transpose(), determinant(), inverse(), arithmetic operators,
+                                  @ for matrix@matrix and matrix@vector
+    Matrix4.translation(offset), .rotation(angle_rad, axis), .scale(factor|sx, sy, sz)
+                                  -- homogeneous 4x4 affine-transform factories
+    solve_gauss(a, b), solve_cramer(a, b) -- solve a square linear system a*x = b
+Import as ``from geompp import maths`` or ``import geompp.maths``.
+
+geompp.transformations submodule
+----------------------------------
+Affine transforms for the classes above, built on geompp.maths:
+    translate(point, offset), rotate(point, angle_rad[, axis]), scale(point, factor|sx, sy[, sz])
+                                  -- fast direct arithmetic on a single Point2D/Point3D, no matrix
+    transform(obj, matrix)       -- every primitive from Point2D/3D to PolyMesh2D/3D, via a 3x3
+                                     (2D) or 4x4 (3D) homogeneous matrix
+    TransformBuilder()           -- fluent Matrix4 composer: .translate(offset).rotate(angle_rad, axis)
+                                     .scale(...), each applied after every op already chained; .get()/
+                                     .build() returns the composed geompp.maths.Matrix4
+Import as ``from geompp import transformations`` or ``import geompp.transformations``.
 """
+
+import sys as _sys
+
+from . import _geompp
+
+# geompp::maths is a real (non-inline) C++ namespace, so it gets a real Python submodule rather than a
+# flat set of names -- register it under both spellings so `from geompp import maths` and
+# `import geompp.maths` both work, matching how a normal Python package submodule behaves.
+maths = _geompp.maths
+_sys.modules[__name__ + ".maths"] = maths
+
+transformations = _geompp.transformations
+_sys.modules[__name__ + ".transformations"] = transformations
 
 from ._geompp import (  # noqa: F401
     # precision
@@ -225,4 +263,5 @@ __all__ = [
     "TriangulationStrategy", "TriangulationSimplicity", "TriangulationWinding", "TriangulationCollinearity",
     "TriangulationParams", "triangulate",
     "AdjacencyConformity", "AdjacencyViolation2D", "AdjacencyViolation3D", "validate_adjacency", "fix_adjacency",
+    "maths", "transformations",
 ]

@@ -33,6 +33,8 @@
 #include <variant>
 
 namespace geompp {
+
+inline namespace geometry {
 namespace detail {
 
 std::optional<Point2D> line_intersection(Point2D const& p0, Point2D const& p1, Point2D const& other_p0,
@@ -3282,10 +3284,9 @@ std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets) {
   return result;
 }
 
-std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, AdjacencyConformity conformity,
-                                    TriangulationParams const& settings) {
-  switch (conformity) {
-    case AdjacencyConformity::Guaranteed: {
+std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, TriangulationParams const& settings) {
+  switch (settings.conformity) {
+    case TriangulationParams::AdjacencyConformity::Guaranteed: {
       std::vector<Triangle2D> result;
       for (auto const& poly : polygons) {
         auto tris = triangulate(poly.Perimeter(), settings);
@@ -3293,7 +3294,7 @@ std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, Adja
       }
       return result;
     }
-    case AdjacencyConformity::Assert: {
+    case TriangulationParams::AdjacencyConformity::Assert: {
       auto violations = validate_adjacency(polygons);
       if (!violations.empty()) {
         auto const& v = violations.front();
@@ -3310,7 +3311,7 @@ std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, Adja
       }
       return result;
     }
-    case AdjacencyConformity::Enforce: {
+    case TriangulationParams::AdjacencyConformity::Enforce: {
       // fix_adjacency() now actually splits a coarse facet via a diagonal cut per T-junction vertex
       // (§10.5), rather than just splicing a flat vertex into its ring, so every returned ring is
       // already a simple polygon with no leftover collinear points -- no need to force
@@ -3360,5 +3361,7 @@ template void assert_adjacency(std::vector<AdjacencyViolation<Point2D>> const&);
 template void assert_adjacency(std::vector<AdjacencyViolation<Point3D>> const&);
 
 }  // namespace detail
+
+}  // namespace geometry
 
 }  // namespace geompp

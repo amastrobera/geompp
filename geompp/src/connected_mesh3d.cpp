@@ -9,6 +9,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 ConnectedMesh3D ConnectedMesh3D::FromTriangles(std::vector<Triangle3D> const& triangles) {
   // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
   // adjacency is treated as invalid caller input here, never silently repaired.
@@ -65,5 +67,7 @@ detail::TriangleCompactNeighborRef::TriangleEdge ConnectedMesh3D::FaceView3D::Ne
 
   return neighbor_ref.edge_id();
 }
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line3D;
 class LineSegment3D;
 class Polyline3D;
@@ -155,5 +157,7 @@ inline Vector3D const& Ray3D::Direction() const { return DIR; }
 inline Ray3D::Ray3D(Point3D const& orig, Vector3D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

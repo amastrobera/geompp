@@ -12,6 +12,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line2D;
 class Ray2D;
 class Polyline2D;
@@ -220,5 +222,7 @@ inline Polygon2D::const_iterator Polygon2D::cbegin() const { return VERTICES.cbe
 inline Polygon2D::const_iterator Polygon2D::cend() const { return VERTICES.cend(); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

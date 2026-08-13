@@ -12,6 +12,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line3D;
 class Ray3D;
 class LineSegment3D;
@@ -240,5 +242,7 @@ inline Polygon3D::const_iterator Polygon3D::cbegin() const { return VERTICES.cbe
 inline Polygon3D::const_iterator Polygon3D::cend() const { return VERTICES.cend(); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

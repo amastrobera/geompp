@@ -13,6 +13,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 /// Per-facet edge adjacency is precomputed internally (see `detail::TriangleCompactNeighborRef`) and
 /// exposed via `FaceView3D::Neighbor()`/`NeighborEntryEdge()`.
@@ -128,5 +130,7 @@ inline std::size_t ConnectedMesh3D::FaceView3D::ID() const { return m_face_id; }
 #pragma endregion
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

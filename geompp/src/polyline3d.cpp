@@ -25,6 +25,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 #pragma region Constructors
 
 Polyline3D Polyline3D::Make(std::vector<Point3D> const& points) {
@@ -632,5 +634,7 @@ Polyline3D Polyline3D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

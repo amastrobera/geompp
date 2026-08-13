@@ -12,6 +12,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line2D;
 class Ray2D;
 class LineSegment2D;
@@ -155,5 +157,7 @@ inline Polyline2D::Polyline2D(std::vector<Point2D>&& points, double length)
     : KNOTS{std::move(points)}, LENGTH(length) {}
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -7,6 +7,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 
 BBall3D& BBall3D::operator=(BBall3D const& other) {
   if (this != &other) {
@@ -116,5 +118,7 @@ BBall3D::BBall3D(Points const& points) {
 }
 
 template BBall3D::BBall3D(std::vector<Point3D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

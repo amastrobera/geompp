@@ -12,6 +12,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line3D;
 class Ray3D;
 class LineSegment3D;
@@ -206,5 +208,7 @@ bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> ref_plane =
 Point3D centroid(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt);
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

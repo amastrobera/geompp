@@ -15,6 +15,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class BBall2D {
  public:
   BBall2D(Point2D const& center, double radius);
@@ -62,5 +64,7 @@ inline BBall2D::BBall2D(Point2D const& center, double radius) : CENTER(center), 
 #pragma endregion
 
 extern template BBall2D::BBall2D(std::vector<Point2D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

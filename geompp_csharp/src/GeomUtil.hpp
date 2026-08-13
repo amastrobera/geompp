@@ -122,17 +122,40 @@ public enum class TriangulationCollinearity {
     Enforce = 2
 };
 
+// How to handle a batch of facets that violate "every edge has at most 1 neighbor" -- no facet vertex
+// may lie in the interior of another facet's edge, only exactly at that edge's own start/end vertex.
+// Known elsewhere as: no "hanging nodes" (FEM), no "T-junctions" (graphics), a valid PSLG (mesh
+// generation). Only consulted by the batch GeomUtil.Triangulate(array<Polygon2D^>^, TriangulationParams^)
+// overload, via TriangulationParams.Conformity -- GeomUtil.ValidateAdjacency() / FixAdjacency() do the
+// actual checking/repair; Mesh2D/3D.FromTriangles, PolyMesh2D/3D.FromPolygons, and
+// ConnectedMesh2D/3D.FromTriangles always Assert this at construction time. Values must stay in the same
+// order as geompp::TriangulationParams::AdjacencyConformity (converted via a raw static_cast by ordinal,
+// same reasoning as TriangulationStrategy above).
+public enum class AdjacencyConformity {
+    // No check is carried out (runs at your own risk).
+    Guaranteed = 0,
+    // Throws if any violation (T-junction or non-manifold edge) is found.
+    Assert = 1,
+    // Auto-repairs every T-junction via FixAdjacency(); still throws on a non-manifold edge (a full
+    // edge shared by 3+ facets) -- there's no principled automatic fix for that one.
+    Enforce = 2
+};
+
 // Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for
-// GeomUtil.Triangulate(). Defaults to EarClipping, and Enforce for all three input-quality checks —
-// matching the native triangulate()'s own defaults. Polygon2D.Triangulate() / Polygon3D.Triangulate() /
-// PolyMesh2D.Triangulate() / PolyMesh3D.Triangulate() take just a TriangulationStrategy instead: their
-// input is already guaranteed simple/CCW/collinear-free by construction, so the other three checks
-// aren't exposed there.
+// GeomUtil.Triangulate(), plus (for the batch GeomUtil.Triangulate(array<Polygon2D^>^, ...) overload
+// only) how to handle cross-facet adjacency violations. Defaults to EarClipping, and Enforce for all
+// four input-quality checks — matching the native triangulate()'s own defaults. Polygon2D.Triangulate() /
+// Polygon3D.Triangulate() / PolyMesh2D.Triangulate() / PolyMesh3D.Triangulate() take just a
+// TriangulationStrategy instead: their input is already guaranteed simple/CCW/collinear-free by
+// construction, so the other checks aren't exposed there.
 public ref class TriangulationParams {
 public:
     TriangulationParams();
     TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity);
+    TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                        TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                        AdjacencyConformity conformity);
 
     property TriangulationStrategy Strategy {
         TriangulationStrategy get() { return _strategy; }
@@ -150,6 +173,11 @@ public:
         TriangulationCollinearity get() { return _collinearity; }
         void set(TriangulationCollinearity value) { _collinearity = value; }
     }
+    // Only consulted by the batch GeomUtil.Triangulate(array<Polygon2D^>^, TriangulationParams^) overload.
+    property AdjacencyConformity Conformity {
+        AdjacencyConformity get() { return _conformity; }
+        void set(AdjacencyConformity value) { _conformity = value; }
+    }
 
 internal:
     geompp::TriangulationParams ToNative();
@@ -159,23 +187,7 @@ private:
     TriangulationSimplicity _simplicity;
     TriangulationWinding _ccwWinding;
     TriangulationCollinearity _collinearity;
-};
-
-// How to handle a batch of facets that violate "every edge has at most 1 neighbor" -- no facet vertex
-// may lie in the interior of another facet's edge, only exactly at that edge's own start/end vertex.
-// Known elsewhere as: no "hanging nodes" (FEM), no "T-junctions" (graphics), a valid PSLG (mesh
-// generation). GeomUtil.ValidateAdjacency() / FixAdjacency() do the actual checking/repair;
-// Mesh2D/3D.FromTriangles, PolyMesh2D/3D.FromPolygons, and ConnectedMesh2D/3D.FromTriangles always
-// Assert this at construction time. Values must stay in the same order as geompp::AdjacencyConformity
-// (converted via a raw static_cast by ordinal, same reasoning as TriangulationStrategy above).
-public enum class AdjacencyConformity {
-    // No check is carried out (runs at your own risk).
-    Guaranteed = 0,
-    // Throws if any violation (T-junction or non-manifold edge) is found.
-    Assert = 1,
-    // Auto-repairs every T-junction via FixAdjacency(); still throws on a non-manifold edge (a full
-    // edge shared by 3+ facets) -- there's no principled automatic fix for that one.
-    Enforce = 2
+    AdjacencyConformity _conformity;
 };
 
 // One "more than 1 neighbor" violation found by GeomUtil.ValidateAdjacency() across a batch of 2D
@@ -382,10 +394,10 @@ public:
 
     // Triangulate (batch) — batch-triangulates a set of 2D polygon facets together, the free-function
     // equivalent of PolyMesh2D.FromPolygons(polygons).Triangulate(). Unlike PolyMesh2D.FromPolygons
-    // (which always throws on bad adjacency), conformity is typically Enforce: auto-repairs a
+    // (which always throws on bad adjacency), settings.Conformity is typically Enforce: auto-repairs a
     // T-junction, still throws on a non-manifold edge.
     static System::Collections::Generic::IEnumerable<Triangle2D^>^ Triangulate(
-        array<Polygon2D^>^ polygons, AdjacencyConformity conformity, TriangulationParams^ settings);
+        array<Polygon2D^>^ polygons, TriangulationParams^ settings);
 };
 
 }  // namespace GeomPP

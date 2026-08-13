@@ -28,6 +28,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 // Only consumer is WktVariant below, so the concept lives here rather than in a shared concepts file.
 template <typename T>
 concept WktSerializable = requires(const T& obj, const std::string& wkt) {
@@ -84,5 +86,7 @@ class WktParser {
 
   WktParser(std::string const& file_name, std::ifstream&& file_path);
 };
+
+}  // namespace geometry
 
 }  // namespace geompp

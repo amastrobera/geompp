@@ -82,6 +82,9 @@ add_executable(${PROJECT_NAME}
     src/test_connected_mesh2d.cpp
     src/test_connected_mesh3d.cpp
 
+    src/test_maths.cpp
+    src/test_transformations.cpp
+
     main.cpp
 )
 

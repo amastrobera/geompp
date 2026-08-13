@@ -16,6 +16,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 // Forward declarations for types only needed by reference in EventQueue2D constructors.
 // Placed here (not inside detail) so name lookup from within detail finds geompp::Polygon2D
 // and geompp::SegmentRange2D, not shadow types.
@@ -477,4 +479,6 @@ requires BentleyOttmannVisitor2D<Visitor, Segments> bool run_bentley_ottmann(Seg
 }
 
 }  // namespace detail
+}  // namespace geometry
+
 }  // namespace geompp

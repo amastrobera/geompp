@@ -7,6 +7,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 BRect2D& BRect2D::operator=(BRect2D const& other) {
   if (this != &other) {
     CENTER = other.CENTER;
@@ -74,5 +76,7 @@ BRect2D::BRect2D(Points const& points) {
 }
 
 template BRect2D::BRect2D(std::vector<Point2D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp
