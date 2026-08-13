@@ -92,7 +92,7 @@ Polygon2D Polygon2D::FromUniquePoints(std::vector<Point2D> unique_points, std::v
 
   std::vector<std::vector<Point2D>> unique_holes_points;
   for (auto& hole : holes) {
-    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(std::move(hole)));
+    auto unique_hole_points = remove_collinear(std::move(hole));
 
     if (unique_hole_points.size() < 3) {
       throw std::runtime_error(std::format(
@@ -198,11 +198,11 @@ Polygon2D Polygon2D::Make(std::vector<Point2D>&& points) {
 }
 
 Polygon2D Polygon2D::Make(std::vector<Point2D> const& points, std::vector<std::vector<Point2D>> const& holes) {
-  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(points)), holes);
+  return FromUniquePoints(remove_collinear(points), holes);
 }
 
 Polygon2D Polygon2D::Make(std::vector<Point2D>&& points, std::vector<std::vector<Point2D>>&& holes) {
-  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(std::move(points))), std::move(holes));
+  return FromUniquePoints(remove_collinear(std::move(points)), std::move(holes));
 }
 
 #pragma endregion

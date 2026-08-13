@@ -1,6 +1,6 @@
 """
 geompp.transformations binding tests (translate/rotate/scale fast path, transform(obj, matrix)
-general path, TransformBuilder).
+general path, TransformBuilder2D/TransformBuilder3D).
 """
 
 import math
@@ -173,34 +173,34 @@ class TestTransformations3DGeneralPath:
         assert approx(moved.area(), mesh.area())
 
 
-class TestTransformBuilder:
+class TestTransformBuilder3D:
     def test_default_constructed_is_identity(self):
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         assert builder.get() == maths.Matrix4.identity()
 
     def test_chained_ops_apply_in_call_order(self):
         # translate then rotate: (1,0,0) -> translate(+5,0,0) -> (6,0,0) -> rotate 90deg -> (0,6,0)
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         builder.translate(maths.Vector3(5, 0, 0)).rotate(math.pi / 2, maths.Vector3(0, 0, 1))
         p = tf.transform(geompp.Point3D(1, 0, 0), builder.get())
         assert approx(p.x, 0.0, 1e-9)
         assert approx(p.y, 6.0, 1e-9)
 
     def test_reversed_chain_order_produces_different_result(self):
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         builder.rotate(math.pi / 2, maths.Vector3(0, 0, 1)).translate(maths.Vector3(5, 0, 0))
         p = tf.transform(geompp.Point3D(1, 0, 0), builder.get())
         assert approx(p.x, 5.0, 1e-9)
         assert approx(p.y, 1.0, 1e-9)
 
     def test_combine_applies_arbitrary_matrix(self):
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         builder.combine(maths.Matrix4.translation(maths.Vector3(1, 2, 3)))
         p = tf.transform(geompp.Point3D(0, 0, 0), builder.get())
         assert p == geompp.Point3D(1, 2, 3)
 
     def test_shear_offsets_axis_by_multiple_of_other(self):
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         builder.shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         p = tf.transform(geompp.Point3D(1, 3, 5), builder.get())
         assert approx(p.x, 1.0 + 2.0 * 3.0, 1e-9)
@@ -208,7 +208,7 @@ class TestTransformBuilder:
         assert approx(p.z, 5.0, 1e-9)
 
     def test_reflect_about_x_axis_normal_flips_y(self):
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         builder.reflect(maths.Vector3(0, 1, 0))
         p = tf.transform(geompp.Point3D(3, 4, 5), builder.get())
         assert approx(p.x, 3.0, 1e-9)
@@ -216,16 +216,69 @@ class TestTransformBuilder:
         assert approx(p.z, 5.0, 1e-9)
 
     def test_reflect_zero_length_normal_raises(self):
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         with pytest.raises(ValueError):
             builder.reflect(maths.Vector3(0, 0, 0))
 
     def test_build_returns_independent_snapshot(self):
-        builder = tf.TransformBuilder()
+        builder = tf.TransformBuilder3D()
         builder.translate(maths.Vector3(1, 0, 0))
         snapshot = builder.build()
         builder.translate(maths.Vector3(0, 1, 0))
         assert snapshot == maths.Matrix4.translation(maths.Vector3(1, 0, 0))
+
+
+class TestTransformBuilder2D:
+    def test_default_constructed_is_identity(self):
+        builder = tf.TransformBuilder2D()
+        assert builder.get() == maths.Matrix3.identity()
+
+    def test_chained_ops_apply_in_call_order(self):
+        # translate then rotate: (1,0) -> translate(+5,0) -> (6,0) -> rotate 90deg -> (0,6)
+        builder = tf.TransformBuilder2D()
+        builder.translate(maths.Vector2(5, 0)).rotate(math.pi / 2)
+        p = tf.transform(geompp.Point2D(1, 0), builder.get())
+        assert approx(p.x, 0.0, 1e-9)
+        assert approx(p.y, 6.0, 1e-9)
+
+    def test_reversed_chain_order_produces_different_result(self):
+        builder = tf.TransformBuilder2D()
+        builder.rotate(math.pi / 2).translate(maths.Vector2(5, 0))
+        p = tf.transform(geompp.Point2D(1, 0), builder.get())
+        assert approx(p.x, 5.0, 1e-9)
+        assert approx(p.y, 1.0, 1e-9)
+
+    def test_combine_applies_arbitrary_matrix(self):
+        builder = tf.TransformBuilder2D()
+        builder.combine(maths.Matrix3.translation(maths.Vector2(1, 2)))
+        p = tf.transform(geompp.Point2D(0, 0), builder.get())
+        assert p == geompp.Point2D(1, 2)
+
+    def test_shear_offsets_axis_by_multiple_of_other(self):
+        builder = tf.TransformBuilder2D()
+        builder.shear(2.0, 0.0)
+        p = tf.transform(geompp.Point2D(1, 3), builder.get())
+        assert approx(p.x, 1.0 + 2.0 * 3.0, 1e-9)
+        assert approx(p.y, 3.0, 1e-9)
+
+    def test_reflect_about_x_axis_normal_flips_y(self):
+        builder = tf.TransformBuilder2D()
+        builder.reflect(maths.Vector2(0, 1))
+        p = tf.transform(geompp.Point2D(3, 4), builder.get())
+        assert approx(p.x, 3.0, 1e-9)
+        assert approx(p.y, -4.0, 1e-9)
+
+    def test_reflect_zero_length_normal_raises(self):
+        builder = tf.TransformBuilder2D()
+        with pytest.raises(ValueError):
+            builder.reflect(maths.Vector2(0, 0))
+
+    def test_build_returns_independent_snapshot(self):
+        builder = tf.TransformBuilder2D()
+        builder.translate(maths.Vector2(1, 0))
+        snapshot = builder.build()
+        builder.translate(maths.Vector2(0, 1))
+        assert snapshot == maths.Matrix3.translation(maths.Vector2(1, 0))
 
 
 def test_transformations_submodule_importable_both_ways():

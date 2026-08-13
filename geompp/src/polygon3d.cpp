@@ -131,7 +131,7 @@ Polygon3D Polygon3D::FromUniquePoints(std::vector<Point3D> unique_points, std::v
   std::vector<std::vector<Point3D>> unique_holes_points;
   std::vector<std::vector<LineSegment2D>> unique_holes_segs_2d;  // cached for the cross-hole check below
   for (auto& hole : holes) {
-    auto unique_hole_points = remove_collinear(remove_consecutive_duplicates(std::move(hole)));
+    auto unique_hole_points = remove_collinear(std::move(hole));
 
     if (unique_hole_points.size() < 3) {
       throw std::runtime_error(std::format(
@@ -240,11 +240,11 @@ Polygon3D Polygon3D::Make(std::vector<Point3D>&& points) {
 }
 
 Polygon3D Polygon3D::Make(std::vector<Point3D> const& points, std::vector<std::vector<Point3D>> const& holes) {
-  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(points)), holes);
+  return FromUniquePoints(remove_collinear(points), holes);
 }
 
 Polygon3D Polygon3D::Make(std::vector<Point3D>&& points, std::vector<std::vector<Point3D>>&& holes) {
-  return FromUniquePoints(remove_collinear(remove_consecutive_duplicates(std::move(points))), std::move(holes));
+  return FromUniquePoints(remove_collinear(std::move(points)), std::move(holes));
 }
 
 #pragma endregion

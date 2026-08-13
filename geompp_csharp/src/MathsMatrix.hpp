@@ -112,7 +112,7 @@ public:
     static Matrix4^ Zero();
     static Matrix4^ Identity();
 
-    // Homogeneous 4x4 affine-transform factories -- what GeomPP.Transformations.TransformBuilder
+    // Homogeneous 4x4 affine-transform factories -- what GeomPP.Transformations.TransformBuilder3D
     // composes via plain Matrix4 multiplication.
     static Matrix4^ Translation(Vector3^ offset);
     static Matrix4^ Rotation(double angleRad, Vector3^ axis);  // throws if axis is zero-length

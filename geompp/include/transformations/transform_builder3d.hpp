@@ -2,12 +2,14 @@
 
 #include "../maths.hpp"
 
-/// @file transform_builder.hpp
-/// @brief Fluent composer for a single 4x4 homogeneous affine transform (translation + rotation +
-/// scale, in any order/repetition), applied to 3D primitives via transform(primitive, TransformBuilder
-/// ::Get()) (transformations3d.hpp) -- or its 2D counterpart via a plain geompp::maths::Matrix3, since
-/// a 2D affine transform needs far fewer knobs (no axis to pick for rotation) to make a dedicated
-/// builder worth it.
+/// @file transform_builder3d.hpp
+/// @brief Fluent composer for a single 4x4 homogeneous affine transform (translation + rotation + scale,
+/// in any order/repetition), applied to 3D primitives via transform(primitive, TransformBuilder3D::Get())
+/// (transformations3d.hpp). See transform_builder2d.hpp for the Matrix3-backed 2D counterpart -- both
+/// compose the same way: each chained call PRE-multiplies the new operation onto the accumulated matrix
+/// (`new_op * accumulated`) so operations apply in the order they're called, matching how a reader
+/// expects a chain of method calls to read left-to-right as "do this, then this" -- see Combine()'s doc
+/// for why that's the opposite of raw matrix-multiplication order.
 namespace geompp::transformations {
 
 /// @brief Builds a composite Matrix4 by chaining translate()/rotate()/scale()/combine() calls, each
@@ -15,39 +17,39 @@ namespace geompp::transformations {
 /// operations apply in the order they're called: `builder.translate(t).rotate(r)` moves a point first
 /// by `t`, then rotates the result by `r` (not the other way around) -- matches how a reader expects a
 /// chain of method calls to read left-to-right as "do this, then this".
-class TransformBuilder {
+class TransformBuilder3D {
  public:
-  TransformBuilder() = default;
+  TransformBuilder3D() = default;
 
   /// @brief Appends a translation by `offset`, applied after every operation already chained.
-  TransformBuilder& Translate(maths::Vector3 const& offset);
+  TransformBuilder3D& Translate(maths::Vector3 const& offset);
 
   /// @brief Appends a rotation by `angle_rad` radians about `axis` (through the origin, Rodrigues'
   /// formula), applied after every operation already chained.
   /// @throws std::invalid_argument if `axis` is zero-length.
-  TransformBuilder& Rotate(double angle_rad, maths::Vector3 const& axis);
+  TransformBuilder3D& Rotate(double angle_rad, maths::Vector3 const& axis);
 
   /// @brief Appends a uniform scale by `factor` (about the origin), applied after every operation
   /// already chained.
-  TransformBuilder& Scale(double factor);
+  TransformBuilder3D& Scale(double factor);
 
   /// @brief Appends a non-uniform per-axis scale (about the origin), applied after every operation
   /// already chained.
-  TransformBuilder& Scale(double sx, double sy, double sz);
+  TransformBuilder3D& Scale(double sx, double sy, double sz);
 
   /// @brief Appends a general shear (each axis offset by a multiple of the other two), applied after
   /// every operation already chained.
-  TransformBuilder& Shear(double xy, double xz, double yx, double yz, double zx, double zy);
+  TransformBuilder3D& Shear(double xy, double xz, double yx, double yz, double zx, double zy);
 
   /// @brief Appends a reflection across the plane through the origin whose normal is `normal`, applied
   /// after every operation already chained.
   /// @throws std::invalid_argument if `normal` is zero-length.
-  TransformBuilder& Reflect(maths::Vector3 const& normal);
+  TransformBuilder3D& Reflect(maths::Vector3 const& normal);
 
   /// @brief Appends an arbitrary caller-supplied Matrix4, applied after every operation already
   /// chained -- an escape hatch for a transform this builder has no dedicated method for (perspective,
   /// a matrix loaded from a scene file, ...).
-  TransformBuilder& Combine(maths::Matrix4 const& mat);
+  TransformBuilder3D& Combine(maths::Matrix4 const& mat);
 
   /// @brief The composed matrix so far.
   maths::Matrix4 const& Get() const;

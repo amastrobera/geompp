@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <numbers>
+#include <variant>
 
 namespace g = geompp;
 namespace gt = geompp::transformations;
@@ -133,6 +134,170 @@ TEST(Transformations2DTest, TransformPolyMesh_PreservesTotalAreaUnderRigidTransf
 
 #pragma endregion
 
+#pragma region 2D transform() -- newly covered types
+
+TEST(Transformations2DTest, TransformRay_TransformsOriginAndDirection) {
+  auto ray = g::Ray2D::Make(g::Point2D(1, 1), g::Vector2D(1, 0));
+  // m = Rotation * Translation applies Translation first, then Rotation (right operand nearest the point
+  // applies first) -- same right-to-left composition order as TransformBuilder3D's call-order chaining.
+  auto m = gm::Matrix3::Rotation(std::numbers::pi / 2.0) * gm::Matrix3::Translation(gm::Vector2(3, 0));
+  auto moved = gt::transform(ray, m);
+  EXPECT_NEAR(moved.Origin().x(), -1.0, 1e-9);
+  EXPECT_NEAR(moved.Origin().y(), 4.0, 1e-9);
+  EXPECT_NEAR(moved.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(moved.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations2DTest, TransformLine_TransformsOriginAndDirection) {
+  auto line = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  auto moved = gt::transform(line, gm::Matrix3::Rotation(std::numbers::pi / 2.0));
+  EXPECT_NEAR(moved.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(moved.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations2DTest, TransformGeometryCollection_TransformsEveryMember) {
+  g::GeometryCollection2D collection;
+  collection.Add(g::Point2D(1, 0));
+  collection.Add(g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0)));
+
+  auto moved = gt::transform(collection, gm::Matrix3::Translation(gm::Vector2(10, 0)));
+  EXPECT_EQ(moved.Size(), collection.Size());
+  auto p = std::get<g::Point2D>(moved.Get(0));
+  EXPECT_NEAR(p.x(), 11.0, 1e-9);
+  auto seg = std::get<g::LineSegment2D>(moved.Get(1));
+  EXPECT_NEAR(seg.First().x(), 10.0, 1e-9);
+  EXPECT_NEAR(seg.Last().x(), 11.0, 1e-9);
+}
+
+TEST(Transformations2DTest, TransformConnectedMesh_PreservesTotalAreaUnderRigidTransform) {
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1));
+  auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::ConnectedMesh2D::FromTriangles({a, b});
+  auto moved = gt::transform(mesh, gm::Matrix3::Rotation(0.9) * gm::Matrix3::Translation(gm::Vector2(2, -3)));
+  EXPECT_EQ(moved.Size(), mesh.Size());
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+}
+
+#pragma endregion
+
+#pragma region 2D translate/rotate/scale/shear/reflect wrappers -- newly covered types
+
+TEST(Transformations2DTest, Vector_RotateScaleReflect) {
+  auto r = gt::rotate(g::Vector2D(1, 0), std::numbers::pi / 2.0);
+  EXPECT_NEAR(r.x(), 0.0, 1e-9);
+  EXPECT_NEAR(r.y(), 1.0, 1e-9);
+
+  auto s = gt::scale(g::Vector2D(2, 3), 2.0, 5.0);
+  EXPECT_DOUBLE_EQ(s.x(), 4.0);
+  EXPECT_DOUBLE_EQ(s.y(), 15.0);
+
+  auto f = gt::reflect(g::Vector2D(3, 4), gm::Vector2(0, 1));
+  EXPECT_NEAR(f.x(), 3.0, 1e-9);
+  EXPECT_NEAR(f.y(), -4.0, 1e-9);
+}
+
+TEST(Transformations2DTest, Ray_TranslateMovesOrigin_RotateTurnsDirection) {
+  auto ray = g::Ray2D::Make(g::Point2D(1, 1), g::Vector2D(1, 0));
+  auto moved = gt::translate(ray, gm::Vector2(5, 0));
+  EXPECT_NEAR(moved.Origin().x(), 6.0, 1e-9);
+
+  auto turned = gt::rotate(ray, std::numbers::pi / 2.0);
+  EXPECT_NEAR(turned.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(turned.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations2DTest, Line_TranslateAndRotate_MatchTransform) {
+  auto line = g::Line2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  auto moved = gt::translate(line, gm::Vector2(0, 4));
+  EXPECT_TRUE(moved.Contains(g::Point2D(0, 4)));
+
+  auto turned = gt::rotate(line, std::numbers::pi / 2.0);
+  EXPECT_NEAR(turned.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(turned.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations2DTest, LineSegment_TranslateOffsets_ScaleMultipliesLength) {
+  auto seg = g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0));
+  auto moved = gt::translate(seg, gm::Vector2(0, 3));
+  EXPECT_DOUBLE_EQ(moved.First().y(), 3.0);
+
+  auto scaled = gt::scale(seg, 3.0);
+  EXPECT_NEAR(scaled.Length(), seg.Length() * 3.0, 1e-9);
+}
+
+TEST(Transformations2DTest, GeometryCollection_TranslateMovesEveryMember) {
+  g::GeometryCollection2D collection;
+  collection.Add(g::Point2D(0, 0));
+  auto moved = gt::translate(collection, gm::Vector2(2, 3));
+  auto p = std::get<g::Point2D>(moved.Get(0));
+  EXPECT_NEAR(p.x(), 2.0, 1e-9);
+  EXPECT_NEAR(p.y(), 3.0, 1e-9);
+}
+
+TEST(Transformations2DTest, Polygon_TranslateOffsets_ScaleMultipliesAreaBySquare) {
+  auto poly = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 3), g::Point2D(0, 3)});
+  auto moved = gt::translate(poly, gm::Vector2(1, 1));
+  EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+
+  auto scaled = gt::scale(poly, 2.0);
+  EXPECT_NEAR(scaled.Area(), poly.Area() * 4.0, 1e-9);
+}
+
+TEST(Transformations2DTest, Polyline_TranslateOffsets_ScaleMultipliesLength) {
+  auto polyline = g::Polyline2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)});
+  auto moved = gt::translate(polyline, gm::Vector2(0, 2));
+  EXPECT_NEAR(moved.Length(), polyline.Length(), 1e-9);
+
+  auto scaled = gt::scale(polyline, 2.0);
+  EXPECT_NEAR(scaled.Length(), polyline.Length() * 2.0, 1e-9);
+}
+
+TEST(Transformations2DTest, Triangle_TranslateRotateScaleShearReflect_MatchDirectTransform) {
+  auto tri = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 3));
+
+  auto translated = gt::translate(tri, gm::Vector2(1, 1));
+  EXPECT_TRUE(translated.AlmostEquals(gt::transform(tri, gm::Matrix3::Translation(gm::Vector2(1, 1)))));
+
+  auto rotated = gt::rotate(tri, 0.5);
+  EXPECT_TRUE(rotated.AlmostEquals(gt::transform(tri, gm::Matrix3::Rotation(0.5))));
+
+  auto sheared = gt::shear(tri, 0.3, 0.0);
+  EXPECT_TRUE(sheared.AlmostEquals(gt::transform(tri, gm::Matrix3::Shear(0.3, 0.0))));
+
+  auto reflected = gt::reflect(tri, gm::Vector2(0, 1));
+  EXPECT_TRUE(reflected.AlmostEquals(gt::transform(tri, gm::Matrix3::Reflection(gm::Vector2(0, 1)))));
+}
+
+TEST(Transformations2DTest, Mesh_TranslateRotate_PreserveTotalArea) {
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1));
+  auto mesh = g::Mesh2D::FromTriangles({a});
+  auto moved = gt::translate(mesh, gm::Vector2(1, 1));
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+  auto turned = gt::rotate(mesh, 0.7);
+  EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
+}
+
+TEST(Transformations2DTest, PolyMesh_TranslateRotate_PreserveTotalArea) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0});
+  auto moved = gt::translate(mesh, gm::Vector2(1, 1));
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+  auto turned = gt::rotate(mesh, 0.7);
+  EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
+}
+
+TEST(Transformations2DTest, ConnectedMesh_TranslateRotate_PreserveTotalArea) {
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1));
+  auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::ConnectedMesh2D::FromTriangles({a, b});
+  auto moved = gt::translate(mesh, gm::Vector2(1, 1));
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+  auto turned = gt::rotate(mesh, 0.7);
+  EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
+}
+
+#pragma endregion
+
 #pragma region 3D fast-path (Point3D translate/rotate/scale, no matrix)
 
 TEST(Transformations3DTest, Translate_Point_AddsOffset) {
@@ -239,59 +404,228 @@ TEST(Transformations3DTest, TransformPolyMesh_PreservesTotalAreaUnderRigidTransf
 
 #pragma endregion
 
-#pragma region TransformBuilder
+#pragma region 3D transform() -- newly covered types
 
-TEST(TransformBuilderTest, DefaultConstructed_IsIdentity) {
-  gt::TransformBuilder builder;
+TEST(Transformations3DTest, TransformRay_TransformsOriginAndDirection) {
+  auto ray = g::Ray3D::Make(g::Point3D(1, 1, 0), g::Vector3D(1, 0, 0));
+  // m = Rotation * Translation applies Translation first, then Rotation -- see the 2D overload's test.
+  auto m = gm::Matrix4::Rotation(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1)) *
+           gm::Matrix4::Translation(gm::Vector3(3, 0, 0));
+  auto moved = gt::transform(ray, m);
+  EXPECT_NEAR(moved.Origin().x(), -1.0, 1e-9);
+  EXPECT_NEAR(moved.Origin().y(), 4.0, 1e-9);
+  EXPECT_NEAR(moved.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(moved.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations3DTest, TransformLine_TransformsOriginAndDirection) {
+  auto line = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
+  auto moved = gt::transform(line, gm::Matrix4::Rotation(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1)));
+  EXPECT_NEAR(moved.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(moved.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations3DTest, TransformGeometryCollection_TransformsEveryMember) {
+  g::GeometryCollection3D collection;
+  collection.Add(g::Point3D(1, 0, 0));
+  collection.Add(g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0)));
+
+  auto moved = gt::transform(collection, gm::Matrix4::Translation(gm::Vector3(10, 0, 0)));
+  EXPECT_EQ(moved.Size(), collection.Size());
+  auto p = std::get<g::Point3D>(moved.Get(0));
+  EXPECT_NEAR(p.x(), 11.0, 1e-9);
+  auto seg = std::get<g::LineSegment3D>(moved.Get(1));
+  EXPECT_NEAR(seg.First().x(), 10.0, 1e-9);
+  EXPECT_NEAR(seg.Last().x(), 11.0, 1e-9);
+}
+
+TEST(Transformations3DTest, TransformConnectedMesh_PreservesTotalAreaUnderRigidTransform) {
+  auto a = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
+  auto b = g::Triangle3D::Make(g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0));
+  auto mesh = g::ConnectedMesh3D::FromTriangles({a, b});
+  auto moved =
+      gt::transform(mesh, gm::Matrix4::Rotation(0.9, gm::Vector3(0, 1, 0)) * gm::Matrix4::Translation(gm::Vector3(2, -3, 1)));
+  EXPECT_EQ(moved.Size(), mesh.Size());
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+}
+
+#pragma endregion
+
+#pragma region 3D translate/rotate/scale/shear/reflect wrappers -- newly covered types
+
+TEST(Transformations3DTest, Vector_RotateScaleReflect) {
+  auto r = gt::rotate(g::Vector3D(1, 0, 0), std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
+  EXPECT_NEAR(r.x(), 0.0, 1e-9);
+  EXPECT_NEAR(r.y(), 1.0, 1e-9);
+
+  auto s = gt::scale(g::Vector3D(2, 3, 4), 2.0, 5.0, 0.5);
+  EXPECT_DOUBLE_EQ(s.x(), 4.0);
+  EXPECT_DOUBLE_EQ(s.y(), 15.0);
+  EXPECT_DOUBLE_EQ(s.z(), 2.0);
+
+  auto f = gt::reflect(g::Vector3D(3, 4, 5), gm::Vector3(0, 1, 0));
+  EXPECT_NEAR(f.x(), 3.0, 1e-9);
+  EXPECT_NEAR(f.y(), -4.0, 1e-9);
+  EXPECT_NEAR(f.z(), 5.0, 1e-9);
+}
+
+TEST(Transformations3DTest, Ray_TranslateMovesOrigin_RotateTurnsDirection) {
+  auto ray = g::Ray3D::Make(g::Point3D(1, 1, 0), g::Vector3D(1, 0, 0));
+  auto moved = gt::translate(ray, gm::Vector3(5, 0, 0));
+  EXPECT_NEAR(moved.Origin().x(), 6.0, 1e-9);
+
+  auto turned = gt::rotate(ray, std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
+  EXPECT_NEAR(turned.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(turned.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations3DTest, Line_TranslateAndRotate_MatchTransform) {
+  auto line = g::Line3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
+  auto moved = gt::translate(line, gm::Vector3(0, 4, 0));
+  EXPECT_TRUE(moved.Contains(g::Point3D(0, 4, 0)));
+
+  auto turned = gt::rotate(line, std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
+  EXPECT_NEAR(turned.Direction().x(), 0.0, 1e-9);
+  EXPECT_NEAR(turned.Direction().y(), 1.0, 1e-9);
+}
+
+TEST(Transformations3DTest, LineSegment_TranslateOffsets_ScaleMultipliesLength) {
+  auto seg = g::LineSegment3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0));
+  auto moved = gt::translate(seg, gm::Vector3(0, 3, 0));
+  EXPECT_DOUBLE_EQ(moved.First().y(), 3.0);
+
+  auto scaled = gt::scale(seg, 3.0);
+  EXPECT_NEAR(scaled.Length(), seg.Length() * 3.0, 1e-9);
+}
+
+TEST(Transformations3DTest, GeometryCollection_TranslateMovesEveryMember) {
+  g::GeometryCollection3D collection;
+  collection.Add(g::Point3D(0, 0, 0));
+  auto moved = gt::translate(collection, gm::Vector3(2, 3, 4));
+  auto p = std::get<g::Point3D>(moved.Get(0));
+  EXPECT_NEAR(p.x(), 2.0, 1e-9);
+  EXPECT_NEAR(p.y(), 3.0, 1e-9);
+  EXPECT_NEAR(p.z(), 4.0, 1e-9);
+}
+
+TEST(Transformations3DTest, Polygon_TranslateOffsets_ScaleMultipliesAreaBySquare) {
+  auto poly =
+      g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 3, 0), g::Point3D(0, 3, 0)});
+  auto moved = gt::translate(poly, gm::Vector3(1, 1, 0));
+  EXPECT_NEAR(moved.Area(), poly.Area(), 1e-9);
+
+  auto scaled = gt::scale(poly, 2.0);
+  EXPECT_NEAR(scaled.Area(), poly.Area() * 4.0, 1e-9);
+}
+
+TEST(Transformations3DTest, Polyline_TranslateOffsets_ScaleMultipliesLength) {
+  auto polyline = g::Polyline3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)});
+  auto moved = gt::translate(polyline, gm::Vector3(0, 2, 0));
+  EXPECT_NEAR(moved.Length(), polyline.Length(), 1e-9);
+
+  auto scaled = gt::scale(polyline, 2.0);
+  EXPECT_NEAR(scaled.Length(), polyline.Length() * 2.0, 1e-9);
+}
+
+TEST(Transformations3DTest, Triangle_TranslateRotateScaleShearReflect_MatchDirectTransform) {
+  auto tri = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 3, 0));
+
+  auto translated = gt::translate(tri, gm::Vector3(1, 1, 1));
+  EXPECT_TRUE(translated.AlmostEquals(gt::transform(tri, gm::Matrix4::Translation(gm::Vector3(1, 1, 1)))));
+
+  auto rotated = gt::rotate(tri, 0.5, gm::Vector3(0, 0, 1));
+  EXPECT_TRUE(rotated.AlmostEquals(gt::transform(tri, gm::Matrix4::Rotation(0.5, gm::Vector3(0, 0, 1)))));
+
+  auto sheared = gt::shear(tri, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0);
+  EXPECT_TRUE(sheared.AlmostEquals(gt::transform(tri, gm::Matrix4::Shear(0.3, 0.0, 0.0, 0.0, 0.0, 0.0))));
+
+  auto reflected = gt::reflect(tri, gm::Vector3(0, 1, 0));
+  EXPECT_TRUE(reflected.AlmostEquals(gt::transform(tri, gm::Matrix4::Reflection(gm::Vector3(0, 1, 0)))));
+}
+
+TEST(Transformations3DTest, Mesh_TranslateRotate_PreserveTotalArea) {
+  auto a = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
+  auto mesh = g::Mesh3D::FromTriangles({a});
+  auto moved = gt::translate(mesh, gm::Vector3(1, 1, 1));
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+  auto turned = gt::rotate(mesh, 0.7, gm::Vector3(0, 1, 0));
+  EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
+}
+
+TEST(Transformations3DTest, PolyMesh_TranslateRotate_PreserveTotalArea) {
+  auto p0 = g::Polygon3D::Make({g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  auto mesh = g::PolyMesh3D::FromPolygons({p0});
+  auto moved = gt::translate(mesh, gm::Vector3(1, 1, 1));
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+  auto turned = gt::rotate(mesh, 0.7, gm::Vector3(0, 1, 0));
+  EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
+}
+
+TEST(Transformations3DTest, ConnectedMesh_TranslateRotate_PreserveTotalArea) {
+  auto a = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
+  auto b = g::Triangle3D::Make(g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0));
+  auto mesh = g::ConnectedMesh3D::FromTriangles({a, b});
+  auto moved = gt::translate(mesh, gm::Vector3(1, 1, 1));
+  EXPECT_NEAR(moved.Area(), mesh.Area(), 1e-9);
+  auto turned = gt::rotate(mesh, 0.7, gm::Vector3(0, 1, 0));
+  EXPECT_NEAR(turned.Area(), mesh.Area(), 1e-9);
+}
+
+#pragma endregion
+
+#pragma region TransformBuilder3D
+
+TEST(TransformBuilder3DTest, DefaultConstructed_IsIdentity) {
+  gt::TransformBuilder3D builder;
   EXPECT_TRUE(builder.Get() == gm::Matrix4::Identity());
 }
 
-TEST(TransformBuilderTest, Translate_MovesPoint) {
-  gt::TransformBuilder builder;
+TEST(TransformBuilder3DTest, Translate_MovesPoint) {
+  gt::TransformBuilder3D builder;
   builder.Translate(gm::Vector3(5, 0, 0));
   auto p = gt::transform(g::Point3D(0, 0, 0), builder.Get());
   EXPECT_DOUBLE_EQ(p.x(), 5.0);
 }
 
-TEST(TransformBuilderTest, ChainedOps_ApplyInCallOrder) {
+TEST(TransformBuilder3DTest, ChainedOps_ApplyInCallOrder) {
   // translate then rotate: (1,0,0) -> translate(+5,0,0) -> (6,0,0) -> rotate 90deg about Z -> (0,6,0)
-  gt::TransformBuilder builder;
+  gt::TransformBuilder3D builder;
   builder.Translate(gm::Vector3(5, 0, 0)).Rotate(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
   auto p = gt::transform(g::Point3D(1, 0, 0), builder.Get());
   EXPECT_NEAR(p.x(), 0.0, 1e-9);
   EXPECT_NEAR(p.y(), 6.0, 1e-9);
 }
 
-TEST(TransformBuilderTest, ReversedChainOrder_ProducesDifferentResult) {
+TEST(TransformBuilder3DTest, ReversedChainOrder_ProducesDifferentResult) {
   // rotate then translate: (1,0,0) -> rotate 90deg about Z -> (0,1,0) -> translate(+5,0,0) -> (5,1,0)
-  gt::TransformBuilder builder;
+  gt::TransformBuilder3D builder;
   builder.Rotate(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1)).Translate(gm::Vector3(5, 0, 0));
   auto p = gt::transform(g::Point3D(1, 0, 0), builder.Get());
   EXPECT_NEAR(p.x(), 5.0, 1e-9);
   EXPECT_NEAR(p.y(), 1.0, 1e-9);
 }
 
-TEST(TransformBuilderTest, Scale_UniformAndNonUniform) {
-  gt::TransformBuilder uniform;
+TEST(TransformBuilder3DTest, Scale_UniformAndNonUniform) {
+  gt::TransformBuilder3D uniform;
   uniform.Scale(2.0);
   auto up = gt::transform(g::Point3D(1, 2, 3), uniform.Get());
   EXPECT_TRUE(up == g::Point3D(2, 4, 6));
 
-  gt::TransformBuilder non_uniform;
+  gt::TransformBuilder3D non_uniform;
   non_uniform.Scale(2.0, 3.0, 4.0);
   auto np = gt::transform(g::Point3D(1, 1, 1), non_uniform.Get());
   EXPECT_TRUE(np == g::Point3D(2, 3, 4));
 }
 
-TEST(TransformBuilderTest, Combine_AppliesArbitraryMatrix) {
-  gt::TransformBuilder builder;
+TEST(TransformBuilder3DTest, Combine_AppliesArbitraryMatrix) {
+  gt::TransformBuilder3D builder;
   builder.Combine(gm::Matrix4::Translation(gm::Vector3(1, 2, 3)));
   auto p = gt::transform(g::Point3D(0, 0, 0), builder.Get());
   EXPECT_TRUE(p == g::Point3D(1, 2, 3));
 }
 
-TEST(TransformBuilderTest, Shear_OffsetsAxisByMultipleOfOther) {
-  gt::TransformBuilder builder;
+TEST(TransformBuilder3DTest, Shear_OffsetsAxisByMultipleOfOther) {
+  gt::TransformBuilder3D builder;
   builder.Shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
   auto p = gt::transform(g::Point3D(1, 3, 5), builder.Get());
   EXPECT_NEAR(p.x(), 1.0 + 2.0 * 3.0, 1e-9);
@@ -299,8 +633,8 @@ TEST(TransformBuilderTest, Shear_OffsetsAxisByMultipleOfOther) {
   EXPECT_NEAR(p.z(), 5.0, 1e-9);
 }
 
-TEST(TransformBuilderTest, Reflect_AboutXAxisNormal_FlipsY) {
-  gt::TransformBuilder builder;
+TEST(TransformBuilder3DTest, Reflect_AboutXAxisNormal_FlipsY) {
+  gt::TransformBuilder3D builder;
   builder.Reflect(gm::Vector3(0, 1, 0));
   auto p = gt::transform(g::Point3D(3, 4, 5), builder.Get());
   EXPECT_NEAR(p.x(), 3.0, 1e-9);
@@ -308,17 +642,119 @@ TEST(TransformBuilderTest, Reflect_AboutXAxisNormal_FlipsY) {
   EXPECT_NEAR(p.z(), 5.0, 1e-9);
 }
 
-TEST(TransformBuilderTest, Reflect_ZeroLengthNormal_Throws) {
-  gt::TransformBuilder builder;
+TEST(TransformBuilder3DTest, Reflect_ZeroLengthNormal_Throws) {
+  gt::TransformBuilder3D builder;
   EXPECT_THROW(builder.Reflect(gm::Vector3(0, 0, 0)), std::invalid_argument);
 }
 
-TEST(TransformBuilderTest, Build_ReturnsIndependentCopy) {
-  gt::TransformBuilder builder;
+TEST(TransformBuilder3DTest, Build_ReturnsIndependentCopy) {
+  gt::TransformBuilder3D builder;
   builder.Translate(gm::Vector3(1, 0, 0));
   auto snapshot = builder.Build();
   builder.Translate(gm::Vector3(0, 1, 0));  // further chaining must not retroactively change `snapshot`
   EXPECT_TRUE(snapshot == gm::Matrix4::Translation(gm::Vector3(1, 0, 0)));
+}
+
+#pragma endregion
+
+#pragma region TransformBuilder2D
+
+TEST(TransformBuilder2DTest, DefaultConstructed_IsIdentity) {
+  gt::TransformBuilder2D builder;
+  EXPECT_TRUE(builder.Get() == gm::Matrix3::Identity());
+}
+
+TEST(TransformBuilder2DTest, Translate_MovesPoint) {
+  gt::TransformBuilder2D builder;
+  builder.Translate(gm::Vector2(5, 0));
+  auto p = gt::transform(g::Point2D(0, 0), builder.Get());
+  EXPECT_DOUBLE_EQ(p.x(), 5.0);
+}
+
+TEST(TransformBuilder2DTest, ChainedOps_ApplyInCallOrder) {
+  // translate then rotate: (1,0) -> translate(+5,0) -> (6,0) -> rotate 90deg -> (0,6)
+  gt::TransformBuilder2D builder;
+  builder.Translate(gm::Vector2(5, 0)).Rotate(std::numbers::pi / 2.0);
+  auto p = gt::transform(g::Point2D(1, 0), builder.Get());
+  EXPECT_NEAR(p.x(), 0.0, 1e-9);
+  EXPECT_NEAR(p.y(), 6.0, 1e-9);
+}
+
+TEST(TransformBuilder2DTest, ReversedChainOrder_ProducesDifferentResult) {
+  // rotate then translate: (1,0) -> rotate 90deg -> (0,1) -> translate(+5,0) -> (5,1)
+  gt::TransformBuilder2D builder;
+  builder.Rotate(std::numbers::pi / 2.0).Translate(gm::Vector2(5, 0));
+  auto p = gt::transform(g::Point2D(1, 0), builder.Get());
+  EXPECT_NEAR(p.x(), 5.0, 1e-9);
+  EXPECT_NEAR(p.y(), 1.0, 1e-9);
+}
+
+TEST(TransformBuilder2DTest, Scale_UniformAndNonUniform) {
+  gt::TransformBuilder2D uniform;
+  uniform.Scale(2.0);
+  auto up = gt::transform(g::Point2D(1, 2), uniform.Get());
+  EXPECT_TRUE(up == g::Point2D(2, 4));
+
+  gt::TransformBuilder2D non_uniform;
+  non_uniform.Scale(2.0, 3.0);
+  auto np = gt::transform(g::Point2D(1, 1), non_uniform.Get());
+  EXPECT_TRUE(np == g::Point2D(2, 3));
+}
+
+TEST(TransformBuilder2DTest, Combine_AppliesArbitraryMatrix) {
+  gt::TransformBuilder2D builder;
+  builder.Combine(gm::Matrix3::Translation(gm::Vector2(1, 2)));
+  auto p = gt::transform(g::Point2D(0, 0), builder.Get());
+  EXPECT_TRUE(p == g::Point2D(1, 2));
+}
+
+TEST(TransformBuilder2DTest, Shear_OffsetsAxisByMultipleOfOther) {
+  gt::TransformBuilder2D builder;
+  builder.Shear(2.0, 0.0);
+  auto p = gt::transform(g::Point2D(1, 3), builder.Get());
+  EXPECT_NEAR(p.x(), 1.0 + 2.0 * 3.0, 1e-9);
+  EXPECT_NEAR(p.y(), 3.0, 1e-9);
+}
+
+TEST(TransformBuilder2DTest, Reflect_AboutXAxisNormal_FlipsY) {
+  gt::TransformBuilder2D builder;
+  builder.Reflect(gm::Vector2(0, 1));
+  auto p = gt::transform(g::Point2D(3, 4), builder.Get());
+  EXPECT_NEAR(p.x(), 3.0, 1e-9);
+  EXPECT_NEAR(p.y(), -4.0, 1e-9);
+}
+
+TEST(TransformBuilder2DTest, Reflect_ZeroLengthNormal_Throws) {
+  gt::TransformBuilder2D builder;
+  EXPECT_THROW(builder.Reflect(gm::Vector2(0, 0)), std::invalid_argument);
+}
+
+TEST(TransformBuilder2DTest, Build_ReturnsIndependentCopy) {
+  gt::TransformBuilder2D builder;
+  builder.Translate(gm::Vector2(1, 0));
+  auto snapshot = builder.Build();
+  builder.Translate(gm::Vector2(0, 1));  // further chaining must not retroactively change `snapshot`
+  EXPECT_TRUE(snapshot == gm::Matrix3::Translation(gm::Vector2(1, 0)));
+}
+
+#pragma endregion
+
+#pragma region Vector2D/3D direct-arithmetic fast path matches general transform()
+
+TEST(Transformations2DTest, Vector_DirectArithmetic_MatchesMatrixTransform) {
+  auto v = g::Vector2D(2, 3);
+  EXPECT_TRUE(gt::rotate(v, 0.6) == gt::transform(v, gm::Matrix3::Rotation(0.6)));
+  EXPECT_TRUE(gt::scale(v, 2.0, 5.0) == gt::transform(v, gm::Matrix3::Scale(2.0, 5.0)));
+  EXPECT_TRUE(gt::shear(v, 0.3, 0.1) == gt::transform(v, gm::Matrix3::Shear(0.3, 0.1)));
+  EXPECT_TRUE(gt::reflect(v, gm::Vector2(0, 1)) == gt::transform(v, gm::Matrix3::Reflection(gm::Vector2(0, 1))));
+}
+
+TEST(Transformations3DTest, Vector_DirectArithmetic_MatchesMatrixTransform) {
+  auto v = g::Vector3D(2, 3, 4);
+  EXPECT_TRUE(gt::scale(v, 2.0, 5.0, 0.5) == gt::transform(v, gm::Matrix4::Scale(2.0, 5.0, 0.5)));
+  EXPECT_TRUE(gt::shear(v, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0) ==
+              gt::transform(v, gm::Matrix4::Shear(0.3, 0.0, 0.0, 0.0, 0.0, 0.0)));
+  EXPECT_TRUE(gt::reflect(v, gm::Vector3(0, 1, 0)) == gt::transform(v, gm::Matrix4::Reflection(gm::Vector3(0, 1, 0))));
 }
 
 #pragma endregion

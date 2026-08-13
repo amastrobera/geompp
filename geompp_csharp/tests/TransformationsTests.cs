@@ -185,63 +185,122 @@ public static class TransformationsTests {
       Eq(mesh.Area(), moved.Area(), 9);
     });
 
-    // ── TransformBuilder ─────────────────────────────────────────────────────────
-    Console.WriteLine("\nTransformBuilder");
+    // ── TransformBuilder3D ─────────────────────────────────────────────────────────
+    Console.WriteLine("\nTransformBuilder3D");
 
-    Test("TransformBuilder_DefaultConstructed_IsIdentity", () => {
-      var builder = new TransformBuilder();
+    Test("TransformBuilder3D_DefaultConstructed_IsIdentity", () => {
+      var builder = new TransformBuilder3D();
       IsTrue(builder.Get() == Matrix4.Identity());
     });
 
-    Test("TransformBuilder_ChainedOps_ApplyInCallOrder", () => {
+    Test("TransformBuilder3D_ChainedOps_ApplyInCallOrder", () => {
       // translate then rotate: (1,0,0) -> translate(+5,0,0) -> (6,0,0) -> rotate 90deg about Z -> (0,6,0)
-      var builder = new TransformBuilder();
+      var builder = new TransformBuilder3D();
       builder.Translate(new Vector3(5, 0, 0)).Rotate(Math.PI / 2.0, new Vector3(0, 0, 1));
       var p = Transform.Apply(new Point3D(1, 0, 0), builder.Get());
       Eq(0, p.X, 6); Eq(6, p.Y, 6);
     });
 
-    Test("TransformBuilder_ReversedChainOrder_ProducesDifferentResult", () => {
-      var builder = new TransformBuilder();
+    Test("TransformBuilder3D_ReversedChainOrder_ProducesDifferentResult", () => {
+      var builder = new TransformBuilder3D();
       builder.Rotate(Math.PI / 2.0, new Vector3(0, 0, 1)).Translate(new Vector3(5, 0, 0));
       var p = Transform.Apply(new Point3D(1, 0, 0), builder.Get());
       Eq(5, p.X, 6); Eq(1, p.Y, 6);
     });
 
-    Test("TransformBuilder_Combine_AppliesArbitraryMatrix", () => {
-      var builder = new TransformBuilder();
+    Test("TransformBuilder3D_Combine_AppliesArbitraryMatrix", () => {
+      var builder = new TransformBuilder3D();
       builder.Combine(Matrix4.Translation(new Vector3(1, 2, 3)));
       var p = Transform.Apply(new Point3D(0, 0, 0), builder.Get());
       IsTrue(p == new Point3D(1, 2, 3));
     });
 
-    Test("TransformBuilder_Shear_OffsetsAxisByMultipleOfOther", () => {
-      var builder = new TransformBuilder();
+    Test("TransformBuilder3D_Shear_OffsetsAxisByMultipleOfOther", () => {
+      var builder = new TransformBuilder3D();
       builder.Shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
       var p = Transform.Apply(new Point3D(1, 3, 5), builder.Get());
       Eq(1.0 + 2.0 * 3.0, p.X, 6); Eq(3.0, p.Y, 6); Eq(5.0, p.Z, 6);
     });
 
-    Test("TransformBuilder_Reflect_AboutXAxisNormal_FlipsY", () => {
-      var builder = new TransformBuilder();
+    Test("TransformBuilder3D_Reflect_AboutXAxisNormal_FlipsY", () => {
+      var builder = new TransformBuilder3D();
       builder.Reflect(new Vector3(0, 1, 0));
       var p = Transform.Apply(new Point3D(3, 4, 5), builder.Get());
       Eq(3.0, p.X, 6); Eq(-4.0, p.Y, 6); Eq(5.0, p.Z, 6);
     });
 
-    Test("TransformBuilder_Reflect_ZeroLengthNormal_Throws", () => {
-      var builder = new TransformBuilder();
+    Test("TransformBuilder3D_Reflect_ZeroLengthNormal_Throws", () => {
+      var builder = new TransformBuilder3D();
       bool threw = false;
       try { builder.Reflect(new Vector3(0, 0, 0)); } catch (Exception) { threw = true; }
       IsTrue(threw, "expected zero-length normal Reflect() to throw");
     });
 
-    Test("TransformBuilder_Build_ReturnsIndependentSnapshot", () => {
-      var builder = new TransformBuilder();
+    Test("TransformBuilder3D_Build_ReturnsIndependentSnapshot", () => {
+      var builder = new TransformBuilder3D();
       builder.Translate(new Vector3(1, 0, 0));
       var snapshot = builder.Build();
       builder.Translate(new Vector3(0, 1, 0));
       IsTrue(snapshot == Matrix4.Translation(new Vector3(1, 0, 0)));
+    });
+
+    // ── TransformBuilder2D ─────────────────────────────────────────────────────────
+    Console.WriteLine("\nTransformBuilder2D");
+
+    Test("TransformBuilder2D_DefaultConstructed_IsIdentity", () => {
+      var builder = new TransformBuilder2D();
+      IsTrue(builder.Get() == Matrix3.Identity());
+    });
+
+    Test("TransformBuilder2D_ChainedOps_ApplyInCallOrder", () => {
+      // translate then rotate: (1,0) -> translate(+5,0) -> (6,0) -> rotate 90deg -> (0,6)
+      var builder = new TransformBuilder2D();
+      builder.Translate(new Vector2(5, 0)).Rotate(Math.PI / 2.0);
+      var p = Transform.Apply(new Point2D(1, 0), builder.Get());
+      Eq(0, p.X, 6); Eq(6, p.Y, 6);
+    });
+
+    Test("TransformBuilder2D_ReversedChainOrder_ProducesDifferentResult", () => {
+      var builder = new TransformBuilder2D();
+      builder.Rotate(Math.PI / 2.0).Translate(new Vector2(5, 0));
+      var p = Transform.Apply(new Point2D(1, 0), builder.Get());
+      Eq(5, p.X, 6); Eq(1, p.Y, 6);
+    });
+
+    Test("TransformBuilder2D_Combine_AppliesArbitraryMatrix", () => {
+      var builder = new TransformBuilder2D();
+      builder.Combine(Matrix3.Translation(new Vector2(1, 2)));
+      var p = Transform.Apply(new Point2D(0, 0), builder.Get());
+      IsTrue(p == new Point2D(1, 2));
+    });
+
+    Test("TransformBuilder2D_Shear_OffsetsAxisByMultipleOfOther", () => {
+      var builder = new TransformBuilder2D();
+      builder.Shear(2.0, 0.0);
+      var p = Transform.Apply(new Point2D(1, 3), builder.Get());
+      Eq(1.0 + 2.0 * 3.0, p.X, 6); Eq(3.0, p.Y, 6);
+    });
+
+    Test("TransformBuilder2D_Reflect_AboutXAxisNormal_FlipsY", () => {
+      var builder = new TransformBuilder2D();
+      builder.Reflect(new Vector2(0, 1));
+      var p = Transform.Apply(new Point2D(3, 4), builder.Get());
+      Eq(3.0, p.X, 6); Eq(-4.0, p.Y, 6);
+    });
+
+    Test("TransformBuilder2D_Reflect_ZeroLengthNormal_Throws", () => {
+      var builder = new TransformBuilder2D();
+      bool threw = false;
+      try { builder.Reflect(new Vector2(0, 0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected zero-length normal Reflect() to throw");
+    });
+
+    Test("TransformBuilder2D_Build_ReturnsIndependentSnapshot", () => {
+      var builder = new TransformBuilder2D();
+      builder.Translate(new Vector2(1, 0));
+      var snapshot = builder.Build();
+      builder.Translate(new Vector2(0, 1));
+      IsTrue(snapshot == Matrix3.Translation(new Vector2(1, 0)));
     });
   }
 }

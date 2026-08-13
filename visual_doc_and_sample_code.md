@@ -5630,9 +5630,10 @@ A quick list of code examples per topic is provided here.
   Rodrigues' formula)/`Scale(factor)`/`Scale(sx, sy, sz)`/`Shear(xy, xz, yx, yz, zx, zy)` (each axis
   offset by a multiple of the other two)/`Reflection(normal)` (Householder reflection `I - 2nn^T` across
   the plane through the origin with the given normal; throws on a zero-length normal) — the building
-  blocks `geompp::transformations::TransformBuilder` (§13) composes via ordinary `Matrix4`
+  blocks `geompp::transformations::TransformBuilder3D` (§13) composes via ordinary `Matrix4`
   multiplication. `Matrix3` mirrors the same set (2D: `Shear(shx, shy)`, `Reflection(normal)` across a
-  line through the origin) for `geompp::transformations`' 2D `transform()` path.
+  line through the origin) for `geompp::transformations`' 2D `transform()` path, composed the same way by
+  `TransformBuilder2D`.
 
   <details closed>
   <summary><b> &nbsp; &nbsp; Samples</b></summary>
@@ -5659,7 +5660,7 @@ A quick list of code examples per topic is provided here.
   // Inverse() round-trips back to the identity.
   GEOMPP_LOG(INFO) << "A * A^-1 =\n" << a * a.Inverse();
 
-  // Matrix4 homogeneous-transform factories -- what TransformBuilder (§13) composes.
+  // Matrix4 homogeneous-transform factories -- what TransformBuilder3D (§13) composes.
   auto move  = gm::Matrix4::Translation(gm::Vector3(10, 0, 0));
   auto spin  = gm::Matrix4::Rotation(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
   gm::Vector4 p(1, 0, 0, 1);  // homogeneous point
@@ -5714,7 +5715,7 @@ A quick list of code examples per topic is provided here.
   // Inverse() round-trips back to the identity.
   Console.WriteLine($"A * A^-1 =\n{a * a.Inverse()}");
 
-  // Matrix4 homogeneous-transform factories -- what TransformBuilder (§13) composes.
+  // Matrix4 homogeneous-transform factories -- what TransformBuilder3D (§13) composes.
   var move = Matrix4.Translation(new Vector3(10, 0, 0));
   var spin = Matrix4.Rotation(Math.PI / 2.0, new Vector3(0, 0, 1));
   var p = new Vector4(1, 0, 0, 1);  // homogeneous point
@@ -5764,7 +5765,7 @@ A quick list of code examples per topic is provided here.
   # inverse() round-trips back to the identity.
   print(f"A @ A^-1 =\n{a @ a.inverse()}")
 
-  # Matrix4 homogeneous-transform factories -- what TransformBuilder (§13) composes.
+  # Matrix4 homogeneous-transform factories -- what TransformBuilder3D (§13) composes.
   move = gm.Matrix4.translation(gm.Vector3(10, 0, 0))
   spin = gm.Matrix4.rotation(3.14159265 / 2.0, gm.Vector3(0, 0, 1))
   p = gm.Vector4(1, 0, 0, 1)  # homogeneous point
@@ -5825,13 +5826,14 @@ A quick list of code examples per topic is provided here.
     matrix has **no effect** on a transformed vector — correct, since a displacement has no position to
     translate, only a direction/length to rotate and scale.
 
-  `TransformBuilder` is a fluent composer for a single `Matrix4`: each `Translate()`/`Rotate()`/
+  `TransformBuilder3D` is a fluent composer for a single `Matrix4`: each `Translate()`/`Rotate()`/
   `Scale()`/`Shear()`/`Reflect()`/`Combine()` call **pre-multiplies** the new operation onto the matrix
   accumulated so far, so chained calls apply in the order they're *written*, left to right —
   `builder.Translate(t).Rotate(r)` moves a point by `t` first, then rotates the *result* by `r`,
   matching how a reader expects a chain of method calls to read ("do this, then this"). Reversing the
   chain (`Rotate` then `Translate`) produces a genuinely different transform, not just a
-  different-looking call — see the worked example below.
+  different-looking call — see the worked example below. `TransformBuilder2D` is the `Matrix3` 2D
+  counterpart, same composition rule, `Rotate(angle_rad)` with no axis.
 
   A note on which transforms preserve what: translation/rotation are rigid (preserve both area/volume
   and angles); uniform `Scale()` preserves angles but not area; `Shear()` preserves area/volume (its
@@ -5847,7 +5849,7 @@ A quick list of code examples per topic is provided here.
   frame) — that's why the square moves even though nothing in the call names a pivot point; there's no
   "about this point" overload for the fast path or the `Matrix3` factories, so rotating/scaling/
   reflecting about anywhere else means translating the pivot to the origin first, transforming, then
-  translating back (or composing that into one matrix with `TransformBuilder`/`Combine()`).
+  translating back (or composing that into one matrix with `TransformBuilder3D`/`Combine()`).
   `Translate`/`Shear` don't reference the origin at all, so it's omitted from those two.
 
   <p align="center">
@@ -6003,7 +6005,7 @@ A quick list of code examples per topic is provided here.
   </details>
 
   A worked example, using a right triangle: `TRIANGLE (0 0 0, 4 0 0, 0 3 0)`, area 6. Applying
-  `TransformBuilder().Translate((5, 2, 0)).Rotate(30°, Z axis)` — a translation, then a 30° rotation
+  `TransformBuilder3D().Translate((5, 2, 0)).Rotate(30°, Z axis)` — a translation, then a 30° rotation
   about the Z axis applied to the *already-translated* triangle:
 
   | | Before | After |
@@ -6032,9 +6034,9 @@ A quick list of code examples per topic is provided here.
   auto tri = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 3, 0));
   GEOMPP_LOG(INFO) << "before: " << tri.ToWkt() << ", area " << tri.Area();
 
-  // Translate first, then rotate the *result* -- TransformBuilder pre-multiplies each call onto the
+  // Translate first, then rotate the *result* -- TransformBuilder3D pre-multiplies each call onto the
   // matrix accumulated so far, so chained ops apply in the order they're written.
-  gt::TransformBuilder builder;
+  gt::TransformBuilder3D builder;
   builder.Translate(gm::Vector3(5, 2, 0)).Rotate(std::numbers::pi / 6.0, gm::Vector3(0, 0, 1));
   auto moved = gt::transform(tri, builder.Get());
 
@@ -6072,7 +6074,7 @@ A quick list of code examples per topic is provided here.
   var tri = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0), new Point3D(0, 3, 0));
   Console.WriteLine($"before: {tri.ToWkt()}, area {tri.Area()}");
 
-  var builder = new TransformBuilder();
+  var builder = new TransformBuilder3D();
   builder.Translate(new Vector3(5, 2, 0)).Rotate(Math.PI / 6.0, new Vector3(0, 0, 1));
   var moved = Transform.Apply(tri, builder.Get());
 
@@ -6110,7 +6112,7 @@ A quick list of code examples per topic is provided here.
   tri = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 3, 0))
   print(f"before: {tri.to_wkt()}, area {tri.area()}")
 
-  builder = tf.TransformBuilder()
+  builder = tf.TransformBuilder3D()
   builder.translate(maths.Vector3(5, 2, 0)).rotate(math.pi / 6, maths.Vector3(0, 0, 1))
   moved = tf.transform(tri, builder.get())
 

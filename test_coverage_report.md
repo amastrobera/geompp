@@ -8,12 +8,12 @@ _Last updated: 2026-08-13_
 > `geompp::geometry`. `geompp::transformations` builds on it: `translate()`/`rotate()`/`scale()`/
 > `shear()`/`reflect()` (fast, single-`Point2D`/`Point3D`, no matrix) plus
 > `transform(primitive, Matrix3|Matrix4)` for every primitive from `Point2D/3D` to `PolyMesh2D/3D` (16
-> overloads), and a fluent `TransformBuilder`. Neither module's surface fits the per-named-class
+> overloads), and fluent composers `TransformBuilder2D`/`TransformBuilder3D`. Neither module's surface fits the per-named-class
 > counting basis the `C++ public methods` row above uses (templates and free functions, not a fixed set
 > of named classes), so their coverage is called out separately here rather than folded into that row's
 > count: `geompp::maths`' six bound aliases (Python `geompp.maths`, C# `GeomPP.Maths`) have full
 > construction/arithmetic/`Transpose`/`Determinant`/`Inverse` coverage plus both solvers, and
-> `geompp::transformations` has every `transform()` overload plus `TransformBuilder`'s chaining/order
+> `geompp::transformations` has every `transform()` overload plus `TransformBuilder2D`/`TransformBuilder3D`'s chaining/order
 > semantics covered, in all three languages. Also new: everything previously in `geompp` now lives in
 > `inline namespace geometry` inside it — source-transparent (`geompp::Point2D` still compiles
 > unchanged), so it needed no test/binding changes and isn't tracked as a coverage delta.

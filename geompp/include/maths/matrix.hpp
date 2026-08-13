@@ -197,7 +197,7 @@ class Matrix {
 
   // -- Homogeneous 4x4 affine-transform factories (Matrix4 only -- `requires` gates them out of
   // existence, a compile error, for any other Matrix<T, Rows, Cols> instantiation). Kept here rather than
-  // in geompp::transformations because TransformBuilder (transformations) is built by *composing* these
+  // in geompp::transformations because TransformBuilder3D (transformations) is built by *composing* these
   // via plain Matrix4 multiplication -- they're primitive matrix constructors, not transform operations
   // in their own right. --
 

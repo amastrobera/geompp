@@ -44,10 +44,12 @@ add_library(${PROJECT_NAME}
     include/maths/detail/linear_algebra_detail.hpp
 
     include/transformations.hpp
-    include/transformations/transform_builder.hpp
+    include/transformations/transform_builder2d.hpp
+    include/transformations/transform_builder3d.hpp
     include/transformations/transformations2d.hpp
     include/transformations/transformations3d.hpp
-    src/transformations/transform_builder.cpp
+    src/transformations/transform_builder2d.cpp
+    src/transformations/transform_builder3d.cpp
     src/transformations/transformations2d.cpp
     src/transformations/transformations3d.cpp
 

@@ -109,9 +109,11 @@ Affine transforms for the classes above, built on geompp.maths:
                                   -- fast direct arithmetic on a single Point2D/Point3D, no matrix
     transform(obj, matrix)       -- every primitive from Point2D/3D to PolyMesh2D/3D, via a 3x3
                                      (2D) or 4x4 (3D) homogeneous matrix
-    TransformBuilder()           -- fluent Matrix4 composer: .translate(offset).rotate(angle_rad, axis)
+    TransformBuilder3D()          -- fluent Matrix4 composer: .translate(offset).rotate(angle_rad, axis)
                                      .scale(...), each applied after every op already chained; .get()/
                                      .build() returns the composed geompp.maths.Matrix4
+    TransformBuilder2D()          -- 2D counterpart: fluent Matrix3 composer, .rotate(angle_rad) with no
+                                     axis, .get()/.build() returns the composed geompp.maths.Matrix3
 Import as ``from geompp import transformations`` or ``import geompp.transformations``.
 """
 
