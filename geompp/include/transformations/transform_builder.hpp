@@ -35,9 +35,18 @@ class TransformBuilder {
   /// already chained.
   TransformBuilder& Scale(double sx, double sy, double sz);
 
+  /// @brief Appends a general shear (each axis offset by a multiple of the other two), applied after
+  /// every operation already chained.
+  TransformBuilder& Shear(double xy, double xz, double yx, double yz, double zx, double zy);
+
+  /// @brief Appends a reflection across the plane through the origin whose normal is `normal`, applied
+  /// after every operation already chained.
+  /// @throws std::invalid_argument if `normal` is zero-length.
+  TransformBuilder& Reflect(maths::Vector3 const& normal);
+
   /// @brief Appends an arbitrary caller-supplied Matrix4, applied after every operation already
-  /// chained -- an escape hatch for a transform this builder has no dedicated method for (shear,
-  /// perspective, a matrix loaded from a scene file, ...).
+  /// chained -- an escape hatch for a transform this builder has no dedicated method for (perspective,
+  /// a matrix loaded from a scene file, ...).
   TransformBuilder& Combine(maths::Matrix4 const& mat);
 
   /// @brief The composed matrix so far.

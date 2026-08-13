@@ -235,6 +235,73 @@ TEST(MathsMatrixTest, Matrix3_UniformAndNonUniformScale) {
   EXPECT_TRUE((s2 * m::Vector3(1.0, 1.0, 1.0)) == m::Vector3(2.0, 3.0, 1.0));
 }
 
+TEST(MathsMatrixTest, Shear_OffsetsAxisByMultipleOfOther) {
+  auto sh = m::Matrix4::Shear(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+  EXPECT_TRUE(sh == m::Matrix4::Identity());
+
+  // xy = 2: x' = x + 2*y, y and z unchanged.
+  auto shxy = m::Matrix4::Shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+  m::Vector4 p(1.0, 3.0, 5.0, 1.0);
+  auto sheared = shxy * p;
+  EXPECT_DOUBLE_EQ(sheared.x(), 1.0 + 2.0 * 3.0);
+  EXPECT_DOUBLE_EQ(sheared.y(), 3.0);
+  EXPECT_DOUBLE_EQ(sheared.z(), 5.0);
+}
+
+TEST(MathsMatrixTest, Matrix3_Shear_OffsetsAxisByMultipleOfOther) {
+  auto shxy = m::Matrix3::Shear(2.0, 0.0);
+  m::Vector3 p(1.0, 3.0, 1.0);
+  auto sheared = shxy * p;
+  EXPECT_DOUBLE_EQ(sheared.x(), 1.0 + 2.0 * 3.0);
+  EXPECT_DOUBLE_EQ(sheared.y(), 3.0);
+}
+
+TEST(MathsMatrixTest, Reflection_AboutXAxisNormal_FlipsY) {
+  // Reflecting across the line through the origin with normal (0, 1) (the X axis) flips Y, keeps X.
+  auto r = m::Matrix4::Reflection(m::Vector3(0.0, 1.0, 0.0));
+  m::Vector4 p(3.0, 4.0, 5.0, 1.0);
+  auto reflected = r * p;
+  EXPECT_NEAR(reflected.x(), 3.0, 1e-9);
+  EXPECT_NEAR(reflected.y(), -4.0, 1e-9);
+  EXPECT_NEAR(reflected.z(), 5.0, 1e-9);
+}
+
+TEST(MathsMatrixTest, Reflection_AppliedTwice_IsIdentity) {
+  auto r = m::Matrix4::Reflection(m::Vector3(1.0, 2.0, 3.0));
+  auto r2 = r * r;
+  for (std::size_t row = 0; row < 4; ++row) {
+    for (std::size_t col = 0; col < 4; ++col) {
+      EXPECT_NEAR(r2(row, col), row == col ? 1.0 : 0.0, 1e-9);
+    }
+  }
+}
+
+TEST(MathsMatrixTest, Reflection_ZeroLengthNormal_Throws) {
+  EXPECT_THROW(m::Matrix4::Reflection(m::Vector3(0.0, 0.0, 0.0)), std::invalid_argument);
+}
+
+TEST(MathsMatrixTest, Matrix3_Reflection_AboutXAxisNormal_FlipsY) {
+  auto r = m::Matrix3::Reflection(m::Vector2(0.0, 1.0));
+  m::Vector3 p(3.0, 4.0, 1.0);
+  auto reflected = r * p;
+  EXPECT_NEAR(reflected.x(), 3.0, 1e-9);
+  EXPECT_NEAR(reflected.y(), -4.0, 1e-9);
+}
+
+TEST(MathsMatrixTest, Matrix3_Reflection_AppliedTwice_IsIdentity) {
+  auto r = m::Matrix3::Reflection(m::Vector2(1.0, 2.0));
+  auto r2 = r * r;
+  for (std::size_t row = 0; row < 3; ++row) {
+    for (std::size_t col = 0; col < 3; ++col) {
+      EXPECT_NEAR(r2(row, col), row == col ? 1.0 : 0.0, 1e-9);
+    }
+  }
+}
+
+TEST(MathsMatrixTest, Matrix3_Reflection_ZeroLengthNormal_Throws) {
+  EXPECT_THROW(m::Matrix3::Reflection(m::Vector2(0.0, 0.0)), std::invalid_argument);
+}
+
 #pragma endregion
 
 #pragma region Solvers

@@ -8,8 +8,9 @@
 void bind_transformations(py::module_& m) {
     auto tf = m.def_submodule("transformations",
         "geompp::transformations -- affine transforms for geompp primitives, built on geompp.maths "
-        "(Matrix3/Matrix4). translate()/rotate()/scale() are the fast, single-Point, no-matrix path; "
-        "transform(obj, matrix) is the general path covering every primitive from Point to PolyMesh.");
+        "(Matrix3/Matrix4). translate()/rotate()/scale()/shear()/reflect() are the fast, single-Point, "
+        "no-matrix path; transform(obj, matrix) is the general path covering every primitive from Point "
+        "to PolyMesh.");
 
     // ── TransformBuilder ───────────────────────────────────────────────────────
     py::class_<geompp::transformations::TransformBuilder>(tf, "TransformBuilder",
@@ -35,6 +36,17 @@ void bind_transformations(py::module_& m) {
              [](geompp::transformations::TransformBuilder& b, double sx, double sy, double sz)
                  -> geompp::transformations::TransformBuilder& { return b.Scale(sx, sy, sz); },
              "sx"_a, "sy"_a, "sz"_a, py::return_value_policy::reference_internal)
+        .def("shear",
+             [](geompp::transformations::TransformBuilder& b, double xy, double xz, double yx, double yz,
+                double zx, double zy) -> geompp::transformations::TransformBuilder& {
+                 return b.Shear(xy, xz, yx, yz, zx, zy);
+             },
+             "xy"_a, "xz"_a, "yx"_a, "yz"_a, "zx"_a, "zy"_a, py::return_value_policy::reference_internal)
+        .def("reflect",
+             [](geompp::transformations::TransformBuilder& b, geompp::maths::Vector3 const& normal)
+                 -> geompp::transformations::TransformBuilder& { return b.Reflect(normal); },
+             "normal"_a, py::return_value_policy::reference_internal,
+             "Raises ValueError if normal is zero-length.")
         .def("combine",
              [](geompp::transformations::TransformBuilder& b, geompp::maths::Matrix4 const& mat)
                  -> geompp::transformations::TransformBuilder& { return b.Combine(mat); },
@@ -51,6 +63,11 @@ void bind_transformations(py::module_& m) {
            "point"_a, "factor"_a, "Uniformly scales a Point2D about the origin.");
     tf.def("scale", [](geompp::Point2D const& p, double sx, double sy) { return geompp::transformations::scale(p, sx, sy); },
            "point"_a, "sx"_a, "sy"_a, "Non-uniformly scales a Point2D about the origin.");
+    tf.def("shear", [](geompp::Point2D const& p, double shx, double shy) { return geompp::transformations::shear(p, shx, shy); },
+           "point"_a, "shx"_a, "shy"_a, "Shears a Point2D -- direct arithmetic, no matrix.");
+    tf.def("reflect", [](geompp::Point2D const& p, geompp::maths::Vector2 const& normal) { return geompp::transformations::reflect(p, normal); },
+           "point"_a, "normal"_a, "Reflects a Point2D across the line through the origin whose normal is `normal`. "
+           "Raises ValueError if normal is zero-length.");
 
     // ── 2D general path: transform(obj, Matrix3) ──────────────────────────────────
     tf.def("transform", [](geompp::Point2D const& p, geompp::maths::Matrix3 const& m) { return geompp::transformations::transform(p, m); }, "point"_a, "matrix"_a);
@@ -72,6 +89,14 @@ void bind_transformations(py::module_& m) {
            "point"_a, "factor"_a, "Uniformly scales a Point3D about the origin.");
     tf.def("scale", [](geompp::Point3D const& p, double sx, double sy, double sz) { return geompp::transformations::scale(p, sx, sy, sz); },
            "point"_a, "sx"_a, "sy"_a, "sz"_a, "Non-uniformly scales a Point3D about the origin.");
+    tf.def("shear", [](geompp::Point3D const& p, double xy, double xz, double yx, double yz, double zx, double zy) {
+               return geompp::transformations::shear(p, xy, xz, yx, yz, zx, zy);
+           },
+           "point"_a, "xy"_a, "xz"_a, "yx"_a, "yz"_a, "zx"_a, "zy"_a,
+           "Shears a Point3D -- each axis offset by a multiple of the other two, direct arithmetic, no matrix.");
+    tf.def("reflect", [](geompp::Point3D const& p, geompp::maths::Vector3 const& normal) { return geompp::transformations::reflect(p, normal); },
+           "point"_a, "normal"_a, "Reflects a Point3D across the plane through the origin whose normal is `normal`. "
+           "Raises ValueError if normal is zero-length.");
 
     // ── 3D general path: transform(obj, Matrix4) ──────────────────────────────────
     tf.def("transform", [](geompp::Point3D const& p, geompp::maths::Matrix4 const& m) { return geompp::transformations::transform(p, m); }, "point"_a, "matrix"_a);

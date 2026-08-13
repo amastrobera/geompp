@@ -30,6 +30,20 @@ class TestTransformations2DFastPath:
         assert approx(non_uniform.x, 4.0)
         assert approx(non_uniform.y, 15.0)
 
+    def test_shear_point_offsets_axis_by_multiple_of_other(self):
+        p = tf.shear(geompp.Point2D(1, 3), 2.0, 0.0)
+        assert approx(p.x, 1.0 + 2.0 * 3.0)
+        assert approx(p.y, 3.0)
+
+    def test_reflect_point_about_x_axis_normal_flips_y(self):
+        p = tf.reflect(geompp.Point2D(3, 4), maths.Vector2(0, 1))
+        assert approx(p.x, 3.0, 1e-9)
+        assert approx(p.y, -4.0, 1e-9)
+
+    def test_reflect_point_zero_length_normal_raises(self):
+        with pytest.raises(ValueError):
+            tf.reflect(geompp.Point2D(1, 1), maths.Vector2(0, 0))
+
 
 class TestTransformations2DGeneralPath:
     def test_transform_vector_ignores_translation(self):
@@ -109,6 +123,22 @@ class TestTransformations3DFastPath:
         non_uniform = tf.scale(geompp.Point3D(2, 3, 4), 2.0, 5.0, 0.5)
         assert approx(non_uniform.y, 15.0)
 
+    def test_shear_point_offsets_axis_by_multiple_of_other(self):
+        p = tf.shear(geompp.Point3D(1, 3, 5), 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        assert approx(p.x, 1.0 + 2.0 * 3.0)
+        assert approx(p.y, 3.0)
+        assert approx(p.z, 5.0)
+
+    def test_reflect_point_about_x_axis_normal_flips_y(self):
+        p = tf.reflect(geompp.Point3D(3, 4, 5), maths.Vector3(0, 1, 0))
+        assert approx(p.x, 3.0, 1e-9)
+        assert approx(p.y, -4.0, 1e-9)
+        assert approx(p.z, 5.0, 1e-9)
+
+    def test_reflect_point_zero_length_normal_raises(self):
+        with pytest.raises(ValueError):
+            tf.reflect(geompp.Point3D(1, 1, 1), maths.Vector3(0, 0, 0))
+
 
 class TestTransformations3DGeneralPath:
     def test_transform_vector_ignores_translation(self):
@@ -168,6 +198,27 @@ class TestTransformBuilder:
         builder.combine(maths.Matrix4.translation(maths.Vector3(1, 2, 3)))
         p = tf.transform(geompp.Point3D(0, 0, 0), builder.get())
         assert p == geompp.Point3D(1, 2, 3)
+
+    def test_shear_offsets_axis_by_multiple_of_other(self):
+        builder = tf.TransformBuilder()
+        builder.shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        p = tf.transform(geompp.Point3D(1, 3, 5), builder.get())
+        assert approx(p.x, 1.0 + 2.0 * 3.0, 1e-9)
+        assert approx(p.y, 3.0, 1e-9)
+        assert approx(p.z, 5.0, 1e-9)
+
+    def test_reflect_about_x_axis_normal_flips_y(self):
+        builder = tf.TransformBuilder()
+        builder.reflect(maths.Vector3(0, 1, 0))
+        p = tf.transform(geompp.Point3D(3, 4, 5), builder.get())
+        assert approx(p.x, 3.0, 1e-9)
+        assert approx(p.y, -4.0, 1e-9)
+        assert approx(p.z, 5.0, 1e-9)
+
+    def test_reflect_zero_length_normal_raises(self):
+        builder = tf.TransformBuilder()
+        with pytest.raises(ValueError):
+            builder.reflect(maths.Vector3(0, 0, 0))
 
     def test_build_returns_independent_snapshot(self):
         builder = tf.TransformBuilder()

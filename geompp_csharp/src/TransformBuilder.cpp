@@ -26,6 +26,16 @@ TransformBuilder^ TransformBuilder::Scale(double sx, double sy, double sz) {
     return this;
 }
 
+TransformBuilder^ TransformBuilder::Shear(double xy, double xz, double yx, double yz, double zx, double zy) {
+    _native->Shear(xy, xz, yx, yz, zx, zy);
+    return this;
+}
+
+TransformBuilder^ TransformBuilder::Reflect(Maths::Vector3^ normal) {
+    _native->Reflect(*normal->_native);
+    return this;
+}
+
 TransformBuilder^ TransformBuilder::Combine(Maths::Matrix4^ mat) {
     _native->Combine(*mat->_native);
     return this;

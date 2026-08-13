@@ -16,6 +16,18 @@ geometry::Point3D scale(geometry::Point3D const& p, double sx, double sy, double
   return geometry::Point3D(p.x() * sx, p.y() * sy, p.z() * sz);
 }
 
+geometry::Point3D shear(geometry::Point3D const& p, double xy, double xz, double yx, double yz, double zx,
+                        double zy) {
+  return geometry::Point3D(p.x() + xy * p.y() + xz * p.z(), p.y() + yx * p.x() + yz * p.z(),
+                           p.z() + zx * p.x() + zy * p.y());
+}
+
+geometry::Point3D reflect(geometry::Point3D const& p, maths::Vector3 const& normal) {
+  maths::Vector3 n = normal.Normalized();  // throws on zero-length normal
+  double d = p.x() * n.x() + p.y() * n.y() + p.z() * n.z();
+  return geometry::Point3D(p.x() - 2.0 * d * n.x(), p.y() - 2.0 * d * n.y(), p.z() - 2.0 * d * n.z());
+}
+
 geometry::Point3D transform(geometry::Point3D const& p, maths::Matrix4 const& m) {
   maths::Vector4 homogeneous = m * maths::Vector4(p.x(), p.y(), p.z(), 1.0);
   return geometry::Point3D(homogeneous.x(), homogeneous.y(), homogeneous.z());

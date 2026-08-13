@@ -16,6 +16,14 @@ TransformBuilder& TransformBuilder::Scale(double sx, double sy, double sz) {
   return Combine(maths::Matrix4::Scale(sx, sy, sz));
 }
 
+TransformBuilder& TransformBuilder::Shear(double xy, double xz, double yx, double yz, double zx, double zy) {
+  return Combine(maths::Matrix4::Shear(xy, xz, yx, yz, zx, zy));
+}
+
+TransformBuilder& TransformBuilder::Reflect(maths::Vector3 const& normal) {
+  return Combine(maths::Matrix4::Reflection(normal));  // throws on zero-length normal
+}
+
 TransformBuilder& TransformBuilder::Combine(maths::Matrix4 const& mat) {
   m_matrix = mat * m_matrix;  // pre-multiply so chained ops apply in call order
   return *this;

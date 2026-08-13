@@ -18,6 +18,16 @@ geometry::Point2D scale(geometry::Point2D const& p, double sx, double sy) {
   return geometry::Point2D(p.x() * sx, p.y() * sy);
 }
 
+geometry::Point2D shear(geometry::Point2D const& p, double shx, double shy) {
+  return geometry::Point2D(p.x() + shx * p.y(), p.y() + shy * p.x());
+}
+
+geometry::Point2D reflect(geometry::Point2D const& p, maths::Vector2 const& normal) {
+  maths::Vector2 n = normal.Normalized();  // throws on zero-length normal
+  double d = p.x() * n.x() + p.y() * n.y();
+  return geometry::Point2D(p.x() - 2.0 * d * n.x(), p.y() - 2.0 * d * n.y());
+}
+
 geometry::Point2D transform(geometry::Point2D const& p, maths::Matrix3 const& m) {
   maths::Vector3 homogeneous = m * maths::Vector3(p.x(), p.y(), 1.0);
   return geometry::Point2D(homogeneous.x(), homogeneous.y());

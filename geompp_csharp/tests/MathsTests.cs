@@ -146,6 +146,42 @@ public static class MathsTests {
       IsTrue((s2 * new Vector3(1, 1, 1)) == new Vector3(2, 3, 1));
     });
 
+    Test("Maths_Matrix4_Shear_OffsetsAxisByMultipleOfOther", () => {
+      var sh = Matrix4.Shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+      var sheared = sh * new Vector4(1, 3, 5, 1);
+      Eq(1.0 + 2.0 * 3.0, sheared.X, 9); Eq(3.0, sheared.Y, 9); Eq(5.0, sheared.Z, 9);
+    });
+
+    Test("Maths_Matrix3_Shear_OffsetsAxisByMultipleOfOther", () => {
+      var sh = Matrix3.Shear(2.0, 0.0);
+      var sheared = sh * new Vector3(1, 3, 1);
+      Eq(1.0 + 2.0 * 3.0, sheared.X, 9); Eq(3.0, sheared.Y, 9);
+    });
+
+    Test("Maths_Matrix4_Reflection_AboutXAxisNormal_FlipsY", () => {
+      var r = Matrix4.Reflection(new Vector3(0, 1, 0));
+      var reflected = r * new Vector4(3, 4, 5, 1);
+      Eq(3.0, reflected.X, 6); Eq(-4.0, reflected.Y, 6); Eq(5.0, reflected.Z, 6);
+    });
+
+    Test("Maths_Matrix4_Reflection_ZeroLengthNormal_Throws", () => {
+      bool threw = false;
+      try { Matrix4.Reflection(new Vector3(0, 0, 0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected zero-length normal Reflection() to throw");
+    });
+
+    Test("Maths_Matrix3_Reflection_AboutXAxisNormal_FlipsY", () => {
+      var r = Matrix3.Reflection(new Vector2(0, 1));
+      var reflected = r * new Vector3(3, 4, 1);
+      Eq(3.0, reflected.X, 6); Eq(-4.0, reflected.Y, 6);
+    });
+
+    Test("Maths_Matrix3_Reflection_ZeroLengthNormal_Throws", () => {
+      bool threw = false;
+      try { Matrix3.Reflection(new Vector2(0, 0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected zero-length normal Reflection() to throw");
+    });
+
     // ── Solvers ──────────────────────────────────────────────────────────────────
     Console.WriteLine("\nMaths.Solvers");
 

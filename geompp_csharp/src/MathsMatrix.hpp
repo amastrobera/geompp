@@ -72,6 +72,8 @@ public:
     static Matrix3^ Rotation(double angleRad);
     static Matrix3^ Scale(double factor);
     static Matrix3^ Scale(double sx, double sy);
+    static Matrix3^ Shear(double shx, double shy);
+    static Matrix3^ Reflection(Vector2^ normal);  // throws if normal is zero-length
 
     static bool     operator==(Matrix3^ lhs, Matrix3^ rhs);
     static Matrix3^ operator+(Matrix3^ lhs, Matrix3^ rhs);
@@ -116,6 +118,8 @@ public:
     static Matrix4^ Rotation(double angleRad, Vector3^ axis);  // throws if axis is zero-length
     static Matrix4^ Scale(double factor);
     static Matrix4^ Scale(double sx, double sy, double sz);
+    static Matrix4^ Shear(double xy, double xz, double yx, double yz, double zx, double zy);
+    static Matrix4^ Reflection(Vector3^ normal);  // throws if normal is zero-length
 
     static bool     operator==(Matrix4^ lhs, Matrix4^ rhs);
     static Matrix4^ operator+(Matrix4^ lhs, Matrix4^ rhs);

@@ -30,6 +30,22 @@ public static class TransformationsTests {
       Eq(4, nonUniform.X, 0); Eq(15, nonUniform.Y, 0);
     });
 
+    Test("Transform_Shear_Point2D_OffsetsAxisByMultipleOfOther", () => {
+      var p = Transform.Shear(new Point2D(1, 3), 2.0, 0.0);
+      Eq(1.0 + 2.0 * 3.0, p.X, 9); Eq(3.0, p.Y, 9);
+    });
+
+    Test("Transform_Reflect_Point2D_AboutXAxisNormal_FlipsY", () => {
+      var p = Transform.Reflect(new Point2D(3, 4), new Vector2(0, 1));
+      Eq(3.0, p.X, 6); Eq(-4.0, p.Y, 6);
+    });
+
+    Test("Transform_Reflect_Point2D_ZeroLengthNormal_Throws", () => {
+      bool threw = false;
+      try { Transform.Reflect(new Point2D(1, 1), new Vector2(0, 0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected zero-length normal Reflect() to throw");
+    });
+
     // ── 2D general path ─────────────────────────────────────────────────────────
     Console.WriteLine("\nTransformations 2D (Matrix3)");
 
@@ -117,6 +133,22 @@ public static class TransformationsTests {
       Eq(4, nonUniform.X, 0); Eq(15, nonUniform.Y, 0); Eq(2, nonUniform.Z, 0);
     });
 
+    Test("Transform_Shear_Point3D_OffsetsAxisByMultipleOfOther", () => {
+      var p = Transform.Shear(new Point3D(1, 3, 5), 2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+      Eq(1.0 + 2.0 * 3.0, p.X, 9); Eq(3.0, p.Y, 9); Eq(5.0, p.Z, 9);
+    });
+
+    Test("Transform_Reflect_Point3D_AboutXAxisNormal_FlipsY", () => {
+      var p = Transform.Reflect(new Point3D(3, 4, 5), new Vector3(0, 1, 0));
+      Eq(3.0, p.X, 6); Eq(-4.0, p.Y, 6); Eq(5.0, p.Z, 6);
+    });
+
+    Test("Transform_Reflect_Point3D_ZeroLengthNormal_Throws", () => {
+      bool threw = false;
+      try { Transform.Reflect(new Point3D(1, 1, 1), new Vector3(0, 0, 0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected zero-length normal Reflect() to throw");
+    });
+
     // ── 3D general path ─────────────────────────────────────────────────────────
     Console.WriteLine("\nTransformations 3D (Matrix4)");
 
@@ -181,6 +213,27 @@ public static class TransformationsTests {
       builder.Combine(Matrix4.Translation(new Vector3(1, 2, 3)));
       var p = Transform.Apply(new Point3D(0, 0, 0), builder.Get());
       IsTrue(p == new Point3D(1, 2, 3));
+    });
+
+    Test("TransformBuilder_Shear_OffsetsAxisByMultipleOfOther", () => {
+      var builder = new TransformBuilder();
+      builder.Shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+      var p = Transform.Apply(new Point3D(1, 3, 5), builder.Get());
+      Eq(1.0 + 2.0 * 3.0, p.X, 6); Eq(3.0, p.Y, 6); Eq(5.0, p.Z, 6);
+    });
+
+    Test("TransformBuilder_Reflect_AboutXAxisNormal_FlipsY", () => {
+      var builder = new TransformBuilder();
+      builder.Reflect(new Vector3(0, 1, 0));
+      var p = Transform.Apply(new Point3D(3, 4, 5), builder.Get());
+      Eq(3.0, p.X, 6); Eq(-4.0, p.Y, 6); Eq(5.0, p.Z, 6);
+    });
+
+    Test("TransformBuilder_Reflect_ZeroLengthNormal_Throws", () => {
+      var builder = new TransformBuilder();
+      bool threw = false;
+      try { builder.Reflect(new Vector3(0, 0, 0)); } catch (Exception) { threw = true; }
+      IsTrue(threw, "expected zero-length normal Reflect() to throw");
     });
 
     Test("TransformBuilder_Build_ReturnsIndependentSnapshot", () => {

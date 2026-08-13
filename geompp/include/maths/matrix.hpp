@@ -253,6 +253,38 @@ class Matrix {
     return m;
   }
 
+  /// @brief General 3D shear: each axis is offset by a multiple of the other two (`xy` shears X by Y,
+  /// `zy` shears Z by Y, etc.) -- the 6 off-diagonal terms of the linear 3x3 block, embedded in the
+  /// homogeneous 4x4 with no translation.
+  static constexpr Matrix Shear(T xy, T xz, T yx, T yz, T zx, T zy) noexcept
+    requires(Rows == 4 && Cols == 4)
+  {
+    Matrix m = Identity();
+    m(0, 1) = xy;
+    m(0, 2) = xz;
+    m(1, 0) = yx;
+    m(1, 2) = yz;
+    m(2, 0) = zx;
+    m(2, 1) = zy;
+    return m;
+  }
+
+  /// @brief Householder reflection across the plane through the origin whose normal is `normal`
+  /// (`R = I - 2 n n^T`), embedded in the homogeneous 4x4 with no translation.
+  /// @throws std::invalid_argument if `normal` is zero-length.
+  static Matrix Reflection(Vector<T, 3> const& normal)
+    requires(Rows == 4 && Cols == 4)
+  {
+    Vector<T, 3> n = normal.Normalized();  // throws on zero-length normal
+    Matrix m = Identity();
+    for (std::size_t r = 0; r < 3; ++r) {
+      for (std::size_t c = 0; c < 3; ++c) {
+        m(r, c) -= T{2} * n[r] * n[c];
+      }
+    }
+    return m;
+  }
+
   // -- Homogeneous 3x3 affine-transform factories (Matrix3 only) -- the 2D counterpart of the 4x4
   // set above, for geompp::transformations' 2D primitives (Point2D, ..., PolyMesh2D), which use a 3x3
   // homogeneous matrix ([x, y, 1]) the same way the 3D primitives use a 4x4 one ([x, y, z, 1]). --
@@ -291,6 +323,33 @@ class Matrix {
     Matrix m = Identity();
     m(0, 0) = sx;
     m(1, 1) = sy;
+    return m;
+  }
+
+  /// @brief 2D shear: `shx` shears X by a multiple of Y, `shy` shears Y by a multiple of X -- the 2
+  /// off-diagonal terms of the linear 2x2 block, embedded in the homogeneous 3x3 with no translation.
+  static constexpr Matrix Shear(T shx, T shy) noexcept
+    requires(Rows == 3 && Cols == 3)
+  {
+    Matrix m = Identity();
+    m(0, 1) = shx;
+    m(1, 0) = shy;
+    return m;
+  }
+
+  /// @brief Householder reflection across the line through the origin whose normal is `normal`
+  /// (`R = I - 2 n n^T`), embedded in the homogeneous 3x3 with no translation.
+  /// @throws std::invalid_argument if `normal` is zero-length.
+  static Matrix Reflection(Vector<T, 2> const& normal)
+    requires(Rows == 3 && Cols == 3)
+  {
+    Vector<T, 2> n = normal.Normalized();  // throws on zero-length normal
+    Matrix m = Identity();
+    for (std::size_t r = 0; r < 2; ++r) {
+      for (std::size_t c = 0; c < 2; ++c) {
+        m(r, c) -= T{2} * n[r] * n[c];
+      }
+    }
     return m;
   }
 

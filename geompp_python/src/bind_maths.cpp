@@ -111,7 +111,14 @@ void bind_matrix(py::module_& m, char const* name) {
            .def_static("scale", [](double f) { return M::Scale(f); }, "factor"_a,
                        "4x4 homogeneous uniform scale matrix.")
            .def_static("scale", [](double sx, double sy, double sz) { return M::Scale(sx, sy, sz); },
-                       "sx"_a, "sy"_a, "sz"_a, "4x4 homogeneous non-uniform scale matrix.");
+                       "sx"_a, "sy"_a, "sz"_a, "4x4 homogeneous non-uniform scale matrix.")
+           .def_static("shear", &M::Shear, "xy"_a, "xz"_a, "yx"_a, "yz"_a, "zx"_a, "zy"_a,
+                       "4x4 homogeneous shear matrix -- each axis offset by a multiple of the other "
+                       "two (xy shears X by Y, zy shears Z by Y, ...).")
+           .def_static("reflection", &M::Reflection, "normal"_a,
+                       "4x4 homogeneous reflection matrix across the plane through the origin whose "
+                       "normal is `normal` (Householder reflection). Raises ValueError if normal is "
+                       "zero-length.");
     }
     if constexpr (N == 3) {
         cls.def_static("translation", &M::Translation, "offset"_a,
@@ -122,7 +129,13 @@ void bind_matrix(py::module_& m, char const* name) {
            .def_static("scale", [](double f) { return M::Scale(f); }, "factor"_a,
                        "3x3 homogeneous uniform scale matrix (2D).")
            .def_static("scale", [](double sx, double sy) { return M::Scale(sx, sy); },
-                       "sx"_a, "sy"_a, "3x3 homogeneous non-uniform scale matrix (2D).");
+                       "sx"_a, "sy"_a, "3x3 homogeneous non-uniform scale matrix (2D).")
+           .def_static("shear", &M::Shear, "shx"_a, "shy"_a,
+                       "3x3 homogeneous shear matrix (2D) -- shx shears X by Y, shy shears Y by X.")
+           .def_static("reflection", &M::Reflection, "normal"_a,
+                       "3x3 homogeneous reflection matrix across the line through the origin whose "
+                       "normal is `normal` (2D, Householder reflection). Raises ValueError if normal "
+                       "is zero-length.");
     }
 }
 

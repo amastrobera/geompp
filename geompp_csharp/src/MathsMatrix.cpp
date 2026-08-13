@@ -66,6 +66,12 @@ Matrix3^ Matrix3::Scale(double factor) {
 Matrix3^ Matrix3::Scale(double sx, double sy) {
     return gcnew Matrix3(new geompp::maths::Matrix3(geompp::maths::Matrix3::Scale(sx, sy)));
 }
+Matrix3^ Matrix3::Shear(double shx, double shy) {
+    return gcnew Matrix3(new geompp::maths::Matrix3(geompp::maths::Matrix3::Shear(shx, shy)));
+}
+Matrix3^ Matrix3::Reflection(Vector2^ normal) {
+    return gcnew Matrix3(new geompp::maths::Matrix3(geompp::maths::Matrix3::Reflection(*normal->_native)));
+}
 
 bool     Matrix3::operator==(Matrix3^ lhs, Matrix3^ rhs) { return *lhs->_native == *rhs->_native; }
 Matrix3^ Matrix3::operator+(Matrix3^ lhs, Matrix3^ rhs) { return gcnew Matrix3(new geompp::maths::Matrix3(*lhs->_native + *rhs->_native)); }
@@ -113,6 +119,12 @@ Matrix4^ Matrix4::Scale(double factor) {
 }
 Matrix4^ Matrix4::Scale(double sx, double sy, double sz) {
     return gcnew Matrix4(new geompp::maths::Matrix4(geompp::maths::Matrix4::Scale(sx, sy, sz)));
+}
+Matrix4^ Matrix4::Shear(double xy, double xz, double yx, double yz, double zx, double zy) {
+    return gcnew Matrix4(new geompp::maths::Matrix4(geompp::maths::Matrix4::Shear(xy, xz, yx, yz, zx, zy)));
+}
+Matrix4^ Matrix4::Reflection(Vector3^ normal) {
+    return gcnew Matrix4(new geompp::maths::Matrix4(geompp::maths::Matrix4::Reflection(*normal->_native)));
 }
 
 bool     Matrix4::operator==(Matrix4^ lhs, Matrix4^ rhs) { return *lhs->_native == *rhs->_native; }

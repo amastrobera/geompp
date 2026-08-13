@@ -23,6 +23,8 @@ public:
     TransformBuilder^ Rotate(double angleRad, Maths::Vector3^ axis);  // throws if axis is zero-length
     TransformBuilder^ Scale(double factor);
     TransformBuilder^ Scale(double sx, double sy, double sz);
+    TransformBuilder^ Shear(double xy, double xz, double yx, double yz, double zx, double zy);
+    TransformBuilder^ Reflect(Maths::Vector3^ normal);  // throws if normal is zero-length
     TransformBuilder^ Combine(Maths::Matrix4^ mat);
 
     Maths::Matrix4^ Get();

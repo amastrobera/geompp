@@ -134,6 +134,40 @@ class TestMathsMatrix:
         s2 = maths.Matrix3.scale(2.0, 3.0)
         assert (s2 @ maths.Vector3(1, 1, 1)) == maths.Vector3(2, 3, 1)
 
+    def test_shear_offsets_axis_by_multiple_of_other(self):
+        sh = maths.Matrix4.shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        sheared = sh @ maths.Vector4(1, 3, 5, 1)
+        assert approx(sheared.x, 1.0 + 2.0 * 3.0)
+        assert approx(sheared.y, 3.0)
+        assert approx(sheared.z, 5.0)
+
+    def test_matrix3_shear_offsets_axis_by_multiple_of_other(self):
+        sh = maths.Matrix3.shear(2.0, 0.0)
+        sheared = sh @ maths.Vector3(1, 3, 1)
+        assert approx(sheared.x, 1.0 + 2.0 * 3.0)
+        assert approx(sheared.y, 3.0)
+
+    def test_reflection_about_x_axis_normal_flips_y(self):
+        r = maths.Matrix4.reflection(maths.Vector3(0, 1, 0))
+        reflected = r @ maths.Vector4(3, 4, 5, 1)
+        assert approx(reflected.x, 3.0, 1e-9)
+        assert approx(reflected.y, -4.0, 1e-9)
+        assert approx(reflected.z, 5.0, 1e-9)
+
+    def test_reflection_zero_length_normal_raises(self):
+        with pytest.raises(ValueError):
+            maths.Matrix4.reflection(maths.Vector3(0, 0, 0))
+
+    def test_matrix3_reflection_about_x_axis_normal_flips_y(self):
+        r = maths.Matrix3.reflection(maths.Vector2(0, 1))
+        reflected = r @ maths.Vector3(3, 4, 1)
+        assert approx(reflected.x, 3.0, 1e-9)
+        assert approx(reflected.y, -4.0, 1e-9)
+
+    def test_matrix3_reflection_zero_length_normal_raises(self):
+        with pytest.raises(ValueError):
+            maths.Matrix3.reflection(maths.Vector2(0, 0))
+
 
 class TestMathsSolvers:
     def test_solve_gauss_known_system(self):

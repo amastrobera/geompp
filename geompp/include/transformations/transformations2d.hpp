@@ -20,16 +20,16 @@
 /// @file transformations2d.hpp
 /// @brief geompp::transformations -- affine transforms for geompp::geometry's 2D primitives. Two
 /// distinct families:
-///   - translate()/rotate()/scale(): fast direct arithmetic on a single Point2D, no matrix built or
-///     multiplied -- the cheapest possible path for the single-point case.
+///   - translate()/rotate()/scale()/shear()/reflect(): fast direct arithmetic on a single Point2D, no
+///     matrix built or multiplied -- the cheapest possible path for the single-point case.
 ///   - transform(primitive, Matrix3): every 2D primitive from Point2D to PolyMesh2D, applying a
 ///     caller-supplied 3x3 homogeneous matrix (built by hand, or via geompp::maths::Matrix3::
-///     Translation()/Rotation()/Scale()). This is the general path: composite primitives are rebuilt by
-///     transforming each constituent point and re-validating through the type's own Make()/
-///     FromTriangles()/FromPolygons(), so a single Matrix3 (e.g. a rotation + translation combined)
-///     applies to an entire Polygon2D/Mesh2D/PolyMesh2D in one call.
-/// Vector2D transforms rotation/scale but never translation (homogeneous w = 0) -- a displacement has no
-/// position to translate.
+///     Translation()/Rotation()/Scale()/Shear()/Reflection()). This is the general path: composite
+///     primitives are rebuilt by transforming each constituent point and re-validating through the
+///     type's own Make()/FromTriangles()/FromPolygons(), so a single Matrix3 (e.g. a rotation +
+///     translation combined) applies to an entire Polygon2D/Mesh2D/PolyMesh2D in one call.
+/// Vector2D transforms rotation/scale/shear/reflection but never translation (homogeneous w = 0) -- a
+/// displacement has no position to translate.
 namespace geompp::transformations {
 
 // -- Fast direct-arithmetic Point2D transforms (no matrix) --
@@ -49,6 +49,14 @@ geometry::Point2D scale(geometry::Point2D const& p, double factor);
 
 /// @brief Scales a point's coordinates about the origin independently per axis.
 geometry::Point2D scale(geometry::Point2D const& p, double sx, double sy);
+
+/// @brief Shears a point: x' = x + shx*y, y' = y + shy*x. Direct arithmetic -- no matrix built.
+geometry::Point2D shear(geometry::Point2D const& p, double shx, double shy);
+
+/// @brief Reflects a point across the line through the origin whose normal is `normal` (Householder
+/// reflection). Direct arithmetic -- no matrix built.
+/// @throws std::invalid_argument if `normal` is zero-length.
+geometry::Point2D reflect(geometry::Point2D const& p, maths::Vector2 const& normal);
 
 // -- General Matrix3-based transform() -- every 2D primitive, Point2D through PolyMesh2D --
 

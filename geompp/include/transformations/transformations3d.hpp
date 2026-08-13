@@ -14,9 +14,10 @@
 
 /// @file transformations3d.hpp
 /// @brief 3D counterpart of transformations2d.hpp -- see its file docs for the two-families design
-/// (fast direct-arithmetic translate()/rotate()/scale() on a single Point3D vs. the general
-/// transform(primitive, Matrix4) covering every 3D primitive, Point3D through PolyMesh3D). `rotate()`
-/// here additionally takes an axis (2D has none -- rotation is a scalar angle around the implicit Z).
+/// (fast direct-arithmetic translate()/rotate()/scale()/shear()/reflect() on a single Point3D vs. the
+/// general transform(primitive, Matrix4) covering every 3D primitive, Point3D through PolyMesh3D).
+/// `rotate()` here additionally takes an axis (2D has none -- rotation is a scalar angle around the
+/// implicit Z); `shear()` here takes 6 terms rather than 2 (each of X/Y/Z sheared by the other two).
 namespace geompp::transformations {
 
 // -- Fast direct-arithmetic Point3D transforms (no matrix) --
@@ -36,6 +37,16 @@ geometry::Point3D scale(geometry::Point3D const& p, double factor);
 
 /// @brief Scales a point's coordinates about the origin independently per axis.
 geometry::Point3D scale(geometry::Point3D const& p, double sx, double sy, double sz);
+
+/// @brief Shears a point: each axis is offset by a multiple of the other two (`xy` shears X by Y,
+/// `zy` shears Z by Y, etc.). Direct arithmetic -- no matrix built.
+geometry::Point3D shear(geometry::Point3D const& p, double xy, double xz, double yx, double yz, double zx,
+                        double zy);
+
+/// @brief Reflects a point across the plane through the origin whose normal is `normal` (Householder
+/// reflection). Direct arithmetic -- no matrix built.
+/// @throws std::invalid_argument if `normal` is zero-length.
+geometry::Point3D reflect(geometry::Point3D const& p, maths::Vector3 const& normal);
 
 // -- General Matrix4-based transform() -- every 3D primitive, Point3D through PolyMesh3D --
 

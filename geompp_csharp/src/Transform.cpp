@@ -33,6 +33,12 @@ Point2D^ Transform::Scale(Point2D^ point, double factor) {
 Point2D^ Transform::Scale(Point2D^ point, double sx, double sy) {
     return gcnew Point2D(new geompp::Point2D(geompp::transformations::scale(*point->_native, sx, sy)));
 }
+Point2D^ Transform::Shear(Point2D^ point, double shx, double shy) {
+    return gcnew Point2D(new geompp::Point2D(geompp::transformations::shear(*point->_native, shx, shy)));
+}
+Point2D^ Transform::Reflect(Point2D^ point, Maths::Vector2^ normal) {
+    return gcnew Point2D(new geompp::Point2D(geompp::transformations::reflect(*point->_native, *normal->_native)));
+}
 
 // -- 2D general path --
 
@@ -74,6 +80,12 @@ Point3D^ Transform::Scale(Point3D^ point, double factor) {
 }
 Point3D^ Transform::Scale(Point3D^ point, double sx, double sy, double sz) {
     return gcnew Point3D(new geompp::Point3D(geompp::transformations::scale(*point->_native, sx, sy, sz)));
+}
+Point3D^ Transform::Shear(Point3D^ point, double xy, double xz, double yx, double yz, double zx, double zy) {
+    return gcnew Point3D(new geompp::Point3D(geompp::transformations::shear(*point->_native, xy, xz, yx, yz, zx, zy)));
+}
+Point3D^ Transform::Reflect(Point3D^ point, Maths::Vector3^ normal) {
+    return gcnew Point3D(new geompp::Point3D(geompp::transformations::reflect(*point->_native, *normal->_native)));
 }
 
 // -- 3D general path --

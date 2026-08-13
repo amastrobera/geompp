@@ -41,6 +41,8 @@ public:
     static Point2D^ Rotate(Point2D^ point, double angleRad);
     static Point2D^ Scale(Point2D^ point, double factor);
     static Point2D^ Scale(Point2D^ point, double sx, double sy);
+    static Point2D^ Shear(Point2D^ point, double shx, double shy);
+    static Point2D^ Reflect(Point2D^ point, Maths::Vector2^ normal);  // throws if normal is zero-length
 
     // -- 2D general path: Transform(obj, Matrix3) --
     static Point2D^        Apply(Point2D^ point, Maths::Matrix3^ matrix);
@@ -57,6 +59,8 @@ public:
     static Point3D^ Rotate(Point3D^ point, double angleRad, Maths::Vector3^ axis);  // throws if axis is zero-length
     static Point3D^ Scale(Point3D^ point, double factor);
     static Point3D^ Scale(Point3D^ point, double sx, double sy, double sz);
+    static Point3D^ Shear(Point3D^ point, double xy, double xz, double yx, double yz, double zx, double zy);
+    static Point3D^ Reflect(Point3D^ point, Maths::Vector3^ normal);  // throws if normal is zero-length
 
     // -- 3D general path: Transform(obj, Matrix4) --
     static Point3D^        Apply(Point3D^ point, Maths::Matrix4^ matrix);

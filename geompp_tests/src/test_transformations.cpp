@@ -33,6 +33,22 @@ TEST(Transformations2DTest, Scale_Point_UniformAndNonUniform) {
   EXPECT_DOUBLE_EQ(non_uniform.y(), 15.0);
 }
 
+TEST(Transformations2DTest, Shear_Point_OffsetsAxisByMultipleOfOther) {
+  auto p = gt::shear(g::Point2D(1, 3), 2.0, 0.0);
+  EXPECT_DOUBLE_EQ(p.x(), 1.0 + 2.0 * 3.0);
+  EXPECT_DOUBLE_EQ(p.y(), 3.0);
+}
+
+TEST(Transformations2DTest, Reflect_Point_AboutXAxisNormal_FlipsY) {
+  auto p = gt::reflect(g::Point2D(3, 4), gm::Vector2(0, 1));
+  EXPECT_NEAR(p.x(), 3.0, 1e-9);
+  EXPECT_NEAR(p.y(), -4.0, 1e-9);
+}
+
+TEST(Transformations2DTest, Reflect_Point_ZeroLengthNormal_Throws) {
+  EXPECT_THROW(gt::reflect(g::Point2D(1, 1), gm::Vector2(0, 0)), std::invalid_argument);
+}
+
 #pragma endregion
 
 #pragma region 2D matrix-based transform()
@@ -148,6 +164,25 @@ TEST(Transformations3DTest, Scale_Point_UniformAndNonUniform) {
   EXPECT_DOUBLE_EQ(non_uniform.z(), 2.0);
 }
 
+TEST(Transformations3DTest, Shear_Point_OffsetsAxisByMultipleOfOther) {
+  // xy = 2: x' = x + 2*y, y and z unchanged.
+  auto p = gt::shear(g::Point3D(1, 3, 5), 2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+  EXPECT_DOUBLE_EQ(p.x(), 1.0 + 2.0 * 3.0);
+  EXPECT_DOUBLE_EQ(p.y(), 3.0);
+  EXPECT_DOUBLE_EQ(p.z(), 5.0);
+}
+
+TEST(Transformations3DTest, Reflect_Point_AboutXAxisNormal_FlipsY) {
+  auto p = gt::reflect(g::Point3D(3, 4, 5), gm::Vector3(0, 1, 0));
+  EXPECT_NEAR(p.x(), 3.0, 1e-9);
+  EXPECT_NEAR(p.y(), -4.0, 1e-9);
+  EXPECT_NEAR(p.z(), 5.0, 1e-9);
+}
+
+TEST(Transformations3DTest, Reflect_Point_ZeroLengthNormal_Throws) {
+  EXPECT_THROW(gt::reflect(g::Point3D(1, 1, 1), gm::Vector3(0, 0, 0)), std::invalid_argument);
+}
+
 #pragma endregion
 
 #pragma region 3D matrix-based transform()
@@ -253,6 +288,29 @@ TEST(TransformBuilderTest, Combine_AppliesArbitraryMatrix) {
   builder.Combine(gm::Matrix4::Translation(gm::Vector3(1, 2, 3)));
   auto p = gt::transform(g::Point3D(0, 0, 0), builder.Get());
   EXPECT_TRUE(p == g::Point3D(1, 2, 3));
+}
+
+TEST(TransformBuilderTest, Shear_OffsetsAxisByMultipleOfOther) {
+  gt::TransformBuilder builder;
+  builder.Shear(2.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+  auto p = gt::transform(g::Point3D(1, 3, 5), builder.Get());
+  EXPECT_NEAR(p.x(), 1.0 + 2.0 * 3.0, 1e-9);
+  EXPECT_NEAR(p.y(), 3.0, 1e-9);
+  EXPECT_NEAR(p.z(), 5.0, 1e-9);
+}
+
+TEST(TransformBuilderTest, Reflect_AboutXAxisNormal_FlipsY) {
+  gt::TransformBuilder builder;
+  builder.Reflect(gm::Vector3(0, 1, 0));
+  auto p = gt::transform(g::Point3D(3, 4, 5), builder.Get());
+  EXPECT_NEAR(p.x(), 3.0, 1e-9);
+  EXPECT_NEAR(p.y(), -4.0, 1e-9);
+  EXPECT_NEAR(p.z(), 5.0, 1e-9);
+}
+
+TEST(TransformBuilderTest, Reflect_ZeroLengthNormal_Throws) {
+  gt::TransformBuilder builder;
+  EXPECT_THROW(builder.Reflect(gm::Vector3(0, 0, 0)), std::invalid_argument);
 }
 
 TEST(TransformBuilderTest, Build_ReturnsIndependentCopy) {

@@ -5315,10 +5315,14 @@ A quick list of code examples per topic is provided here.
   specifically wants that closed form (e.g. to inspect one unknown's ratio in isolation) rather than the
   faster, more numerically stable elimination `solve_gauss()` runs.
 
-  `Matrix4` additionally provides four static factories building the elementary 4x4 *homogeneous*
+  `Matrix4` additionally provides static factories building the elementary 4x4 *homogeneous*
   affine-transform matrices — `Identity()`/`Translation(offset)`/`Rotation(angle_rad, axis)` (axis-angle,
-  Rodrigues' formula)/`Scale(factor)`/`Scale(sx, sy, sz)` — the building blocks
-  `geompp::transformations::TransformBuilder` (§13) composes via ordinary `Matrix4` multiplication.
+  Rodrigues' formula)/`Scale(factor)`/`Scale(sx, sy, sz)`/`Shear(xy, xz, yx, yz, zx, zy)` (each axis
+  offset by a multiple of the other two)/`Reflection(normal)` (Householder reflection `I - 2nn^T` across
+  the plane through the origin with the given normal; throws on a zero-length normal) — the building
+  blocks `geompp::transformations::TransformBuilder` (§13) composes via ordinary `Matrix4`
+  multiplication. `Matrix3` mirrors the same set (2D: `Shear(shx, shy)`, `Reflection(normal)` across a
+  line through the origin) for `geompp::transformations`' 2D `transform()` path.
 
   <details closed>
   <summary><b> &nbsp; &nbsp; Samples</b></summary>
@@ -5351,6 +5355,13 @@ A quick list of code examples per topic is provided here.
   gm::Vector4 p(1, 0, 0, 1);  // homogeneous point
   GEOMPP_LOG(INFO) << "moved: "  << move * p;
   GEOMPP_LOG(INFO) << "spun:  "  << spin * p;
+
+  // Shear()/Reflection() -- the newest two factories, same homogeneous-matrix shape as the rest.
+  auto skew  = gm::Matrix4::Shear(0.5, 0, 0, 0, 0, 0);       // x' = x + 0.5*y
+  auto mirror = gm::Matrix4::Reflection(gm::Vector3(0, 1, 0));  // flip across the XZ plane
+  gm::Vector4 q(1, 2, 0, 1);
+  GEOMPP_LOG(INFO) << "sheared:   " << skew * q;
+  GEOMPP_LOG(INFO) << "reflected: " << mirror * q;
   ```
 
   ```bash
@@ -5362,6 +5373,8 @@ A quick list of code examples per topic is provided here.
    [-2.22045e-16, 5.55112e-17, 1]
   I20260813] moved: (11, 0, 0, 1)
   I20260813] spun:  (6.12323e-17, 1, 0, 1)
+  I20260813] sheared:   (2, 2, 0, 1)
+  I20260813] reflected: (1, -2, 0, 1)
   ```
 
   (`Matrix`/`Vector::ToString()` does no rounding, unlike `geompp::geometry`'s `ToWkt()` which rounds to
@@ -5397,6 +5410,13 @@ A quick list of code examples per topic is provided here.
   var p = new Vector4(1, 0, 0, 1);  // homogeneous point
   Console.WriteLine($"moved: {move * p}");
   Console.WriteLine($"spun:  {spin * p}");
+
+  // Shear()/Reflection() -- the newest two factories, same homogeneous-matrix shape as the rest.
+  var skew = Matrix4.Shear(0.5, 0, 0, 0, 0, 0);          // x' = x + 0.5*y
+  var mirror = Matrix4.Reflection(new Vector3(0, 1, 0));  // flip across the XZ plane
+  var q = new Vector4(1, 2, 0, 1);
+  Console.WriteLine($"sheared:   {skew * q}");
+  Console.WriteLine($"reflected: {mirror * q}");
   ```
 
   ```
@@ -5408,6 +5428,8 @@ A quick list of code examples per topic is provided here.
    [-2.22045e-16, 5.55112e-17, 1]
   moved: (11, 0, 0, 1)
   spun:  (6.12323e-17, 1, 0, 1)
+  sheared:   (2, 2, 0, 1)
+  reflected: (1, -2, 0, 1)
   ```
 
    </details>
@@ -5438,6 +5460,13 @@ A quick list of code examples per topic is provided here.
   p = gm.Vector4(1, 0, 0, 1)  # homogeneous point
   print(f"moved: {move @ p}")
   print(f"spun:  {spin @ p}")
+
+  # shear()/reflection() -- the newest two factories, same homogeneous-matrix shape as the rest.
+  skew = gm.Matrix4.shear(0.5, 0, 0, 0, 0, 0)           # x' = x + 0.5*y
+  mirror = gm.Matrix4.reflection(gm.Vector3(0, 1, 0))   # flip across the XZ plane
+  q = gm.Vector4(1, 2, 0, 1)
+  print(f"sheared:   {skew @ q}")
+  print(f"reflected: {mirror @ q}")
   ```
 
   ```
@@ -5449,6 +5478,8 @@ A quick list of code examples per topic is provided here.
    [-2.22045e-16, 5.55112e-17, 1]
   moved: (11, 0, 0, 1)
   spun:  (6.12323e-17, 1, 0, 1)
+  sheared:   (2, 2, 0, 1)
+  reflected: (1, -2, 0, 1)
   ```
 
    </details>
@@ -5461,13 +5492,18 @@ A quick list of code examples per topic is provided here.
 <summary><b> &nbsp; 13. geompp::transformations — Affine Transforms</b></summary>
 
   `geompp::transformations` is the third module built on top of `geompp::geometry`: affine transforms
-  (translate/rotate/scale) for every `geompp::geometry` primitive, built entirely on `geompp::maths`
-  (§12) rather than on hand-derived per-primitive formulas. Two distinct families cover different needs:
+  (translate/rotate/scale/shear/reflect) for every `geompp::geometry` primitive, built entirely on
+  `geompp::maths` (§12) rather than on hand-derived per-primitive formulas. Two distinct families cover
+  different needs:
 
-  - **`translate()`/`rotate()`/`scale()`** — the fast path, direct arithmetic on a single `Point2D`/
-    `Point3D`, no matrix ever constructed. `rotate()` in 2D takes a scalar angle (rotation about the
-    origin, in the XY plane); in 3D it takes an axis-angle pair (Rodrigues' formula, throws on a
-    zero-length axis). This is the cheapest possible path when all you have is one point.
+  - **`translate()`/`rotate()`/`scale()`/`shear()`/`reflect()`** — the fast path, direct arithmetic on a
+    single `Point2D`/`Point3D`, no matrix ever constructed. `rotate()` in 2D takes a scalar angle
+    (rotation about the origin, in the XY plane); in 3D it takes an axis-angle pair (Rodrigues' formula,
+    throws on a zero-length axis). `shear()` takes 2 terms in 2D (`shx`, `shy`) or 6 in 3D (each axis
+    offset by a multiple of the other two). `reflect()` takes a normal vector (`Vector2`/`Vector3`) and
+    mirrors the point across the line/plane through the origin perpendicular to it (Householder
+    reflection), throwing on a zero-length normal. This is the cheapest possible path when all you have
+    is one point.
   - **`transform(primitive, matrix)`** — the general path: a 3x3 (`Matrix3`, 2D) or 4x4 (`Matrix4`, 3D)
     homogeneous matrix applied to *any* primitive, from `Point2D/3D`/`Vector2D/3D` through
     `LineSegment`/`Polyline`/`Triangle`/`Polygon` (outer ring **and** every hole ring) to `Mesh`/
@@ -5480,11 +5516,20 @@ A quick list of code examples per topic is provided here.
     translate, only a direction/length to rotate and scale.
 
   `TransformBuilder` is a fluent composer for a single `Matrix4`: each `Translate()`/`Rotate()`/
-  `Scale()`/`Combine()` call **pre-multiplies** the new operation onto the matrix accumulated so far, so
-  chained calls apply in the order they're *written*, left to right — `builder.Translate(t).Rotate(r)`
-  moves a point by `t` first, then rotates the *result* by `r`, matching how a reader expects a chain of
-  method calls to read ("do this, then this"). Reversing the chain (`Rotate` then `Translate`) produces a
-  genuinely different transform, not just a different-looking call — see the worked example below.
+  `Scale()`/`Shear()`/`Reflect()`/`Combine()` call **pre-multiplies** the new operation onto the matrix
+  accumulated so far, so chained calls apply in the order they're *written*, left to right —
+  `builder.Translate(t).Rotate(r)` moves a point by `t` first, then rotates the *result* by `r`,
+  matching how a reader expects a chain of method calls to read ("do this, then this"). Reversing the
+  chain (`Rotate` then `Translate`) produces a genuinely different transform, not just a
+  different-looking call — see the worked example below.
+
+  A note on which transforms preserve what: translation/rotation are rigid (preserve both area/volume
+  and angles); uniform `Scale()` preserves angles but not area; `Shear()` preserves area/volume (its
+  matrix has determinant 1) but not angles — it's what turns a square into a parallelogram;
+  `Reflection()` preserves area/volume and angles but flips orientation (determinant -1) — a CCW
+  `Polygon2D`/`Polygon3D` ring transformed through a reflection comes out CW, so a caller doing a
+  deliberate mirror should expect to re-run `IsSimple()`/winding checks before feeding the result back
+  through something that assumes CCW-outer/CW-holes.
 
   A worked example, using a right triangle: `TRIANGLE (0 0 0, 4 0 0, 0 3 0)`, area 6. Applying
   `TransformBuilder().Translate((5, 2, 0)).Rotate(30°, Z axis)` — a translation, then a 30° rotation
@@ -5527,12 +5572,20 @@ A quick list of code examples per topic is provided here.
   // The fast path needs no matrix at all for a single point.
   auto p = gt::translate(g::Point2D(1, 1), gm::Vector2(2, 0));
   GEOMPP_LOG(INFO) << "fast-path translate: " << p.ToWkt();
+
+  // shear()/reflect() -- the newest two fast-path functions.
+  auto sheared = gt::shear(g::Point2D(1, 1), 0.5, 0.0);           // x' = x + 0.5*y
+  auto mirrored = gt::reflect(g::Point2D(1, 1), gm::Vector2(0, 1));  // flip across the X axis
+  GEOMPP_LOG(INFO) << "fast-path shear:   " << sheared.ToWkt();
+  GEOMPP_LOG(INFO) << "fast-path reflect: " << mirrored.ToWkt();
   ```
 
   ```bash
   I20260813] before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6
   I20260813] after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6
   I20260813] fast-path translate: POINT (3 1)
+  I20260813] fast-path shear:   POINT (1.5 1)
+  I20260813] fast-path reflect: POINT (1 -1)
   ```
 
    </details>
@@ -5557,12 +5610,20 @@ A quick list of code examples per topic is provided here.
   // The fast path needs no matrix at all for a single point.
   var p = Transform.Translate(new Point2D(1, 1), new Vector2(2, 0));
   Console.WriteLine($"fast-path translate: {p.ToWkt()}");
+
+  // Shear/Reflect -- the newest two fast-path methods.
+  var sheared = Transform.Shear(new Point2D(1, 1), 0.5, 0.0);            // x' = x + 0.5*y
+  var mirrored = Transform.Reflect(new Point2D(1, 1), new Vector2(0, 1));  // flip across the X axis
+  Console.WriteLine($"fast-path shear:   {sheared.ToWkt()}");
+  Console.WriteLine($"fast-path reflect: {mirrored.ToWkt()}");
   ```
 
   ```
   before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6
   after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6
   fast-path translate: POINT (3 1)
+  fast-path shear:   POINT (1.5 1)
+  fast-path reflect: POINT (1 -1)
   ```
 
    </details>
@@ -5587,12 +5648,20 @@ A quick list of code examples per topic is provided here.
   # The fast path needs no matrix at all for a single point.
   p = tf.translate(geompp.Point2D(1, 1), maths.Vector2(2, 0))
   print(f"fast-path translate: {p.to_wkt()}")
+
+  # shear()/reflect() -- the newest two fast-path functions.
+  sheared = tf.shear(geompp.Point2D(1, 1), 0.5, 0.0)              # x' = x + 0.5*y
+  mirrored = tf.reflect(geompp.Point2D(1, 1), maths.Vector2(0, 1))  # flip across the X axis
+  print(f"fast-path shear:   {sheared.to_wkt()}")
+  print(f"fast-path reflect: {mirrored.to_wkt()}")
   ```
 
   ```
   before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6.0
   after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6.0
   fast-path translate: POINT (3 1)
+  fast-path shear:   POINT (1.5 1)
+  fast-path reflect: POINT (1 -1)
   ```
 
    </details>
