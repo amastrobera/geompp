@@ -103,36 +103,44 @@ void bind_matrix(py::module_& m, char const* name) {
        .def("__str__", &M::ToString);
 
     if constexpr (N == 4) {
-        cls.def_static("translation", &M::Translation, "offset"_a,
+        using V3 = geompp::maths::Vector<double, 3>;
+        cls.def_static("translation", [](V3 const& offset) { return M::Translation(offset); }, "offset"_a,
                        "4x4 homogeneous translation matrix.")
-           .def_static("rotation", &M::Rotation, "angle_rad"_a, "axis"_a,
+           .def_static("rotation",
+                       [](double angle_rad, V3 const& axis) { return M::Rotation(angle_rad, axis); },
+                       "angle_rad"_a, "axis"_a,
                        "4x4 homogeneous rotation matrix (axis-angle, Rodrigues' formula). Raises "
                        "ValueError if axis is zero-length.")
            .def_static("scale", [](double f) { return M::Scale(f); }, "factor"_a,
                        "4x4 homogeneous uniform scale matrix.")
            .def_static("scale", [](double sx, double sy, double sz) { return M::Scale(sx, sy, sz); },
                        "sx"_a, "sy"_a, "sz"_a, "4x4 homogeneous non-uniform scale matrix.")
-           .def_static("shear", &M::Shear, "xy"_a, "xz"_a, "yx"_a, "yz"_a, "zx"_a, "zy"_a,
+           .def_static("shear",
+                       [](double xy, double xz, double yx, double yz, double zx, double zy) {
+                           return M::Shear(xy, xz, yx, yz, zx, zy);
+                       },
+                       "xy"_a, "xz"_a, "yx"_a, "yz"_a, "zx"_a, "zy"_a,
                        "4x4 homogeneous shear matrix -- each axis offset by a multiple of the other "
                        "two (xy shears X by Y, zy shears Z by Y, ...).")
-           .def_static("reflection", &M::Reflection, "normal"_a,
+           .def_static("reflection", [](V3 const& normal) { return M::Reflection(normal); }, "normal"_a,
                        "4x4 homogeneous reflection matrix across the plane through the origin whose "
                        "normal is `normal` (Householder reflection). Raises ValueError if normal is "
                        "zero-length.");
     }
     if constexpr (N == 3) {
-        cls.def_static("translation", &M::Translation, "offset"_a,
+        using V2 = geompp::maths::Vector<double, 2>;
+        cls.def_static("translation", [](V2 const& offset) { return M::Translation(offset); }, "offset"_a,
                        "3x3 homogeneous translation matrix (2D) -- geompp.transformations' Matrix3 "
                        "counterpart of Matrix4.translation().")
-           .def_static("rotation", &M::Rotation, "angle_rad"_a,
+           .def_static("rotation", [](double angle_rad) { return M::Rotation(angle_rad); }, "angle_rad"_a,
                        "3x3 homogeneous rotation matrix (2D, about the origin).")
            .def_static("scale", [](double f) { return M::Scale(f); }, "factor"_a,
                        "3x3 homogeneous uniform scale matrix (2D).")
            .def_static("scale", [](double sx, double sy) { return M::Scale(sx, sy); },
                        "sx"_a, "sy"_a, "3x3 homogeneous non-uniform scale matrix (2D).")
-           .def_static("shear", &M::Shear, "shx"_a, "shy"_a,
+           .def_static("shear", [](double shx, double shy) { return M::Shear(shx, shy); }, "shx"_a, "shy"_a,
                        "3x3 homogeneous shear matrix (2D) -- shx shears X by Y, shy shears Y by X.")
-           .def_static("reflection", &M::Reflection, "normal"_a,
+           .def_static("reflection", [](V2 const& normal) { return M::Reflection(normal); }, "normal"_a,
                        "3x3 homogeneous reflection matrix across the line through the origin whose "
                        "normal is `normal` (2D, Householder reflection). Raises ValueError if normal "
                        "is zero-length.");
