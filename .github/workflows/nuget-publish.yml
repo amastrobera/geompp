@@ -1,4 +1,4 @@
-name: Publish NuGet
+name: Publish .Net (NuGet)
 
 # Triggers on C# version tags: csharp-v0.1.1, csharp-v1.2.3, etc.
 # Can also be triggered manually from the Actions tab.
