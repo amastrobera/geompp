@@ -9,8 +9,10 @@ CMakeSettings.json
 Testing
 build_win
 geompp_csharp/GeomPP/
-geompp_csharp/GeomPP_Net48/
 geompp_csharp/x64/
+geompp_csharp/GeomPP_Net48
+geompp_csharp/GeomPP_Net9
+geompp_csharp/GeomPP_Net8
 nupkgs
 
 # Python
