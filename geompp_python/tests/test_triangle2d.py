@@ -34,6 +34,27 @@ class TestTriangle2D:
         c = tri.centroid()
         assert approx(c.x, 4/3) and approx(c.y, 1.0)
 
+    def test_distance_to(self):
+        # right triangle: legs on the axes (length 4 each), hypotenuse x + y = 4
+        t = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(0, 4))
+
+        # interior, on an edge, on a vertex, on the hypotenuse -- all zero
+        assert approx(t.distance_to(geompp.Point2D(1, 1)), 0.0)
+        assert approx(t.distance_to(geompp.Point2D(2, 0)), 0.0)
+        assert approx(t.distance_to(geompp.Point2D(0, 0)), 0.0)
+        assert approx(t.distance_to(geompp.Point2D(2, 2)), 0.0)
+
+        # outside, perpendicular foot lands within a leg
+        assert approx(t.distance_to(geompp.Point2D(2, -3)), 3.0)
+        assert approx(t.distance_to(geompp.Point2D(-3, 1)), 3.0)
+
+        # outside, perpendicular foot lands within the hypotenuse
+        assert approx(t.distance_to(geompp.Point2D(4, 4)), 2 * 2.0 ** 0.5)
+
+        # outside, perpendicular foot falls off every edge -- nearest point is a vertex
+        assert approx(t.distance_to(geompp.Point2D(-1, -1)), 2.0 ** 0.5)
+        assert approx(t.distance_to(geompp.Point2D(5, -1)), 2.0 ** 0.5)
+
     def test_contains(self, tri):
         v0, v1, v2 = tri.vertices  # (0,0), (4,0), (0,3)
         c = tri.centroid()          # (4/3, 1.0)

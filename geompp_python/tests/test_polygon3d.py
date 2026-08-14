@@ -375,6 +375,38 @@ class TestPolygon3D:
         finally:
             os.unlink(path)
 
+    def test_distance_to(self):
+        # unit square in XY plane
+        pts = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0),
+            geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0),
+        ]
+        sq = geompp.Polygon3D.make(pts)
+        assert approx(sq.distance_to(geompp.Point3D(0.5, 0.5, 0)), 0.0)            # interior
+        assert approx(sq.distance_to(geompp.Point3D(0.0, 0.5, 0)), 0.0)            # on boundary (edge)
+        assert approx(sq.distance_to(geompp.Point3D(1.0, 1.0, 0)), 0.0)            # on boundary (vertex)
+        assert approx(sq.distance_to(geompp.Point3D(2.0, 0.5, 0)), 1.0)            # outside in-plane, nearest edge x=1
+        assert approx(sq.distance_to(geompp.Point3D(2.0, 2.0, 0)), 2.0 ** 0.5)     # outside, nearest corner
+
+        # off-plane: contains() is false regardless of in-plane position, so this measures true 3D
+        # distance to the nearest edge/vertex -- no "inside" shortcut.
+        assert approx(sq.distance_to(geompp.Point3D(0.5, 0.5, 1.0)), 1.25 ** 0.5)  # above center
+        assert approx(sq.distance_to(geompp.Point3D(2.0, 0.5, 1.0)), 2.0 ** 0.5)   # above + outside in-plane
+
+        # polygon with hole in XY plane -- a point in the hole must measure to the HOLE's boundary.
+        outer = [
+            geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
+            geompp.Point3D(4, 4, 0), geompp.Point3D(0, 4, 0),
+        ]
+        hole = [
+            geompp.Point3D(1, 1, 0), geompp.Point3D(1, 3, 0),
+            geompp.Point3D(3, 3, 0), geompp.Point3D(3, 1, 0),
+        ]
+        poly = geompp.Polygon3D.make(outer, [hole])
+        assert approx(poly.distance_to(geompp.Point3D(0.5, 0.5, 0)), 0.0)  # in the solid region
+        assert approx(poly.distance_to(geompp.Point3D(2.0, 2.0, 0)), 1.0)  # hole center
+        assert approx(poly.distance_to(geompp.Point3D(1.0, 2.0, 0)), 0.0)  # on the hole boundary
+
     def test_contains(self):
         # unit square in XY plane
         pts = [

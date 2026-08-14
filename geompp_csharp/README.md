@@ -64,8 +64,8 @@ This is the summary of the current test coverage. More on [test coverage](https:
 |--------|-------|-------|
 | Public methods (C++) | ~513 | Excl. ctors/dtors/operators. `geompp::maths`/`geompp::transformations` (templated/free-function, header-only) tracked separately, see test_coverage_report.md |
 | C++ methods tested | ~493/513 | ~96% (1204 TEST cases, 1202 run, 2 disabled — incl. 37+17 for `geompp::maths` +6 for its own `detail::`, 30 for `geompp::transformations`, +40 direct `detail::`/`detail::view::` tests) |
-| Python methods tested | 454/474 | ~96% (883 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`) |
-| C# methods tested | 518/581 | ~89% (1001 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`) |
+| Python methods tested | 458/474 | ~97% (903 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`, +4 for `distance_to(Point)` on `Polygon2D/3D`/`Triangle2D/3D`) |
+| C# methods tested | 518/581 | ~89% (1003 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +2 for `Triangle2D`-`Triangle2D` intersection parity) |
 | Stubs (not yet impl.) | 2 | `TriangulationParams::Strategy::MonotonePolygon`/`Delaunay` — intentional, see test_coverage_report.md |
 ||||
 

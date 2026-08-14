@@ -287,6 +287,26 @@ public static class Triangle2DTests {
       IsFalse(t.Intersects(far));
       IsNull(t.Intersection(far));
     });
+
+    Test("Intersects_Triangle2D_HugeContaining_IntersectionEqualsOriginalArea", () => {
+      // Mirrors test_triangle2d.cpp:397's IntersectionWTriangle -- a much larger triangle fully
+      // containing t, so the intersection must equal t itself (same area).
+      var t = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,4));
+      var huge = Triangle2D.Make(new Point2D(-10,-10), new Point2D(20,-10), new Point2D(-10,20));
+      IsTrue(t.Intersects(huge));
+      var hit = t.Intersection(huge) as Triangle2D;
+      NotNull(hit);
+      Eq(t.Area(), hit!.Area(), 6);
+    });
+
+    Test("Intersects_Triangle2D_TouchingSharedEdgeOnly_False", () => {
+      // Mirrors test_triangle2d.cpp:397 -- two triangles touching only along a shared edge (zero area
+      // in common) must not count as an intersection.
+      var t = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,4));
+      var otherHalf = Triangle2D.Make(new Point2D(4,0), new Point2D(0,4), new Point2D(4,4));
+      IsFalse(t.Intersects(otherHalf));
+      IsNull(t.Intersection(otherHalf));
+    });
   }
 }
 
