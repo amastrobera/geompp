@@ -10,6 +10,8 @@
 #include <limits>
 
 namespace geompp {
+
+inline namespace geometry {
 namespace detail {
 
 namespace {
@@ -367,4 +369,6 @@ template class SweepLine2D<std::vector<LineSegment2D>>;
 template class SweepLine2D<SegmentRange2D>;
 
 }  // namespace detail
+}  // namespace geometry
+
 }  // namespace geompp

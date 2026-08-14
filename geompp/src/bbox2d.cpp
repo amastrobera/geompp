@@ -10,6 +10,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 BBox2D::BBox2D(LineSegment2D const& s) {
   double max_x = compare(s.First().x(), s.Last().x()) >= 0 ? s.First().x() : s.Last().x();
   double max_y = compare(s.First().y(), s.Last().y()) >= 0 ? s.First().y() : s.Last().y();
@@ -134,5 +136,7 @@ BBox2D::BBox2D(Points const& points) {
 }
 
 template BBox2D::BBox2D(std::vector<Point2D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

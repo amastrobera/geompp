@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line2D;
 class LineSegment2D;
 class Polyline2D;
@@ -122,5 +124,7 @@ inline Vector2D const& Ray2D::Direction() const { return DIR; }
 inline Ray2D::Ray2D(Point2D const& orig, Vector2D const& dir) : ORIGIN(orig), DIR(dir.Normalize()) {}
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

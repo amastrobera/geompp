@@ -10,6 +10,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point3D {
  public:
   Point3D(double x, double y, double z);
@@ -113,5 +115,7 @@ inline double Point3D::z() const { return Z; }
 inline Point3D Point3D::Zero() { return Point3D(0, 0, 0); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

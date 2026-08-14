@@ -10,6 +10,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point2D;
 class Line2D;
 class Ray2D;
@@ -78,5 +80,7 @@ std::ostream& operator<<(std::ostream& os, GeometryCollection2D const& g);
 inline std::size_t GeometryCollection2D::Size() const { return GEOMETRIES.size(); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

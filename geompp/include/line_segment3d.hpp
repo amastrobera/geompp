@@ -10,6 +10,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line3D;
 class Polyline3D;
 class Ray3D;
@@ -155,5 +157,7 @@ inline Point3D const& LineSegment3D::Last() const { return P1; }
 inline LineSegment3D::LineSegment3D(Point3D const& p0, Point3D const& p1) : P0(p0), P1(p1) {}
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

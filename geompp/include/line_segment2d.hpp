@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line2D;
 class Polyline2D;
 class Ray2D;
@@ -146,5 +148,7 @@ inline Point2D const& LineSegment2D::Last() const { return P1; }
 inline LineSegment2D::LineSegment2D(Point2D const& p0, Point2D const& p1) : P0(p0), P1(p1) {}
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

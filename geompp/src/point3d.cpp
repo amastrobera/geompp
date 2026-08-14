@@ -14,6 +14,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 namespace {
 // Indices to drop from `points` so the remaining ones describe the same shape with no run of 3+
 // collinear points — shared between remove_collinear()'s const& (copies survivors into a fresh
@@ -368,5 +370,7 @@ Point3D Point3D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

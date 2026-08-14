@@ -9,6 +9,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point2D {
  public:
   Point2D(double x, double y);
@@ -127,6 +129,24 @@ bool are_cw(std::vector<Point2D> const& points);
 
 Point2D centroid(std::vector<Point2D> const& points);
 
+namespace detail {
+
+// Same as signed_area()/are_ccw()/are_cw()/centroid() above, but assumes @p unique_points is already free
+// of collinear/duplicate points (skips their internal remove_collinear() pass entirely). Only call these
+// when the caller can prove that already holds for the EXACT vector being passed -- e.g. Polygon2D's own
+// stored VERTICES/HOLES (deduplicated once at construction and never mutated after), or a local variable a
+// few lines below its own remove_collinear() call.
+
+double signed_area(std::vector<Point2D> const& unique_points);
+
+bool are_ccw(std::vector<Point2D> const& unique_points);
+
+bool are_cw(std::vector<Point2D> const& unique_points);
+
+Point2D centroid(std::vector<Point2D> const& unique_points);
+
+}  // namespace detail
+
 #pragma endregion
 
 #pragma region Inlined Functions
@@ -138,5 +158,7 @@ inline double Point2D::y() const { return Y; }
 inline Point2D Point2D::Zero() { return Point2D(0, 0); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

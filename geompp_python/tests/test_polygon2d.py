@@ -276,6 +276,30 @@ class TestPolygon2D:
         finally:
             os.unlink(path)
 
+    def test_distance_to(self, square):
+        # fixture: unit square (0,0)-(1,0)-(1,1)-(0,1)
+        assert approx(square.distance_to(geompp.Point2D(0.5, 0.5)), 0.0)   # interior
+        assert approx(square.distance_to(geompp.Point2D(0.0, 0.5)), 0.0)   # on boundary (edge)
+        assert approx(square.distance_to(geompp.Point2D(1.0, 1.0)), 0.0)   # on boundary (vertex)
+        assert approx(square.distance_to(geompp.Point2D(2.0, 0.5)), 1.0)   # outside, nearest edge x=1
+        assert approx(square.distance_to(geompp.Point2D(0.5, -3.0)), 3.0)  # outside, nearest edge y=0
+        assert approx(square.distance_to(geompp.Point2D(2.0, 2.0)), 2.0 ** 0.5)  # outside, nearest corner
+
+        # polygon with hole: 4x4 outer, 2x2 centred hole -- a point in the hole must measure to the
+        # HOLE's boundary, not the outer ring.
+        outer = [
+            geompp.Point2D(0, 0), geompp.Point2D(4, 0),
+            geompp.Point2D(4, 4), geompp.Point2D(0, 4),
+        ]
+        hole = [
+            geompp.Point2D(1, 1), geompp.Point2D(1, 3),
+            geompp.Point2D(3, 3), geompp.Point2D(3, 1),
+        ]
+        poly = geompp.Polygon2D.make(outer, [hole])
+        assert approx(poly.distance_to(geompp.Point2D(0.5, 0.5)), 0.0)  # in the solid region
+        assert approx(poly.distance_to(geompp.Point2D(2.0, 2.0)), 1.0)  # hole center -- 1 unit from any hole edge
+        assert approx(poly.distance_to(geompp.Point2D(1.0, 2.0)), 0.0)  # on the hole boundary
+
     def test_contains(self, square):
         # fixture: unit square (0,0)-(1,0)-(1,1)-(0,1)
         assert square.contains(geompp.Point2D(0.5, 0.5))    # center

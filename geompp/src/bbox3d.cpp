@@ -7,6 +7,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 BBox3D::BBox3D(LineSegment3D const& s) {
   double ax = s.First().x(), bx = s.Last().x();
   double ay = s.First().y(), by = s.Last().y();
@@ -188,5 +190,7 @@ BBox3D::BBox3D(Points const& points) {
 }
 
 template BBox3D::BBox3D(std::vector<Point3D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

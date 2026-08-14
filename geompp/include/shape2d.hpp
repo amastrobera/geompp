@@ -4,6 +4,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point2D;
 class Line2D;
 class Ray2D;
@@ -15,5 +17,7 @@ class GeometryCollection2D;
 
 using Shape2D =
     std::variant<Point2D, Line2D, Ray2D, LineSegment2D, Polyline2D, Triangle2D, Polygon2D, GeometryCollection2D>;
+
+}  // namespace geometry
 
 }  // namespace geompp

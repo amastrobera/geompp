@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 #include "line_segment2d.hpp"
+#include "maths.hpp"
 #include "point2d.hpp"
 #include "segment_iterator2d.hpp"
 
@@ -12,10 +13,23 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line2D;
 class Ray2D;
 class Polyline2D;
 class Triangle2D;
+class Polygon2D;
+
+}  // namespace geometry
+
+namespace transformations {
+// Forward-declared so Polygon2D can friend this exact overload below -- transform() is the only caller
+// allowed to reach the private FromUniqueCCWPoints() fast constructor (see its own doc comment for why).
+geometry::Polygon2D transform(geometry::Polygon2D const& poly, maths::Matrix3 const& m);
+}  // namespace transformations
+
+inline namespace geometry {
 
 class Polygon2D {
  public:
@@ -180,6 +194,20 @@ class Polygon2D {
   static Polygon2D FromUniquePoints(std::vector<Point2D> unique_points);
   static Polygon2D FromUniquePoints(std::vector<Point2D> unique_points, std::vector<std::vector<Point2D>> holes);
 
+  // Same contract as FromUniquePoints, but ALSO trusts the caller that unique_points is already correctly
+  // CCW (skips the are_ccw() check) and that is_convex is already known -- both true by construction for
+  // transform()'s own use: it reverses the ring itself first whenever the transform's determinant is
+  // negative (see transformations2d.cpp), so winding is already right by the time this runs, and
+  // convexity is affine-invariant so the source polygon's own IsConvex() carries over unchanged. Private
+  // and friended to transform() specifically -- NOT exposed publicly, since calling this with points that
+  // aren't actually CCW, or a wrong is_convex, would silently corrupt the winding/convexity invariants
+  // every other method on this class relies on.
+  static Polygon2D FromUniqueCCWPoints(std::vector<Point2D> unique_points, bool is_convex);
+  static Polygon2D FromUniqueCCWPoints(std::vector<Point2D> unique_points, std::vector<std::vector<Point2D>> holes,
+                                       bool is_convex);
+
+  friend Polygon2D geompp::transformations::transform(Polygon2D const& poly, maths::Matrix3 const& m);
+
   Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex);
   Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes,
             bool is_convex);
@@ -220,5 +248,7 @@ inline Polygon2D::const_iterator Polygon2D::cbegin() const { return VERTICES.cbe
 inline Polygon2D::const_iterator Polygon2D::cend() const { return VERTICES.cend(); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

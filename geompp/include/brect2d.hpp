@@ -17,6 +17,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class BRect2D {
  public:
   /// @brief Builds the minimum oriented bounding rectangle using the rotating-calipers method
@@ -80,5 +82,7 @@ inline double BRect2D::area() const { return 4.0 * HALF_LEN_U * HALF_LEN_V; }
 #pragma endregion
 
 extern template BRect2D::BRect2D(std::vector<Point2D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

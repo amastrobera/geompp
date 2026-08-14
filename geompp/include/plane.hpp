@@ -12,6 +12,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line3D;
 class Ray3D;
 class LineSegment3D;
@@ -185,26 +187,58 @@ inline Plane Plane::ZX() { return Plane(Point3D::Zero(), Vector3D::BasisY()); }
 
 #pragma region Collection Operations
 
-bool are_coplanar(std::vector<Point3D> const& points);
+// if plane is provided, checks every point lies on it; otherwise derives a reference via newell_normal()
+// anchored at points[0]. Passing an already-known plane lets a caller that needs the SAME reference for
+// multiple checks (e.g. Polygon3D::FromUniquePoints, which also needs it for are_ccw()) compute it once.
+bool are_coplanar(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt);
+
+// Newell's method (M. Newell, Utah): a polygon normal robust to any single reflex/near-collinear vertex,
+// since it accumulates a contribution from EVERY edge rather than trusting just 3 points. Not normalized.
+Vector3D newell_normal(std::vector<Point3D> const& points);
 
 // returns the XY, YZ or ZX world plane whose normal is closest to the normal of the points' plane
 Plane closest_world_plane_to(std::vector<Point3D> const& points);
 
 // computes the signed area of the points according to a ref-plane (if provided)
-//    or the plane defined by the first three non-collinear points (otherwise)
+//    or closest_world_plane_to(points) (otherwise)
 // the area is positive if the points are CCW, negative if they are CW, and zero if they are collinear
 double signed_area(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt);
 
-// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane will be
-// determined by the first three non-collinear points
+// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane
+// is closest_world_plane_to(points)
 bool are_ccw(std::vector<Point3D> const& points, std::optional<Plane> ref_plane = std::nullopt);
 
-// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane will be
-// determined by the first three non-collinear points
+// if ref_plane is provided, it will be used to determine the orientation of the points, otherwise the plane
+// is closest_world_plane_to(points)
 bool are_cw(std::vector<Point3D> const& points, std::optional<Plane> ref_plane = std::nullopt);
 
 Point3D centroid(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt);
 
+namespace detail {
+
+// Same as are_coplanar()/closest_world_plane_to()/signed_area()/are_ccw()/are_cw()/centroid() above, but
+// assumes @p unique_points is already free of collinear/duplicate points (skips their internal
+// remove_collinear() pass entirely). Only call these when the caller can prove that already holds for the
+// EXACT vector being passed -- e.g. Polygon3D's own stored VERTICES/HOLES (deduplicated once at
+// construction and never mutated after), or a local variable a few lines below its own remove_collinear()
+// call.
+
+bool are_coplanar(std::vector<Point3D> const& unique_points, std::optional<Plane> plane = std::nullopt);
+
+Plane closest_world_plane_to(std::vector<Point3D> const& unique_points);
+
+double signed_area(std::vector<Point3D> const& unique_points, std::optional<Plane> plane = std::nullopt);
+
+bool are_ccw(std::vector<Point3D> const& unique_points, std::optional<Plane> ref_plane = std::nullopt);
+
+bool are_cw(std::vector<Point3D> const& unique_points, std::optional<Plane> ref_plane = std::nullopt);
+
+Point3D centroid(std::vector<Point3D> const& unique_points, std::optional<Plane> plane = std::nullopt);
+
+}  // namespace detail
+
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -296,7 +296,9 @@ public static class TriangulateTests {
       var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
       var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
       var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
-      var triangles = GeomUtil.Triangulate(new[] { p0, p1, roof }, AdjacencyConformity.Enforce, new TriangulationParams());
+      var triangles = GeomUtil.Triangulate(new[] { p0, p1, roof },
+          new TriangulationParams(TriangulationStrategy.EarClippingBestFit, TriangulationSimplicity.Enforce,
+              TriangulationWinding.Enforce, TriangulationCollinearity.Enforce, AdjacencyConformity.Enforce));
       Eq(3.0, SumArea2D(triangles));
     });
 
@@ -305,7 +307,11 @@ public static class TriangulateTests {
       var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
       var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
       bool threw = false;
-      try { GeomUtil.Triangulate(new[] { p0, p1, roof }, AdjacencyConformity.Assert, new TriangulationParams()); }
+      try {
+        GeomUtil.Triangulate(new[] { p0, p1, roof },
+            new TriangulationParams(TriangulationStrategy.EarClippingBestFit, TriangulationSimplicity.Enforce,
+                TriangulationWinding.Enforce, TriangulationCollinearity.Enforce, AdjacencyConformity.Assert));
+      }
       catch (Exception) { threw = true; }
       IsTrue(threw, "expected Assert to throw on a T-junction");
     });

@@ -39,6 +39,28 @@ public static class Triangle2DTests {
       IsFalse(t.Contains(new Point2D(-0.01, 1.5)), "just left of edge");
     });
 
+    Test("DistanceTo", () => {
+      // right triangle: legs on the axes (length 4 each), hypotenuse x + y = 4
+      var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 4));
+
+      // interior, on an edge, on a vertex, on the hypotenuse — all zero
+      Eq(0.0, t.DistanceTo(new Point2D(1, 1)));
+      Eq(0.0, t.DistanceTo(new Point2D(2, 0)));
+      Eq(0.0, t.DistanceTo(new Point2D(0, 0)));
+      Eq(0.0, t.DistanceTo(new Point2D(2, 2)));
+
+      // outside, perpendicular foot lands within a leg
+      Eq(3.0, t.DistanceTo(new Point2D(2, -3)));
+      Eq(3.0, t.DistanceTo(new Point2D(-3, 1)));
+
+      // outside, perpendicular foot lands within the hypotenuse
+      Eq(2 * Math.Sqrt(2.0), t.DistanceTo(new Point2D(4, 4)));
+
+      // outside, perpendicular foot falls off every edge — nearest point is a vertex
+      Eq(Math.Sqrt(2.0), t.DistanceTo(new Point2D(-1, -1)));
+      Eq(Math.Sqrt(2.0), t.DistanceTo(new Point2D(5, -1)));
+    });
+
     Test("Interpolate_AtP0_ReturnsP0", () => {
       var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(4, 0), new Point2D(0, 3));
       var p = t.Interpolate(0.0, 0.0);
@@ -264,6 +286,26 @@ public static class Triangle2DTests {
       var far = Triangle2D.Make(new Point2D(100,100), new Point2D(104,100), new Point2D(100,104));
       IsFalse(t.Intersects(far));
       IsNull(t.Intersection(far));
+    });
+
+    Test("Intersects_Triangle2D_HugeContaining_IntersectionEqualsOriginalArea", () => {
+      // Mirrors test_triangle2d.cpp:397's IntersectionWTriangle -- a much larger triangle fully
+      // containing t, so the intersection must equal t itself (same area).
+      var t = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,4));
+      var huge = Triangle2D.Make(new Point2D(-10,-10), new Point2D(20,-10), new Point2D(-10,20));
+      IsTrue(t.Intersects(huge));
+      var hit = t.Intersection(huge) as Triangle2D;
+      NotNull(hit);
+      Eq(t.Area(), hit!.Area(), 6);
+    });
+
+    Test("Intersects_Triangle2D_TouchingSharedEdgeOnly_False", () => {
+      // Mirrors test_triangle2d.cpp:397 -- two triangles touching only along a shared edge (zero area
+      // in common) must not count as an intersection.
+      var t = Triangle2D.Make(new Point2D(0,0), new Point2D(4,0), new Point2D(0,4));
+      var otherHalf = Triangle2D.Make(new Point2D(4,0), new Point2D(0,4), new Point2D(4,4));
+      IsFalse(t.Intersects(otherHalf));
+      IsNull(t.Intersection(otherHalf));
     });
   }
 }

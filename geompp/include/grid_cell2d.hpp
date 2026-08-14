@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point2D;
 class Triangle2D;
 class Polygon2D;
@@ -169,5 +171,7 @@ GridCellMapForConnectedMesh2D::GetNeighborRefs() {
 }
 
 }  // namespace detail
+
+}  // namespace geometry
 
 }  // namespace geompp

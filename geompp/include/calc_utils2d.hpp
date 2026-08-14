@@ -20,6 +20,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 // Forward declaration for types only needed by reference below (Polygon2D/SegmentRange2D are also
 // forward-declared in sweep_line2d.hpp for EventQueue2D's constructors — harmless redundancy, kept here so
 // this header stays self-sufficient regardless of what sweep_line2d.hpp needs internally).
@@ -731,8 +733,8 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input,
                                     TriangulationParams const& settings = TriangulationParams{});
 
 /// @brief One "more than 1 neighbor" violation of the mesh-conformity rule found by validate_adjacency()
-/// across a batch of facets — see AdjacencyConformity's own docs for what the rule means and why a
-/// T-junction is fixable but a non-manifold edge isn't.
+/// across a batch of facets — see TriangulationParams::AdjacencyConformity's own docs for what the rule
+/// means and why a T-junction is fixable but a non-manifold edge isn't.
 /// @tparam PointT Point2D or Point3D. Not View2D-projected: unlike triangulation/convexity/winding,
 /// "does this vertex lie on this edge" is a well-defined, exact question in native space for either
 /// dimension. For a general 3D mesh (facets in many different planes -- a building's walls and roof,
@@ -800,18 +802,17 @@ std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets);
 /// constructing/keeping a full PolyMesh2D. Unlike PolyMesh2D::FromPolygons (which always Asserts, since
 /// bad input there is a straightforward construction error), this defaults to fixing what it can.
 /// @param polygons each facet's outer ring (no holes).
-/// @param conformity how to handle cross-facet adjacency violations (T-junctions / non-manifold edges)
-/// before triangulating -- see AdjacencyConformity. Defaults to Enforce.
 /// @param settings per-facet TriangulationParams (Strategy/Simplicity/Winding/Collinearity), same as the
-/// single-ring triangulate() overload above. Under Enforce, a facet that needed a conformity splice is
-/// always triangulated with Collinearity::Guaranteed regardless of @p settings -- otherwise the caller's
-/// own Collinearity::Enforce (the TriangulationParams default) would strip the just-spliced vertex right
-/// back out, silently undoing the repair and reintroducing the T-junction in the triangulated output.
+/// single-ring triangulate() overload above, plus @ref TriangulationParams::conformity: how to handle
+/// cross-facet adjacency violations (T-junctions / non-manifold edges) before triangulating. Defaults to
+/// Enforce. Under Enforce, a facet that needed a conformity splice is always triangulated with
+/// Collinearity::Guaranteed regardless of the rest of @p settings -- otherwise the caller's own
+/// Collinearity::Enforce (the TriangulationParams default) would strip the just-spliced vertex right back
+/// out, silently undoing the repair and reintroducing the T-junction in the triangulated output.
 /// @returns every triangle from every facet, combined into one flat list.
 /// @throws std::invalid_argument on a non-manifold edge (any conformity mode other than Guaranteed), or
 /// on any violation at all under Assert.
 std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons,
-                                    AdjacencyConformity conformity = AdjacencyConformity::Enforce,
                                     TriangulationParams const& settings = TriangulationParams{});
 
 namespace detail {
@@ -827,5 +828,7 @@ extern template void assert_adjacency(std::vector<AdjacencyViolation<Point2D>> c
 extern template void assert_adjacency(std::vector<AdjacencyViolation<Point3D>> const&);
 
 }  // namespace detail
+
+}  // namespace geometry
 
 }  // namespace geompp

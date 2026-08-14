@@ -12,6 +12,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Line2D;
 class Ray2D;
 class LineSegment2D;
@@ -139,5 +141,7 @@ inline std::tuple<Point2D, Point2D, Point2D> const Triangle2D::Vertices() const 
 inline Triangle2D::Triangle2D(Point2D const& p0, Point2D const& p1, Point2D const& p2) : P0(p0), P1(p1), P2(p2) {}
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

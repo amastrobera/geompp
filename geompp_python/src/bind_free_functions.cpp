@@ -404,7 +404,8 @@ void bind_free_functions(py::module_& m) {
           "(principal_normal) automatically.");
 
     // ── mesh-conformity checking ("every edge has at most 1 neighbor") ───────────────────────────
-    // AdjacencyConformity is registered separately, earlier — see bind_triangulation_params.cpp.
+    // AdjacencyConformity and TriangulationParams.conformity are registered separately, earlier — see
+    // bind_triangulation_params.cpp.
     py::class_<geompp::AdjacencyViolation<geompp::Point2D>>(m, "AdjacencyViolation2D",
         "One \"more than 1 neighbor\" violation found by validate_adjacency() across a batch of 2D "
         "facets. A T-junction (a vertex partially overlapping an edge) is fixable — see on_vertex; a "
@@ -479,13 +480,12 @@ void bind_free_functions(py::module_& m) {
           "facets"_a, "Same as the Triangle2D overload, for Triangle3D facets -> list[Triangle3D].");
 
     m.def("triangulate",
-          [](const std::vector<geompp::Polygon2D>& polygons, geompp::AdjacencyConformity conformity,
-             const geompp::TriangulationParams& settings) {
-              return geompp::triangulate(polygons, conformity, settings);
+          [](const std::vector<geompp::Polygon2D>& polygons, const geompp::TriangulationParams& settings) {
+              return geompp::triangulate(polygons, settings);
           },
-          "polygons"_a, "conformity"_a = geompp::AdjacencyConformity::Enforce, "settings"_a = geompp::TriangulationParams{},
+          "polygons"_a, "settings"_a = geompp::TriangulationParams{},
           "Batch-triangulates a set of 2D polygon facets together (the free-function equivalent of "
           "PolyMesh2D.from_polygons(polygons).triangulate()). Unlike PolyMesh2D.from_polygons (which "
-          "always raises on bad adjacency), conformity defaults to Enforce: auto-repairs a T-junction, "
-          "still raises on a non-manifold edge. Returns list[Triangle2D].");
+          "always raises on bad adjacency), settings.conformity defaults to Enforce: auto-repairs a "
+          "T-junction, still raises on a non-manifold edge. Returns list[Triangle2D].");
 }

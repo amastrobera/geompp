@@ -4,7 +4,11 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 void init_logging();
+
+}  // namespace geometry
 
 }  // namespace geompp
 

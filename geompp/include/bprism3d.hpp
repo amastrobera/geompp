@@ -21,6 +21,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class BPrism3D {
  public:
   /// @brief Builds the minimum oriented bounding prism using PCA for the best-fit plane,
@@ -92,5 +94,7 @@ inline double BPrism3D::volume() const { return 8.0 * HALF_LEN_U * HALF_LEN_V * 
 #pragma endregion
 
 extern template BPrism3D::BPrism3D(std::vector<Point3D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

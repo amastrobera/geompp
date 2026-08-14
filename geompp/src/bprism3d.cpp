@@ -8,6 +8,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 BPrism3D& BPrism3D::operator=(BPrism3D const& other) {
   if (this != &other) {
     CENTER = other.CENTER;
@@ -108,5 +110,7 @@ BPrism3D::BPrism3D(Points const& points) {
 }
 
 template BPrism3D::BPrism3D(std::vector<Point3D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

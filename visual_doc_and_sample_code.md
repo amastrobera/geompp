@@ -1108,6 +1108,122 @@ A quick list of code examples per topic is provided here.
 
 </details>
 
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.3.2 Triangle &times; Triangle </b></summary>
+
+  `Triangle2D::Intersection(Triangle2D)` returns the shared region directly: a `Triangle2D` when the
+  overlap happens to be a triangle, or a `Polygon2D` when clipping produces more vertices — as with two
+  triangles overlapping like a hexagram, shown below. `Triangle3D::Intersection(Triangle3D)` instead
+  handles the case where the two triangles' *planes cross* (are neither coincident nor parallel): it
+  returns the `LineSegment3D` chord where both triangles' bounded regions cover the planes' shared line,
+  or `std::nullopt` if that chord falls outside either triangle. Two triangles on the *same* plane use
+  `Overlap()` instead — see section 2.4.1. A mere touching vertex or edge, with no area or chord in
+  common, is not reported by either overload — see section 2.5.1.
+
+  <p align="center">
+    <img src="./images/img_2-3-2-triangle-intersection-2d.png" width="420" alt="Two overlapping triangles forming a hexagram, with their hexagonal Intersection() result filled in gold">
+    <img src="./images/img_2-3-3-triangle-intersection-3d.png" width="420" alt="Two triangles on crossing planes z=0 and y=2 sharing a chord segment where their bounded regions overlap">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "triangle2d.hpp"
+  #include "triangle3d.hpp"
+
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // 2D: two triangles overlapping like a hexagram
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(6, 0), g::Point2D(3, 6));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 4), g::Point2D(6, 4), g::Point2D(3, -2));
+  auto result = A.Intersection(B);
+  if (result && std::holds_alternative<g::Polygon2D>(*result))
+      GEOMPP_LOG(INFO) << std::get<g::Polygon2D>(*result).ToWkt();
+  // POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+
+  // 3D: triangles on crossing planes (z=0 and y=2) — Intersection() returns the shared chord
+  auto A3 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(6, 0, 0), g::Point3D(0, 6, 0));
+  auto B3 = g::Triangle3D::Make(g::Point3D(0, 2, -4), g::Point3D(8, 2, -4), g::Point3D(4, 2, 4));
+  auto chord = A3.Intersection(B3);
+  if (chord && std::holds_alternative<g::LineSegment3D>(*chord))
+      GEOMPP_LOG(INFO) << std::get<g::LineSegment3D>(*chord).ToWkt();
+  // LINESTRING (2 2 0, 4 2 0)
+  ```
+
+  ```bash
+  POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+  LINESTRING (2 2 0, 4 2 0)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  # 2D: two triangles overlapping like a hexagram
+  A = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(6, 0), g.Point2D(3, 6))
+  B = g.Triangle2D.make(g.Point2D(0, 4), g.Point2D(6, 4), g.Point2D(3, -2))
+  result = A.intersection(B)
+  print(result.to_wkt())
+  # POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+
+  # 3D: triangles on crossing planes (z=0 and y=2) — intersection() returns the shared chord
+  A3 = g.Triangle3D.make(g.Point3D(0, 0, 0), g.Point3D(6, 0, 0), g.Point3D(0, 6, 0))
+  B3 = g.Triangle3D.make(g.Point3D(0, 2, -4), g.Point3D(8, 2, -4), g.Point3D(4, 2, 4))
+  chord = A3.intersection(B3)
+  print(chord.to_wkt())
+  # LINESTRING (2 2 0, 4 2 0)
+  ```
+
+  ```
+  POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+  LINESTRING (2 2 0, 4 2 0)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+  G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+  // 2D: two triangles overlapping like a hexagram
+  var A = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(6, 0), new G.Point2D(3, 6));
+  var B = G.Triangle2D.Make(new G.Point2D(0, 4), new G.Point2D(6, 4), new G.Point2D(3, -2));
+  if (A.Intersection(B) is G.Polygon2D poly)
+      Console.WriteLine(poly.ToWkt());
+  // POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+
+  // 3D: triangles on crossing planes (z=0 and y=2) — Intersection() returns the shared chord
+  var A3 = G.Triangle3D.Make(new G.Point3D(0, 0, 0), new G.Point3D(6, 0, 0), new G.Point3D(0, 6, 0));
+  var B3 = G.Triangle3D.Make(new G.Point3D(0, 2, -4), new G.Point3D(8, 2, -4), new G.Point3D(4, 2, 4));
+  var chord = A3.Intersection(B3) as G.LineSegment3D;
+  Console.WriteLine(chord?.ToWkt());
+  // LINESTRING (2 2 0, 4 2 0)
+  ```
+
+  ```
+  POLYGON ((2 0, 4 0, 5 2, 4 4, 2 4, 1 2, 2 0))
+  LINESTRING (2 2 0, 4 2 0)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
 </details>
 
 <details open>
@@ -1324,6 +1440,113 @@ A quick list of code examples per topic is provided here.
 
   </details>
 
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.4.1 Triangle &times; Triangle (coplanar) </b></summary>
+
+  `Triangle3D::Overlaps(Triangle3D)` / `Overlap(Triangle3D)` complement `Intersection(Triangle3D)`
+  (section 2.3.2): they handle two triangles that lie on the *same* plane, returning the shared area as
+  a `Triangle3D` or `Polygon3D` — a mere touching vertex or edge, with no interior area in common, does
+  not count (see section 2.5.1). The two triangles' planes must have the *same* normal direction (i.e.
+  matching winding) to be considered the same plane here — a plane and its own reverse face compare
+  unequal, so `Overlap()` returns `std::nullopt` if the input windings disagree even though the
+  triangles are geometrically coplanar.
+
+  `Triangle2D` has no separate `Overlaps`/`Overlap` — in 2D every triangle pair is automatically
+  coplanar, so this coplanar-area case is exactly what `Intersection(Triangle2D)` already computes (the
+  hexagram example in section 2.3.2).
+
+  <p align="center">
+    <img src="./images/img_2-4-2-triangle-overlap-3d.png" width="420" alt="Two coplanar triangles on a tilted plane overlapping like a hexagram, with their hexagonal Overlap() result filled in gold">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "triangle3d.hpp"
+
+  namespace g = geompp;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  // Two triangles on the same tilted plane (z = 0.35x), overlapping like a hexagram.
+  // D's vertices are ordered to match C's winding — Overlap() requires matching plane normals.
+  auto C = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(6, 0, 2.1), g::Point3D(3, 6, 1.05));
+  auto D = g::Triangle3D::Make(g::Point3D(0, 4, 0), g::Point3D(3, -2, 1.05), g::Point3D(6, 4, 2.1));
+
+  GEOMPP_LOG(INFO) << C.Overlaps(D);  // 1
+
+  auto ov = C.Overlap(D);
+  if (ov && std::holds_alternative<g::Polygon3D>(*ov))
+      GEOMPP_LOG(INFO) << std::get<g::Polygon3D>(*ov).ToWkt();
+  // POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+  ```bash
+  1
+  POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+  g.set_decimal_precision(g.DP_THREE)
+
+  # Two triangles on the same tilted plane (z = 0.35x), overlapping like a hexagram.
+  # D's vertices are ordered to match C's winding — overlap() requires matching plane normals.
+  C = g.Triangle3D.make(g.Point3D(0, 0, 0), g.Point3D(6, 0, 2.1), g.Point3D(3, 6, 1.05))
+  D = g.Triangle3D.make(g.Point3D(0, 4, 0), g.Point3D(3, -2, 1.05), g.Point3D(6, 4, 2.1))
+
+  print(C.overlaps(D))  # True
+
+  ov = C.overlap(D)
+  print(ov.to_wkt())
+  # POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+  ```
+  True
+  POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+  G.Precision.DecimalPrecision = G.Precision.DP_THREE;
+
+  // Two triangles on the same tilted plane (z = 0.35x), overlapping like a hexagram.
+  // D's vertices are ordered to match C's winding — Overlap() requires matching plane normals.
+  var C = G.Triangle3D.Make(new G.Point3D(0, 0, 0), new G.Point3D(6, 0, 2.1), new G.Point3D(3, 6, 1.05));
+  var D = G.Triangle3D.Make(new G.Point3D(0, 4, 0), new G.Point3D(3, -2, 1.05), new G.Point3D(6, 4, 2.1));
+
+  Console.WriteLine(C.Overlaps(D));  // True
+
+  if (C.Overlap(D) is G.Polygon3D poly)
+      Console.WriteLine(poly.ToWkt());
+  // POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+  ```
+  True
+  POLYGON ((2 0 0.7, 4 0 1.4, 5 2 1.75, 4 4 1.4, 2 4 0.7, 1 2 0.35, 2 0 0.7))
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
 </details>
 
 <details open>
@@ -1527,6 +1750,93 @@ A quick list of code examples per topic is provided here.
    </details>
 
   </details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.5.1 Triangle &times; Triangle (contact only) </b></summary>
+
+  Neither `Triangle2D`/`Triangle3D` nor `Polygon2D`/`Polygon3D` has a dedicated `Touches`/`Touch` pair.
+  A mere point or edge contact with no shared area is absorbed into the same result used for "no
+  overlap at all": `Intersects(other)` still reports `true` for a touch (the shapes *do* share a point),
+  but `Intersection(other)` (section 2.3.2) and `Overlaps`/`Overlap` (section 2.4.1) return
+  `std::nullopt` for it — exactly as for two fully disjoint triangles. There is no way to tell the two
+  cases apart from the return value alone; if that distinction matters, check `Intersects()` first. The
+  same rule holds in 3D, whether the touch is between two coplanar triangles (`Overlaps`/`Overlap`) or
+  between two triangles on crossing planes whose chord collapses to a single shared point
+  (`Intersects`/`Intersection`).
+
+  <p align="center">
+    <img src="./images/img_2-5-2-triangle-touch.png" width="420" alt="Two right triangles sharing exactly one vertex, with Intersects() true but Intersection() returning nullopt">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  namespace g = geompp;
+
+  // Two triangles sharing exactly one vertex, (4, 0) — no edge or area overlap
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 4));
+  auto E = g::Triangle2D::Make(g::Point2D(4, 0), g::Point2D(8, 0), g::Point2D(8, 4));
+
+  GEOMPP_LOG(INFO) << A.Intersects(E);                       // 1 (they do share a point)
+  GEOMPP_LOG(INFO) << (A.Intersection(E) == std::nullopt);   // 1 (no area/segment to report)
+  ```
+
+  ```bash
+  1
+  1
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # Two triangles sharing exactly one vertex, (4, 0) — no edge or area overlap
+  A = g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(4, 0), g.Point2D(0, 4))
+  E = g.Triangle2D.make(g.Point2D(4, 0), g.Point2D(8, 0), g.Point2D(8, 4))
+
+  print(A.intersects(E))              # True  (they do share a point)
+  print(A.intersection(E) is None)    # True  (no area/segment to report)
+  ```
+
+  ```
+  True
+  True
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // Two triangles sharing exactly one vertex, (4, 0) — no edge or area overlap
+  var A = G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(4, 0), new G.Point2D(0, 4));
+  var E = G.Triangle2D.Make(new G.Point2D(4, 0), new G.Point2D(8, 0), new G.Point2D(8, 4));
+
+  Console.WriteLine(A.Intersects(E));           // True  (they do share a point)
+  Console.WriteLine(A.Intersection(E) == null); // True  (no area/segment to report)
+  ```
+
+  ```
+  True
+  True
+  ```
+
+   </details>
+
+  </details>
+
+</details>
 
 </details>
 
@@ -5104,15 +5414,18 @@ A quick list of code examples per topic is provided here.
   more general entry point — no `Polygon2D/3D` required, and full control over how much to trust the
   input via `TriangulationParams`.
 
-  A third overload, `triangulate(vector<Polygon2D>, conformity, settings)`, batches this across a whole
-  set of polygon facets at once — the free-function equivalent of
+  A third overload, `triangulate(vector<Polygon2D>, settings)`, batches this across a whole set of
+  polygon facets at once — the free-function equivalent of
   `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
-  constructing/keeping a full `PolyMesh2D`. Unlike `PolyMesh2D::FromPolygons()` (§10), which always
-  rejects a non-conforming set of facets outright, this overload defaults `conformity` to `Enforce`:
-  since the caller isn't building a persistent mesh object here, it's more useful to auto-repair
-  whatever's fixable (splice a stray T-junction vertex back in — see `fix_adjacency()`, §10) than to
-  simply refuse the input. It still throws on a non-manifold edge either way, since that one has no
-  valid automatic fix.
+  constructing/keeping a full `PolyMesh2D`. It reads one extra field off the same `TriangulationParams`,
+  **`AdjacencyConformity conformity`**, that the single-ring overload ignores: `Guaranteed` skips the
+  cross-facet check entirely, `Assert` throws on any violation, `Enforce` (the default) auto-repairs a
+  T-junction and still throws on a non-manifold edge. Unlike `PolyMesh2D::FromPolygons()` (§10), which
+  always rejects a non-conforming set of facets outright, this overload defaults `conformity` to
+  `Enforce`: since the caller isn't building a persistent mesh object here, it's more useful to
+  auto-repair whatever's fixable (splice a stray T-junction vertex back in — see `fix_adjacency()`, §10)
+  than to simply refuse the input. It still throws on a non-manifold edge either way, since that one has
+  no valid automatic fix.
 
   The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
   at its inner corners — using `EarClippingBestFit`, the default. The first lap around the ring clips
@@ -5270,6 +5583,558 @@ A quick list of code examples per topic is provided here.
   TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
   TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
   8 triangles
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; 12. geompp::maths — Linear Algebra</b></summary>
+
+  Everything above lives in `geompp::geometry` — as of this section, an *inline* C++ namespace nested
+  inside `geompp` (`namespace geompp { inline namespace geometry { ... } }`), so `geompp::Point2D` and
+  `geompp::geometry::Point2D` name the exact same type and every existing call site keeps compiling
+  unchanged. `geompp::maths` sits alongside it as a sibling, *not* inline — a deliberately separate,
+  independent module for fixed-size linear algebra, with no dependency on any geometry class. Python and
+  C# have no equivalent to an inline namespace, so the split is mirrored there as a real submodule
+  instead: `geompp.maths` (Python) and `GeomPP.Maths` (C#).
+
+  The core types are `Vector<T, N>` and `Matrix<T, Rows, Cols>` — both compile-time-dimensioned (`N`,
+  `Rows`, `Cols` are template parameters, not runtime fields) and constrained to `Numeric<T>`
+  (`std::is_arithmetic_v<T>`). `geompp::maths` only ever instantiates them at `double` and the sizes
+  geometry actually needs, exposed as six aliases: `Vector2`/`Vector3`/`Vector4` and
+  `Matrix2`/`Matrix3`/`Matrix4` (the last three square). This is a deliberately different kind of vector
+  from `geompp::geometry::Vector2D`/`Vector3D`: the geometry vectors are WKT-serializable, carry a
+  `DECIMAL_PRECISION`-aware `AlmostEquals()`, and exist to be added to `Point2D`/`Point3D`; `maths::Vector3`
+  is a bare 3-tuple of doubles with no geometric meaning of its own — just the column vector a `Matrix4`
+  multiplies. `geompp::transformations` (§13) is what bridges the two.
+
+  Because size is part of the type, operand compatibility for `+`/`-`/matrix products is a **compile-time**
+  question: `Matrix3{} * Vector2{}` is a compiler error, not a runtime exception — a stronger guarantee
+  than a check-and-throw, and one the caller can't forget to hit. Runtime `throw`/`ValueError`/exception is
+  reserved for genuinely runtime-only failures: `Normalized()` on a zero-length vector, `Inverse()` /
+  `solve_gauss()` / `solve_cramer()` on a singular matrix, `Rotation()` about a zero-length axis.
+
+  `Matrix::Determinant()` uses recursive cofactor (Laplace) expansion; `Matrix::Inverse()` and
+  `solve_gauss()` share one Gauss-Jordan elimination routine (partial pivoting) under the hood, so a
+  fix to the elimination logic fixes both at once. `solve_cramer()` solves the same `A x = b` system a
+  different way — replace column `i` of `A` with `b`, `x_i = det(A_i) / det(A)` — useful when a caller
+  specifically wants that closed form (e.g. to inspect one unknown's ratio in isolation) rather than the
+  faster, more numerically stable elimination `solve_gauss()` runs.
+
+  `Matrix4` additionally provides static factories building the elementary 4x4 *homogeneous*
+  affine-transform matrices — `Identity()`/`Translation(offset)`/`Rotation(angle_rad, axis)` (axis-angle,
+  Rodrigues' formula)/`Scale(factor)`/`Scale(sx, sy, sz)`/`Shear(xy, xz, yx, yz, zx, zy)` (each axis
+  offset by a multiple of the other two)/`Reflection(normal)` (Householder reflection `I - 2nn^T` across
+  the plane through the origin with the given normal; throws on a zero-length normal) — the building
+  blocks `geompp::transformations::TransformBuilder3D` (§13) composes via ordinary `Matrix4`
+  multiplication. `Matrix3` mirrors the same set (2D: `Shear(shx, shy)`, `Reflection(normal)` across a
+  line through the origin) for `geompp::transformations`' 2D `transform()` path, composed the same way by
+  `TransformBuilder2D`.
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "maths.hpp"
+
+  namespace gm = geompp::maths;
+
+  // Solve a 3x3 linear system two ways and confirm they agree.
+  gm::Matrix3 a(1, 1, 1,
+                0, 2, 5,
+                2, 5, -1);
+  gm::Vector3 b(6, -4, 27);
+
+  auto x_gauss  = gm::solve_gauss(a, b);
+  auto x_cramer = gm::solve_cramer(a, b);
+  GEOMPP_LOG(INFO) << "gauss:  " << x_gauss;
+  GEOMPP_LOG(INFO) << "cramer: " << x_cramer;
+
+  // Inverse() round-trips back to the identity.
+  GEOMPP_LOG(INFO) << "A * A^-1 =\n" << a * a.Inverse();
+
+  // Matrix4 homogeneous-transform factories -- what TransformBuilder3D (§13) composes.
+  auto move  = gm::Matrix4::Translation(gm::Vector3(10, 0, 0));
+  auto spin  = gm::Matrix4::Rotation(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
+  gm::Vector4 p(1, 0, 0, 1);  // homogeneous point
+  GEOMPP_LOG(INFO) << "moved: "  << move * p;
+  GEOMPP_LOG(INFO) << "spun:  "  << spin * p;
+
+  // Shear()/Reflection() -- the newest two factories, same homogeneous-matrix shape as the rest.
+  auto skew  = gm::Matrix4::Shear(0.5, 0, 0, 0, 0, 0);       // x' = x + 0.5*y
+  auto mirror = gm::Matrix4::Reflection(gm::Vector3(0, 1, 0));  // flip across the XZ plane
+  gm::Vector4 q(1, 2, 0, 1);
+  GEOMPP_LOG(INFO) << "sheared:   " << skew * q;
+  GEOMPP_LOG(INFO) << "reflected: " << mirror * q;
+  ```
+
+  ```bash
+  I20260813] gauss:  (5, 3, -2)
+  I20260813] cramer: (5, 3, -2)
+  I20260813] A * A^-1 =
+  [1, -5.55112e-17, 5.55112e-17]
+   [0, 1, 0]
+   [-2.22045e-16, 5.55112e-17, 1]
+  I20260813] moved: (11, 0, 0, 1)
+  I20260813] spun:  (6.12323e-17, 1, 0, 1)
+  I20260813] sheared:   (2, 2, 0, 1)
+  I20260813] reflected: (1, -2, 0, 1)
+  ```
+
+  (`Matrix`/`Vector::ToString()` does no rounding, unlike `geompp::geometry`'s `ToWkt()` which rounds to
+  `DECIMAL_PRECISION` -- the `1e-16`/`1e-17` terms above are ordinary IEEE 754 double-precision roundoff
+  from `cos(pi/2)` not being exactly zero, not a bug. Compare with `AlmostEquals()`-style tolerance rather
+  than `==` when checking a computed `Matrix`/`Vector` against an expected value.)
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using GeomPP.Maths;
+
+  // Solve a 3x3 linear system two ways and confirm they agree.
+  var a = new Matrix3(1, 1, 1,
+                      0, 2, 5,
+                      2, 5, -1);
+  var b = new Vector3(6, -4, 27);
+
+  var xGauss  = Solvers.SolveGauss(a, b);
+  var xCramer = Solvers.SolveCramer(a, b);
+  Console.WriteLine($"gauss:  {xGauss}");
+  Console.WriteLine($"cramer: {xCramer}");
+
+  // Inverse() round-trips back to the identity.
+  Console.WriteLine($"A * A^-1 =\n{a * a.Inverse()}");
+
+  // Matrix4 homogeneous-transform factories -- what TransformBuilder3D (§13) composes.
+  var move = Matrix4.Translation(new Vector3(10, 0, 0));
+  var spin = Matrix4.Rotation(Math.PI / 2.0, new Vector3(0, 0, 1));
+  var p = new Vector4(1, 0, 0, 1);  // homogeneous point
+  Console.WriteLine($"moved: {move * p}");
+  Console.WriteLine($"spun:  {spin * p}");
+
+  // Shear()/Reflection() -- the newest two factories, same homogeneous-matrix shape as the rest.
+  var skew = Matrix4.Shear(0.5, 0, 0, 0, 0, 0);          // x' = x + 0.5*y
+  var mirror = Matrix4.Reflection(new Vector3(0, 1, 0));  // flip across the XZ plane
+  var q = new Vector4(1, 2, 0, 1);
+  Console.WriteLine($"sheared:   {skew * q}");
+  Console.WriteLine($"reflected: {mirror * q}");
+  ```
+
+  ```
+  gauss:  (5, 3, -2)
+  cramer: (5, 3, -2)
+  A * A^-1 =
+  [1, -5.55112e-17, 5.55112e-17]
+   [0, 1, 0]
+   [-2.22045e-16, 5.55112e-17, 1]
+  moved: (11, 0, 0, 1)
+  spun:  (6.12323e-17, 1, 0, 1)
+  sheared:   (2, 2, 0, 1)
+  reflected: (1, -2, 0, 1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  from geompp import maths as gm
+
+  # Solve a 3x3 linear system two ways and confirm they agree.
+  a = gm.Matrix3([1, 1, 1,
+                  0, 2, 5,
+                  2, 5, -1])
+  b = gm.Vector3(6, -4, 27)
+
+  x_gauss = gm.solve_gauss(a, b)
+  x_cramer = gm.solve_cramer(a, b)
+  print(f"gauss:  {x_gauss}")
+  print(f"cramer: {x_cramer}")
+
+  # inverse() round-trips back to the identity.
+  print(f"A @ A^-1 =\n{a @ a.inverse()}")
+
+  # Matrix4 homogeneous-transform factories -- what TransformBuilder3D (§13) composes.
+  move = gm.Matrix4.translation(gm.Vector3(10, 0, 0))
+  spin = gm.Matrix4.rotation(3.14159265 / 2.0, gm.Vector3(0, 0, 1))
+  p = gm.Vector4(1, 0, 0, 1)  # homogeneous point
+  print(f"moved: {move @ p}")
+  print(f"spun:  {spin @ p}")
+
+  # shear()/reflection() -- the newest two factories, same homogeneous-matrix shape as the rest.
+  skew = gm.Matrix4.shear(0.5, 0, 0, 0, 0, 0)           # x' = x + 0.5*y
+  mirror = gm.Matrix4.reflection(gm.Vector3(0, 1, 0))   # flip across the XZ plane
+  q = gm.Vector4(1, 2, 0, 1)
+  print(f"sheared:   {skew @ q}")
+  print(f"reflected: {mirror @ q}")
+  ```
+
+  ```
+  gauss:  (5, 3, -2)
+  cramer: (5, 3, -2)
+  A @ A^-1 =
+  [1, -5.55112e-17, 5.55112e-17]
+   [0, 1, 0]
+   [-2.22045e-16, 5.55112e-17, 1]
+  moved: (11, 0, 0, 1)
+  spun:  (6.12323e-17, 1, 0, 1)
+  sheared:   (2, 2, 0, 1)
+  reflected: (1, -2, 0, 1)
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; 13. geompp::transformations — Affine Transforms</b></summary>
+
+  `geompp::transformations` is the third module built on top of `geompp::geometry`: affine transforms
+  (translate/rotate/scale/shear/reflect) for every `geompp::geometry` primitive, built entirely on
+  `geompp::maths` (§12) rather than on hand-derived per-primitive formulas. Two distinct families cover
+  different needs:
+
+  - **`translate()`/`rotate()`/`scale()`/`shear()`/`reflect()`** — the fast path, direct arithmetic on a
+    single `Point2D`/`Point3D`, no matrix ever constructed. `rotate()` in 2D takes a scalar angle
+    (rotation about the origin, in the XY plane); in 3D it takes an axis-angle pair (Rodrigues' formula,
+    throws on a zero-length axis). `shear()` takes 2 terms in 2D (`shx`, `shy`) or 6 in 3D (each axis
+    offset by a multiple of the other two). `reflect()` takes a normal vector (`Vector2`/`Vector3`) and
+    mirrors the point across the line/plane through the origin perpendicular to it (Householder
+    reflection), throwing on a zero-length normal. This is the cheapest possible path when all you have
+    is one point.
+  - **`transform(primitive, matrix)`** — the general path: a 3x3 (`Matrix3`, 2D) or 4x4 (`Matrix4`, 3D)
+    homogeneous matrix applied to *any* primitive, from `Point2D/3D`/`Vector2D/3D` through
+    `LineSegment`/`Polyline`/`Triangle`/`Polygon` (outer ring **and** every hole ring) to `Mesh`/
+    `PolyMesh` — 16 overloads in total (8 per dimension). A composite primitive is rebuilt by
+    transforming each constituent point and re-validating through the type's own `Make()`/
+    `FromTriangles()`/`FromPolygons()`, so a single matrix combining rotation *and* translation applies
+    to an entire `Polygon2D` or `Mesh3D` in one call. `Vector2D`/`Vector3D` are the one exception worth
+    calling out: their homogeneous coordinate is `0` rather than `1`, so any translation baked into the
+    matrix has **no effect** on a transformed vector — correct, since a displacement has no position to
+    translate, only a direction/length to rotate and scale.
+
+  `TransformBuilder3D` is a fluent composer for a single `Matrix4`: each `Translate()`/`Rotate()`/
+  `Scale()`/`Shear()`/`Reflect()`/`Combine()` call **pre-multiplies** the new operation onto the matrix
+  accumulated so far, so chained calls apply in the order they're *written*, left to right —
+  `builder.Translate(t).Rotate(r)` moves a point by `t` first, then rotates the *result* by `r`,
+  matching how a reader expects a chain of method calls to read ("do this, then this"). Reversing the
+  chain (`Rotate` then `Translate`) produces a genuinely different transform, not just a
+  different-looking call — see the worked example below. `TransformBuilder2D` is the `Matrix3` 2D
+  counterpart, same composition rule, `Rotate(angle_rad)` with no axis.
+
+  A note on which transforms preserve what: translation/rotation are rigid (preserve both area/volume
+  and angles); uniform `Scale()` preserves angles but not area; `Shear()` preserves area/volume (its
+  matrix has determinant 1) but not angles — it's what turns a square into a parallelogram;
+  `Reflection()` preserves area/volume and angles but flips orientation (determinant -1) — a CCW
+  `Polygon2D`/`Polygon3D` ring transformed through a reflection comes out CW, so a caller doing a
+  deliberate mirror should expect to re-run `IsSimple()`/winding checks before feeding the result back
+  through something that assumes CCW-outer/CW-holes.
+
+  All five, before/after, on the same square `S = POLYGON ((1 1, 4 1, 4 4, 1 4))`: dashed cyan is `S`
+  before, solid gold is `S'` after, and the dotted lines connect each vertex to where it lands.
+  `Rotate`/`Scale`/`Reflect` all pivot **about the origin** (marked in salmon where it falls inside the
+  frame) — that's why the square moves even though nothing in the call names a pivot point; there's no
+  "about this point" overload for the fast path or the `Matrix3` factories, so rotating/scaling/
+  reflecting about anywhere else means translating the pivot to the origin first, transforming, then
+  translating back (or composing that into one matrix with `TransformBuilder3D`/`Combine()`).
+  `Translate`/`Shear` don't reference the origin at all, so it's omitted from those two.
+
+  <p align="center">
+    <img src="./images/img_13-translate-square.png" width="330" alt="A square translated by offset (5, 2)">
+    <img src="./images/img_13-rotate-square.png" width="330" alt="A square rotated 30 degrees about the origin">
+  </p>
+  <p align="center">
+    <img src="./images/img_13-scale-square.png" width="330" alt="A square scaled 1.6x about the origin">
+    <img src="./images/img_13-shear-square.png" width="330" alt="A square sheared into a parallelogram">
+  </p>
+  <p align="center">
+    <img src="./images/img_13-reflect-square.png" width="330" alt="A square reflected across the X axis through the origin, its CCW winding flipped to CW">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples — the square above, one transform at a time</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "transformations.hpp"
+
+  namespace gt = geompp::transformations;
+  namespace gm = geompp::maths;
+  g::DECIMAL_PRECISION = g::DP_THREE;
+
+  auto square = g::Polygon2D::Make({
+      g::Point2D(1, 1), g::Point2D(4, 1), g::Point2D(4, 4), g::Point2D(1, 4)});
+
+  auto translated = gt::transform(square, gm::Matrix3::Translation(gm::Vector2(5, 2)));
+  GEOMPP_LOG(INFO) << translated.ToWkt();
+  // POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+
+  auto rotated = gt::transform(square, gm::Matrix3::Rotation(std::numbers::pi / 6.0));  // 30°, about the origin
+  GEOMPP_LOG(INFO) << rotated.ToWkt();
+  // POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+
+  auto scaled = gt::transform(square, gm::Matrix3::Scale(1.6));  // about the origin
+  GEOMPP_LOG(INFO) << scaled.ToWkt();
+  // POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+
+  auto sheared = gt::transform(square, gm::Matrix3::Shear(0.5, 0.0));  // x' = x + 0.5*y
+  GEOMPP_LOG(INFO) << sheared.ToWkt();
+  // POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+
+  // Reflection flips a CCW ring to CW -- see the note above.
+  auto reflected = gt::transform(square, gm::Matrix3::Reflection(gm::Vector2(0, 1)));  // across the X axis
+  GEOMPP_LOG(INFO) << reflected.ToWkt();
+  // POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+  ```bash
+  POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+  POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+  POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+  POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+  POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import math
+  import geompp
+  from geompp import maths, transformations as tf
+
+  geompp.set_decimal_precision(geompp.DP_THREE)
+
+  square = geompp.Polygon2D.make([
+      geompp.Point2D(1, 1), geompp.Point2D(4, 1), geompp.Point2D(4, 4), geompp.Point2D(1, 4)])
+
+  translated = tf.transform(square, maths.Matrix3.translation(maths.Vector2(5, 2)))
+  print(translated.to_wkt())
+  # POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+
+  rotated = tf.transform(square, maths.Matrix3.rotation(math.pi / 6))  # 30°, about the origin
+  print(rotated.to_wkt())
+  # POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+
+  scaled = tf.transform(square, maths.Matrix3.scale(1.6))  # about the origin
+  print(scaled.to_wkt())
+  # POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+
+  sheared = tf.transform(square, maths.Matrix3.shear(0.5, 0.0))  # x' = x + 0.5*y
+  print(sheared.to_wkt())
+  # POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+
+  # Reflection flips a CCW ring to CW -- see the note above.
+  reflected = tf.transform(square, maths.Matrix3.reflection(maths.Vector2(0, 1)))  # across the X axis
+  print(reflected.to_wkt())
+  # POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+  ```
+  POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+  POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+  POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+  POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+  POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using GeomPP;
+  using GeomPP.Maths;
+  using GeomPP.Transformations;
+
+  Precision.DecimalPrecision = Precision.DP_THREE;
+
+  var square = Polygon2D.Make(new Point2D[] {
+      new(1, 1), new(4, 1), new(4, 4), new(1, 4) });
+
+  var translated = Transform.Apply(square, Matrix3.Translation(new Vector2(5, 2)));
+  Console.WriteLine(translated.ToWkt());
+  // POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+
+  var rotated = Transform.Apply(square, Matrix3.Rotation(Math.PI / 6.0));  // 30°, about the origin
+  Console.WriteLine(rotated.ToWkt());
+  // POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+
+  var scaled = Transform.Apply(square, Matrix3.Scale(1.6));  // about the origin
+  Console.WriteLine(scaled.ToWkt());
+  // POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+
+  var sheared = Transform.Apply(square, Matrix3.Shear(0.5, 0.0));  // x' = x + 0.5*y
+  Console.WriteLine(sheared.ToWkt());
+  // POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+
+  // Reflection flips a CCW ring to CW -- see the note above.
+  var reflected = Transform.Apply(square, Matrix3.Reflection(new Vector2(0, 1)));  // across the X axis
+  Console.WriteLine(reflected.ToWkt());
+  // POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+  ```
+  POLYGON ((6 3, 9 3, 9 6, 6 6, 6 3))
+  POLYGON ((0.366 1.366, 2.964 2.866, 1.464 5.464, -1.134 3.964, 0.366 1.366))
+  POLYGON ((1.6 1.6, 6.4 1.6, 6.4 6.4, 1.6 6.4, 1.6 1.6))
+  POLYGON ((1.5 1, 4.5 1, 6 4, 3 4, 1.5 1))
+  POLYGON ((1 -1, 4 -1, 4 -4, 1 -4, 1 -1))
+  ```
+
+   </details>
+
+  </details>
+
+  A worked example, using a right triangle: `TRIANGLE (0 0 0, 4 0 0, 0 3 0)`, area 6. Applying
+  `TransformBuilder3D().Translate((5, 2, 0)).Rotate(30°, Z axis)` — a translation, then a 30° rotation
+  about the Z axis applied to the *already-translated* triangle:
+
+  | | Before | After |
+  |---|---|---|
+  | WKT | `TRIANGLE (0 0 0, 4 0 0, 0 3 0)` | `TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0)` |
+  | Area | 6.0 | 6.0 |
+
+  The area is unchanged — translation and rotation are both rigid (distance- and angle-preserving), so
+  the triangle above is congruent to the original, just relocated and reoriented; only `Scale()` (or a
+  `Combine()`d matrix with a non-unit determinant) changes area, by a factor of the scale squared in 2D
+  (cubed for volume in 3D). *(The five square figures above each isolate a single transform; a
+  before/after picture of this specific translate-then-rotate composition is still not captured.)*
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "transformations.hpp"
+
+  namespace gt = geompp::transformations;
+  namespace gm = geompp::maths;
+
+  auto tri = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(0, 3, 0));
+  GEOMPP_LOG(INFO) << "before: " << tri.ToWkt() << ", area " << tri.Area();
+
+  // Translate first, then rotate the *result* -- TransformBuilder3D pre-multiplies each call onto the
+  // matrix accumulated so far, so chained ops apply in the order they're written.
+  gt::TransformBuilder3D builder;
+  builder.Translate(gm::Vector3(5, 2, 0)).Rotate(std::numbers::pi / 6.0, gm::Vector3(0, 0, 1));
+  auto moved = gt::transform(tri, builder.Get());
+
+  GEOMPP_LOG(INFO) << "after:  " << moved.ToWkt() << ", area " << moved.Area();
+
+  // The fast path needs no matrix at all for a single point.
+  auto p = gt::translate(g::Point2D(1, 1), gm::Vector2(2, 0));
+  GEOMPP_LOG(INFO) << "fast-path translate: " << p.ToWkt();
+
+  // shear()/reflect() -- the newest two fast-path functions.
+  auto sheared = gt::shear(g::Point2D(1, 1), 0.5, 0.0);           // x' = x + 0.5*y
+  auto mirrored = gt::reflect(g::Point2D(1, 1), gm::Vector2(0, 1));  // flip across the X axis
+  GEOMPP_LOG(INFO) << "fast-path shear:   " << sheared.ToWkt();
+  GEOMPP_LOG(INFO) << "fast-path reflect: " << mirrored.ToWkt();
+  ```
+
+  ```bash
+  I20260813] before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6
+  I20260813] after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6
+  I20260813] fast-path translate: POINT (3 1)
+  I20260813] fast-path shear:   POINT (1.5 1)
+  I20260813] fast-path reflect: POINT (1 -1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using GeomPP;
+  using GeomPP.Maths;
+  using GeomPP.Transformations;
+
+  var tri = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0), new Point3D(0, 3, 0));
+  Console.WriteLine($"before: {tri.ToWkt()}, area {tri.Area()}");
+
+  var builder = new TransformBuilder3D();
+  builder.Translate(new Vector3(5, 2, 0)).Rotate(Math.PI / 6.0, new Vector3(0, 0, 1));
+  var moved = Transform.Apply(tri, builder.Get());
+
+  Console.WriteLine($"after:  {moved.ToWkt()}, area {moved.Area()}");
+
+  // The fast path needs no matrix at all for a single point.
+  var p = Transform.Translate(new Point2D(1, 1), new Vector2(2, 0));
+  Console.WriteLine($"fast-path translate: {p.ToWkt()}");
+
+  // Shear/Reflect -- the newest two fast-path methods.
+  var sheared = Transform.Shear(new Point2D(1, 1), 0.5, 0.0);            // x' = x + 0.5*y
+  var mirrored = Transform.Reflect(new Point2D(1, 1), new Vector2(0, 1));  // flip across the X axis
+  Console.WriteLine($"fast-path shear:   {sheared.ToWkt()}");
+  Console.WriteLine($"fast-path reflect: {mirrored.ToWkt()}");
+  ```
+
+  ```
+  before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6
+  after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6
+  fast-path translate: POINT (3 1)
+  fast-path shear:   POINT (1.5 1)
+  fast-path reflect: POINT (1 -1)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import math
+  import geompp
+  from geompp import maths, transformations as tf
+
+  tri = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 3, 0))
+  print(f"before: {tri.to_wkt()}, area {tri.area()}")
+
+  builder = tf.TransformBuilder3D()
+  builder.translate(maths.Vector3(5, 2, 0)).rotate(math.pi / 6, maths.Vector3(0, 0, 1))
+  moved = tf.transform(tri, builder.get())
+
+  print(f"after:  {moved.to_wkt()}, area {moved.area()}")
+
+  # The fast path needs no matrix at all for a single point.
+  p = tf.translate(geompp.Point2D(1, 1), maths.Vector2(2, 0))
+  print(f"fast-path translate: {p.to_wkt()}")
+
+  # shear()/reflect() -- the newest two fast-path functions.
+  sheared = tf.shear(geompp.Point2D(1, 1), 0.5, 0.0)              # x' = x + 0.5*y
+  mirrored = tf.reflect(geompp.Point2D(1, 1), maths.Vector2(0, 1))  # flip across the X axis
+  print(f"fast-path shear:   {sheared.to_wkt()}")
+  print(f"fast-path reflect: {mirrored.to_wkt()}")
+  ```
+
+  ```
+  before: TRIANGLE (0 0 0, 4 0 0, 0 3 0), area 6.0
+  after:  TRIANGLE (3.33 4.232 0, 6.794 6.232 0, 1.83 6.83 0), area 6.0
+  fast-path translate: POINT (3 1)
+  fast-path shear:   POINT (1.5 1)
+  fast-path reflect: POINT (1 -1)
   ```
 
    </details>

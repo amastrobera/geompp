@@ -16,6 +16,31 @@ public static class Triangle3DTests {
     // ── Triangle3D (Interpolate) ───────────────────────────────────────────────────
     Console.WriteLine("\nTriangle3D (additional)");
 
+    Test("DistanceTo", () => {
+      // right triangle in the XY plane: legs on the axes (length 4 each), hypotenuse x + y = 4, z = 0
+      var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(4, 0, 0), new Point3D(0, 4, 0));
+
+      // in-plane: interior, on an edge, on a vertex, on the hypotenuse — all zero
+      Eq(0.0, t.DistanceTo(new Point3D(1, 1, 0)));
+      Eq(0.0, t.DistanceTo(new Point3D(2, 0, 0)));
+      Eq(0.0, t.DistanceTo(new Point3D(0, 0, 0)));
+      Eq(0.0, t.DistanceTo(new Point3D(2, 2, 0)));
+
+      // in-plane, outside: perpendicular foot within a leg, then within the hypotenuse
+      Eq(3.0, t.DistanceTo(new Point3D(2, -3, 0)));
+      Eq(2 * Math.Sqrt(2.0), t.DistanceTo(new Point3D(4, 4, 0)));
+
+      // in-plane, outside: perpendicular foot falls off every edge — nearest point is a vertex
+      Eq(Math.Sqrt(2.0), t.DistanceTo(new Point3D(-1, -1, 0)));
+
+      // off-plane: Contains() is never true off-plane, so distance is always true 3D distance to the
+      // nearest edge — no "perpendicular to the flat interior" shortcut.
+      // (-1, -1, 3): nearest point on either leg is the shared vertex (0, 0, 0).
+      Eq(Math.Sqrt(11.0), t.DistanceTo(new Point3D(-1, -1, 3)));
+      // (3, 3, 4): nearest point is on the hypotenuse, at (2, 2, 0) — not directly "below" the query point.
+      Eq(3 * Math.Sqrt(2.0), t.DistanceTo(new Point3D(3, 3, 4)));
+    });
+
     Test("Interpolate_AtP0_ReturnsP0", () => {
       var t = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(0, 1, 0));
       var p = t.Interpolate(0.0, 0.0);

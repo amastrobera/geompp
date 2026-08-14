@@ -13,6 +13,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 /// Per-facet edge adjacency is precomputed internally (see `detail::TriangleCompactNeighborRef`) and
 /// exposed via `FaceView3D::Neighbor()`/`NeighborEntryEdge()`.
@@ -35,6 +37,13 @@ class ConnectedMesh3D {
   ConnectedMesh3D(ConnectedMesh3D const&) = default;
   ConnectedMesh3D(ConnectedMesh3D&&) = default;
   ~ConnectedMesh3D() = default;
+
+  // Declaring the move constructor above suppresses the implicitly-declared copy assignment operator too
+  // (not just move assignment) -- without these, `mesh = transform(mesh, m)` would not compile. Both are
+  // correct as plain member-wise defaults: VERTICES/TRIANGLES/NEIGHBORS are shared_ptr, so copy-assignment
+  // is just refcount bumps, not a deep copy.
+  ConnectedMesh3D& operator=(ConnectedMesh3D const&) = default;
+  ConnectedMesh3D& operator=(ConnectedMesh3D&&) = default;
 
   std::size_t Size() const;  // returns the number of facets
   double Area() const;       // sum of each input triangle's own Area(), independent of welding
@@ -128,5 +137,7 @@ inline std::size_t ConnectedMesh3D::FaceView3D::ID() const { return m_face_id; }
 #pragma endregion
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -9,6 +9,8 @@ namespace fs = std::filesystem;
 
 namespace geompp {
 
+inline namespace geometry {
+
 namespace {
 
 enum class Dimention { UNKNOWN = -1, TWO, THREE };
@@ -227,5 +229,7 @@ WktParser::ReturnSet WktParser::Next() {
 }
 
 std::string WktParser::GetFilePath() const { return FILE_NAME; }
+
+}  // namespace geometry
 
 }  // namespace geompp

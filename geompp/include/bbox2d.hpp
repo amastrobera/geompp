@@ -13,6 +13,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Vector2D;
 class LineSegment2D;
 class Polyline2D;
@@ -70,5 +72,7 @@ inline BBox2D::BBox2D(Point2D const& min, Point2D const& max) : MIN(min), MAX(ma
 #pragma endregion
 
 extern template BBox2D::BBox2D(std::vector<Point2D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

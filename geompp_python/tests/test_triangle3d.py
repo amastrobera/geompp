@@ -51,6 +51,30 @@ class TestTriangle3D:
         assert isinstance(pl, geompp.Plane)
         assert approx(abs(pl.normal.z), 1.0)
 
+    def test_distance_to(self):
+        # right triangle in the XY plane: legs on the axes (length 4 each), hypotenuse x + y = 4, z = 0
+        t = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(0, 4, 0))
+
+        # in-plane: interior, on an edge, on a vertex, on the hypotenuse -- all zero
+        assert approx(t.distance_to(geompp.Point3D(1, 1, 0)), 0.0)
+        assert approx(t.distance_to(geompp.Point3D(2, 0, 0)), 0.0)
+        assert approx(t.distance_to(geompp.Point3D(0, 0, 0)), 0.0)
+        assert approx(t.distance_to(geompp.Point3D(2, 2, 0)), 0.0)
+
+        # in-plane, outside: perpendicular foot within a leg, then within the hypotenuse
+        assert approx(t.distance_to(geompp.Point3D(2, -3, 0)), 3.0)
+        assert approx(t.distance_to(geompp.Point3D(4, 4, 0)), 2 * 2.0 ** 0.5)
+
+        # in-plane, outside: perpendicular foot falls off every edge -- nearest point is a vertex
+        assert approx(t.distance_to(geompp.Point3D(-1, -1, 0)), 2.0 ** 0.5)
+
+        # off-plane: contains() is never true off-plane, so distance is always true 3D distance to the
+        # nearest edge -- no "perpendicular to the flat interior" shortcut.
+        # (-1, -1, 3): nearest point on either leg is the shared vertex (0, 0, 0).
+        assert approx(t.distance_to(geompp.Point3D(-1, -1, 3)), 11.0 ** 0.5)
+        # (3, 3, 4): nearest point is on the hypotenuse, at (2, 2, 0) -- not directly "below" the query point.
+        assert approx(t.distance_to(geompp.Point3D(3, 3, 4)), 3 * 2.0 ** 0.5)
+
     def test_is_ccw(self, tri):
         ref = geompp.Vector3D(0, 0, 1)
         # fixture is CCW in XY plane → IsCCW True and SignedArea positive

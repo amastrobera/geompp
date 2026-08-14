@@ -26,6 +26,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 namespace {
 
 static bool within_axis_boundary(double s, double t) {
@@ -464,5 +466,7 @@ Triangle3D Triangle3D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

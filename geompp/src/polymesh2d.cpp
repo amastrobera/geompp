@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 PolyMesh2D PolyMesh2D::FromPolygons(std::vector<Polygon2D> const& polygons) {
   // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
   // adjacency is treated as invalid caller input here, never silently repaired.
@@ -82,5 +84,7 @@ Mesh2D PolyMesh2D::Triangulate(TriangulationParams::Strategy strategy) const {
 
   return Mesh2D::FromTriangles(triangles);
 }
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -16,6 +16,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 #pragma region Constructors
 
 LineSegment3D LineSegment3D::Make(Point3D const& p0, Point3D const& p1) {
@@ -552,5 +554,7 @@ LineSegment3D LineSegment3D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

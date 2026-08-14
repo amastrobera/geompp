@@ -49,5 +49,7 @@ GridCellTests.Run(h);
 MeshTests.Run(h);
 ConnectedMeshTests.Run(h);
 PolyMeshTests.Run(h);
+MathsTests.Run(h);
+TransformationsTests.Run(h);
 
 h.PrintSummary();

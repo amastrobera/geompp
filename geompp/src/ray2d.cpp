@@ -13,6 +13,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 #pragma region Constructors
 
 Ray2D Ray2D::Make(Point2D const& p0, Vector2D const& dir) {
@@ -315,5 +317,7 @@ Ray2D Ray2D::FromFile(std::string const& path) {
 }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

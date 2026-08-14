@@ -9,6 +9,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Polygon3D;
 class Line3D;
 class LineSegment3D;
@@ -184,5 +186,7 @@ std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input, Vector3D 
 /// named by @p settings is violated.
 std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input,
                                     TriangulationParams const& settings = TriangulationParams{});
+
+}  // namespace geometry
 
 }  // namespace geompp

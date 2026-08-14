@@ -43,9 +43,13 @@ TEST_F(Polygon3DTest, Constructor) {
   EXPECT_ANY_THROW(g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D::Zero(), g::Point3D::Zero()}));
   EXPECT_ANY_THROW(g::Polygon3D::Make({g::Point3D::Zero(), g::Point3D(1, 0, 0)}));
 
-  // CW outer ring throws
-  EXPECT_ANY_THROW(g::Polygon3D::Make(
-      {g::Point3D(0, 0, 0), g::Point3D(0, 1, 0), g::Point3D(1, 1, 0), g::Point3D(1, 0, 0)}));
+  // A lone outer ring has no externally meaningful CCW/CW of its own in 3D (unlike 2D, there's no fixed
+  // "which side are you viewing from" convention) -- a "CW" (relative to +Z) ring is legitimate input,
+  // auto-canonicalized to whichever plane normal makes the GIVEN order read as positive, here -Z.
+  auto cw_given = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(0, 1, 0), g::Point3D(1, 1, 0), g::Point3D(1, 0, 0)});
+  EXPECT_NEAR(cw_given.Area(), 1.0, 1e-9);
+  EXPECT_TRUE(cw_given.GetPlane().normal().AlmostEquals(g::Vector3D(0, 0, -1)));
 
   // non-coplanar points throw
   EXPECT_ANY_THROW(g::Polygon3D::Make(

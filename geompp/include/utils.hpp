@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 double round(double x, int decimal_precision = DECIMAL_PRECISION);
 
 std::partial_ordering compare(double a, double b, double epsilon = DOUBLE_EPSILON);
@@ -46,7 +48,7 @@ namespace detail {
 // Adjacency table: for each of the 3 local edges of every triangle.
 struct TriangleCompactNeighborRef {
   // 0-indexed to prevent bit collision with INVALID (0xFFFFFFFF)
-  enum class TriangleEdge : std::uint32_t { INVALID = 0, FIRST = 1, SECOND = 2, THIRD = 3 };
+  enum class TriangleEdge : std::uint32_t { FIRST = 0, SECOND = 1, THIRD = 2, INVALID = 3 };
 
   static constexpr std::uint32_t INVALID = 0xFFFFFFFF;  // Boundary sentinel
 
@@ -59,10 +61,13 @@ struct TriangleCompactNeighborRef {
   // Encode: triangle_id in top 30 bits, edge_id in bottom 2 bits
   TriangleCompactNeighborRef(std::uint32_t tri_id, TriangleEdge local_edge_id);
 
+  /// @brief if true, the class is invalid: it means this is no neighbor, it is a boundary of the triangle mesh
   [[nodiscard]] bool is_boundary() const;
 
+  /// @brief allows to find the triangle in its container (often index of a triangle array)
   [[nodiscard]] std::uint32_t triangle_id() const;
 
+  /// @brief the entering edge of the neighbor triangle (0,1,2 - unless invalid)
   [[nodiscard]] TriangleEdge edge_id() const;
 };
 }  // namespace detail
@@ -82,10 +87,9 @@ std::string string_join(std::vector<T> const& items, std::string const& delim = 
 }
 
 template <typename T>
-requires requires(T t) {
-  { t.ToWkt() }
-  ->std::convertible_to<std::string>;
-}
+  requires requires(T t) {
+    { t.ToWkt() } -> std::convertible_to<std::string>;
+  }
 std::string ToWkt(const std::vector<T>& items) {
   std::string out = "GEOMETRYCOLLECTION(";
   for (std::size_t i = 0; i < items.size(); ++i) {
@@ -121,5 +125,7 @@ inline TriangleCompactNeighborRef::TriangleCompactNeighborRef(std::uint32_t tri_
 }  // namespace detail
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

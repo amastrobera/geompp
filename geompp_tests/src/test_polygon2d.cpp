@@ -797,6 +797,34 @@ TEST_F(Polygon2DTest, Intersection_Line_Misses_ReturnsNullopt) {
   EXPECT_FALSE(sq.Intersection(line).has_value());
 }
 
+TEST_F(Polygon2DTest, Intersection_Line_WithHole_ExcludesHoleRegion) {
+  // Regression: compute_parametric_intersection_intervals's non-convex (Collect/Sort/Parity) branch
+  // only ever walked the outer ring, never holes_coplanar_cw -- so a line straight through a hole used
+  // to report ONE chord spanning the whole outer span (wrongly including the hole's interior) instead
+  // of two chords with the hole's span excluded.
+  auto outer = std::vector<g::Point2D>{g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)};
+  auto hole = std::vector<g::Point2D>{g::Point2D(1, 3), g::Point2D(3, 3), g::Point2D(3, 1), g::Point2D(1, 1)};
+  auto poly = g::Polygon2D::Make(outer, {hole});
+  auto line = g::Line2D::Make(g::Point2D(2, -1), g::Point2D(2, 5));
+
+  auto result = poly.Intersection(line);
+  ASSERT_TRUE(result.has_value());
+  auto const& segs = result.value();
+  ASSERT_EQ(2u, segs.size()) << "expected two chords (below and above the hole), hole region excluded";
+
+  // The two chords must be (2,0)-(2,1) and (2,3)-(2,4), in either order/orientation.
+  auto matches = [](g::LineSegment2D const& s, g::Point2D const& a, g::Point2D const& b) {
+    return (s.First().AlmostEquals(a) && s.Last().AlmostEquals(b)) ||
+           (s.First().AlmostEquals(b) && s.Last().AlmostEquals(a));
+  };
+  bool has_lower = matches(segs[0], g::Point2D(2, 0), g::Point2D(2, 1)) ||
+                   matches(segs[1], g::Point2D(2, 0), g::Point2D(2, 1));
+  bool has_upper = matches(segs[0], g::Point2D(2, 3), g::Point2D(2, 4)) ||
+                   matches(segs[1], g::Point2D(2, 3), g::Point2D(2, 4));
+  EXPECT_TRUE(has_lower);
+  EXPECT_TRUE(has_upper);
+}
+
 TEST_F(Polygon2DTest, Intersects_Line_True_And_False) {
   auto sq = g::Polygon2D::Make({g::Point2D(0,0), g::Point2D(1,0), g::Point2D(1,1), g::Point2D(0,1)});
   EXPECT_TRUE(sq.Intersects(g::Line2D::Make(g::Point2D(0.5, -1), g::Point2D(0.5, 2))));

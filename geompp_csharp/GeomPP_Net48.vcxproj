@@ -140,6 +140,11 @@
     <ClCompile Include="src\GeometryCollection2D.cpp" />
     <ClCompile Include="src\GeometryCollection3D.cpp" />
     <ClCompile Include="src\GeomUtil.cpp" />
+    <ClCompile Include="src\MathsVector.cpp" />
+    <ClCompile Include="src\MathsMatrix.cpp" />
+    <ClCompile Include="src\TransformBuilder2D.cpp" />
+    <ClCompile Include="src\TransformBuilder3D.cpp" />
+    <ClCompile Include="src\Transform.cpp" />
     <ClCompile Include="src\CoordinateFrame.cpp" />
     <ClCompile Include="src\GridCell2D.cpp" />
     <ClCompile Include="src\GridCell3D.cpp" />
@@ -182,6 +187,11 @@
     <ClInclude Include="src\GeometryCollection2D.hpp" />
     <ClInclude Include="src\GeometryCollection3D.hpp" />
     <ClInclude Include="src\GeomUtil.hpp" />
+    <ClInclude Include="src\MathsVector.hpp" />
+    <ClInclude Include="src\MathsMatrix.hpp" />
+    <ClInclude Include="src\TransformBuilder2D.hpp" />
+    <ClInclude Include="src\TransformBuilder3D.hpp" />
+    <ClInclude Include="src\Transform.hpp" />
     <ClInclude Include="src\CoordinateFrame.hpp" />
     <ClInclude Include="src\GridCell2D.hpp" />
     <ClInclude Include="src\GridCell3D.hpp" />

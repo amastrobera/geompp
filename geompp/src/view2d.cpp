@@ -6,6 +6,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 double View2D::x(Point3D const& p) const {
   switch (TYPE) {
     case ProjectionType::XY:
@@ -89,5 +91,7 @@ Point3D View2D::xyz(double x, double y) const {
 }
 
 Point3D View2D::xyz(Point2D const& p) const { return xyz(p.x(), p.y()); }
+
+}  // namespace geometry
 
 }  // namespace geompp

@@ -17,6 +17,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Vector3D;
 class LineSegment3D;
 class Polyline3D;
@@ -74,5 +76,7 @@ inline BBox3D::BBox3D(Point3D const& min, Point3D const& max) : MIN(min), MAX(ma
 #pragma endregion
 
 extern template BBox3D::BBox3D(std::vector<Point3D> const&);
+
+}  // namespace geometry
 
 }  // namespace geompp

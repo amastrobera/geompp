@@ -379,11 +379,19 @@ PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Polygon3D^ other) {
 
 TriangulationParams::TriangulationParams()
     : _strategy(TriangulationStrategy::EarClippingBestFit), _simplicity(TriangulationSimplicity::Enforce),
-      _ccwWinding(TriangulationWinding::Enforce), _collinearity(TriangulationCollinearity::Enforce) {}
+      _ccwWinding(TriangulationWinding::Enforce), _collinearity(TriangulationCollinearity::Enforce),
+      _conformity(AdjacencyConformity::Enforce) {}
 
 TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                                          TriangulationWinding ccwWinding, TriangulationCollinearity collinearity)
-    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity) {}
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
+      _conformity(AdjacencyConformity::Enforce) {}
+
+TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                                         AdjacencyConformity conformity)
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
+      _conformity(conformity) {}
 
 geompp::TriangulationParams TriangulationParams::ToNative() {
     geompp::TriangulationParams native;
@@ -391,6 +399,7 @@ geompp::TriangulationParams TriangulationParams::ToNative() {
     native.simplicity = static_cast<geompp::TriangulationParams::Simplicity>(_simplicity);
     native.ccw_winding = static_cast<geompp::TriangulationParams::Winding>(_ccwWinding);
     native.collinearity = static_cast<geompp::TriangulationParams::Collinearity>(_collinearity);
+    native.conformity = static_cast<geompp::TriangulationParams::AdjacencyConformity>(_conformity);
     return native;
 }
 
@@ -550,9 +559,8 @@ array<Triangle3D^>^ GeomUtil::FixAdjacency(array<Triangle3D^>^ facets) {
 }
 
 System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
-    array<Polygon2D^>^ polygons, AdjacencyConformity conformity, TriangulationParams^ settings) {
-    auto native = geompp::triangulate(ToNativePolygons2D(polygons),
-                                      static_cast<geompp::AdjacencyConformity>(conformity), settings->ToNative());
+    array<Polygon2D^>^ polygons, TriangulationParams^ settings) {
+    auto native = geompp::triangulate(ToNativePolygons2D(polygons), settings->ToNative());
     auto list = gcnew System::Collections::Generic::List<Triangle2D^>(static_cast<int>(native.size()));
     for (auto const& t : native)
         list->Add(gcnew Triangle2D(new geompp::Triangle2D(t)));

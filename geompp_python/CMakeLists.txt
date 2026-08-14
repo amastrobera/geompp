@@ -59,6 +59,8 @@ set(BINDING_SOURCES
     src/bind_polymesh3d.cpp
     src/bind_connected_mesh2d.cpp
     src/bind_connected_mesh3d.cpp
+    src/bind_maths.cpp
+    src/bind_transformations.cpp
 )
 
 # ─── Python extension module ─────────────────────────────────────────────────
@@ -164,7 +166,18 @@ else()
         ${GEOMPP_ROOT}/src/polymesh3d.cpp
         ${GEOMPP_ROOT}/src/connected_mesh2d.cpp
         ${GEOMPP_ROOT}/src/connected_mesh3d.cpp
+        ${GEOMPP_ROOT}/src/transformations/transform_builder2d.cpp
+        ${GEOMPP_ROOT}/src/transformations/transform_builder3d.cpp
+        ${GEOMPP_ROOT}/src/transformations/transformations2d.cpp
+        ${GEOMPP_ROOT}/src/transformations/transformations3d.cpp
     )
+
+    # Fail early with a clear message instead of an obscure "target has no sources" error
+    foreach(_src IN LISTS GEOMPP_SOURCES)
+        if(NOT EXISTS "${_src}")
+            message(FATAL_ERROR "geompp_python: required source file not found: ${_src}")
+        endif()
+    endforeach()
 
     # ── glog ─────────────────────────────────────────────────────────────────
     if(NOT TARGET glog::glog)

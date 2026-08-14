@@ -18,6 +18,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 namespace detail {
 
 void distance_line_to_line(Point3D const& L1_P0, Point3D const& L1_P1, Point3D const& L2_P0, Point3D const& L2_P1,
@@ -519,5 +521,7 @@ std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input, Triangula
 
   return triangulate(input, normal, settings);
 }
+
+}  // namespace geometry
 
 }  // namespace geompp

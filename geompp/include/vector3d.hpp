@@ -7,6 +7,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 class Point3D;
 
 enum class Axis { X, Y, Z };
@@ -82,5 +84,7 @@ inline Vector3D Vector3D::BasisY() { return Vector3D(0, 1, 0); }
 inline Vector3D Vector3D::BasisZ() { return Vector3D(0, 0, 1); }
 
 #pragma endregion
+
+}  // namespace geometry
 
 }  // namespace geompp

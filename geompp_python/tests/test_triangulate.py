@@ -248,7 +248,7 @@ class TestTriangulate:
         p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
         roof = geompp.Polygon2D.make([geompp.Point2D(0, 1), geompp.Point2D(2, 1), geompp.Point2D(1, 2)])
         with pytest.raises(ValueError):
-            geompp.triangulate([p0, p1, roof], geompp.AdjacencyConformity.Assert)
+            geompp.triangulate([p0, p1, roof], geompp.TriangulationParams(conformity=geompp.AdjacencyConformity.Assert))
 
     # ── native 3D adjacency (validate_adjacency / fix_adjacency), not View2D-projected ─────────────
 

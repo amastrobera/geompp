@@ -56,18 +56,19 @@ void bind_triangulation_params(py::module_& m) {
                "Removes collinear/duplicate points before triangulating.")
         .export_values();
 
-    py::enum_<geompp::AdjacencyConformity>(m, "AdjacencyConformity",
-        "How to handle a batch of facets that violate \"every edge has at most 1 neighbor\" -- no facet "
-        "vertex may lie in the interior of another facet's edge, only exactly at that edge's own "
-        "start/end vertex. Known elsewhere as: no \"hanging nodes\" (FEM), no \"T-junctions\" (graphics), "
-        "a valid PSLG (mesh generation). validate_adjacency() / fix_adjacency() (below) do the actual "
-        "checking/repair; Mesh2D/3D.from_triangles, PolyMesh2D/3D.from_polygons, and "
-        "ConnectedMesh2D/3D.from_triangles always Assert this at construction time.")
-        .value("Guaranteed", geompp::AdjacencyConformity::Guaranteed,
+    py::enum_<geompp::TriangulationParams::AdjacencyConformity>(m, "AdjacencyConformity",
+        "How TriangulationParams.conformity handles a batch of facets that violate \"every edge has at "
+        "most 1 neighbor\" -- no facet vertex may lie in the interior of another facet's edge, only "
+        "exactly at that edge's own start/end vertex. Known elsewhere as: no \"hanging nodes\" (FEM), no "
+        "\"T-junctions\" (graphics), a valid PSLG (mesh generation). validate_adjacency() / "
+        "fix_adjacency() (below) do the actual checking/repair; Mesh2D/3D.from_triangles, "
+        "PolyMesh2D/3D.from_polygons, and ConnectedMesh2D/3D.from_triangles always Assert this at "
+        "construction time.")
+        .value("Guaranteed", geompp::TriangulationParams::AdjacencyConformity::Guaranteed,
                "No check is carried out (runs at your own risk).")
-        .value("Assert", geompp::AdjacencyConformity::Assert,
+        .value("Assert", geompp::TriangulationParams::AdjacencyConformity::Assert,
                "Raises if any violation (T-junction or non-manifold edge) is found.")
-        .value("Enforce", geompp::AdjacencyConformity::Enforce,
+        .value("Enforce", geompp::TriangulationParams::AdjacencyConformity::Enforce,
                "Auto-repairs every T-junction via fix_adjacency(); still raises on a non-manifold edge "
                "(a full edge shared by 3+ facets) -- there's no principled automatic fix for that one.")
         .export_values();
@@ -75,25 +76,30 @@ void bind_triangulation_params(py::module_& m) {
     py::class_<geompp::TriangulationParams>(m, "TriangulationParams",
         "Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for "
         "triangulate() / Polygon2D.triangulate() / Polygon3D.triangulate() / PolyMesh2D.triangulate() / "
-        "PolyMesh3D.triangulate(). Defaults match triangulate()'s own defaults: EarClippingBestFit, and "
-        "Enforce for all three input-quality checks.")
+        "PolyMesh3D.triangulate(), plus (for the batch triangulate(list[Polygon2D], settings) overload "
+        "only) how to handle cross-facet adjacency violations. Defaults match triangulate()'s own "
+        "defaults: EarClippingBestFit, and Enforce for all four input-quality checks.")
         .def(py::init([](geompp::TriangulationParams::Strategy strategy,
                           geompp::TriangulationParams::Simplicity simplicity,
                           geompp::TriangulationParams::Winding ccw_winding,
-                          geompp::TriangulationParams::Collinearity collinearity) {
+                          geompp::TriangulationParams::Collinearity collinearity,
+                          geompp::TriangulationParams::AdjacencyConformity conformity) {
                  geompp::TriangulationParams p;
                  p.strategy = strategy;
                  p.simplicity = simplicity;
                  p.ccw_winding = ccw_winding;
                  p.collinearity = collinearity;
+                 p.conformity = conformity;
                  return p;
              }),
              "strategy"_a = geompp::TriangulationParams::Strategy::EarClippingBestFit,
              "simplicity"_a = geompp::TriangulationParams::Simplicity::Enforce,
              "ccw_winding"_a = geompp::TriangulationParams::Winding::Enforce,
-             "collinearity"_a = geompp::TriangulationParams::Collinearity::Enforce)
+             "collinearity"_a = geompp::TriangulationParams::Collinearity::Enforce,
+             "conformity"_a = geompp::TriangulationParams::AdjacencyConformity::Enforce)
         .def_readwrite("strategy", &geompp::TriangulationParams::strategy)
         .def_readwrite("simplicity", &geompp::TriangulationParams::simplicity)
         .def_readwrite("ccw_winding", &geompp::TriangulationParams::ccw_winding)
-        .def_readwrite("collinearity", &geompp::TriangulationParams::collinearity);
+        .def_readwrite("collinearity", &geompp::TriangulationParams::collinearity)
+        .def_readwrite("conformity", &geompp::TriangulationParams::conformity);
 }

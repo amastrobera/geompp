@@ -11,6 +11,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 double round(double x, int decimal_precision) {
   double exp = pow(10, decimal_precision);
   return std::round(x * exp) / exp;
@@ -150,5 +152,7 @@ void remove_all_duplicated_elements(std::vector<double>& sorted_vec, double epsi
   // Physically chop off the dead space at the back
   sorted_vec.erase(write_it, sorted_vec.end());
 }
+
+}  // namespace geometry
 
 }  // namespace geompp

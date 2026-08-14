@@ -9,6 +9,8 @@
 
 namespace geompp {
 
+inline namespace geometry {
+
 ConnectedMesh2D ConnectedMesh2D::FromTriangles(std::vector<Triangle2D> const& triangles) {
   // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
   // adjacency is treated as invalid caller input here, never silently repaired.
@@ -44,8 +46,8 @@ Triangle2D ConnectedMesh2D::FaceView2D::Geometry() const {
 
 std::optional<ConnectedMesh2D::FaceView2D> ConnectedMesh2D::FaceView2D::Neighbor(
     detail::TriangleCompactNeighborRef::TriangleEdge edge_id) const {
-  // TriangleEdge is 1-indexed (FIRST=1, SECOND=2, THIRD=3); NEIGHBORS is a 0-indexed std::array<T, 3>.
-  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id) - 1];
+  // TriangleEdge is 0-indexed (FIRST=0, SECOND=1, THIRD=2), matching NEIGHBORS' std::array<T, 3>.
+  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id)];
 
   if (neighbor_ref.is_boundary()) {
     return std::nullopt;
@@ -56,8 +58,8 @@ std::optional<ConnectedMesh2D::FaceView2D> ConnectedMesh2D::FaceView2D::Neighbor
 
 detail::TriangleCompactNeighborRef::TriangleEdge ConnectedMesh2D::FaceView2D::NeighborEntryEdge(
     detail::TriangleCompactNeighborRef::TriangleEdge edge_id) const {
-  // TriangleEdge is 1-indexed (FIRST=1, SECOND=2, THIRD=3); NEIGHBORS is a 0-indexed std::array<T, 3>.
-  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id) - 1];
+  // TriangleEdge is 0-indexed (FIRST=0, SECOND=1, THIRD=2), matching NEIGHBORS' std::array<T, 3>.
+  auto neighbor_ref = (*m_mesh->NEIGHBORS)[m_face_id][static_cast<std::uint32_t>(edge_id)];
 
   if (neighbor_ref.is_boundary()) {
     return detail::TriangleCompactNeighborRef::TriangleEdge::INVALID;
@@ -65,5 +67,7 @@ detail::TriangleCompactNeighborRef::TriangleEdge ConnectedMesh2D::FaceView2D::Ne
 
   return neighbor_ref.edge_id();
 }
+
+}  // namespace geometry
 
 }  // namespace geompp
