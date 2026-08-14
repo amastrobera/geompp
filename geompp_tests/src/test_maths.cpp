@@ -6,6 +6,7 @@
 #include <numbers>
 
 namespace m = geompp::maths;
+namespace md = geompp::maths::detail;
 
 #pragma region Vector
 
@@ -344,6 +345,54 @@ TEST(MathsSolversTest, SolveCramer_SingularSystem_Throws) {
   m::Matrix2 a(1.0, 2.0, 2.0, 4.0);
   m::Vector2 b(1.0, 2.0);
   EXPECT_THROW(m::solve_cramer(a, b), std::invalid_argument);
+}
+
+#pragma endregion
+
+#pragma region maths::detail (previously only exercised transitively via Matrix::Determinant/Inverse/solve_gauss)
+
+TEST(MathsDetailTest, DeterminantGeneric_1x1_ReturnsTheSingleElement) {
+  std::vector<double> a = {5.0};
+  EXPECT_NEAR(5.0, md::determinant_generic(a, 1), 1e-9);
+}
+
+TEST(MathsDetailTest, DeterminantGeneric_2x2_KnownValue) {
+  std::vector<double> a = {2.0, 0.0, 0.0, 3.0};
+  EXPECT_NEAR(6.0, md::determinant_generic(a, 2), 1e-9);
+}
+
+TEST(MathsDetailTest, DeterminantGeneric_3x3_MatchesHandComputedCofactorExpansion) {
+  // Same matrix as MathsSolversTest's classic textbook system (x+y+z=6, 2y+5z=-4, 2x+5y-z=27).
+  std::vector<double> a = {1.0, 1.0, 1.0, 0.0, 2.0, 5.0, 2.0, 5.0, -1.0};
+  EXPECT_NEAR(-21.0, md::determinant_generic(a, 3), 1e-9);
+}
+
+TEST(MathsDetailTest, GaussJordanEliminate_KnownSystem_SolvesInPlace) {
+  // Same system as MathsSolversTest::SolveGauss_KnownSystem_MatchesHandSolution -- calling the
+  // detail:: elimination routine directly instead of through solve_gauss().
+  std::vector<double> a = {1.0, 1.0, 1.0, 0.0, 2.0, 5.0, 2.0, 5.0, -1.0};
+  std::vector<double> b = {6.0, -4.0, 27.0};
+  md::gauss_jordan_eliminate(a, 3, b, 1);
+  EXPECT_NEAR(5.0, b[0], 1e-9);
+  EXPECT_NEAR(3.0, b[1], 1e-9);
+  EXPECT_NEAR(-2.0, b[2], 1e-9);
+}
+
+TEST(MathsDetailTest, GaussJordanEliminate_IdentityRhs_ComputesInverse) {
+  // rhs_cols == n with B seeded as the identity computes A^-1 -- the same code path Matrix::Inverse() uses.
+  std::vector<double> a = {2.0, 0.0, 0.0, 2.0};
+  std::vector<double> b = {1.0, 0.0, 0.0, 1.0};  // identity, seeded by the caller
+  md::gauss_jordan_eliminate(a, 2, b, 2);
+  EXPECT_NEAR(0.5, b[0], 1e-9);
+  EXPECT_NEAR(0.0, b[1], 1e-9);
+  EXPECT_NEAR(0.0, b[2], 1e-9);
+  EXPECT_NEAR(0.5, b[3], 1e-9);
+}
+
+TEST(MathsDetailTest, GaussJordanEliminate_SingularMatrix_Throws) {
+  std::vector<double> a = {1.0, 2.0, 2.0, 4.0};  // singular (row2 = 2*row1)
+  std::vector<double> b = {1.0, 2.0};
+  EXPECT_THROW(md::gauss_jordan_eliminate(a, 2, b, 1), std::invalid_argument);
 }
 
 #pragma endregion

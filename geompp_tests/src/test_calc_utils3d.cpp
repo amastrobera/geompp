@@ -624,4 +624,71 @@ TEST_F(CalcUtils3DTest, FixAdjacency_TriangleNonManifoldEdge_Throws) {
   EXPECT_THROW(g::fix_adjacency(std::vector<g::Triangle3D>{a, b, c}), std::invalid_argument);
 }
 
+#pragma region other detail:: / public free-function internals (previously only exercised transitively)
+
+TEST_F(CalcUtils3DTest, ConvexHullIndices_WithNormal_SquareWithInteriorPoint_ExcludesInteriorPoint) {
+  std::vector<g::Point3D> pts = {{0, 0, 0}, {4, 0, 0}, {4, 4, 0}, {0, 4, 0}, {2, 2, 0}};
+  auto hull = gd::convex_hull_indices(pts, g::Vector3D(0, 0, 1));
+  ASSERT_EQ(hull.size(), 4u);
+  for (auto i : hull) {
+    EXPECT_NE(i, 4u) << "interior point (index 4) must never land on the hull";
+  }
+}
+
+TEST_F(CalcUtils3DTest, ConvexHullIndices_PCABased_SquareWithInteriorPoint_ExcludesInteriorPoint) {
+  // No explicit normal -- PCA (principal_axes) must recover the flat XY plane on its own.
+  std::vector<g::Point3D> pts = {{0, 0, 0}, {4, 0, 0}, {4, 4, 0}, {0, 4, 0}, {2, 2, 0}};
+  auto hull = gd::convex_hull_indices(pts);
+  ASSERT_EQ(hull.size(), 4u);
+  for (auto i : hull) {
+    EXPECT_NE(i, 4u);
+  }
+}
+
+TEST_F(CalcUtils3DTest, ConvexHullIndices_TooFewPoints_Throws) {
+  std::vector<g::Point3D> pts = {{0, 0, 0}, {1, 0, 0}};
+  EXPECT_THROW(gd::convex_hull_indices(pts, g::Vector3D(0, 0, 1)), std::invalid_argument);
+  EXPECT_THROW(gd::convex_hull_indices(pts), std::invalid_argument);
+}
+
+TEST_F(CalcUtils3DTest, IsConvex_PublicFreeFunction_SquareTrue_ConcaveFalse) {
+  // g::is_convex(vertices, holes, normal) -- public, not under detail::, but never called by name.
+  std::vector<g::Point3D> square = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
+  EXPECT_TRUE(g::is_convex(square, {}, g::Vector3D(0, 0, 1)));
+  std::vector<g::Point3D> concave = {{0, 0, 0}, {4, 0, 0}, {4, 4, 0}, {2, 2, 0}, {0, 4, 0}};
+  EXPECT_FALSE(g::is_convex(concave, {}, g::Vector3D(0, 0, 1)));
+}
+
+TEST_F(CalcUtils3DTest, IsConvex_PublicFreeFunction_WithHoles_AlwaysFalse) {
+  std::vector<g::Point3D> square = {{0, 0, 0}, {4, 0, 0}, {4, 4, 0}, {0, 4, 0}};
+  std::vector<std::vector<g::Point3D>> holes = {{{1, 1, 0}, {1, 2, 0}, {2, 2, 0}, {2, 1, 0}}};
+  EXPECT_FALSE(g::is_convex(square, holes, g::Vector3D(0, 0, 1)));
+}
+
+TEST_F(CalcUtils3DTest, IsSimple_PublicFreeFunction_WithNormal_SquareTrue_BowtieFalse) {
+  std::vector<g::Point3D> square = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
+  EXPECT_TRUE(g::is_simple(square, g::Vector3D(0, 0, 1)));
+  std::vector<g::Point3D> bowtie = {{0, 0, 0}, {4, 0, 0}, {1, 3, 0}, {3, 3, 0}};
+  EXPECT_FALSE(g::is_simple(bowtie, g::Vector3D(0, 0, 1)));
+}
+
+TEST_F(CalcUtils3DTest, IsSimple_PublicFreeFunction_PCABased_SquareTrue_BowtieFalse) {
+  std::vector<g::Point3D> square = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
+  EXPECT_TRUE(g::is_simple(square));
+  std::vector<g::Point3D> bowtie = {{0, 0, 0}, {4, 0, 0}, {1, 3, 0}, {3, 3, 0}};
+  EXPECT_FALSE(g::is_simple(bowtie));
+}
+
+TEST_F(CalcUtils3DTest, ToSegments_Square_ClosesRing) {
+  std::vector<g::Point3D> square = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
+  auto segs = g::to_segments(square);
+  ASSERT_EQ(segs.size(), 4u);
+  EXPECT_EQ(segs[0].First(), g::Point3D(0, 0, 0));
+  EXPECT_EQ(segs[0].Last(), g::Point3D(1, 0, 0));
+  EXPECT_EQ(segs[3].First(), g::Point3D(0, 1, 0));
+  EXPECT_EQ(segs[3].Last(), g::Point3D(0, 0, 0));  // closing edge back to the first point
+}
+
+#pragma endregion
+
 }  // namespace geompp_tests

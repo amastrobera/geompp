@@ -227,6 +227,32 @@ public static class Polygon3DTests {
       }
     });
 
+    Test("DistanceTo_UnitSquare", () => {
+      var poly = Polygon3D.Make(new Point3D[] { new(0,0,0), new(1,0,0), new(1,1,0), new(0,1,0) });
+      Eq(0.0, poly.DistanceTo(new Point3D(0.5, 0.5, 0)));            // interior
+      Eq(0.0, poly.DistanceTo(new Point3D(0.0, 0.5, 0)));            // on boundary (edge)
+      Eq(0.0, poly.DistanceTo(new Point3D(1.0, 1.0, 0)));            // on boundary (vertex)
+      Eq(1.0, poly.DistanceTo(new Point3D(2.0, 0.5, 0)));            // outside in-plane, nearest edge x=1
+      Eq(Math.Sqrt(2.0), poly.DistanceTo(new Point3D(2.0, 2.0, 0))); // outside, nearest corner
+
+      // off-plane: Contains() is false regardless of in-plane position, so this measures true 3D
+      // distance to the nearest edge/vertex — even directly above the interior, there is no "inside"
+      // shortcut, since distance is always measured to the boundary, never to a projected interior region.
+      Eq(Math.Sqrt(1.25), poly.DistanceTo(new Point3D(0.5, 0.5, 1.0)));  // above center: 0.5 in-plane to
+                                                                          // nearest edge + 1.0 perpendicular
+      Eq(Math.Sqrt(2.0), poly.DistanceTo(new Point3D(2.0, 0.5, 1.0)));   // above + outside in-plane
+    });
+
+    Test("DistanceTo_WithHole", () => {
+      // A point in the hole must measure to the HOLE's boundary, not the outer ring.
+      var outer = new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) };
+      var hole  = new Point3D[] { new(1,3,0), new(3,3,0), new(3,1,0), new(1,1,0) };
+      var poly  = Polygon3D.Make(outer, new[] { hole });
+      Eq(0.0, poly.DistanceTo(new Point3D(0.5, 0.5, 0)));  // in the solid region
+      Eq(1.0, poly.DistanceTo(new Point3D(2.0, 2.0, 0)));  // hole center
+      Eq(0.0, poly.DistanceTo(new Point3D(1.0, 2.0, 0)));  // on the hole boundary
+    });
+
     Test("HasHoles3D_False_NoHoles", () => {
       var poly = Polygon3D.Make(new Point3D[] { new(0,0,0), new(4,0,0), new(4,4,0), new(0,4,0) });
       IsFalse(poly.HasHoles());

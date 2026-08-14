@@ -1457,6 +1457,26 @@ std::vector<std::pair<double, double>> compute_parametric_intersection_intervals
       t_all.push_back(t);
     }
 
+    // Hole edges must feed the same t_all list as the outer ring: the Jordan Curve Theorem guarantee
+    // above (outer CCW + inner CW -> crossings always alternate solid/hole/solid) only holds once every
+    // boundary ring -- not just the outer one -- has contributed its crossings.
+    for (auto const& hole : holes_coplanar_cw) {
+      std::size_t nh = std::ranges::size(hole);
+      for (std::size_t i = 0; i < nh; ++i) {
+        auto const& v_0 = hole[i];
+        auto const& v_1 = hole[(i + 1) % nh];
+        auto [N, D] = edge_ND(v_0, v_1);
+
+        auto D_compare_to_0 = compare(D, 0);
+        if (D_compare_to_0 == 0) {
+          continue;
+        }
+
+        double t = N / D;
+        t_all.push_back(t);
+      }
+    }
+
     // sort the list
     if (!t_all.empty()) {
       // sort ASC, using the std::partial_ordering and the optimized ranges algorithm

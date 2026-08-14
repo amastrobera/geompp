@@ -208,6 +208,26 @@ public static class Polygon2DTests {
       Eq(5, hull.Size());
     });
 
+    Test("DistanceTo_UnitSquare", () => {
+      var poly = Polygon2D.Make(new Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) });
+      Eq(0.0, poly.DistanceTo(new Point2D(0.5, 0.5)));       // interior
+      Eq(0.0, poly.DistanceTo(new Point2D(0.0, 0.5)));       // on boundary (edge)
+      Eq(0.0, poly.DistanceTo(new Point2D(1.0, 1.0)));       // on boundary (vertex)
+      Eq(1.0, poly.DistanceTo(new Point2D(2.0, 0.5)));       // outside, nearest edge x=1
+      Eq(3.0, poly.DistanceTo(new Point2D(0.5, -3.0)));      // outside, nearest edge y=0
+      Eq(Math.Sqrt(2.0), poly.DistanceTo(new Point2D(2.0, 2.0)));  // outside, nearest corner
+    });
+
+    Test("DistanceTo_WithHole", () => {
+      // A point in the hole must measure to the HOLE's boundary, not the outer ring.
+      var outer = new Point2D[] { new(0,0), new(4,0), new(4,4), new(0,4) };
+      var hole  = new Point2D[] { new(1,3), new(3,3), new(3,1), new(1,1) };
+      var poly  = Polygon2D.Make(outer, new[] { hole });
+      Eq(0.0, poly.DistanceTo(new Point2D(0.5, 0.5)));  // in the solid region
+      Eq(1.0, poly.DistanceTo(new Point2D(2.0, 2.0)));  // hole center — 1 unit from any hole edge
+      Eq(0.0, poly.DistanceTo(new Point2D(1.0, 2.0)));  // on the hole boundary
+    });
+
     Test("Perimeter_RoundTrip", () => {
       var pts = new Point2D[] { new(0,0), new(3,0), new(3,3), new(0,3) };
       var poly = Polygon2D.Make(pts);

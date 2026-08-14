@@ -1915,4 +1915,204 @@ TEST_F(CalcUtils2DTest, TriangulateImpl_CalledDirectly_FewerThanThreePoints_Thro
 
 #pragma endregion
 
+#pragma region other detail:: / detail::view:: internals (previously only exercised transitively)
+
+TEST_F(CalcUtils2DTest, ConvexHullMonotoneChain_SquareWithInteriorPoint_ExcludesInteriorPoint) {
+  std::vector<g::Point2D> pts = {{0, 0}, {4, 0}, {4, 4}, {0, 4}, {2, 2}};
+  auto hull = gd::view::convex_hull_monotone_chain(pts, g::View2D::XY());
+  ASSERT_EQ(hull.size(), 4u);
+  for (auto i : hull) {
+    EXPECT_NE(i, 4u) << "interior point (index 4) must never land on the hull";
+  }
+}
+
+TEST_F(CalcUtils2DTest, MinBoundingRect_AxisAlignedRectangle_MatchesRectangleArea) {
+  std::vector<g::Point2D> rect = {{0, 0}, {4, 0}, {4, 2}, {0, 2}};
+  auto hull = gd::view::convex_hull_monotone_chain(rect, g::View2D::XY());
+  ASSERT_EQ(hull.size(), 4u);
+  auto result = gd::view::min_bounding_rect(hull, rect, g::View2D::XY());
+  // 4 * half_len_u * half_len_v == the fitted rectangle's area; for an already-axis-aligned input the
+  // fitted rectangle must exactly reproduce the original 4x2 == 8 area.
+  EXPECT_NEAR(4.0 * result.half_len_u * result.half_len_v, 8.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, ConvexHullIndices_SquareWithInteriorPoint_ExcludesInteriorPoint) {
+  std::vector<g::Point2D> pts = {{0, 0}, {4, 0}, {4, 4}, {0, 4}, {2, 2}};
+  auto hull = gd::convex_hull_indices(pts);
+  ASSERT_EQ(hull.size(), 4u);
+  for (auto i : hull) {
+    EXPECT_NE(i, 4u);
+  }
+}
+
+TEST_F(CalcUtils2DTest, CollectRingSegments_OuterAndHole_CorrectCountAndEndpoints) {
+  std::vector<g::Point2D> outer = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};
+  std::vector<g::Point2D> hole = {{1, 1}, {1, 2}, {2, 2}, {2, 1}};
+  auto segs = gd::view::collect_ring_segments(outer, std::vector<std::vector<g::Point2D>>{hole}, g::View2D::XY());
+  ASSERT_EQ(segs.size(), 8u);  // 4 outer + 4 hole
+  EXPECT_EQ(segs[0].First(), g::Point2D(0, 0));
+  EXPECT_EQ(segs[0].Last(), g::Point2D(4, 0));
+  EXPECT_EQ(segs[4].First(), g::Point2D(1, 1));
+  EXPECT_EQ(segs[4].Last(), g::Point2D(1, 2));
+}
+
+TEST_F(CalcUtils2DTest, SimplifyRings_Bowtie_ReturnsTwoSimplePieces) {
+  // Same bowtie as Polygon2D::Simplify()'s own test — direct call bypasses the Polygon2D wrapper.
+  std::vector<g::Point2D> bowtie = {{0, 0}, {4, 0}, {1, 3}, {3, 3}};
+  auto pieces = gd::view::simplify_rings(bowtie, std::vector<std::vector<g::Point2D>>{}, g::View2D::XY());
+  ASSERT_EQ(pieces.size(), 2u);
+}
+
+TEST_F(CalcUtils2DTest, WindingNumber_CCWSquare_InteriorIsOne_ExteriorIsZero) {
+  std::vector<g::Point2D> square = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};
+  EXPECT_EQ(1, gd::winding_number(square, g::Point2D(2, 2)));
+  EXPECT_EQ(0, gd::winding_number(square, g::Point2D(10, 10)));
+}
+
+TEST_F(CalcUtils2DTest, ViewIsConvex_Square_True_Concave_False) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(gd::view::is_convex(square, g::View2D::XY()));
+  std::vector<g::Point2D> concave = {{0, 0}, {4, 0}, {4, 4}, {2, 2}, {0, 4}};
+  EXPECT_FALSE(gd::view::is_convex(concave, g::View2D::XY()));
+}
+
+TEST_F(CalcUtils2DTest, ViewIsSimple_SquareTrue_BowtieFalse) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(gd::view::is_simple(square, g::View2D::XY()));
+  std::vector<g::Point2D> bowtie = {{0, 0}, {4, 0}, {1, 3}, {3, 3}};
+  EXPECT_FALSE(gd::view::is_simple(bowtie, g::View2D::XY()));
+}
+
+TEST_F(CalcUtils2DTest, IsSimple_FreeFunction_SquareTrue_BowtieFalse) {
+  // The public geompp::is_simple(points) free function -- not under detail::, but was itself never
+  // called by name in any test (only exercised via Polygon2D::IsSimple()/Polyline2D::IsSimple()).
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(g::is_simple(square));
+  std::vector<g::Point2D> bowtie = {{0, 0}, {4, 0}, {1, 3}, {3, 3}};
+  EXPECT_FALSE(g::is_simple(bowtie));
+}
+
+TEST_F(CalcUtils2DTest, DetailIsConvex_ConvexNoHoles_True) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(gd::is_convex(square, {}));
+}
+
+TEST_F(CalcUtils2DTest, DetailIsConvex_WithHoles_AlwaysFalse) {
+  // Per its own doc comment, "a polygon with holes is never convex" -- an unconditional false, not a
+  // geometric check of the holes themselves.
+  std::vector<g::Point2D> square = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};
+  std::vector<std::vector<g::Point2D>> holes = {{{1, 1}, {1, 2}, {2, 2}, {2, 1}}};
+  EXPECT_FALSE(gd::is_convex(square, holes));
+}
+
+TEST_F(CalcUtils2DTest, DetailIsConvex_ConcaveNoHoles_False) {
+  std::vector<g::Point2D> concave = {{0, 0}, {4, 0}, {4, 4}, {2, 2}, {0, 4}};
+  EXPECT_FALSE(gd::is_convex(concave, {}));
+}
+
+TEST_F(CalcUtils2DTest, IsOnPerimeter_Direct_EdgeTrue_InteriorFalse) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(gd::view::is_on_perimeter(square, std::vector<std::vector<g::Point2D>>{}, g::View2D::XY(), 0.5, 0.0));
+  EXPECT_FALSE(gd::view::is_on_perimeter(square, std::vector<std::vector<g::Point2D>>{}, g::View2D::XY(), 0.5, 0.5));
+}
+
+TEST_F(CalcUtils2DTest, ComputeIntersectionIntervals2D_ConvexSquare_LineThrough) {
+  std::vector<g::Point2D> square = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};  // CCW
+  auto intervals = gd::view::compute_intersection_intervals_2d(
+      square, {}, /*is_convex_input=*/true, g::Point2D(2, -1), g::Point2D(2, 5), g::View2D::XY());
+  ASSERT_EQ(intervals.size(), 1u);
+  EXPECT_NEAR(intervals[0].first, 1.0 / 6.0, 1e-9);
+  EXPECT_NEAR(intervals[0].second, 5.0 / 6.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, ComputeIntersectionIntervals2D_WithHole_TwoDisjointIntervals) {
+  // A vertical line through a square-with-centered-hole crosses the boundary 4 times (outer-in,
+  // hole-out, hole-in, outer-out), so the non-convex Collect/Sort/Parity branch must pair them into 2
+  // disjoint intervals, not 1.
+  std::vector<g::Point2D> outer = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};  // CCW
+  std::vector<g::Point2D> hole = {{1, 3}, {3, 3}, {3, 1}, {1, 1}};   // CW
+  auto intervals = gd::view::compute_intersection_intervals_2d(
+      outer, {hole}, /*is_convex_input=*/false, g::Point2D(2, -1), g::Point2D(2, 5), g::View2D::XY());
+  ASSERT_EQ(intervals.size(), 2u);
+  EXPECT_NEAR(intervals[0].first, 1.0 / 6.0, 1e-9);
+  EXPECT_NEAR(intervals[0].second, 1.0 / 3.0, 1e-9);
+  EXPECT_NEAR(intervals[1].first, 2.0 / 3.0, 1e-9);
+  EXPECT_NEAR(intervals[1].second, 5.0 / 6.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, DetailDistanceTo_ConvexSquare_Direct) {
+  // Same square/lines as DistanceTo_ConvexSquare_LineCrossing_IsZero / _LineOutside above, but calling
+  // the detail:: 2D convenience overload (no View2D argument) directly instead of via Polygon2D.
+  std::vector<g::Point2D> square = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};
+  EXPECT_NEAR(0.0, gd::distance_to(square, true, g::Point2D(2, -1), g::Point2D(2, 5)), 1e-9);
+  EXPECT_NEAR(2.0, gd::distance_to(square, true, g::Point2D(6, -1), g::Point2D(6, 5)), 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, PointPolyTangentLrTo_ConvexSquare_Direct) {
+  // Same square/point as TangentsTo_ConvexSquare_Point above, calling the detail:: convenience
+  // overload directly instead of via Polygon2D::TangentsTo.
+  std::vector<g::Point2D> square = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};
+  auto [left_i, right_i] = gd::point_poly_tangent_lr_to(square, /*is_convex=*/true, g::Point2D(10, -2));
+  EXPECT_EQ(square[left_i], g::Point2D(0, 0));
+  EXPECT_EQ(square[right_i], g::Point2D(4, 4));
+}
+
+TEST_F(CalcUtils2DTest, PointPolyTangentLrTo_NonConvexDart_Direct) {
+  // Same dart/point as TangentsTo_NonConvexDart_Point_ReducesToConvexHull above.
+  std::vector<g::Point2D> dart = {{0, 0}, {4, 0}, {4, 4}, {2, 1}, {0, 4}};
+  auto [left_i, right_i] = gd::point_poly_tangent_lr_to(dart, /*is_convex=*/false, g::Point2D(-6, 2));
+  EXPECT_EQ(dart[left_i], g::Point2D(0, 4));
+  EXPECT_EQ(dart[right_i], g::Point2D(0, 0));
+}
+
+TEST_F(CalcUtils2DTest, PolyPolyRLTangentTo_ConvexSquares_Direct) {
+  // Same squares as TangentsTo_ConvexSquares_Polygon above. tangents_to(polygon, other)'s LEFT segment
+  // is built directly from poly_poly_RL_tangent_to(polygon, ..., other, ...) with no index remapping
+  // (its RIGHT segment instead comes from a second, swapped call: RL_tangent_to(other, ..., polygon, ...)
+  // with the two returned indices relabeled) -- so calling this function directly with (square_a,
+  // square_b) reproduces exactly TangentsTo_ConvexSquares_Polygon's t.left, not t.right.
+  std::vector<g::Point2D> square_a = {{0, 0}, {4, 0}, {4, 4}, {0, 4}};
+  std::vector<g::Point2D> square_b = {{10, 1}, {14, 1}, {14, 5}, {10, 5}};
+  auto [i1, i2] = gd::poly_poly_RL_tangent_to(square_a, true, square_b, true);
+  EXPECT_EQ(square_a[i1], g::Point2D(0, 4));
+  EXPECT_EQ(square_b[i2], g::Point2D(10, 5));
+}
+
+TEST_F(CalcUtils2DTest, MonotonePolygonTriangulation_CalledDirectly_Throws) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_THROW(gd::view::monotone_polygon_triangulation(square, g::View2D::XY()), std::runtime_error);
+}
+
+TEST_F(CalcUtils2DTest, DelaunayTriangulation_CalledDirectly_Throws) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_THROW(gd::view::delaunay_triangulation(square, g::View2D::XY()), std::runtime_error);
+}
+
+TEST_F(CalcUtils2DTest, AssertAdjacency_EmptyViolations_DoesNotThrow) {
+  std::vector<g::AdjacencyViolation<g::Point2D>> none;
+  EXPECT_NO_THROW(gd::assert_adjacency(none));
+}
+
+TEST_F(CalcUtils2DTest, AssertAdjacency_TJunctionViolation_Throws) {
+  // Same T-junction fixture as ValidateAdjacency_TJunction_DetectsViolation above.
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+  auto violations = g::validate_adjacency(std::vector<g::Polygon2D>{p0, p1, roof});
+  ASSERT_FALSE(violations.empty());
+  EXPECT_THROW(gd::assert_adjacency(violations), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, AssertAdjacency_NonManifoldViolation_Throws) {
+  // Same non-manifold fixture as ValidateAdjacency_NonManifoldEdge_DetectsViolation above.
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1)});
+  auto c = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2)});
+  auto violations = g::validate_adjacency(std::vector<g::Polygon2D>{a, b, c});
+  ASSERT_FALSE(violations.empty());
+  EXPECT_THROW(gd::assert_adjacency(violations), std::invalid_argument);
+}
+
+#pragma endregion
+
 }  // namespace geompp_tests
