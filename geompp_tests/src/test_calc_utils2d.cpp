@@ -170,6 +170,28 @@ TEST_F(CalcUtils2DTest, EventQueue_ContainsFindsEvent) {
   EXPECT_FALSE(queue.Contains(absent));
 }
 
+TEST_F(CalcUtils2DTest, EventQueue_Contains_MatchesReversedIntersectionPair) {
+  // INTERSECTION(A,B) and INTERSECTION(B,A) are the same geometric event (sweep_line2d.cpp:130-135) —
+  // Contains() must treat (SegmentId=0, InterSegmentId=1) as a duplicate of a queued
+  // (SegmentId=1, InterSegmentId=0) at the same point, not just an exact-field match.
+  std::vector<g::LineSegment2D> empty;
+  gd::EventQueue2D queue(empty);
+
+  gd::Event2D queued{gd::EventType2D::INTERSECTION, g::Point2D(3, 3), 0, 1};
+  queue.Push(queued);
+
+  gd::Event2D reversed{gd::EventType2D::INTERSECTION, g::Point2D(3, 3), 1, 0};
+  EXPECT_TRUE(queue.Contains(reversed));
+
+  // a different point with the same reversed ids must NOT match
+  gd::Event2D different_point{gd::EventType2D::INTERSECTION, g::Point2D(9, 9), 1, 0};
+  EXPECT_FALSE(queue.Contains(different_point));
+
+  // same point, same ids, but not an INTERSECTION type must NOT match via the reversed-pair path
+  gd::Event2D not_intersection{gd::EventType2D::LEFT, g::Point2D(3, 3), 1, 0};
+  EXPECT_FALSE(queue.Contains(not_intersection));
+}
+
 TEST_F(CalcUtils2DTest, EventQueue_AssignsLeftAndRightTypes) {
   std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(2, 0))};
   gd::EventQueue2D queue(segments);
@@ -372,6 +394,200 @@ TEST_F(CalcUtils2DTest, SweepLine_WorksWithSegmentRange) {
   ASSERT_TRUE(elem.Segment.has_value());
   EXPECT_EQ(elem.Segment->Id, 0u);
   EXPECT_DOUBLE_EQ(elem.Segment->Seg.First().x(), 0.0);
+}
+
+// --------------------------------------------------------------------------------------------------
+// SweepLineComparator (direct, not just as exercised indirectly through SweepLine2D above)
+// --------------------------------------------------------------------------------------------------
+
+TEST_F(CalcUtils2DTest, SweepLineComparator_OrdersByYAtCurrentSweepX) {
+  std::vector<g::LineSegment2D> segments{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),   // id 0, y=0 everywhere
+      g::LineSegment2D::Make(g::Point2D(0, 5), g::Point2D(10, 5)),   // id 1, y=5 everywhere
+  };
+  double sweep_x = 3.0;
+  gd::SweepLineComparator<std::vector<g::LineSegment2D>> comp{sweep_x, &segments};
+
+  EXPECT_TRUE(comp(0, 1));   // 0 (y=0) orders before 1 (y=5)
+  EXPECT_FALSE(comp(1, 0));
+}
+
+TEST_F(CalcUtils2DTest, SweepLineComparator_TieBreaksByIdWhenGenuinelyCoincident) {
+  // Two coincident (identical) segments: GetYAtX is equal everywhere, and the overlap-midpoint
+  // refinement can't discriminate either (also equal) — this documents the id1 < id2 fallback
+  // (sweep_line2d.cpp:201) that ReverseRun's "never touch the comparator at the tie" design has to
+  // route around when the caller needs a specific (not id-ascending) order.
+  std::vector<g::LineSegment2D> segments{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),  // id 0
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),  // id 1, identical to id 0
+  };
+  double sweep_x = 3.0;
+  gd::SweepLineComparator<std::vector<g::LineSegment2D>> comp{sweep_x, &segments};
+
+  EXPECT_TRUE(comp(0, 1));   // falls through to id1 < id2
+  EXPECT_FALSE(comp(1, 0));
+}
+
+TEST_F(CalcUtils2DTest, SweepLineComparator_ThrowsOnOutOfRangeId) {
+  std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
+  double sweep_x = 0.0;
+  gd::SweepLineComparator<std::vector<g::LineSegment2D>> comp{sweep_x, &segments};
+
+  EXPECT_THROW(comp(0, 5), std::out_of_range);
+}
+
+// --------------------------------------------------------------------------------------------------
+// SweepLine2D::ReverseRun
+// --------------------------------------------------------------------------------------------------
+//
+// ReverseRun has no prior direct unit test — it was only ever exercised indirectly through the
+// has_intersections/find_intersections algorithm-level tests below and through Polygon2D's boolean-op
+// tests. These pin down its documented contract directly: it reverses a contiguous run purely by
+// position, WITHOUT re-consulting the comparator at the crossing point — see the leading comment above
+// SweepLine_AddReturnsElementForSegment's section and sweep_line2d.hpp:150-164 for why that matters.
+// This distinction is exactly what a future SweepLine2D internals change (e.g. swapping ACTIVE_SEGMENTS'
+// container type) must preserve: naively reinserting the run's ids through the comparator instead of
+// repositioning them would silently fall back to id order (sweep_line2d.cpp:201) regardless of which way
+// the crossing actually went — see ReverseRun_ProducesCallerOrderNotIdOrder below, which is deliberately
+// constructed so the two orders differ, so that regression would be caught here.
+
+TEST_F(CalcUtils2DTest, ReverseRun_ThrowsWhenFewerThanTwoIds) {
+  std::vector<g::LineSegment2D> segments{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0))};
+  SweepLineVec sweep(segments);
+  sweep.Add(0);
+
+  EXPECT_THROW(sweep.ReverseRun({0}), std::invalid_argument);
+  EXPECT_THROW(sweep.ReverseRun({}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, ReverseRun_StaleAnchor_ReturnsNotOk) {
+  std::vector<g::LineSegment2D> segments{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),
+      g::LineSegment2D::Make(g::Point2D(0, 5), g::Point2D(10, 5)),
+  };
+  SweepLineVec sweep(segments);
+  sweep.Add(0);
+  // id 1 was never Add()-ed — the anchor lookup must fail, not throw or crash.
+  auto result = sweep.ReverseRun({0, 1});
+  EXPECT_FALSE(result.Ok);
+  EXPECT_FALSE(result.NewTop.has_value());
+  EXPECT_FALSE(result.NewBottom.has_value());
+}
+
+TEST_F(CalcUtils2DTest, ReverseRun_NonContiguousIds_ReturnsNotOk) {
+  // three stacked, non-crossing segments; ids 0 (low) and 2 (high) are both active but NOT adjacent
+  // (id 1 sits between them) — the requested run isn't contiguous, so the call must report stale/not-ok
+  // rather than silently reversing a wrong slice.
+  std::vector<g::LineSegment2D> segments{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),
+      g::LineSegment2D::Make(g::Point2D(0, 5), g::Point2D(10, 5)),
+      g::LineSegment2D::Make(g::Point2D(0, 10), g::Point2D(10, 10)),
+  };
+  SweepLineVec sweep(segments);
+  sweep.Add(0);
+  sweep.Add(1);
+  sweep.Add(2);
+
+  auto result = sweep.ReverseRun({0, 2});
+  EXPECT_FALSE(result.Ok);
+
+  // and the order must be untouched by the failed attempt
+  EXPECT_EQ(sweep.Get(0).Above->Id, 1u);
+  EXPECT_EQ(sweep.Get(2).Below->Id, 1u);
+}
+
+TEST_F(CalcUtils2DTest, ReverseRun_ProducesCallerOrderNotIdOrder) {
+  // id 0: (0,0)->(10,10) starts LOW, id 1: (0,10)->(10,0) starts HIGH. They cross at (5,5).
+  // Pre-crossing (x=2): y0=2 < y1=8, so the natural/comparator order is [0,1] — which also happens to be
+  // id-ascending order. Post-crossing (x=8): y0=8 > y1=2, so the geometrically correct order is [1,0] —
+  // the OPPOSITE of id-ascending. This is deliberate: if a future reimplementation silently let the
+  // comparator's id1 < id2 tie-break decide the reinsertion order instead of honoring the caller's
+  // requested reversal, this test would still see [0,1] (unchanged) and fail.
+  std::vector<g::LineSegment2D> segments{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 10)),  // id 0
+      g::LineSegment2D::Make(g::Point2D(0, 10), g::Point2D(10, 0)),  // id 1
+  };
+  SweepLineVec sweep(segments);
+  sweep.SetX(2.0);
+  sweep.Add(0);
+  sweep.Add(1);
+
+  ASSERT_TRUE(sweep.Get(0).Above.has_value());
+  EXPECT_EQ(sweep.Get(0).Above->Id, 1u);  // pre-crossing: 0 below, 1 above
+
+  sweep.SetX(5.0);  // at the crossing point — GetYAtX(0) == GetYAtX(1) == 5, a genuine tie
+  auto result = sweep.ReverseRun({0, 1});
+  ASSERT_TRUE(result.Ok);
+  ASSERT_TRUE(result.NewBottom.has_value());
+  ASSERT_TRUE(result.NewTop.has_value());
+  EXPECT_EQ(result.NewBottom->Id, 1u);
+  EXPECT_EQ(result.NewTop->Id, 0u);
+  EXPECT_FALSE(result.BelowRun.has_value());  // run occupies the whole (2-element) active list
+  EXPECT_FALSE(result.AboveRun.has_value());
+
+  sweep.SetX(8.0);  // past the crossing — confirm the swapped order sticks
+  ASSERT_TRUE(sweep.Get(1).Above.has_value());
+  EXPECT_EQ(sweep.Get(1).Above->Id, 0u);  // post-crossing: 1 below, 0 above
+  EXPECT_FALSE(sweep.Get(1).Below.has_value());
+  EXPECT_FALSE(sweep.Get(0).Above.has_value());
+}
+
+TEST_F(CalcUtils2DTest, ReverseRun_ThreeElementRun_ReversesWholeRunAndReportsOuterNeighbours) {
+  // 5 stacked segments, ids 0..4 bottom to top; reverse the middle 3 (ids 1,2,3) in place.
+  std::vector<g::LineSegment2D> segments{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 0)),
+      g::LineSegment2D::Make(g::Point2D(0, 1), g::Point2D(10, 1)),
+      g::LineSegment2D::Make(g::Point2D(0, 2), g::Point2D(10, 2)),
+      g::LineSegment2D::Make(g::Point2D(0, 3), g::Point2D(10, 3)),
+      g::LineSegment2D::Make(g::Point2D(0, 4), g::Point2D(10, 4)),
+  };
+  SweepLineVec sweep(segments);
+  for (std::size_t i = 0; i < 5; ++i) {
+    sweep.Add(i);
+  }
+  // pre-reversal order is [0,1,2,3,4] (bottom to top)
+
+  auto result = sweep.ReverseRun({1, 2, 3});
+  ASSERT_TRUE(result.Ok);
+  ASSERT_TRUE(result.NewBottom.has_value());
+  ASSERT_TRUE(result.NewTop.has_value());
+  EXPECT_EQ(result.NewBottom->Id, 3u);  // run reversed: was [1,2,3], now [3,2,1]
+  EXPECT_EQ(result.NewTop->Id, 1u);
+  ASSERT_TRUE(result.BelowRun.has_value());
+  EXPECT_EQ(result.BelowRun->Id, 0u);  // untouched neighbour below the run
+  ASSERT_TRUE(result.AboveRun.has_value());
+  EXPECT_EQ(result.AboveRun->Id, 4u);  // untouched neighbour above the run
+
+  // full resulting order, bottom to top, should be [0,3,2,1,4]
+  EXPECT_FALSE(sweep.Get(0).Below.has_value());
+  EXPECT_EQ(sweep.Get(0).Above->Id, 3u);
+  EXPECT_EQ(sweep.Get(3).Below->Id, 0u);
+  EXPECT_EQ(sweep.Get(3).Above->Id, 2u);
+  EXPECT_EQ(sweep.Get(2).Below->Id, 3u);
+  EXPECT_EQ(sweep.Get(2).Above->Id, 1u);
+  EXPECT_EQ(sweep.Get(1).Below->Id, 2u);
+  EXPECT_EQ(sweep.Get(1).Above->Id, 4u);
+  EXPECT_EQ(sweep.Get(4).Below->Id, 1u);
+  EXPECT_FALSE(sweep.Get(4).Above.has_value());
+}
+
+TEST_F(CalcUtils2DTest, ReverseRun_SegIdsOrderDoesNotMatter_OnlyMembership) {
+  // The seg_ids argument just names the run's membership (any order) — sweep_line2d.hpp's own docs say
+  // "in any order". Passing them reversed relative to the previous test must give the identical result.
+  std::vector<g::LineSegment2D> segments{
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(10, 10)),
+      g::LineSegment2D::Make(g::Point2D(0, 10), g::Point2D(10, 0)),
+  };
+  SweepLineVec sweep(segments);
+  sweep.SetX(2.0);
+  sweep.Add(0);
+  sweep.Add(1);
+
+  sweep.SetX(5.0);
+  auto result = sweep.ReverseRun({1, 0});  // note: reversed argument order vs. ProducesCallerOrderNotIdOrder
+  ASSERT_TRUE(result.Ok);
+  EXPECT_EQ(result.NewBottom->Id, 1u);
+  EXPECT_EQ(result.NewTop->Id, 0u);
 }
 
 // --------------------------------------------------------------------------------------------------

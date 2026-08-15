@@ -4,13 +4,13 @@
 
 ## `translate`
 
-`translate(offset: maths::Vector2) -> TransformBuilder2D`
+`translate(offset: Vector2) -> TransformBuilder2D`
 
 Appends a translation by offset , applied after every operation already chained.
 
 **Parameters**
 
-- `offset` (`maths::Vector2`)
+- `offset` (`Vector2`)
 
 ## `rotate`
 
@@ -54,32 +54,32 @@ Appends a shear ( shx shears X by Y, shy shears Y by X), applied after every ope
 
 ## `reflect`
 
-`reflect(normal: maths::Vector2) -> TransformBuilder2D`
+`reflect(normal: Vector2) -> TransformBuilder2D`
 
 Appends a reflection across the line through the origin whose normal is normal , applied after every operation already chained.
 
 **Parameters**
 
-- `normal` (`maths::Vector2`)
+- `normal` (`Vector2`)
 
 ## `combine`
 
-`combine(mat: maths::Matrix3) -> TransformBuilder2D`
+`combine(mat: Matrix3) -> TransformBuilder2D`
 
 Appends an arbitrary caller-supplied Matrix3, applied after every operation already chained an escape hatch for a transform this builder has no dedicated method for.
 
 **Parameters**
 
-- `mat` (`maths::Matrix3`)
+- `mat` (`Matrix3`)
 
 ## `get`
 
-`get() -> maths::Matrix3`
+`get() -> Matrix3`
 
 The composed matrix so far.
 
 ## `build`
 
-`build() -> maths::Matrix3`
+`build() -> Matrix3`
 
 Copy of the composed matrix so far same value as Get() , but by value for a caller who wants to keep it independent of this builder's further chaining.

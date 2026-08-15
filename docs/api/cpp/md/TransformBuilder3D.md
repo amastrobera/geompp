@@ -4,24 +4,24 @@ Builds a composite Matrix4 by chaining translate() /rotate()/scale()/combine() c
 
 ## `Translate`
 
-`TransformBuilder3D & Translate(maths::Vector3 const & offset)`
+`TransformBuilder3D & Translate(Vector3 const & offset)`
 
 Appends a translation by offset , applied after every operation already chained.
 
 **Parameters**
 
-- `offset` (`maths::Vector3 const &`)
+- `offset` (`Vector3 const &`)
 
 ## `Rotate`
 
-`TransformBuilder3D & Rotate(double angle_rad, maths::Vector3 const & axis)`
+`TransformBuilder3D & Rotate(double angle_rad, Vector3 const & axis)`
 
 Appends a rotation by angle_rad radians about axis (through the origin, Rodrigues' formula), applied after every operation already chained.
 
 **Parameters**
 
 - `angle_rad` (`double`)
-- `axis` (`maths::Vector3 const &`)
+- `axis` (`Vector3 const &`)
 
 ## `Scale`
 
@@ -60,32 +60,32 @@ Appends a general shear (each axis offset by a multiple of the other two), appli
 
 ## `Reflect`
 
-`TransformBuilder3D & Reflect(maths::Vector3 const & normal)`
+`TransformBuilder3D & Reflect(Vector3 const & normal)`
 
 Appends a reflection across the plane through the origin whose normal is normal , applied after every operation already chained.
 
 **Parameters**
 
-- `normal` (`maths::Vector3 const &`)
+- `normal` (`Vector3 const &`)
 
 ## `Combine`
 
-`TransformBuilder3D & Combine(maths::Matrix4 const & mat)`
+`TransformBuilder3D & Combine(Matrix4 const & mat)`
 
 Appends an arbitrary caller-supplied Matrix4, applied after every operation already chained an escape hatch for a transform this builder has no dedicated method for (perspective, a matrix loaded from a scene file, ...).
 
 **Parameters**
 
-- `mat` (`maths::Matrix4 const &`)
+- `mat` (`Matrix4 const &`)
 
 ## `Get`
 
-`maths::Matrix4 const & Get() const`
+`Matrix4 const & Get() const`
 
 The composed matrix so far.
 
 ## `Build`
 
-`maths::Matrix4 Build() const`
+`Matrix4 Build() const`
 
 Copy of the composed matrix so far same value as Get() , but by value for a caller who wants to keep it independent of this builder's further chaining.

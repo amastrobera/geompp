@@ -36,16 +36,26 @@ CPP_DIR = ROOT / "api" / "cpp" / "md"
 
 # ── Type transforms ────────────────────────────────────────────────────────
 
+def strip_internal_namespaces(t: str) -> str:
+    """Drop geompp's own inline/sub-namespace qualifiers ('geometry::', 'maths::',
+    'transformations::', 'detail::') — Doxygen preserves them verbatim in cross-namespace
+    signatures (e.g. geompp::transformations functions taking a geompp::geometry::Polygon2D),
+    but every class already gets its own doc page under its bare name, so the qualifier is just
+    noise here, not information."""
+    return re.sub(r"\b(?:geometry|maths|transformations|detail)::", "", t)
+
+
 def strip_cpp_quals(t: str) -> str:
-    """Drop 'const', '&', '*', and surrounding whitespace."""
+    """Drop 'const', '&', '*', internal namespace qualifiers, and surrounding whitespace."""
     t = re.sub(r"\bconst\b", "", t)
     t = t.replace("&", "").replace("*", "")
+    t = strip_internal_namespaces(t)
     return re.sub(r"\s+", " ", t).strip()
 
 
 def clean_cpp_type(t: str) -> str:
     """Collapse whitespace/newlines in a raw C++ type string for display."""
-    return re.sub(r"\s+", " ", t).strip()
+    return re.sub(r"\s+", " ", strip_internal_namespaces(t)).strip()
 
 
 def cpp_to_py_type(t: str) -> str:
@@ -457,7 +467,7 @@ def render_param_type_md(t: str, kind: str, known: set[str], current_class: str)
     elif kind == "cs":
         rendered = cpp_to_cs_type(t)
     else:  # cpp
-        rendered = re.sub(r"\s+", " ", t).strip()
+        rendered = clean_cpp_type(t)
 
     # Try to find a known class name inside the rendered type and link it.
     # Multiple matches OK; we link each.
@@ -626,7 +636,7 @@ def emit_cpp_md(cls: dict, known: set[str]) -> str:
             params = ", ".join(
                 f"{clean_cpp_type(p_type)} {p_name}" for p_type, p_name, _ in m["params"]
             )
-            ret_cpp = re.sub(r"\s+", " ", m["ret"]).strip()
+            ret_cpp = clean_cpp_type(m["ret"])
             suffix = " const" if m["const"] else ""
             tmpl = m.get("template_params") or []
             prefix = f"template <{', '.join(f'typename {t}' for t in tmpl)}> " if tmpl else ""
@@ -665,6 +675,13 @@ def main() -> int:
     PY_DIR.mkdir(parents=True, exist_ok=True)
     CS_DIR.mkdir(parents=True, exist_ok=True)
     CPP_DIR.mkdir(parents=True, exist_ok=True)
+
+    # These three directories hold nothing but this script's own output (see docs/README.md) —
+    # clear them first so a renamed/removed/no-longer-public class doesn't leave a stale .md
+    # behind (e.g. a class that moves under `detail::` and should stop being documented).
+    for d in (PY_DIR, CS_DIR, CPP_DIR):
+        for f in d.glob("*.md"):
+            f.unlink()
 
     # First pass: parse every class/struct so we know the full set of names (needed for
     # cross-file linking). Anything under a `detail` namespace is filtered out inside

@@ -6,8 +6,8 @@ Two points map to the same GridCell2D iff floor(x / epsilon) and floor(y / epsil
 
 ## Fields
 
-- `x` (`std::int64_t`)
-- `y` (`std::int64_t`)
+- `x` (`int`)
+- `y` (`int`)
 
 ## `from_point`
 

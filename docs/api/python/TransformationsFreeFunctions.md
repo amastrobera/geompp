@@ -4,7 +4,7 @@ Free functions in `geompp::transformations` (not methods on a class — call the
 
 ## `transform`
 
-`transform(poly: geometry::`[`Polygon2D`](Polygon2D.md)`, m: maths::Matrix3) -> geometry::`[`Polygon2D`](Polygon2D.md)
+`transform(poly: `[`Polygon2D`](Polygon2D.md)`, m: Matrix3) -> `[`Polygon2D`](Polygon2D.md)
 
 Transforms every vertex of both the outer ring and every hole ring.
 
@@ -12,10 +12,10 @@ A pure rotation/ translation/uniform-scale preserves CCW-outer/CW-hole winding; 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon2D`](Polygon2D.md))
-- `m` (`maths::Matrix3`)
+- `poly` ([`Polygon2D`](Polygon2D.md))
+- `m` (`Matrix3`)
 
-`transform(poly: geometry::`[`Polygon3D`](Polygon3D.md)`, m: maths::Matrix4) -> geometry::`[`Polygon3D`](Polygon3D.md)
+`transform(poly: `[`Polygon3D`](Polygon3D.md)`, m: Matrix4) -> `[`Polygon3D`](Polygon3D.md)
 
 Transforms every vertex of both the outer ring and every hole ring.
 
@@ -23,384 +23,384 @@ See the 2D overload's docs for the winding-flip note under a reflection matrix.
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon3D`](Polygon3D.md))
-- `m` (`maths::Matrix4`)
+- `poly` ([`Polygon3D`](Polygon3D.md))
+- `m` (`Matrix4`)
 
-`transform(p: geometry::`[`Point2D`](Point2D.md)`, m: maths::Matrix3) -> geometry::`[`Point2D`](Point2D.md)
+`transform(p: `[`Point2D`](Point2D.md)`, m: Matrix3) -> `[`Point2D`](Point2D.md)
 
 Applies a 3x3 homogeneous matrix to a point: (x, y, 1) -> m * (x, y, 1), then drops back to Cartesian (x', y').
 
 **Parameters**
 
-- `p` (geometry::[`Point2D`](Point2D.md))
-- `m` (`maths::Matrix3`)
+- `p` ([`Point2D`](Point2D.md))
+- `m` (`Matrix3`)
 
-`transform(v: geometry::`[`Vector2D`](Vector2D.md)`, m: maths::Matrix3) -> geometry::`[`Vector2D`](Vector2D.md)
+`transform(v: `[`Vector2D`](Vector2D.md)`, m: Matrix3) -> `[`Vector2D`](Vector2D.md)
 
 Applies a 3x3 homogeneous matrix to a direction: (x, y, 0) -> m * (x, y, 0) the 0 in the homogeneous coordinate means any translation component of m has no effect, only rotation/scale/ shear do (the correct behavior for a displacement, which has no position to translate).
 
 **Parameters**
 
-- `v` (geometry::[`Vector2D`](Vector2D.md))
-- `m` (`maths::Matrix3`)
+- `v` ([`Vector2D`](Vector2D.md))
+- `m` (`Matrix3`)
 
-`transform(ray: geometry::`[`Ray2D`](Ray2D.md)`, m: maths::Matrix3) -> geometry::`[`Ray2D`](Ray2D.md)
+`transform(ray: `[`Ray2D`](Ray2D.md)`, m: Matrix3) -> `[`Ray2D`](Ray2D.md)
 
 Transforms the origin (as a point) and direction (as a vector, so translation doesn't affect it) and rebuilds via [Ray2D](Ray2D.md)::Make().
 
 **Parameters**
 
-- `ray` (geometry::[`Ray2D`](Ray2D.md))
-- `m` (`maths::Matrix3`)
+- `ray` ([`Ray2D`](Ray2D.md))
+- `m` (`Matrix3`)
 
-`transform(line: geometry::`[`Line2D`](Line2D.md)`, m: maths::Matrix3) -> geometry::`[`Line2D`](Line2D.md)
+`transform(line: `[`Line2D`](Line2D.md)`, m: Matrix3) -> `[`Line2D`](Line2D.md)
 
 Transforms the origin (as a point) and direction (as a vector) and rebuilds via [Line2D](Line2D.md)::Make().
 
 **Parameters**
 
-- `line` (geometry::[`Line2D`](Line2D.md))
-- `m` (`maths::Matrix3`)
+- `line` ([`Line2D`](Line2D.md))
+- `m` (`Matrix3`)
 
-`transform(seg: geometry::`[`LineSegment2D`](LineSegment2D.md)`, m: maths::Matrix3) -> geometry::`[`LineSegment2D`](LineSegment2D.md)
-
-
-**Parameters**
-
-- `seg` (geometry::[`LineSegment2D`](LineSegment2D.md))
-- `m` (`maths::Matrix3`)
-
-`transform(polyline: geometry::`[`Polyline2D`](Polyline2D.md)`, m: maths::Matrix3) -> geometry::`[`Polyline2D`](Polyline2D.md)
+`transform(seg: `[`LineSegment2D`](LineSegment2D.md)`, m: Matrix3) -> `[`LineSegment2D`](LineSegment2D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline2D`](Polyline2D.md))
-- `m` (`maths::Matrix3`)
+- `seg` ([`LineSegment2D`](LineSegment2D.md))
+- `m` (`Matrix3`)
 
-`transform(tri: geometry::`[`Triangle2D`](Triangle2D.md)`, m: maths::Matrix3) -> geometry::`[`Triangle2D`](Triangle2D.md)
+`transform(polyline: `[`Polyline2D`](Polyline2D.md)`, m: Matrix3) -> `[`Polyline2D`](Polyline2D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle2D`](Triangle2D.md))
-- `m` (`maths::Matrix3`)
+- `polyline` ([`Polyline2D`](Polyline2D.md))
+- `m` (`Matrix3`)
 
-`transform(mesh: geometry::`[`Mesh2D`](Mesh2D.md)`, m: maths::Matrix3) -> geometry::`[`Mesh2D`](Mesh2D.md)
+`transform(tri: `[`Triangle2D`](Triangle2D.md)`, m: Matrix3) -> `[`Triangle2D`](Triangle2D.md)
+
+
+**Parameters**
+
+- `tri` ([`Triangle2D`](Triangle2D.md))
+- `m` (`Matrix3`)
+
+`transform(mesh: `[`Mesh2D`](Mesh2D.md)`, m: Matrix3) -> `[`Mesh2D`](Mesh2D.md)
 
 Transforms every facet independently and rebuilds via [Mesh2D](Mesh2D.md)::FromTriangles() cheaper than it sounds, since FromTriangles() re-welds shared vertices via the same spatial-hash pass any other mesh construction uses.
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh2D`](Mesh2D.md))
-- `m` (`maths::Matrix3`)
+- `mesh` ([`Mesh2D`](Mesh2D.md))
+- `m` (`Matrix3`)
 
-`transform(mesh: geometry::`[`PolyMesh2D`](PolyMesh2D.md)`, m: maths::Matrix3) -> geometry::`[`PolyMesh2D`](PolyMesh2D.md)
+`transform(mesh: `[`PolyMesh2D`](PolyMesh2D.md)`, m: Matrix3) -> `[`PolyMesh2D`](PolyMesh2D.md)
 
 Transforms every facet independently and rebuilds via [PolyMesh2D](PolyMesh2D.md)::FromPolygons().
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh2D`](PolyMesh2D.md))
-- `m` (`maths::Matrix3`)
+- `mesh` ([`PolyMesh2D`](PolyMesh2D.md))
+- `m` (`Matrix3`)
 
-`transform(mesh: geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)`, m: maths::Matrix3) -> geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)
+`transform(mesh: `[`ConnectedMesh2D`](ConnectedMesh2D.md)`, m: Matrix3) -> `[`ConnectedMesh2D`](ConnectedMesh2D.md)
 
 Transforms every facet (via Faces(), each rebuilt as a [Triangle2D](Triangle2D.md) ) and rebuilds via [ConnectedMesh2D](ConnectedMesh2D.md)::FromTriangles() adjacency is recomputed from scratch, same as building a fresh [ConnectedMesh2D](ConnectedMesh2D.md) from any other triangle set.
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh2D`](ConnectedMesh2D.md))
-- `m` (`maths::Matrix3`)
+- `mesh` ([`ConnectedMesh2D`](ConnectedMesh2D.md))
+- `m` (`Matrix3`)
 
-`transform(collection: geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)`, m: maths::Matrix3) -> geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)
+`transform(collection: `[`GeometryCollection2D`](GeometryCollection2D.md)`, m: Matrix3) -> `[`GeometryCollection2D`](GeometryCollection2D.md)
 
 Transforms every contained geometry (recursively, for nested [GeometryCollection2D](GeometryCollection2D.md) ) and rebuilds a fresh collection via Add().
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection2D`](GeometryCollection2D.md))
-- `m` (`maths::Matrix3`)
+- `collection` ([`GeometryCollection2D`](GeometryCollection2D.md))
+- `m` (`Matrix3`)
 
-`transform(p: geometry::`[`Point3D`](Point3D.md)`, m: maths::Matrix4) -> geometry::`[`Point3D`](Point3D.md)
+`transform(p: `[`Point3D`](Point3D.md)`, m: Matrix4) -> `[`Point3D`](Point3D.md)
 
 Applies a 4x4 homogeneous matrix to a point: (x, y, z, 1) -> m * (x, y, z, 1), then drops back to Cartesian (x', y', z').
 
 **Parameters**
 
-- `p` (geometry::[`Point3D`](Point3D.md))
-- `m` (`maths::Matrix4`)
+- `p` ([`Point3D`](Point3D.md))
+- `m` (`Matrix4`)
 
-`transform(v: geometry::`[`Vector3D`](Vector3D.md)`, m: maths::Matrix4) -> geometry::`[`Vector3D`](Vector3D.md)
+`transform(v: `[`Vector3D`](Vector3D.md)`, m: Matrix4) -> `[`Vector3D`](Vector3D.md)
 
 Applies a 4x4 homogeneous matrix to a direction: (x, y, z, 0) -> m * (x, y, z, 0) any translation component of m has no effect, only rotation/scale/shear do (the correct behavior for a displacement, which has no position to translate).
 
 **Parameters**
 
-- `v` (geometry::[`Vector3D`](Vector3D.md))
-- `m` (`maths::Matrix4`)
+- `v` ([`Vector3D`](Vector3D.md))
+- `m` (`Matrix4`)
 
-`transform(ray: geometry::`[`Ray3D`](Ray3D.md)`, m: maths::Matrix4) -> geometry::`[`Ray3D`](Ray3D.md)
+`transform(ray: `[`Ray3D`](Ray3D.md)`, m: Matrix4) -> `[`Ray3D`](Ray3D.md)
 
 Transforms the origin (as a point) and direction (as a vector, so translation doesn't affect it) and rebuilds via [Ray3D](Ray3D.md)::Make().
 
 **Parameters**
 
-- `ray` (geometry::[`Ray3D`](Ray3D.md))
-- `m` (`maths::Matrix4`)
+- `ray` ([`Ray3D`](Ray3D.md))
+- `m` (`Matrix4`)
 
-`transform(line: geometry::`[`Line3D`](Line3D.md)`, m: maths::Matrix4) -> geometry::`[`Line3D`](Line3D.md)
+`transform(line: `[`Line3D`](Line3D.md)`, m: Matrix4) -> `[`Line3D`](Line3D.md)
 
 Transforms the origin (as a point) and direction (as a vector) and rebuilds via [Line3D](Line3D.md)::Make().
 
 **Parameters**
 
-- `line` (geometry::[`Line3D`](Line3D.md))
-- `m` (`maths::Matrix4`)
+- `line` ([`Line3D`](Line3D.md))
+- `m` (`Matrix4`)
 
-`transform(seg: geometry::`[`LineSegment3D`](LineSegment3D.md)`, m: maths::Matrix4) -> geometry::`[`LineSegment3D`](LineSegment3D.md)
-
-
-**Parameters**
-
-- `seg` (geometry::[`LineSegment3D`](LineSegment3D.md))
-- `m` (`maths::Matrix4`)
-
-`transform(polyline: geometry::`[`Polyline3D`](Polyline3D.md)`, m: maths::Matrix4) -> geometry::`[`Polyline3D`](Polyline3D.md)
+`transform(seg: `[`LineSegment3D`](LineSegment3D.md)`, m: Matrix4) -> `[`LineSegment3D`](LineSegment3D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline3D`](Polyline3D.md))
-- `m` (`maths::Matrix4`)
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+- `m` (`Matrix4`)
 
-`transform(tri: geometry::`[`Triangle3D`](Triangle3D.md)`, m: maths::Matrix4) -> geometry::`[`Triangle3D`](Triangle3D.md)
+`transform(polyline: `[`Polyline3D`](Polyline3D.md)`, m: Matrix4) -> `[`Polyline3D`](Polyline3D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle3D`](Triangle3D.md))
-- `m` (`maths::Matrix4`)
+- `polyline` ([`Polyline3D`](Polyline3D.md))
+- `m` (`Matrix4`)
 
-`transform(mesh: geometry::`[`Mesh3D`](Mesh3D.md)`, m: maths::Matrix4) -> geometry::`[`Mesh3D`](Mesh3D.md)
+`transform(tri: `[`Triangle3D`](Triangle3D.md)`, m: Matrix4) -> `[`Triangle3D`](Triangle3D.md)
+
+
+**Parameters**
+
+- `tri` ([`Triangle3D`](Triangle3D.md))
+- `m` (`Matrix4`)
+
+`transform(mesh: `[`Mesh3D`](Mesh3D.md)`, m: Matrix4) -> `[`Mesh3D`](Mesh3D.md)
 
 Transforms every facet independently and rebuilds via [Mesh3D](Mesh3D.md)::FromTriangles().
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh3D`](Mesh3D.md))
-- `m` (`maths::Matrix4`)
+- `mesh` ([`Mesh3D`](Mesh3D.md))
+- `m` (`Matrix4`)
 
-`transform(mesh: geometry::`[`PolyMesh3D`](PolyMesh3D.md)`, m: maths::Matrix4) -> geometry::`[`PolyMesh3D`](PolyMesh3D.md)
+`transform(mesh: `[`PolyMesh3D`](PolyMesh3D.md)`, m: Matrix4) -> `[`PolyMesh3D`](PolyMesh3D.md)
 
 Transforms every facet independently and rebuilds via [PolyMesh3D](PolyMesh3D.md)::FromPolygons().
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh3D`](PolyMesh3D.md))
-- `m` (`maths::Matrix4`)
+- `mesh` ([`PolyMesh3D`](PolyMesh3D.md))
+- `m` (`Matrix4`)
 
-`transform(mesh: geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)`, m: maths::Matrix4) -> geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)
+`transform(mesh: `[`ConnectedMesh3D`](ConnectedMesh3D.md)`, m: Matrix4) -> `[`ConnectedMesh3D`](ConnectedMesh3D.md)
 
 Transforms every facet (via Faces(), each rebuilt as a [Triangle3D](Triangle3D.md) ) and rebuilds via [ConnectedMesh3D](ConnectedMesh3D.md)::FromTriangles() adjacency is recomputed from scratch, same as building a fresh [ConnectedMesh3D](ConnectedMesh3D.md) from any other triangle set.
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh3D`](ConnectedMesh3D.md))
-- `m` (`maths::Matrix4`)
+- `mesh` ([`ConnectedMesh3D`](ConnectedMesh3D.md))
+- `m` (`Matrix4`)
 
-`transform(collection: geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)`, m: maths::Matrix4) -> geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)
+`transform(collection: `[`GeometryCollection3D`](GeometryCollection3D.md)`, m: Matrix4) -> `[`GeometryCollection3D`](GeometryCollection3D.md)
 
 Transforms every contained geometry (recursively, for nested [GeometryCollection3D](GeometryCollection3D.md) ) and rebuilds a fresh collection via Add().
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection3D`](GeometryCollection3D.md))
-- `m` (`maths::Matrix4`)
+- `collection` ([`GeometryCollection3D`](GeometryCollection3D.md))
+- `m` (`Matrix4`)
 
 ## `translate`
 
-`translate(p: geometry::`[`Point2D`](Point2D.md)`, offset: maths::Vector2) -> geometry::`[`Point2D`](Point2D.md)
+`translate(p: `[`Point2D`](Point2D.md)`, offset: Vector2) -> `[`Point2D`](Point2D.md)
 
 Translates a point by a plain (x, y) offset. Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point2D`](Point2D.md))
-- `offset` (`maths::Vector2`)
+- `p` ([`Point2D`](Point2D.md))
+- `offset` (`Vector2`)
 
-`translate(ray: geometry::`[`Ray2D`](Ray2D.md)`, offset: maths::Vector2) -> geometry::`[`Ray2D`](Ray2D.md)
-
-
-**Parameters**
-
-- `ray` (geometry::[`Ray2D`](Ray2D.md))
-- `offset` (`maths::Vector2`)
-
-`translate(line: geometry::`[`Line2D`](Line2D.md)`, offset: maths::Vector2) -> geometry::`[`Line2D`](Line2D.md)
+`translate(ray: `[`Ray2D`](Ray2D.md)`, offset: Vector2) -> `[`Ray2D`](Ray2D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line2D`](Line2D.md))
-- `offset` (`maths::Vector2`)
+- `ray` ([`Ray2D`](Ray2D.md))
+- `offset` (`Vector2`)
 
-`translate(seg: geometry::`[`LineSegment2D`](LineSegment2D.md)`, offset: maths::Vector2) -> geometry::`[`LineSegment2D`](LineSegment2D.md)
-
-
-**Parameters**
-
-- `seg` (geometry::[`LineSegment2D`](LineSegment2D.md))
-- `offset` (`maths::Vector2`)
-
-`translate(collection: geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)`, offset: maths::Vector2) -> geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)
+`translate(line: `[`Line2D`](Line2D.md)`, offset: Vector2) -> `[`Line2D`](Line2D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection2D`](GeometryCollection2D.md))
-- `offset` (`maths::Vector2`)
+- `line` ([`Line2D`](Line2D.md))
+- `offset` (`Vector2`)
 
-`translate(poly: geometry::`[`Polygon2D`](Polygon2D.md)`, offset: maths::Vector2) -> geometry::`[`Polygon2D`](Polygon2D.md)
-
-
-**Parameters**
-
-- `poly` (geometry::[`Polygon2D`](Polygon2D.md))
-- `offset` (`maths::Vector2`)
-
-`translate(polyline: geometry::`[`Polyline2D`](Polyline2D.md)`, offset: maths::Vector2) -> geometry::`[`Polyline2D`](Polyline2D.md)
+`translate(seg: `[`LineSegment2D`](LineSegment2D.md)`, offset: Vector2) -> `[`LineSegment2D`](LineSegment2D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline2D`](Polyline2D.md))
-- `offset` (`maths::Vector2`)
+- `seg` ([`LineSegment2D`](LineSegment2D.md))
+- `offset` (`Vector2`)
 
-`translate(tri: geometry::`[`Triangle2D`](Triangle2D.md)`, offset: maths::Vector2) -> geometry::`[`Triangle2D`](Triangle2D.md)
-
-
-**Parameters**
-
-- `tri` (geometry::[`Triangle2D`](Triangle2D.md))
-- `offset` (`maths::Vector2`)
-
-`translate(mesh: geometry::`[`Mesh2D`](Mesh2D.md)`, offset: maths::Vector2) -> geometry::`[`Mesh2D`](Mesh2D.md)
+`translate(collection: `[`GeometryCollection2D`](GeometryCollection2D.md)`, offset: Vector2) -> `[`GeometryCollection2D`](GeometryCollection2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh2D`](Mesh2D.md))
-- `offset` (`maths::Vector2`)
+- `collection` ([`GeometryCollection2D`](GeometryCollection2D.md))
+- `offset` (`Vector2`)
 
-`translate(mesh: geometry::`[`PolyMesh2D`](PolyMesh2D.md)`, offset: maths::Vector2) -> geometry::`[`PolyMesh2D`](PolyMesh2D.md)
-
-
-**Parameters**
-
-- `mesh` (geometry::[`PolyMesh2D`](PolyMesh2D.md))
-- `offset` (`maths::Vector2`)
-
-`translate(mesh: geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)`, offset: maths::Vector2) -> geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)
+`translate(poly: `[`Polygon2D`](Polygon2D.md)`, offset: Vector2) -> `[`Polygon2D`](Polygon2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh2D`](ConnectedMesh2D.md))
-- `offset` (`maths::Vector2`)
+- `poly` ([`Polygon2D`](Polygon2D.md))
+- `offset` (`Vector2`)
 
-`translate(p: geometry::`[`Point3D`](Point3D.md)`, offset: maths::Vector3) -> geometry::`[`Point3D`](Point3D.md)
+`translate(polyline: `[`Polyline2D`](Polyline2D.md)`, offset: Vector2) -> `[`Polyline2D`](Polyline2D.md)
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md))
+- `offset` (`Vector2`)
+
+`translate(tri: `[`Triangle2D`](Triangle2D.md)`, offset: Vector2) -> `[`Triangle2D`](Triangle2D.md)
+
+
+**Parameters**
+
+- `tri` ([`Triangle2D`](Triangle2D.md))
+- `offset` (`Vector2`)
+
+`translate(mesh: `[`Mesh2D`](Mesh2D.md)`, offset: Vector2) -> `[`Mesh2D`](Mesh2D.md)
+
+
+**Parameters**
+
+- `mesh` ([`Mesh2D`](Mesh2D.md))
+- `offset` (`Vector2`)
+
+`translate(mesh: `[`PolyMesh2D`](PolyMesh2D.md)`, offset: Vector2) -> `[`PolyMesh2D`](PolyMesh2D.md)
+
+
+**Parameters**
+
+- `mesh` ([`PolyMesh2D`](PolyMesh2D.md))
+- `offset` (`Vector2`)
+
+`translate(mesh: `[`ConnectedMesh2D`](ConnectedMesh2D.md)`, offset: Vector2) -> `[`ConnectedMesh2D`](ConnectedMesh2D.md)
+
+
+**Parameters**
+
+- `mesh` ([`ConnectedMesh2D`](ConnectedMesh2D.md))
+- `offset` (`Vector2`)
+
+`translate(p: `[`Point3D`](Point3D.md)`, offset: Vector3) -> `[`Point3D`](Point3D.md)
 
 Translates a point by a plain (x, y, z) offset. Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point3D`](Point3D.md))
-- `offset` (`maths::Vector3`)
+- `p` ([`Point3D`](Point3D.md))
+- `offset` (`Vector3`)
 
-`translate(ray: geometry::`[`Ray3D`](Ray3D.md)`, offset: maths::Vector3) -> geometry::`[`Ray3D`](Ray3D.md)
-
-
-**Parameters**
-
-- `ray` (geometry::[`Ray3D`](Ray3D.md))
-- `offset` (`maths::Vector3`)
-
-`translate(line: geometry::`[`Line3D`](Line3D.md)`, offset: maths::Vector3) -> geometry::`[`Line3D`](Line3D.md)
+`translate(ray: `[`Ray3D`](Ray3D.md)`, offset: Vector3) -> `[`Ray3D`](Ray3D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line3D`](Line3D.md))
-- `offset` (`maths::Vector3`)
+- `ray` ([`Ray3D`](Ray3D.md))
+- `offset` (`Vector3`)
 
-`translate(seg: geometry::`[`LineSegment3D`](LineSegment3D.md)`, offset: maths::Vector3) -> geometry::`[`LineSegment3D`](LineSegment3D.md)
-
-
-**Parameters**
-
-- `seg` (geometry::[`LineSegment3D`](LineSegment3D.md))
-- `offset` (`maths::Vector3`)
-
-`translate(collection: geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)`, offset: maths::Vector3) -> geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)
+`translate(line: `[`Line3D`](Line3D.md)`, offset: Vector3) -> `[`Line3D`](Line3D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection3D`](GeometryCollection3D.md))
-- `offset` (`maths::Vector3`)
+- `line` ([`Line3D`](Line3D.md))
+- `offset` (`Vector3`)
 
-`translate(poly: geometry::`[`Polygon3D`](Polygon3D.md)`, offset: maths::Vector3) -> geometry::`[`Polygon3D`](Polygon3D.md)
-
-
-**Parameters**
-
-- `poly` (geometry::[`Polygon3D`](Polygon3D.md))
-- `offset` (`maths::Vector3`)
-
-`translate(polyline: geometry::`[`Polyline3D`](Polyline3D.md)`, offset: maths::Vector3) -> geometry::`[`Polyline3D`](Polyline3D.md)
+`translate(seg: `[`LineSegment3D`](LineSegment3D.md)`, offset: Vector3) -> `[`LineSegment3D`](LineSegment3D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline3D`](Polyline3D.md))
-- `offset` (`maths::Vector3`)
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+- `offset` (`Vector3`)
 
-`translate(tri: geometry::`[`Triangle3D`](Triangle3D.md)`, offset: maths::Vector3) -> geometry::`[`Triangle3D`](Triangle3D.md)
-
-
-**Parameters**
-
-- `tri` (geometry::[`Triangle3D`](Triangle3D.md))
-- `offset` (`maths::Vector3`)
-
-`translate(mesh: geometry::`[`Mesh3D`](Mesh3D.md)`, offset: maths::Vector3) -> geometry::`[`Mesh3D`](Mesh3D.md)
+`translate(collection: `[`GeometryCollection3D`](GeometryCollection3D.md)`, offset: Vector3) -> `[`GeometryCollection3D`](GeometryCollection3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh3D`](Mesh3D.md))
-- `offset` (`maths::Vector3`)
+- `collection` ([`GeometryCollection3D`](GeometryCollection3D.md))
+- `offset` (`Vector3`)
 
-`translate(mesh: geometry::`[`PolyMesh3D`](PolyMesh3D.md)`, offset: maths::Vector3) -> geometry::`[`PolyMesh3D`](PolyMesh3D.md)
-
-
-**Parameters**
-
-- `mesh` (geometry::[`PolyMesh3D`](PolyMesh3D.md))
-- `offset` (`maths::Vector3`)
-
-`translate(mesh: geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)`, offset: maths::Vector3) -> geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)
+`translate(poly: `[`Polygon3D`](Polygon3D.md)`, offset: Vector3) -> `[`Polygon3D`](Polygon3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh3D`](ConnectedMesh3D.md))
-- `offset` (`maths::Vector3`)
+- `poly` ([`Polygon3D`](Polygon3D.md))
+- `offset` (`Vector3`)
+
+`translate(polyline: `[`Polyline3D`](Polyline3D.md)`, offset: Vector3) -> `[`Polyline3D`](Polyline3D.md)
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
+- `offset` (`Vector3`)
+
+`translate(tri: `[`Triangle3D`](Triangle3D.md)`, offset: Vector3) -> `[`Triangle3D`](Triangle3D.md)
+
+
+**Parameters**
+
+- `tri` ([`Triangle3D`](Triangle3D.md))
+- `offset` (`Vector3`)
+
+`translate(mesh: `[`Mesh3D`](Mesh3D.md)`, offset: Vector3) -> `[`Mesh3D`](Mesh3D.md)
+
+
+**Parameters**
+
+- `mesh` ([`Mesh3D`](Mesh3D.md))
+- `offset` (`Vector3`)
+
+`translate(mesh: `[`PolyMesh3D`](PolyMesh3D.md)`, offset: Vector3) -> `[`PolyMesh3D`](PolyMesh3D.md)
+
+
+**Parameters**
+
+- `mesh` ([`PolyMesh3D`](PolyMesh3D.md))
+- `offset` (`Vector3`)
+
+`translate(mesh: `[`ConnectedMesh3D`](ConnectedMesh3D.md)`, offset: Vector3) -> `[`ConnectedMesh3D`](ConnectedMesh3D.md)
+
+
+**Parameters**
+
+- `mesh` ([`ConnectedMesh3D`](ConnectedMesh3D.md))
+- `offset` (`Vector3`)
 
 ## `rotate`
 
-`rotate(p: geometry::`[`Point2D`](Point2D.md)`, angle_rad: float) -> geometry::`[`Point2D`](Point2D.md)
+`rotate(p: `[`Point2D`](Point2D.md)`, angle_rad: float) -> `[`Point2D`](Point2D.md)
 
 Rotates a point about the origin by angle_rad radians (CCW, right-hand rule in the XY plane).
 
@@ -408,10 +408,10 @@ Direct cos / sin arithmetic no matrix built. To rotate about a different pivot, 
 
 **Parameters**
 
-- `p` (geometry::[`Point2D`](Point2D.md))
+- `p` ([`Point2D`](Point2D.md))
 - `angle_rad` (`float`)
 
-`rotate(v: geometry::`[`Vector2D`](Vector2D.md)`, angle_rad: float) -> geometry::`[`Vector2D`](Vector2D.md)
+`rotate(v: `[`Vector2D`](Vector2D.md)`, angle_rad: float) -> `[`Vector2D`](Vector2D.md)
 
 Rotates a vector (direction) by angle_rad radians (CCW).
 
@@ -419,90 +419,90 @@ Direct arithmetic no matrix built. No translate() overload a direction has no po
 
 **Parameters**
 
-- `v` (geometry::[`Vector2D`](Vector2D.md))
+- `v` ([`Vector2D`](Vector2D.md))
 - `angle_rad` (`float`)
 
-`rotate(ray: geometry::`[`Ray2D`](Ray2D.md)`, angle_rad: float) -> geometry::`[`Ray2D`](Ray2D.md)
+`rotate(ray: `[`Ray2D`](Ray2D.md)`, angle_rad: float) -> `[`Ray2D`](Ray2D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray2D`](Ray2D.md))
+- `ray` ([`Ray2D`](Ray2D.md))
 - `angle_rad` (`float`)
 
-`rotate(line: geometry::`[`Line2D`](Line2D.md)`, angle_rad: float) -> geometry::`[`Line2D`](Line2D.md)
+`rotate(line: `[`Line2D`](Line2D.md)`, angle_rad: float) -> `[`Line2D`](Line2D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line2D`](Line2D.md))
+- `line` ([`Line2D`](Line2D.md))
 - `angle_rad` (`float`)
 
-`rotate(seg: geometry::`[`LineSegment2D`](LineSegment2D.md)`, angle_rad: float) -> geometry::`[`LineSegment2D`](LineSegment2D.md)
+`rotate(seg: `[`LineSegment2D`](LineSegment2D.md)`, angle_rad: float) -> `[`LineSegment2D`](LineSegment2D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment2D`](LineSegment2D.md))
+- `seg` ([`LineSegment2D`](LineSegment2D.md))
 - `angle_rad` (`float`)
 
-`rotate(collection: geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)`, angle_rad: float) -> geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)
+`rotate(collection: `[`GeometryCollection2D`](GeometryCollection2D.md)`, angle_rad: float) -> `[`GeometryCollection2D`](GeometryCollection2D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection2D`](GeometryCollection2D.md))
+- `collection` ([`GeometryCollection2D`](GeometryCollection2D.md))
 - `angle_rad` (`float`)
 
-`rotate(poly: geometry::`[`Polygon2D`](Polygon2D.md)`, angle_rad: float) -> geometry::`[`Polygon2D`](Polygon2D.md)
+`rotate(poly: `[`Polygon2D`](Polygon2D.md)`, angle_rad: float) -> `[`Polygon2D`](Polygon2D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon2D`](Polygon2D.md))
+- `poly` ([`Polygon2D`](Polygon2D.md))
 - `angle_rad` (`float`)
 
-`rotate(polyline: geometry::`[`Polyline2D`](Polyline2D.md)`, angle_rad: float) -> geometry::`[`Polyline2D`](Polyline2D.md)
+`rotate(polyline: `[`Polyline2D`](Polyline2D.md)`, angle_rad: float) -> `[`Polyline2D`](Polyline2D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline2D`](Polyline2D.md))
+- `polyline` ([`Polyline2D`](Polyline2D.md))
 - `angle_rad` (`float`)
 
-`rotate(tri: geometry::`[`Triangle2D`](Triangle2D.md)`, angle_rad: float) -> geometry::`[`Triangle2D`](Triangle2D.md)
+`rotate(tri: `[`Triangle2D`](Triangle2D.md)`, angle_rad: float) -> `[`Triangle2D`](Triangle2D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle2D`](Triangle2D.md))
+- `tri` ([`Triangle2D`](Triangle2D.md))
 - `angle_rad` (`float`)
 
-`rotate(mesh: geometry::`[`Mesh2D`](Mesh2D.md)`, angle_rad: float) -> geometry::`[`Mesh2D`](Mesh2D.md)
+`rotate(mesh: `[`Mesh2D`](Mesh2D.md)`, angle_rad: float) -> `[`Mesh2D`](Mesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh2D`](Mesh2D.md))
+- `mesh` ([`Mesh2D`](Mesh2D.md))
 - `angle_rad` (`float`)
 
-`rotate(mesh: geometry::`[`PolyMesh2D`](PolyMesh2D.md)`, angle_rad: float) -> geometry::`[`PolyMesh2D`](PolyMesh2D.md)
+`rotate(mesh: `[`PolyMesh2D`](PolyMesh2D.md)`, angle_rad: float) -> `[`PolyMesh2D`](PolyMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh2D`](PolyMesh2D.md))
+- `mesh` ([`PolyMesh2D`](PolyMesh2D.md))
 - `angle_rad` (`float`)
 
-`rotate(mesh: geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)`, angle_rad: float) -> geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)
+`rotate(mesh: `[`ConnectedMesh2D`](ConnectedMesh2D.md)`, angle_rad: float) -> `[`ConnectedMesh2D`](ConnectedMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh2D`](ConnectedMesh2D.md))
+- `mesh` ([`ConnectedMesh2D`](ConnectedMesh2D.md))
 - `angle_rad` (`float`)
 
-`rotate(p: geometry::`[`Point3D`](Point3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Point3D`](Point3D.md)
+`rotate(p: `[`Point3D`](Point3D.md)`, angle_rad: float, axis: Vector3) -> `[`Point3D`](Point3D.md)
 
 Rotates a point about the origin, around axis , by angle_rad radians (Rodrigues' formula, right-hand rule).
 
@@ -510,11 +510,11 @@ Builds a Matrix4::Rotation() internally (unlike the 2D overload, a 3D rotation i
 
 **Parameters**
 
-- `p` (geometry::[`Point3D`](Point3D.md))
+- `p` ([`Point3D`](Point3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(v: geometry::`[`Vector3D`](Vector3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Vector3D`](Vector3D.md)
+`rotate(v: `[`Vector3D`](Vector3D.md)`, angle_rad: float, axis: Vector3) -> `[`Vector3D`](Vector3D.md)
 
 Rotates a vector (direction) about axis by angle_rad radians (Rodrigues' formula).
 
@@ -522,103 +522,103 @@ Builds a Matrix4::Rotation() internally, same as [Point3D](Point3D.md)::rotate()
 
 **Parameters**
 
-- `v` (geometry::[`Vector3D`](Vector3D.md))
+- `v` ([`Vector3D`](Vector3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(ray: geometry::`[`Ray3D`](Ray3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Ray3D`](Ray3D.md)
+`rotate(ray: `[`Ray3D`](Ray3D.md)`, angle_rad: float, axis: Vector3) -> `[`Ray3D`](Ray3D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray3D`](Ray3D.md))
+- `ray` ([`Ray3D`](Ray3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(line: geometry::`[`Line3D`](Line3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Line3D`](Line3D.md)
+`rotate(line: `[`Line3D`](Line3D.md)`, angle_rad: float, axis: Vector3) -> `[`Line3D`](Line3D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line3D`](Line3D.md))
+- `line` ([`Line3D`](Line3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(seg: geometry::`[`LineSegment3D`](LineSegment3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`LineSegment3D`](LineSegment3D.md)
+`rotate(seg: `[`LineSegment3D`](LineSegment3D.md)`, angle_rad: float, axis: Vector3) -> `[`LineSegment3D`](LineSegment3D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment3D`](LineSegment3D.md))
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(collection: geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)
+`rotate(collection: `[`GeometryCollection3D`](GeometryCollection3D.md)`, angle_rad: float, axis: Vector3) -> `[`GeometryCollection3D`](GeometryCollection3D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection3D`](GeometryCollection3D.md))
+- `collection` ([`GeometryCollection3D`](GeometryCollection3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(poly: geometry::`[`Polygon3D`](Polygon3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Polygon3D`](Polygon3D.md)
+`rotate(poly: `[`Polygon3D`](Polygon3D.md)`, angle_rad: float, axis: Vector3) -> `[`Polygon3D`](Polygon3D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon3D`](Polygon3D.md))
+- `poly` ([`Polygon3D`](Polygon3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(polyline: geometry::`[`Polyline3D`](Polyline3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Polyline3D`](Polyline3D.md)
+`rotate(polyline: `[`Polyline3D`](Polyline3D.md)`, angle_rad: float, axis: Vector3) -> `[`Polyline3D`](Polyline3D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline3D`](Polyline3D.md))
+- `polyline` ([`Polyline3D`](Polyline3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(tri: geometry::`[`Triangle3D`](Triangle3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Triangle3D`](Triangle3D.md)
+`rotate(tri: `[`Triangle3D`](Triangle3D.md)`, angle_rad: float, axis: Vector3) -> `[`Triangle3D`](Triangle3D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle3D`](Triangle3D.md))
+- `tri` ([`Triangle3D`](Triangle3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(mesh: geometry::`[`Mesh3D`](Mesh3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`Mesh3D`](Mesh3D.md)
+`rotate(mesh: `[`Mesh3D`](Mesh3D.md)`, angle_rad: float, axis: Vector3) -> `[`Mesh3D`](Mesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh3D`](Mesh3D.md))
+- `mesh` ([`Mesh3D`](Mesh3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(mesh: geometry::`[`PolyMesh3D`](PolyMesh3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`PolyMesh3D`](PolyMesh3D.md)
+`rotate(mesh: `[`PolyMesh3D`](PolyMesh3D.md)`, angle_rad: float, axis: Vector3) -> `[`PolyMesh3D`](PolyMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh3D`](PolyMesh3D.md))
+- `mesh` ([`PolyMesh3D`](PolyMesh3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
-`rotate(mesh: geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)`, angle_rad: float, axis: maths::Vector3) -> geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)
+`rotate(mesh: `[`ConnectedMesh3D`](ConnectedMesh3D.md)`, angle_rad: float, axis: Vector3) -> `[`ConnectedMesh3D`](ConnectedMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh3D`](ConnectedMesh3D.md))
+- `mesh` ([`ConnectedMesh3D`](ConnectedMesh3D.md))
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
 ## `scale`
 
-`scale(p: geometry::`[`Point2D`](Point2D.md)`, factor: float) -> geometry::`[`Point2D`](Point2D.md)
+`scale(p: `[`Point2D`](Point2D.md)`, factor: float) -> `[`Point2D`](Point2D.md)
 
 Scales a point's coordinates about the origin by a uniform factor.
 
@@ -626,209 +626,209 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point2D`](Point2D.md))
+- `p` ([`Point2D`](Point2D.md))
 - `factor` (`float`)
 
-`scale(p: geometry::`[`Point2D`](Point2D.md)`, sx: float, sy: float) -> geometry::`[`Point2D`](Point2D.md)
+`scale(p: `[`Point2D`](Point2D.md)`, sx: float, sy: float) -> `[`Point2D`](Point2D.md)
 
 Scales a point's coordinates about the origin independently per axis.
 
 **Parameters**
 
-- `p` (geometry::[`Point2D`](Point2D.md))
+- `p` ([`Point2D`](Point2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(v: geometry::`[`Vector2D`](Vector2D.md)`, factor: float) -> geometry::`[`Vector2D`](Vector2D.md)
+`scale(v: `[`Vector2D`](Vector2D.md)`, factor: float) -> `[`Vector2D`](Vector2D.md)
 
 Scales a vector's components by a uniform factor. Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `v` (geometry::[`Vector2D`](Vector2D.md))
+- `v` ([`Vector2D`](Vector2D.md))
 - `factor` (`float`)
 
-`scale(v: geometry::`[`Vector2D`](Vector2D.md)`, sx: float, sy: float) -> geometry::`[`Vector2D`](Vector2D.md)
+`scale(v: `[`Vector2D`](Vector2D.md)`, sx: float, sy: float) -> `[`Vector2D`](Vector2D.md)
 
 Scales a vector's components independently per axis.
 
 **Parameters**
 
-- `v` (geometry::[`Vector2D`](Vector2D.md))
+- `v` ([`Vector2D`](Vector2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(ray: geometry::`[`Ray2D`](Ray2D.md)`, factor: float) -> geometry::`[`Ray2D`](Ray2D.md)
+`scale(ray: `[`Ray2D`](Ray2D.md)`, factor: float) -> `[`Ray2D`](Ray2D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray2D`](Ray2D.md))
+- `ray` ([`Ray2D`](Ray2D.md))
 - `factor` (`float`)
 
-`scale(ray: geometry::`[`Ray2D`](Ray2D.md)`, sx: float, sy: float) -> geometry::`[`Ray2D`](Ray2D.md)
+`scale(ray: `[`Ray2D`](Ray2D.md)`, sx: float, sy: float) -> `[`Ray2D`](Ray2D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray2D`](Ray2D.md))
+- `ray` ([`Ray2D`](Ray2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(line: geometry::`[`Line2D`](Line2D.md)`, factor: float) -> geometry::`[`Line2D`](Line2D.md)
+`scale(line: `[`Line2D`](Line2D.md)`, factor: float) -> `[`Line2D`](Line2D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line2D`](Line2D.md))
+- `line` ([`Line2D`](Line2D.md))
 - `factor` (`float`)
 
-`scale(line: geometry::`[`Line2D`](Line2D.md)`, sx: float, sy: float) -> geometry::`[`Line2D`](Line2D.md)
+`scale(line: `[`Line2D`](Line2D.md)`, sx: float, sy: float) -> `[`Line2D`](Line2D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line2D`](Line2D.md))
+- `line` ([`Line2D`](Line2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(seg: geometry::`[`LineSegment2D`](LineSegment2D.md)`, factor: float) -> geometry::`[`LineSegment2D`](LineSegment2D.md)
+`scale(seg: `[`LineSegment2D`](LineSegment2D.md)`, factor: float) -> `[`LineSegment2D`](LineSegment2D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment2D`](LineSegment2D.md))
+- `seg` ([`LineSegment2D`](LineSegment2D.md))
 - `factor` (`float`)
 
-`scale(seg: geometry::`[`LineSegment2D`](LineSegment2D.md)`, sx: float, sy: float) -> geometry::`[`LineSegment2D`](LineSegment2D.md)
+`scale(seg: `[`LineSegment2D`](LineSegment2D.md)`, sx: float, sy: float) -> `[`LineSegment2D`](LineSegment2D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment2D`](LineSegment2D.md))
+- `seg` ([`LineSegment2D`](LineSegment2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(collection: geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)`, factor: float) -> geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)
+`scale(collection: `[`GeometryCollection2D`](GeometryCollection2D.md)`, factor: float) -> `[`GeometryCollection2D`](GeometryCollection2D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection2D`](GeometryCollection2D.md))
+- `collection` ([`GeometryCollection2D`](GeometryCollection2D.md))
 - `factor` (`float`)
 
-`scale(collection: geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)`, sx: float, sy: float) -> geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)
+`scale(collection: `[`GeometryCollection2D`](GeometryCollection2D.md)`, sx: float, sy: float) -> `[`GeometryCollection2D`](GeometryCollection2D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection2D`](GeometryCollection2D.md))
+- `collection` ([`GeometryCollection2D`](GeometryCollection2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(poly: geometry::`[`Polygon2D`](Polygon2D.md)`, factor: float) -> geometry::`[`Polygon2D`](Polygon2D.md)
+`scale(poly: `[`Polygon2D`](Polygon2D.md)`, factor: float) -> `[`Polygon2D`](Polygon2D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon2D`](Polygon2D.md))
+- `poly` ([`Polygon2D`](Polygon2D.md))
 - `factor` (`float`)
 
-`scale(poly: geometry::`[`Polygon2D`](Polygon2D.md)`, sx: float, sy: float) -> geometry::`[`Polygon2D`](Polygon2D.md)
+`scale(poly: `[`Polygon2D`](Polygon2D.md)`, sx: float, sy: float) -> `[`Polygon2D`](Polygon2D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon2D`](Polygon2D.md))
+- `poly` ([`Polygon2D`](Polygon2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(polyline: geometry::`[`Polyline2D`](Polyline2D.md)`, factor: float) -> geometry::`[`Polyline2D`](Polyline2D.md)
+`scale(polyline: `[`Polyline2D`](Polyline2D.md)`, factor: float) -> `[`Polyline2D`](Polyline2D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline2D`](Polyline2D.md))
+- `polyline` ([`Polyline2D`](Polyline2D.md))
 - `factor` (`float`)
 
-`scale(polyline: geometry::`[`Polyline2D`](Polyline2D.md)`, sx: float, sy: float) -> geometry::`[`Polyline2D`](Polyline2D.md)
+`scale(polyline: `[`Polyline2D`](Polyline2D.md)`, sx: float, sy: float) -> `[`Polyline2D`](Polyline2D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline2D`](Polyline2D.md))
+- `polyline` ([`Polyline2D`](Polyline2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(tri: geometry::`[`Triangle2D`](Triangle2D.md)`, factor: float) -> geometry::`[`Triangle2D`](Triangle2D.md)
+`scale(tri: `[`Triangle2D`](Triangle2D.md)`, factor: float) -> `[`Triangle2D`](Triangle2D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle2D`](Triangle2D.md))
+- `tri` ([`Triangle2D`](Triangle2D.md))
 - `factor` (`float`)
 
-`scale(tri: geometry::`[`Triangle2D`](Triangle2D.md)`, sx: float, sy: float) -> geometry::`[`Triangle2D`](Triangle2D.md)
+`scale(tri: `[`Triangle2D`](Triangle2D.md)`, sx: float, sy: float) -> `[`Triangle2D`](Triangle2D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle2D`](Triangle2D.md))
+- `tri` ([`Triangle2D`](Triangle2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(mesh: geometry::`[`Mesh2D`](Mesh2D.md)`, factor: float) -> geometry::`[`Mesh2D`](Mesh2D.md)
+`scale(mesh: `[`Mesh2D`](Mesh2D.md)`, factor: float) -> `[`Mesh2D`](Mesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh2D`](Mesh2D.md))
+- `mesh` ([`Mesh2D`](Mesh2D.md))
 - `factor` (`float`)
 
-`scale(mesh: geometry::`[`Mesh2D`](Mesh2D.md)`, sx: float, sy: float) -> geometry::`[`Mesh2D`](Mesh2D.md)
+`scale(mesh: `[`Mesh2D`](Mesh2D.md)`, sx: float, sy: float) -> `[`Mesh2D`](Mesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh2D`](Mesh2D.md))
+- `mesh` ([`Mesh2D`](Mesh2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(mesh: geometry::`[`PolyMesh2D`](PolyMesh2D.md)`, factor: float) -> geometry::`[`PolyMesh2D`](PolyMesh2D.md)
+`scale(mesh: `[`PolyMesh2D`](PolyMesh2D.md)`, factor: float) -> `[`PolyMesh2D`](PolyMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh2D`](PolyMesh2D.md))
+- `mesh` ([`PolyMesh2D`](PolyMesh2D.md))
 - `factor` (`float`)
 
-`scale(mesh: geometry::`[`PolyMesh2D`](PolyMesh2D.md)`, sx: float, sy: float) -> geometry::`[`PolyMesh2D`](PolyMesh2D.md)
+`scale(mesh: `[`PolyMesh2D`](PolyMesh2D.md)`, sx: float, sy: float) -> `[`PolyMesh2D`](PolyMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh2D`](PolyMesh2D.md))
+- `mesh` ([`PolyMesh2D`](PolyMesh2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(mesh: geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)`, factor: float) -> geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)
+`scale(mesh: `[`ConnectedMesh2D`](ConnectedMesh2D.md)`, factor: float) -> `[`ConnectedMesh2D`](ConnectedMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh2D`](ConnectedMesh2D.md))
+- `mesh` ([`ConnectedMesh2D`](ConnectedMesh2D.md))
 - `factor` (`float`)
 
-`scale(mesh: geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)`, sx: float, sy: float) -> geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)
+`scale(mesh: `[`ConnectedMesh2D`](ConnectedMesh2D.md)`, sx: float, sy: float) -> `[`ConnectedMesh2D`](ConnectedMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh2D`](ConnectedMesh2D.md))
+- `mesh` ([`ConnectedMesh2D`](ConnectedMesh2D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 
-`scale(p: geometry::`[`Point3D`](Point3D.md)`, factor: float) -> geometry::`[`Point3D`](Point3D.md)
+`scale(p: `[`Point3D`](Point3D.md)`, factor: float) -> `[`Point3D`](Point3D.md)
 
 Scales a point's coordinates about the origin by a uniform factor.
 
@@ -836,333 +836,333 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point3D`](Point3D.md))
+- `p` ([`Point3D`](Point3D.md))
 - `factor` (`float`)
 
-`scale(p: geometry::`[`Point3D`](Point3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Point3D`](Point3D.md)
+`scale(p: `[`Point3D`](Point3D.md)`, sx: float, sy: float, sz: float) -> `[`Point3D`](Point3D.md)
 
 Scales a point's coordinates about the origin independently per axis.
 
 **Parameters**
 
-- `p` (geometry::[`Point3D`](Point3D.md))
+- `p` ([`Point3D`](Point3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(v: geometry::`[`Vector3D`](Vector3D.md)`, factor: float) -> geometry::`[`Vector3D`](Vector3D.md)
+`scale(v: `[`Vector3D`](Vector3D.md)`, factor: float) -> `[`Vector3D`](Vector3D.md)
 
 Scales a vector's components by a uniform factor. Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `v` (geometry::[`Vector3D`](Vector3D.md))
+- `v` ([`Vector3D`](Vector3D.md))
 - `factor` (`float`)
 
-`scale(v: geometry::`[`Vector3D`](Vector3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Vector3D`](Vector3D.md)
+`scale(v: `[`Vector3D`](Vector3D.md)`, sx: float, sy: float, sz: float) -> `[`Vector3D`](Vector3D.md)
 
 Scales a vector's components independently per axis.
 
 **Parameters**
 
-- `v` (geometry::[`Vector3D`](Vector3D.md))
+- `v` ([`Vector3D`](Vector3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(ray: geometry::`[`Ray3D`](Ray3D.md)`, factor: float) -> geometry::`[`Ray3D`](Ray3D.md)
+`scale(ray: `[`Ray3D`](Ray3D.md)`, factor: float) -> `[`Ray3D`](Ray3D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray3D`](Ray3D.md))
+- `ray` ([`Ray3D`](Ray3D.md))
 - `factor` (`float`)
 
-`scale(ray: geometry::`[`Ray3D`](Ray3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Ray3D`](Ray3D.md)
+`scale(ray: `[`Ray3D`](Ray3D.md)`, sx: float, sy: float, sz: float) -> `[`Ray3D`](Ray3D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray3D`](Ray3D.md))
+- `ray` ([`Ray3D`](Ray3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(line: geometry::`[`Line3D`](Line3D.md)`, factor: float) -> geometry::`[`Line3D`](Line3D.md)
+`scale(line: `[`Line3D`](Line3D.md)`, factor: float) -> `[`Line3D`](Line3D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line3D`](Line3D.md))
+- `line` ([`Line3D`](Line3D.md))
 - `factor` (`float`)
 
-`scale(line: geometry::`[`Line3D`](Line3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Line3D`](Line3D.md)
+`scale(line: `[`Line3D`](Line3D.md)`, sx: float, sy: float, sz: float) -> `[`Line3D`](Line3D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line3D`](Line3D.md))
+- `line` ([`Line3D`](Line3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(seg: geometry::`[`LineSegment3D`](LineSegment3D.md)`, factor: float) -> geometry::`[`LineSegment3D`](LineSegment3D.md)
+`scale(seg: `[`LineSegment3D`](LineSegment3D.md)`, factor: float) -> `[`LineSegment3D`](LineSegment3D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment3D`](LineSegment3D.md))
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
 - `factor` (`float`)
 
-`scale(seg: geometry::`[`LineSegment3D`](LineSegment3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`LineSegment3D`](LineSegment3D.md)
+`scale(seg: `[`LineSegment3D`](LineSegment3D.md)`, sx: float, sy: float, sz: float) -> `[`LineSegment3D`](LineSegment3D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment3D`](LineSegment3D.md))
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(collection: geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)`, factor: float) -> geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)
+`scale(collection: `[`GeometryCollection3D`](GeometryCollection3D.md)`, factor: float) -> `[`GeometryCollection3D`](GeometryCollection3D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection3D`](GeometryCollection3D.md))
+- `collection` ([`GeometryCollection3D`](GeometryCollection3D.md))
 - `factor` (`float`)
 
-`scale(collection: geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)
+`scale(collection: `[`GeometryCollection3D`](GeometryCollection3D.md)`, sx: float, sy: float, sz: float) -> `[`GeometryCollection3D`](GeometryCollection3D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection3D`](GeometryCollection3D.md))
+- `collection` ([`GeometryCollection3D`](GeometryCollection3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(poly: geometry::`[`Polygon3D`](Polygon3D.md)`, factor: float) -> geometry::`[`Polygon3D`](Polygon3D.md)
+`scale(poly: `[`Polygon3D`](Polygon3D.md)`, factor: float) -> `[`Polygon3D`](Polygon3D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon3D`](Polygon3D.md))
+- `poly` ([`Polygon3D`](Polygon3D.md))
 - `factor` (`float`)
 
-`scale(poly: geometry::`[`Polygon3D`](Polygon3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Polygon3D`](Polygon3D.md)
+`scale(poly: `[`Polygon3D`](Polygon3D.md)`, sx: float, sy: float, sz: float) -> `[`Polygon3D`](Polygon3D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon3D`](Polygon3D.md))
+- `poly` ([`Polygon3D`](Polygon3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(polyline: geometry::`[`Polyline3D`](Polyline3D.md)`, factor: float) -> geometry::`[`Polyline3D`](Polyline3D.md)
+`scale(polyline: `[`Polyline3D`](Polyline3D.md)`, factor: float) -> `[`Polyline3D`](Polyline3D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline3D`](Polyline3D.md))
+- `polyline` ([`Polyline3D`](Polyline3D.md))
 - `factor` (`float`)
 
-`scale(polyline: geometry::`[`Polyline3D`](Polyline3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Polyline3D`](Polyline3D.md)
+`scale(polyline: `[`Polyline3D`](Polyline3D.md)`, sx: float, sy: float, sz: float) -> `[`Polyline3D`](Polyline3D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline3D`](Polyline3D.md))
+- `polyline` ([`Polyline3D`](Polyline3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(tri: geometry::`[`Triangle3D`](Triangle3D.md)`, factor: float) -> geometry::`[`Triangle3D`](Triangle3D.md)
+`scale(tri: `[`Triangle3D`](Triangle3D.md)`, factor: float) -> `[`Triangle3D`](Triangle3D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle3D`](Triangle3D.md))
+- `tri` ([`Triangle3D`](Triangle3D.md))
 - `factor` (`float`)
 
-`scale(tri: geometry::`[`Triangle3D`](Triangle3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Triangle3D`](Triangle3D.md)
+`scale(tri: `[`Triangle3D`](Triangle3D.md)`, sx: float, sy: float, sz: float) -> `[`Triangle3D`](Triangle3D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle3D`](Triangle3D.md))
+- `tri` ([`Triangle3D`](Triangle3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(mesh: geometry::`[`Mesh3D`](Mesh3D.md)`, factor: float) -> geometry::`[`Mesh3D`](Mesh3D.md)
+`scale(mesh: `[`Mesh3D`](Mesh3D.md)`, factor: float) -> `[`Mesh3D`](Mesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh3D`](Mesh3D.md))
+- `mesh` ([`Mesh3D`](Mesh3D.md))
 - `factor` (`float`)
 
-`scale(mesh: geometry::`[`Mesh3D`](Mesh3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`Mesh3D`](Mesh3D.md)
+`scale(mesh: `[`Mesh3D`](Mesh3D.md)`, sx: float, sy: float, sz: float) -> `[`Mesh3D`](Mesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh3D`](Mesh3D.md))
+- `mesh` ([`Mesh3D`](Mesh3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(mesh: geometry::`[`PolyMesh3D`](PolyMesh3D.md)`, factor: float) -> geometry::`[`PolyMesh3D`](PolyMesh3D.md)
+`scale(mesh: `[`PolyMesh3D`](PolyMesh3D.md)`, factor: float) -> `[`PolyMesh3D`](PolyMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh3D`](PolyMesh3D.md))
+- `mesh` ([`PolyMesh3D`](PolyMesh3D.md))
 - `factor` (`float`)
 
-`scale(mesh: geometry::`[`PolyMesh3D`](PolyMesh3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`PolyMesh3D`](PolyMesh3D.md)
+`scale(mesh: `[`PolyMesh3D`](PolyMesh3D.md)`, sx: float, sy: float, sz: float) -> `[`PolyMesh3D`](PolyMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh3D`](PolyMesh3D.md))
+- `mesh` ([`PolyMesh3D`](PolyMesh3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
-`scale(mesh: geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)`, factor: float) -> geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)
+`scale(mesh: `[`ConnectedMesh3D`](ConnectedMesh3D.md)`, factor: float) -> `[`ConnectedMesh3D`](ConnectedMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh3D`](ConnectedMesh3D.md))
+- `mesh` ([`ConnectedMesh3D`](ConnectedMesh3D.md))
 - `factor` (`float`)
 
-`scale(mesh: geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)`, sx: float, sy: float, sz: float) -> geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)
+`scale(mesh: `[`ConnectedMesh3D`](ConnectedMesh3D.md)`, sx: float, sy: float, sz: float) -> `[`ConnectedMesh3D`](ConnectedMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh3D`](ConnectedMesh3D.md))
+- `mesh` ([`ConnectedMesh3D`](ConnectedMesh3D.md))
 - `sx` (`float`)
 - `sy` (`float`)
 - `sz` (`float`)
 
 ## `shear`
 
-`shear(p: geometry::`[`Point2D`](Point2D.md)`, shx: float, shy: float) -> geometry::`[`Point2D`](Point2D.md)
+`shear(p: `[`Point2D`](Point2D.md)`, shx: float, shy: float) -> `[`Point2D`](Point2D.md)
 
 Shears a point: x' = x + shx*y, y' = y + shy*x. Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point2D`](Point2D.md))
+- `p` ([`Point2D`](Point2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(v: geometry::`[`Vector2D`](Vector2D.md)`, shx: float, shy: float) -> geometry::`[`Vector2D`](Vector2D.md)
+`shear(v: `[`Vector2D`](Vector2D.md)`, shx: float, shy: float) -> `[`Vector2D`](Vector2D.md)
 
 Shears a vector: x' = x + shx*y, y' = y + shy*x. Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `v` (geometry::[`Vector2D`](Vector2D.md))
+- `v` ([`Vector2D`](Vector2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(ray: geometry::`[`Ray2D`](Ray2D.md)`, shx: float, shy: float) -> geometry::`[`Ray2D`](Ray2D.md)
+`shear(ray: `[`Ray2D`](Ray2D.md)`, shx: float, shy: float) -> `[`Ray2D`](Ray2D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray2D`](Ray2D.md))
+- `ray` ([`Ray2D`](Ray2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(line: geometry::`[`Line2D`](Line2D.md)`, shx: float, shy: float) -> geometry::`[`Line2D`](Line2D.md)
+`shear(line: `[`Line2D`](Line2D.md)`, shx: float, shy: float) -> `[`Line2D`](Line2D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line2D`](Line2D.md))
+- `line` ([`Line2D`](Line2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(seg: geometry::`[`LineSegment2D`](LineSegment2D.md)`, shx: float, shy: float) -> geometry::`[`LineSegment2D`](LineSegment2D.md)
+`shear(seg: `[`LineSegment2D`](LineSegment2D.md)`, shx: float, shy: float) -> `[`LineSegment2D`](LineSegment2D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment2D`](LineSegment2D.md))
+- `seg` ([`LineSegment2D`](LineSegment2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(collection: geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)`, shx: float, shy: float) -> geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)
+`shear(collection: `[`GeometryCollection2D`](GeometryCollection2D.md)`, shx: float, shy: float) -> `[`GeometryCollection2D`](GeometryCollection2D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection2D`](GeometryCollection2D.md))
+- `collection` ([`GeometryCollection2D`](GeometryCollection2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(poly: geometry::`[`Polygon2D`](Polygon2D.md)`, shx: float, shy: float) -> geometry::`[`Polygon2D`](Polygon2D.md)
+`shear(poly: `[`Polygon2D`](Polygon2D.md)`, shx: float, shy: float) -> `[`Polygon2D`](Polygon2D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon2D`](Polygon2D.md))
+- `poly` ([`Polygon2D`](Polygon2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(polyline: geometry::`[`Polyline2D`](Polyline2D.md)`, shx: float, shy: float) -> geometry::`[`Polyline2D`](Polyline2D.md)
+`shear(polyline: `[`Polyline2D`](Polyline2D.md)`, shx: float, shy: float) -> `[`Polyline2D`](Polyline2D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline2D`](Polyline2D.md))
+- `polyline` ([`Polyline2D`](Polyline2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(tri: geometry::`[`Triangle2D`](Triangle2D.md)`, shx: float, shy: float) -> geometry::`[`Triangle2D`](Triangle2D.md)
+`shear(tri: `[`Triangle2D`](Triangle2D.md)`, shx: float, shy: float) -> `[`Triangle2D`](Triangle2D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle2D`](Triangle2D.md))
+- `tri` ([`Triangle2D`](Triangle2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(mesh: geometry::`[`Mesh2D`](Mesh2D.md)`, shx: float, shy: float) -> geometry::`[`Mesh2D`](Mesh2D.md)
+`shear(mesh: `[`Mesh2D`](Mesh2D.md)`, shx: float, shy: float) -> `[`Mesh2D`](Mesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh2D`](Mesh2D.md))
+- `mesh` ([`Mesh2D`](Mesh2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(mesh: geometry::`[`PolyMesh2D`](PolyMesh2D.md)`, shx: float, shy: float) -> geometry::`[`PolyMesh2D`](PolyMesh2D.md)
+`shear(mesh: `[`PolyMesh2D`](PolyMesh2D.md)`, shx: float, shy: float) -> `[`PolyMesh2D`](PolyMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh2D`](PolyMesh2D.md))
+- `mesh` ([`PolyMesh2D`](PolyMesh2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(mesh: geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)`, shx: float, shy: float) -> geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)
+`shear(mesh: `[`ConnectedMesh2D`](ConnectedMesh2D.md)`, shx: float, shy: float) -> `[`ConnectedMesh2D`](ConnectedMesh2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh2D`](ConnectedMesh2D.md))
+- `mesh` ([`ConnectedMesh2D`](ConnectedMesh2D.md))
 - `shx` (`float`)
 - `shy` (`float`)
 
-`shear(p: geometry::`[`Point3D`](Point3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Point3D`](Point3D.md)
+`shear(p: `[`Point3D`](Point3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Point3D`](Point3D.md)
 
 Shears a point: each axis is offset by a multiple of the other two ( xy shears X by Y, zy shears Z by Y, etc.).
 
@@ -1170,7 +1170,7 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point3D`](Point3D.md))
+- `p` ([`Point3D`](Point3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1178,7 +1178,7 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(v: geometry::`[`Vector3D`](Vector3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Vector3D`](Vector3D.md)
+`shear(v: `[`Vector3D`](Vector3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Vector3D`](Vector3D.md)
 
 Shears a vector: each axis is offset by a multiple of the other two.
 
@@ -1186,7 +1186,7 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `v` (geometry::[`Vector3D`](Vector3D.md))
+- `v` ([`Vector3D`](Vector3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1194,12 +1194,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(ray: geometry::`[`Ray3D`](Ray3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Ray3D`](Ray3D.md)
+`shear(ray: `[`Ray3D`](Ray3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Ray3D`](Ray3D.md)
 
 
 **Parameters**
 
-- `ray` (geometry::[`Ray3D`](Ray3D.md))
+- `ray` ([`Ray3D`](Ray3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1207,12 +1207,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(line: geometry::`[`Line3D`](Line3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Line3D`](Line3D.md)
+`shear(line: `[`Line3D`](Line3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Line3D`](Line3D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line3D`](Line3D.md))
+- `line` ([`Line3D`](Line3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1220,12 +1220,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(seg: geometry::`[`LineSegment3D`](LineSegment3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`LineSegment3D`](LineSegment3D.md)
+`shear(seg: `[`LineSegment3D`](LineSegment3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`LineSegment3D`](LineSegment3D.md)
 
 
 **Parameters**
 
-- `seg` (geometry::[`LineSegment3D`](LineSegment3D.md))
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1233,12 +1233,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(collection: geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)
+`shear(collection: `[`GeometryCollection3D`](GeometryCollection3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`GeometryCollection3D`](GeometryCollection3D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection3D`](GeometryCollection3D.md))
+- `collection` ([`GeometryCollection3D`](GeometryCollection3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1246,12 +1246,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(poly: geometry::`[`Polygon3D`](Polygon3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Polygon3D`](Polygon3D.md)
+`shear(poly: `[`Polygon3D`](Polygon3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Polygon3D`](Polygon3D.md)
 
 
 **Parameters**
 
-- `poly` (geometry::[`Polygon3D`](Polygon3D.md))
+- `poly` ([`Polygon3D`](Polygon3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1259,12 +1259,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(polyline: geometry::`[`Polyline3D`](Polyline3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Polyline3D`](Polyline3D.md)
+`shear(polyline: `[`Polyline3D`](Polyline3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Polyline3D`](Polyline3D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline3D`](Polyline3D.md))
+- `polyline` ([`Polyline3D`](Polyline3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1272,12 +1272,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(tri: geometry::`[`Triangle3D`](Triangle3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Triangle3D`](Triangle3D.md)
+`shear(tri: `[`Triangle3D`](Triangle3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Triangle3D`](Triangle3D.md)
 
 
 **Parameters**
 
-- `tri` (geometry::[`Triangle3D`](Triangle3D.md))
+- `tri` ([`Triangle3D`](Triangle3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1285,12 +1285,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(mesh: geometry::`[`Mesh3D`](Mesh3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`Mesh3D`](Mesh3D.md)
+`shear(mesh: `[`Mesh3D`](Mesh3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`Mesh3D`](Mesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh3D`](Mesh3D.md))
+- `mesh` ([`Mesh3D`](Mesh3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1298,12 +1298,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(mesh: geometry::`[`PolyMesh3D`](PolyMesh3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`PolyMesh3D`](PolyMesh3D.md)
+`shear(mesh: `[`PolyMesh3D`](PolyMesh3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`PolyMesh3D`](PolyMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`PolyMesh3D`](PolyMesh3D.md))
+- `mesh` ([`PolyMesh3D`](PolyMesh3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1311,12 +1311,12 @@ Direct arithmetic no matrix built.
 - `zx` (`float`)
 - `zy` (`float`)
 
-`shear(mesh: geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)
+`shear(mesh: `[`ConnectedMesh3D`](ConnectedMesh3D.md)`, xy: float, xz: float, yx: float, yz: float, zx: float, zy: float) -> `[`ConnectedMesh3D`](ConnectedMesh3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh3D`](ConnectedMesh3D.md))
+- `mesh` ([`ConnectedMesh3D`](ConnectedMesh3D.md))
 - `xy` (`float`)
 - `xz` (`float`)
 - `yx` (`float`)
@@ -1326,7 +1326,7 @@ Direct arithmetic no matrix built.
 
 ## `reflect`
 
-`reflect(p: geometry::`[`Point2D`](Point2D.md)`, normal: maths::Vector2) -> geometry::`[`Point2D`](Point2D.md)
+`reflect(p: `[`Point2D`](Point2D.md)`, normal: Vector2) -> `[`Point2D`](Point2D.md)
 
 Reflects a point across the line through the origin whose normal is normal (Householder reflection).
 
@@ -1334,10 +1334,10 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point2D`](Point2D.md))
-- `normal` (`maths::Vector2`)
+- `p` ([`Point2D`](Point2D.md))
+- `normal` (`Vector2`)
 
-`reflect(v: geometry::`[`Vector2D`](Vector2D.md)`, normal: maths::Vector2) -> geometry::`[`Vector2D`](Vector2D.md)
+`reflect(v: `[`Vector2D`](Vector2D.md)`, normal: Vector2) -> `[`Vector2D`](Vector2D.md)
 
 Reflects a vector across the line through the origin whose normal is normal .
 
@@ -1345,90 +1345,90 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `v` (geometry::[`Vector2D`](Vector2D.md))
-- `normal` (`maths::Vector2`)
+- `v` ([`Vector2D`](Vector2D.md))
+- `normal` (`Vector2`)
 
-`reflect(ray: geometry::`[`Ray2D`](Ray2D.md)`, normal: maths::Vector2) -> geometry::`[`Ray2D`](Ray2D.md)
-
-
-**Parameters**
-
-- `ray` (geometry::[`Ray2D`](Ray2D.md))
-- `normal` (`maths::Vector2`)
-
-`reflect(line: geometry::`[`Line2D`](Line2D.md)`, normal: maths::Vector2) -> geometry::`[`Line2D`](Line2D.md)
+`reflect(ray: `[`Ray2D`](Ray2D.md)`, normal: Vector2) -> `[`Ray2D`](Ray2D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line2D`](Line2D.md))
-- `normal` (`maths::Vector2`)
+- `ray` ([`Ray2D`](Ray2D.md))
+- `normal` (`Vector2`)
 
-`reflect(seg: geometry::`[`LineSegment2D`](LineSegment2D.md)`, normal: maths::Vector2) -> geometry::`[`LineSegment2D`](LineSegment2D.md)
-
-
-**Parameters**
-
-- `seg` (geometry::[`LineSegment2D`](LineSegment2D.md))
-- `normal` (`maths::Vector2`)
-
-`reflect(collection: geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)`, normal: maths::Vector2) -> geometry::`[`GeometryCollection2D`](GeometryCollection2D.md)
+`reflect(line: `[`Line2D`](Line2D.md)`, normal: Vector2) -> `[`Line2D`](Line2D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection2D`](GeometryCollection2D.md))
-- `normal` (`maths::Vector2`)
+- `line` ([`Line2D`](Line2D.md))
+- `normal` (`Vector2`)
 
-`reflect(poly: geometry::`[`Polygon2D`](Polygon2D.md)`, normal: maths::Vector2) -> geometry::`[`Polygon2D`](Polygon2D.md)
-
-
-**Parameters**
-
-- `poly` (geometry::[`Polygon2D`](Polygon2D.md))
-- `normal` (`maths::Vector2`)
-
-`reflect(polyline: geometry::`[`Polyline2D`](Polyline2D.md)`, normal: maths::Vector2) -> geometry::`[`Polyline2D`](Polyline2D.md)
+`reflect(seg: `[`LineSegment2D`](LineSegment2D.md)`, normal: Vector2) -> `[`LineSegment2D`](LineSegment2D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline2D`](Polyline2D.md))
-- `normal` (`maths::Vector2`)
+- `seg` ([`LineSegment2D`](LineSegment2D.md))
+- `normal` (`Vector2`)
 
-`reflect(tri: geometry::`[`Triangle2D`](Triangle2D.md)`, normal: maths::Vector2) -> geometry::`[`Triangle2D`](Triangle2D.md)
-
-
-**Parameters**
-
-- `tri` (geometry::[`Triangle2D`](Triangle2D.md))
-- `normal` (`maths::Vector2`)
-
-`reflect(mesh: geometry::`[`Mesh2D`](Mesh2D.md)`, normal: maths::Vector2) -> geometry::`[`Mesh2D`](Mesh2D.md)
+`reflect(collection: `[`GeometryCollection2D`](GeometryCollection2D.md)`, normal: Vector2) -> `[`GeometryCollection2D`](GeometryCollection2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh2D`](Mesh2D.md))
-- `normal` (`maths::Vector2`)
+- `collection` ([`GeometryCollection2D`](GeometryCollection2D.md))
+- `normal` (`Vector2`)
 
-`reflect(mesh: geometry::`[`PolyMesh2D`](PolyMesh2D.md)`, normal: maths::Vector2) -> geometry::`[`PolyMesh2D`](PolyMesh2D.md)
-
-
-**Parameters**
-
-- `mesh` (geometry::[`PolyMesh2D`](PolyMesh2D.md))
-- `normal` (`maths::Vector2`)
-
-`reflect(mesh: geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)`, normal: maths::Vector2) -> geometry::`[`ConnectedMesh2D`](ConnectedMesh2D.md)
+`reflect(poly: `[`Polygon2D`](Polygon2D.md)`, normal: Vector2) -> `[`Polygon2D`](Polygon2D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh2D`](ConnectedMesh2D.md))
-- `normal` (`maths::Vector2`)
+- `poly` ([`Polygon2D`](Polygon2D.md))
+- `normal` (`Vector2`)
 
-`reflect(p: geometry::`[`Point3D`](Point3D.md)`, normal: maths::Vector3) -> geometry::`[`Point3D`](Point3D.md)
+`reflect(polyline: `[`Polyline2D`](Polyline2D.md)`, normal: Vector2) -> `[`Polyline2D`](Polyline2D.md)
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md))
+- `normal` (`Vector2`)
+
+`reflect(tri: `[`Triangle2D`](Triangle2D.md)`, normal: Vector2) -> `[`Triangle2D`](Triangle2D.md)
+
+
+**Parameters**
+
+- `tri` ([`Triangle2D`](Triangle2D.md))
+- `normal` (`Vector2`)
+
+`reflect(mesh: `[`Mesh2D`](Mesh2D.md)`, normal: Vector2) -> `[`Mesh2D`](Mesh2D.md)
+
+
+**Parameters**
+
+- `mesh` ([`Mesh2D`](Mesh2D.md))
+- `normal` (`Vector2`)
+
+`reflect(mesh: `[`PolyMesh2D`](PolyMesh2D.md)`, normal: Vector2) -> `[`PolyMesh2D`](PolyMesh2D.md)
+
+
+**Parameters**
+
+- `mesh` ([`PolyMesh2D`](PolyMesh2D.md))
+- `normal` (`Vector2`)
+
+`reflect(mesh: `[`ConnectedMesh2D`](ConnectedMesh2D.md)`, normal: Vector2) -> `[`ConnectedMesh2D`](ConnectedMesh2D.md)
+
+
+**Parameters**
+
+- `mesh` ([`ConnectedMesh2D`](ConnectedMesh2D.md))
+- `normal` (`Vector2`)
+
+`reflect(p: `[`Point3D`](Point3D.md)`, normal: Vector3) -> `[`Point3D`](Point3D.md)
 
 Reflects a point across the plane through the origin whose normal is normal (Householder reflection).
 
@@ -1436,10 +1436,10 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `p` (geometry::[`Point3D`](Point3D.md))
-- `normal` (`maths::Vector3`)
+- `p` ([`Point3D`](Point3D.md))
+- `normal` (`Vector3`)
 
-`reflect(v: geometry::`[`Vector3D`](Vector3D.md)`, normal: maths::Vector3) -> geometry::`[`Vector3D`](Vector3D.md)
+`reflect(v: `[`Vector3D`](Vector3D.md)`, normal: Vector3) -> `[`Vector3D`](Vector3D.md)
 
 Reflects a vector across the plane through the origin whose normal is normal .
 
@@ -1447,88 +1447,88 @@ Direct arithmetic no matrix built.
 
 **Parameters**
 
-- `v` (geometry::[`Vector3D`](Vector3D.md))
-- `normal` (`maths::Vector3`)
+- `v` ([`Vector3D`](Vector3D.md))
+- `normal` (`Vector3`)
 
-`reflect(ray: geometry::`[`Ray3D`](Ray3D.md)`, normal: maths::Vector3) -> geometry::`[`Ray3D`](Ray3D.md)
-
-
-**Parameters**
-
-- `ray` (geometry::[`Ray3D`](Ray3D.md))
-- `normal` (`maths::Vector3`)
-
-`reflect(line: geometry::`[`Line3D`](Line3D.md)`, normal: maths::Vector3) -> geometry::`[`Line3D`](Line3D.md)
+`reflect(ray: `[`Ray3D`](Ray3D.md)`, normal: Vector3) -> `[`Ray3D`](Ray3D.md)
 
 
 **Parameters**
 
-- `line` (geometry::[`Line3D`](Line3D.md))
-- `normal` (`maths::Vector3`)
+- `ray` ([`Ray3D`](Ray3D.md))
+- `normal` (`Vector3`)
 
-`reflect(seg: geometry::`[`LineSegment3D`](LineSegment3D.md)`, normal: maths::Vector3) -> geometry::`[`LineSegment3D`](LineSegment3D.md)
-
-
-**Parameters**
-
-- `seg` (geometry::[`LineSegment3D`](LineSegment3D.md))
-- `normal` (`maths::Vector3`)
-
-`reflect(collection: geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)`, normal: maths::Vector3) -> geometry::`[`GeometryCollection3D`](GeometryCollection3D.md)
+`reflect(line: `[`Line3D`](Line3D.md)`, normal: Vector3) -> `[`Line3D`](Line3D.md)
 
 
 **Parameters**
 
-- `collection` (geometry::[`GeometryCollection3D`](GeometryCollection3D.md))
-- `normal` (`maths::Vector3`)
+- `line` ([`Line3D`](Line3D.md))
+- `normal` (`Vector3`)
 
-`reflect(poly: geometry::`[`Polygon3D`](Polygon3D.md)`, normal: maths::Vector3) -> geometry::`[`Polygon3D`](Polygon3D.md)
-
-
-**Parameters**
-
-- `poly` (geometry::[`Polygon3D`](Polygon3D.md))
-- `normal` (`maths::Vector3`)
-
-`reflect(polyline: geometry::`[`Polyline3D`](Polyline3D.md)`, normal: maths::Vector3) -> geometry::`[`Polyline3D`](Polyline3D.md)
+`reflect(seg: `[`LineSegment3D`](LineSegment3D.md)`, normal: Vector3) -> `[`LineSegment3D`](LineSegment3D.md)
 
 
 **Parameters**
 
-- `polyline` (geometry::[`Polyline3D`](Polyline3D.md))
-- `normal` (`maths::Vector3`)
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+- `normal` (`Vector3`)
 
-`reflect(tri: geometry::`[`Triangle3D`](Triangle3D.md)`, normal: maths::Vector3) -> geometry::`[`Triangle3D`](Triangle3D.md)
-
-
-**Parameters**
-
-- `tri` (geometry::[`Triangle3D`](Triangle3D.md))
-- `normal` (`maths::Vector3`)
-
-`reflect(mesh: geometry::`[`Mesh3D`](Mesh3D.md)`, normal: maths::Vector3) -> geometry::`[`Mesh3D`](Mesh3D.md)
+`reflect(collection: `[`GeometryCollection3D`](GeometryCollection3D.md)`, normal: Vector3) -> `[`GeometryCollection3D`](GeometryCollection3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`Mesh3D`](Mesh3D.md))
-- `normal` (`maths::Vector3`)
+- `collection` ([`GeometryCollection3D`](GeometryCollection3D.md))
+- `normal` (`Vector3`)
 
-`reflect(mesh: geometry::`[`PolyMesh3D`](PolyMesh3D.md)`, normal: maths::Vector3) -> geometry::`[`PolyMesh3D`](PolyMesh3D.md)
-
-
-**Parameters**
-
-- `mesh` (geometry::[`PolyMesh3D`](PolyMesh3D.md))
-- `normal` (`maths::Vector3`)
-
-`reflect(mesh: geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)`, normal: maths::Vector3) -> geometry::`[`ConnectedMesh3D`](ConnectedMesh3D.md)
+`reflect(poly: `[`Polygon3D`](Polygon3D.md)`, normal: Vector3) -> `[`Polygon3D`](Polygon3D.md)
 
 
 **Parameters**
 
-- `mesh` (geometry::[`ConnectedMesh3D`](ConnectedMesh3D.md))
-- `normal` (`maths::Vector3`)
+- `poly` ([`Polygon3D`](Polygon3D.md))
+- `normal` (`Vector3`)
+
+`reflect(polyline: `[`Polyline3D`](Polyline3D.md)`, normal: Vector3) -> `[`Polyline3D`](Polyline3D.md)
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
+- `normal` (`Vector3`)
+
+`reflect(tri: `[`Triangle3D`](Triangle3D.md)`, normal: Vector3) -> `[`Triangle3D`](Triangle3D.md)
+
+
+**Parameters**
+
+- `tri` ([`Triangle3D`](Triangle3D.md))
+- `normal` (`Vector3`)
+
+`reflect(mesh: `[`Mesh3D`](Mesh3D.md)`, normal: Vector3) -> `[`Mesh3D`](Mesh3D.md)
+
+
+**Parameters**
+
+- `mesh` ([`Mesh3D`](Mesh3D.md))
+- `normal` (`Vector3`)
+
+`reflect(mesh: `[`PolyMesh3D`](PolyMesh3D.md)`, normal: Vector3) -> `[`PolyMesh3D`](PolyMesh3D.md)
+
+
+**Parameters**
+
+- `mesh` ([`PolyMesh3D`](PolyMesh3D.md))
+- `normal` (`Vector3`)
+
+`reflect(mesh: `[`ConnectedMesh3D`](ConnectedMesh3D.md)`, normal: Vector3) -> `[`ConnectedMesh3D`](ConnectedMesh3D.md)
+
+
+**Parameters**
+
+- `mesh` ([`ConnectedMesh3D`](ConnectedMesh3D.md))
+- `normal` (`Vector3`)
 
 
 ---

@@ -4,24 +4,24 @@ Builds a composite Matrix4 by chaining translate() /rotate()/scale()/combine() c
 
 ## `translate`
 
-`translate(offset: maths::Vector3) -> TransformBuilder3D`
+`translate(offset: Vector3) -> TransformBuilder3D`
 
 Appends a translation by offset , applied after every operation already chained.
 
 **Parameters**
 
-- `offset` (`maths::Vector3`)
+- `offset` (`Vector3`)
 
 ## `rotate`
 
-`rotate(angle_rad: float, axis: maths::Vector3) -> TransformBuilder3D`
+`rotate(angle_rad: float, axis: Vector3) -> TransformBuilder3D`
 
 Appends a rotation by angle_rad radians about axis (through the origin, Rodrigues' formula), applied after every operation already chained.
 
 **Parameters**
 
 - `angle_rad` (`float`)
-- `axis` (`maths::Vector3`)
+- `axis` (`Vector3`)
 
 ## `scale`
 
@@ -60,32 +60,32 @@ Appends a general shear (each axis offset by a multiple of the other two), appli
 
 ## `reflect`
 
-`reflect(normal: maths::Vector3) -> TransformBuilder3D`
+`reflect(normal: Vector3) -> TransformBuilder3D`
 
 Appends a reflection across the plane through the origin whose normal is normal , applied after every operation already chained.
 
 **Parameters**
 
-- `normal` (`maths::Vector3`)
+- `normal` (`Vector3`)
 
 ## `combine`
 
-`combine(mat: maths::Matrix4) -> TransformBuilder3D`
+`combine(mat: Matrix4) -> TransformBuilder3D`
 
 Appends an arbitrary caller-supplied Matrix4, applied after every operation already chained an escape hatch for a transform this builder has no dedicated method for (perspective, a matrix loaded from a scene file, ...).
 
 **Parameters**
 
-- `mat` (`maths::Matrix4`)
+- `mat` (`Matrix4`)
 
 ## `get`
 
-`get() -> maths::Matrix4`
+`get() -> Matrix4`
 
 The composed matrix so far.
 
 ## `build`
 
-`build() -> maths::Matrix4`
+`build() -> Matrix4`
 
 Copy of the composed matrix so far same value as Get() , but by value for a caller who wants to keep it independent of this builder's further chaining.
