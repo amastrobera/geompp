@@ -571,6 +571,66 @@ TEST_F(CalcUtils2DTest, ReverseRun_ThreeElementRun_ReversesWholeRunAndReportsOut
   EXPECT_FALSE(sweep.Get(4).Above.has_value());
 }
 
+// Benchmark: SweepLine2D::Add()/Remove() cost as ACTIVE_SEGMENTS grows — the piece the "swap
+// ACTIVE_SEGMENTS to std::set for O(log n) insert/delete" plan (see the bentley-ottmann-redesign
+// memory) targets. All N segments share the x-range [0,100] with distinct y, so they're all
+// simultaneously active — Add()-ing them in a RANDOM y-order is the worst case for a sorted-vector
+// insert (position is independent of insertion order, so each insert shifts ~N/2 elements on
+// average). If Add()/Remove() really are O(n) each, time-per-op below should grow roughly linearly
+// with N (i.e. total time roughly quadratically) as N increases.
+//
+// Measured result (Release build, 2026-08-15): time/op stays roughly flat (6.8us -> 9.7us) from
+// n=100 to n=8000, and total time grows only ~6.9x for an 8x increase in n (1000 -> 8000) — nowhere
+// near the ~64x a true O(n)-per-op / O(n^2)-total cost would produce. Likely explanation:
+// std::vector::insert's O(n) shift is a single memmove (64KB at n=8000, comfortably inside L2
+// cache) — much cheaper per element than SweepLineComparator's floating-point GetYAtX calls during
+// the O(log n) lower_bound search, so the comparator cost dominates, not the shift. This contradicts
+// the "cache locality disappears above ~50-100 active segments" guess in the bentley-ottmann-redesign
+// memory — at least up to 8000 simultaneously-active segments (already far beyond what this
+// library's typical polygon/mesh inputs produce), it doesn't. Conclusion: the ACTIVE_SEGMENTS
+// std::set swap isn't worth pursuing — see that memory note for the full writeup and why it'd also
+// be structurally risky for ReverseRun even if the perf case existed.
+//
+// Informational only (prints timing; no assertion on absolute wall-clock numbers, which would be
+// flaky across machines/CI and build configs — run in Release for numbers that mean anything) — run
+// with `--gtest_filter=CalcUtils2DTest.Benchmark_SweepLineAddRemove*`.
+TEST_F(CalcUtils2DTest, Benchmark_SweepLineAddRemove_ScalingWithActiveCount) {
+  std::mt19937 rng(7);
+  for (int n : {100, 300, 1000, 3000, 8000}) {
+    std::vector<g::LineSegment2D> segments;
+    segments.reserve(static_cast<std::size_t>(n));
+    for (int i = 0; i < n; ++i) {
+      segments.push_back(g::LineSegment2D::Make(g::Point2D(0, i), g::Point2D(100, i)));
+    }
+
+    std::vector<std::size_t> add_order(static_cast<std::size_t>(n));
+    for (int i = 0; i < n; ++i) {
+      add_order[static_cast<std::size_t>(i)] = static_cast<std::size_t>(i);
+    }
+    std::shuffle(add_order.begin(), add_order.end(), rng);
+
+    SweepLineVec sweep(segments);
+    auto t0 = std::chrono::steady_clock::now();
+    for (auto id : add_order) {
+      sweep.Add(id);
+    }
+    auto t1 = std::chrono::steady_clock::now();
+
+    std::vector<std::size_t> remove_order = add_order;
+    std::shuffle(remove_order.begin(), remove_order.end(), rng);  // different random order than Add
+    for (auto id : remove_order) {
+      sweep.Remove(id);
+    }
+    auto t2 = std::chrono::steady_clock::now();
+
+    double add_us_total = std::chrono::duration<double, std::micro>(t1 - t0).count();
+    double remove_us_total = std::chrono::duration<double, std::micro>(t2 - t1).count();
+    std::cout << "n=" << n << ": Add total=" << add_us_total << "us (" << (add_us_total / n)
+              << "us/op)  Remove total=" << remove_us_total << "us (" << (remove_us_total / n)
+              << "us/op)\n";
+  }
+}
+
 TEST_F(CalcUtils2DTest, ReverseRun_SegIdsOrderDoesNotMatter_OnlyMembership) {
   // The seg_ids argument just names the run's membership (any order) — sweep_line2d.hpp's own docs say
   // "in any order". Passing them reversed relative to the previous test must give the identical result.
