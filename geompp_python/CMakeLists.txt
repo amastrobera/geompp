@@ -141,7 +141,12 @@ else()
         ${GEOMPP_ROOT}/src/bball2d.cpp
         ${GEOMPP_ROOT}/src/brect2d.cpp
         ${GEOMPP_ROOT}/src/sweep_line2d.cpp
-        ${GEOMPP_ROOT}/src/calc_utils2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/self_intersections2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/convex_hull2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/polygon_queries2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/polygon_ops2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/polyline_ops2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/triangulation2d.cpp
         ${GEOMPP_ROOT}/src/point3d.cpp
         ${GEOMPP_ROOT}/src/vector3d.cpp
         ${GEOMPP_ROOT}/src/line3d.cpp
@@ -156,7 +161,10 @@ else()
         ${GEOMPP_ROOT}/src/bprism3d.cpp
         ${GEOMPP_ROOT}/src/geometry_collection2d.cpp
         ${GEOMPP_ROOT}/src/geometry_collection3d.cpp
-        ${GEOMPP_ROOT}/src/calc_utils3d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/self_intersections3d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/convex_hull3d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/polygon_queries3d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/triangulation3d.cpp
         ${GEOMPP_ROOT}/src/view2d.cpp
         ${GEOMPP_ROOT}/src/grid_cell2d.cpp
         ${GEOMPP_ROOT}/src/grid_cell3d.cpp

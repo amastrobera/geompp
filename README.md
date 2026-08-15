@@ -1,14 +1,15 @@
   # Geom++
 
+[![C++ version](https://img.shields.io/github/v/tag/amastrobera/geompp?filter=v*&label=C%2B%2B&color=blue)](https://github.com/amastrobera/geompp/tags)
+[![NuGet version](https://img.shields.io/nuget/v/GeomPP.svg?label=.Net)](https://www.nuget.org/packages/GeomPP)
+[![PyPI version](https://img.shields.io/pypi/v/geompp.svg?label=Python)](https://pypi.org/project/geompp)
+
 [![Build / Test (Windows)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_windows.yml)
 [![Build / Test (Linux)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/build_test_linux.yml)
-[![C++ version](https://img.shields.io/github/v/tag/amastrobera/geompp?filter=v*&label=C%2B%2B&color=blue)](https://github.com/amastrobera/geompp/tags)
 
 [![Publish NuGet](https://github.com/amastrobera/geompp/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/nuget-publish.yml)
-[![NuGet version](https://img.shields.io/nuget/v/GeomPP.svg)](https://www.nuget.org/packages/GeomPP)
-
 [![Publish PyPI](https://github.com/amastrobera/geompp/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/amastrobera/geompp/actions/workflows/pypi-publish.yml)
-[![PyPI version](https://img.shields.io/pypi/v/geompp.svg)](https://pypi.org/project/geompp)
+
 
   A modern C++20 geometry library for 2D and 3D spatial computation — fast, mathematically correct,
   thoroughly tested, and usable from C++, C# (.Net 8/9/10 or .Net Framework 4.8), and Python 3.
@@ -141,6 +142,8 @@
   - **Polygon boolean operations** — Intersection, Union, Difference and Xor (either or) between two polygons are possible. One polygon clips the other with map-overlay method. 
   - **Point cloud operations** — Principal Component Analysis (PCA) function `principal_axes()` helps you find the empirical 3 directive axis of a list of points in space.
   - **Triangulation** — decomposition of a polygon into n-triangles, using several possible algorithms such as the _Ear Clip_, a _Best Fit Ear Clip_, _Monotone Polygon_ or _Constrained Delaunay_. 
+  - **Linear algebra** (`geompp::maths`) — a small fixed-size linear algebra module, independent of the geometry primitives above: `Vector2`/`Vector3`/`Vector4`, `Matrix2`/`Matrix3`/`Matrix4`, and the `solve_gauss()` / `solve_cramer()` system solvers for `Ax = b`.
+  - **Affine transformations** (`geompp::transformations`) — `translate()`, `rotate()`, `scale()`, `shear()`, `reflect()` (fast, single-`Point`, no matrix needed), and the general `transform(primitive, matrix)` for every primitive from `Point2D`/`Point3D` to `PolyMesh2D`/`PolyMesh3D`. Use `TransformBuilder2D`/`TransformBuilder3D` to fluently chain several transforms (e.g. translate → rotate → scale) into a single `Matrix3`/`Matrix4`, then apply it once with `transform()`.
 
   Return types are often `optional` and sometimes `optional<variant<...>>` so callers can match on the exact geometry produced by an intersection without casting.
 
@@ -180,6 +183,14 @@
   | `distance_to(polygon, line)` | Distance from a polygon to a line (zero if they intersect) |
   | `tangents_to(polygon, point_or_polygon)` | Tangent segments from a point to a polygon, or common outer tangents between two polygons |
   | `triangulate(polygons, settings)` | Returns a set of adjacent triangles replacing the surface of 1+ polygons (the engine behind `Polygon::Triangulate()` and `PolyMesh::Triangulate()`), and with a robust input validation |
+  | `solve_gauss(a, b)` | Solve `Ax = b` via Gaussian elimination (`geompp::maths`) |
+  | `solve_cramer(a, b)` | Solve `Ax = b` via Cramer's rule; throws if `a` is singular (`geompp::maths`) |
+  | `translate(primitive, offset)` | Translate a primitive by a vector (`geompp::transformations`) |
+  | `rotate(primitive, angle_rad[, axis])` | Rotate about the origin — 3D takes an `axis` (`geompp::transformations`) |
+  | `scale(primitive, factor \| sx, sy[, sz])` | Uniform or non-uniform scale about the origin (`geompp::transformations`) |
+  | `shear(primitive, ...)` | Shear along one axis by a multiple of another (`geompp::transformations`) |
+  | `reflect(primitive, normal)` | Reflect about a line/plane through the origin with the given normal (`geompp::transformations`) |
+  | `transform(primitive, matrix)` | Apply an arbitrary `Matrix3`/`Matrix4` (homogeneous) to any primitive from `Point` to `PolyMesh` (`geompp::transformations`) |
   |||
 
 
@@ -335,7 +346,7 @@
   msbuild geompp_csharp\GeomPP_Net9.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
   # .NET 10 (LTS)
-  msbuild geompp_csharp\GeomPP.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
+  msbuild geompp_csharp\GeomPP_Net10.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
   # .NET Framework 4.8
   msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]

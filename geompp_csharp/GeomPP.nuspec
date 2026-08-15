@@ -42,10 +42,10 @@
     <!--
       Build all projects in Release|x64 before running:
         nuget pack GeomPP.nuspec
-      GeomPP_Net8.vcxproj  → x64\Release_Net8\GeomPP.dll   (.NET 8)
-      GeomPP_Net9.vcxproj  → x64\Release_Net9\GeomPP.dll   (.NET 9)
-      GeomPP.vcxproj       → x64\Release\GeomPP.dll         (.NET 10)
-      GeomPP_Net48.vcxproj → x64\Release_Net48\GeomPP.dll  (.NET Framework 4.8)
+      GeomPP_Net8.vcxproj   → x64\Release_Net8\GeomPP.dll   (.NET 8)
+      GeomPP_Net9.vcxproj   → x64\Release_Net9\GeomPP.dll   (.NET 9)
+      GeomPP_Net10.vcxproj  → x64\Release\GeomPP.dll        (.NET 10)
+      GeomPP_Net48.vcxproj  → x64\Release_Net48\GeomPP.dll  (.NET Framework 4.8)
     -->
     <file src="x64\Release_Net8\GeomPP.dll"  target="lib\net8.0-windows7.0\GeomPP.dll" />
     <file src="x64\Release_Net9\GeomPP.dll"  target="lib\net9.0-windows7.0\GeomPP.dll" />
