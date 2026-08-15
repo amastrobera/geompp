@@ -8,7 +8,7 @@ No adjacency structure is stored to find a face's neighbors. Each facet has no h
 
 **static** `from_triangles(triangles: list[`[`Triangle3D`](Triangle3D.md)`]) -> Mesh3D`
 
-Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell (see GridCell3D ) into a single shared vertex.
+Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell (see [GridCell3D](GridCell3D.md) ) into a single shared vertex.
 
 **Parameters**
 
@@ -42,4 +42,4 @@ A lazy view of every facet, each rebuilt as a [Triangle3D](Triangle3D.md) on dem
 
 ---
 
-**See also:** [ConnectedMesh3D](ConnectedMesh3D.md), [Triangle3D](Triangle3D.md)
+**See also:** [ConnectedMesh3D](ConnectedMesh3D.md), [GridCell3D](GridCell3D.md), [Triangle3D](Triangle3D.md)

@@ -8,7 +8,7 @@ No adjacency structure is stored to find a face's neighbors. Each facet has no h
 
 **static** `Mesh2D FromTriangles(std::vector< `[`Triangle2D`](Triangle2D.md)` > const & triangles)`
 
-Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell (see GridCell2D ) into a single shared vertex.
+Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell (see [GridCell2D](GridCell2D.md) ) into a single shared vertex.
 
 **Parameters**
 
@@ -42,4 +42,4 @@ A lazy view of every facet, each rebuilt as a [Triangle2D](Triangle2D.md) on dem
 
 ---
 
-**See also:** [ConnectedMesh2D](ConnectedMesh2D.md), [Triangle2D](Triangle2D.md)
+**See also:** [ConnectedMesh2D](ConnectedMesh2D.md), [GridCell2D](GridCell2D.md), [Triangle2D](Triangle2D.md)

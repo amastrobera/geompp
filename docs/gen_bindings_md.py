@@ -74,6 +74,8 @@ def cpp_to_py_type(t: str) -> str:
         "double": "float",
         "int": "int",
         "std::size_t": "int",
+        "std::int64_t": "int",
+        "std::int32_t": "int",
     }.get(t, t)
 
 
@@ -98,6 +100,22 @@ def cpp_to_cs_type(t: str) -> str:
         # ref-class types get '^'
         # (everything that isn't a primitive falls through with ^ appended)
     }.get(t, f"{t}^" if t and t[0].isupper() else t)
+
+
+CS_NAME_OVERRIDES = {
+    # snake_to_pascal's generic Title-Case-each-word pass gets these two wrong
+    # (produces AreCcw/AreCw) because CCW/CW are acronyms, not words.
+    "are_ccw": "AreCCW",
+    "are_cw": "AreCW",
+}
+
+
+def cpp_to_cs_name(name: str) -> str:
+    """snake_case free-function name -> PascalCase, matching the GeomUtil wrapper names
+    (e.g. 'closest_world_plane_to' -> 'ClosestWorldPlaneTo')."""
+    if name in CS_NAME_OVERRIDES:
+        return CS_NAME_OVERRIDES[name]
+    return "".join(part.capitalize() for part in name.split("_"))
 
 
 def cpp_to_py_name(name: str) -> str:
@@ -184,29 +202,54 @@ def collect_return_doc(memberdef):
     return text_of(rl) if rl is not None else ""
 
 
+def compound_name_parts(full_name: str) -> list[str]:
+    """Strip the 'geompp' and 'geometry'/'maths'/'transformations' inline/sub-namespace
+    prefixes off a Doxygen compoundname, leaving the class/struct path (possibly nested,
+    e.g. ['ConnectedMesh2D', 'FaceView2D'])."""
+    parts = full_name.split("::")
+    if parts and parts[0] == "geompp":
+        parts = parts[1:]
+    if parts and parts[0] in ("geometry", "maths", "transformations"):
+        parts = parts[1:]
+    return parts
+
+
 def parse_class_xml(xml_path: Path):
-    """Parse a Doxygen compound XML for a class. Returns dict with class info."""
+    """Parse a Doxygen compound XML for a class or struct. Returns dict with class info,
+    or None for anything under a `detail` namespace (internal, not part of the bound API —
+    see CLAUDE.md's `detail::` convention)."""
     tree = ET.parse(xml_path)
     root = tree.getroot()
     cd = root.find("compounddef")
-    if cd is None or cd.get("kind") != "class":
+    if cd is None or cd.get("kind") not in ("class", "struct"):
         return None
 
-    full_name = text_of(cd.find("compoundname"))  # e.g. "geompp::Line3D"
-    short_name = full_name.split("::")[-1]
+    full_name = text_of(cd.find("compoundname"))  # e.g. "geompp::geometry::Line3D"
+    if "::detail::" in full_name or full_name.endswith("::detail"):
+        return None
+    name_parts = compound_name_parts(full_name)
+    short_name = name_parts[-1]
     class_brief = text_of(cd.find("briefdescription"))
     class_detailed = text_of(cd.find("detaileddescription"))
 
     members = []
+    fields = []
     for section in cd.findall("sectiondef"):
-        if section.get("kind") not in ("public-func", "public-static-func", "public-attrib", "public-static-attrib"):
+        kind = section.get("kind")
+        if kind not in ("public-func", "public-static-func", "public-attrib", "public-static-attrib"):
             continue
         for m in section.findall("memberdef"):
-            if m.get("kind") != "function":
-                continue
             if m.get("prot") != "public":
                 continue
             name = text_of(m.find("name"))
+            if m.get("kind") == "variable":
+                # A public data member (structs are typically plain data, e.g. GridCell2D.x/y).
+                ftype = text_of(m.find("type"))
+                fbrief, fdetailed = collect_descriptions(m)
+                fields.append({"name": name, "type": ftype, "brief": fbrief or fdetailed})
+                continue
+            if m.get("kind") != "function":
+                continue
             if name.startswith("~") or name == short_name:
                 # skip dtors and ctors (constructors handled separately if you like)
                 continue
@@ -236,11 +279,89 @@ def parse_class_xml(xml_path: Path):
 
     return {
         "name": short_name,
+        "name_parts": name_parts,
         "full_name": full_name,
         "brief": class_brief,
         "detailed": class_detailed,
         "members": members,
+        "fields": fields,
     }
+
+
+# ── Free functions (namespace-level, not class members) ────────────────────
+#
+# Doxygen puts every geompp::geometry free function (geometry is an inline namespace) into
+# namespacegeompp.xml, and geompp::maths / geompp::transformations into their own namespace
+# compounds. We only want the subset that's actually bound to Python/C# — NOT every internal
+# helper that happens to have a doc comment (e.g. is_left/sign/round/compare are geompp-internal,
+# never bound). This list is a hand-maintained mirror of the m.def(...) names in
+# geompp_python/src/bind_free_functions.cpp (geometry) / GeomUtil.hpp (all three groups) — the
+# same "two independent hand-duplicated lists" gotcha CLAUDE.md already flags for the C# vcxproj
+# source lists. Whenever a free function is newly bound (or unbound), update this set too, or it
+# silently falls out of (or never enters) the generated docs.
+GEOMETRY_FREE_FUNCTIONS = {
+    "are_ccw", "are_collinear", "are_coplanar", "are_cw", "average",
+    "bezier_smoothing_2", "centroid", "clip", "closest_world_plane_to",
+    "convex_hull", "dist_decimation", "distance_to", "find_extreme_points",
+    "find_intersections", "fix_adjacency", "has_intersections", "lerp",
+    "linear_combination", "polyline_expansion", "principal_axes",
+    "principal_direction", "principal_normal", "rdp_decimation",
+    "remove_collinear", "remove_consecutive_duplicates", "remove_duplicates",
+    "signed_area", "tangents_to", "triangulate", "validate_adjacency",
+    "vw_decimation",
+}
+MATHS_FREE_FUNCTIONS = {"solve_gauss", "solve_cramer"}
+TRANSFORMATIONS_FREE_FUNCTIONS = {"translate", "rotate", "scale", "shear", "reflect", "transform"}
+
+# (namespace XML filename, display label, allowed-name set)
+FREE_FUNCTION_GROUPS = [
+    ("namespacegeompp.xml", "geompp::geometry", GEOMETRY_FREE_FUNCTIONS, "FreeFunctions"),
+    ("namespacegeompp_1_1maths.xml", "geompp::maths", MATHS_FREE_FUNCTIONS, "MathsFreeFunctions"),
+    ("namespacegeompp_1_1transformations.xml", "geompp::transformations", TRANSFORMATIONS_FREE_FUNCTIONS,
+     "TransformationsFreeFunctions"),
+]
+
+
+def parse_namespace_functions(xml_path: Path, allowed_names: set[str]) -> list[dict]:
+    """Parse a Doxygen namespace compound XML, returning member-dicts (same shape
+    parse_class_xml uses for methods) for every direct free function in `allowed_names`."""
+    if not xml_path.exists():
+        return []
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    cd = root.find("compounddef")
+    if cd is None:
+        return []
+
+    out = []
+    for section in cd.findall("sectiondef"):
+        if section.get("kind") != "func":
+            continue
+        for m in section.findall("memberdef"):
+            if m.get("kind") != "function" or m.get("prot") != "public":
+                continue
+            name = text_of(m.find("name"))
+            if name not in allowed_names:
+                continue
+            ret = text_of(m.find("type"))
+            brief, detailed = collect_descriptions(m)
+            params = collect_params(m)
+            ret_doc = collect_return_doc(m)
+            tmpl = [text_of(p.find("declname")) or text_of(p.find("type"))
+                    for p in m.findall("templateparamlist/param")]
+            out.append({
+                "name": name,
+                "ret": ret,
+                "args": text_of(m.find("argsstring")),
+                "static": False,
+                "const": False,
+                "brief": brief,
+                "detailed": detailed,
+                "params": params,
+                "ret_doc": ret_doc,
+                "template_params": tmpl,
+            })
+    return out
 
 
 # ── Cross-class linking ────────────────────────────────────────────────────
@@ -368,6 +489,26 @@ def render_param_type_md(t: str, kind: str, known: set[str], current_class: str)
 
 # ── Markdown emitters ──────────────────────────────────────────────────────
 
+def emit_fields_md(fields: list[dict], kind: str, known: set[str], me: str) -> list[str]:
+    """Render a struct's public data members (e.g. GridCell2D.x/y) as a Fields section."""
+    if not fields:
+        return []
+    lines = ["## Fields", ""]
+    for f in fields:
+        if kind == "py":
+            type_md = render_param_type_md(f["type"], "py", known, me)
+        elif kind == "cs":
+            type_md = render_param_type_md(f["type"], "cs", known, me)
+        else:
+            type_md = render_param_type_md(f["type"], "cpp", known, me)
+        bullet = f"- `{f['name']}` ({type_md})"
+        if f["brief"]:
+            bullet += f" — {linkify(f['brief'], known, me)}"
+        lines.append(bullet)
+    lines.append("")
+    return lines
+
+
 def emit_python_md(cls: dict, known: set[str]) -> str:
     me = cls["name"]
     lines = [f"# `{me}` (Python)", ""]
@@ -375,6 +516,7 @@ def emit_python_md(cls: dict, known: set[str]) -> str:
         lines += [linkify(cls["brief"], known, me), ""]
     if cls["detailed"]:
         lines += [linkify(cls["detailed"], known, me), ""]
+    lines += emit_fields_md(cls.get("fields", []), "py", known, me)
 
     # Group by overload name
     by_name: dict[str, list] = {}
@@ -417,27 +559,29 @@ def emit_python_md(cls: dict, known: set[str]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def emit_csharp_md(cls: dict, known: set[str]) -> str:
+def emit_csharp_md(cls: dict, known: set[str], name_transform=lambda n: n) -> str:
     me = cls["name"]
     lines = [f"# `{me}` (C# / .NET)", ""]
     if cls["brief"]:
         lines += [linkify(cls["brief"], known, me), ""]
     if cls["detailed"]:
         lines += [linkify(cls["detailed"], known, me), ""]
+    lines += emit_fields_md(cls.get("fields", []), "cs", known, me)
 
     by_name: dict[str, list] = {}
     for m in cls["members"]:
         by_name.setdefault(m["name"], []).append(m)
 
     for name, overloads in by_name.items():
-        lines.append(f"## `{name}`")
+        cs_name = name_transform(name)
+        lines.append(f"## `{cs_name}`")
         for m in overloads:
             params = ", ".join(
                 f"{cpp_to_cs_type(p_type)} {p_name}"
                 for p_type, p_name, _ in m["params"]
             )
             ret_cs = cpp_to_cs_type(m["ret"])
-            sig = signature_md(f"{ret_cs} {name}({params})", known, me)
+            sig = signature_md(f"{ret_cs} {cs_name}({params})", known, me)
             if m["static"]:
                 sig = f"**static** {sig}"
             lines.append("")
@@ -470,6 +614,7 @@ def emit_cpp_md(cls: dict, known: set[str]) -> str:
         lines += [linkify(cls["brief"], known, me), ""]
     if cls["detailed"]:
         lines += [linkify(cls["detailed"], known, me), ""]
+    lines += emit_fields_md(cls.get("fields", []), "cpp", known, me)
 
     by_name: dict[str, list] = {}
     for m in cls["members"]:
@@ -483,7 +628,9 @@ def emit_cpp_md(cls: dict, known: set[str]) -> str:
             )
             ret_cpp = re.sub(r"\s+", " ", m["ret"]).strip()
             suffix = " const" if m["const"] else ""
-            sig = signature_md(f"{ret_cpp} {name}({params}){suffix}", known, me)
+            tmpl = m.get("template_params") or []
+            prefix = f"template <{', '.join(f'typename {t}' for t in tmpl)}> " if tmpl else ""
+            sig = signature_md(f"{prefix}{ret_cpp} {name}({params}){suffix}", known, me)
             if m["static"]:
                 sig = f"**static** {sig}"
             lines.append("")
@@ -519,14 +666,26 @@ def main() -> int:
     CS_DIR.mkdir(parents=True, exist_ok=True)
     CPP_DIR.mkdir(parents=True, exist_ok=True)
 
-    # First pass: parse every class so we know the full set of class names
-    # (needed for cross-file linking).
+    # First pass: parse every class/struct so we know the full set of names (needed for
+    # cross-file linking). Anything under a `detail` namespace is filtered out inside
+    # parse_class_xml (internal, not part of the bound API — see CLAUDE.md).
     parsed: list[dict] = []
-    for xml_file in sorted(XML_DIR.glob("classgeompp_1_1*.xml")):
+    for xml_file in sorted(XML_DIR.glob("classgeompp_1_1*.xml")) + sorted(XML_DIR.glob("structgeompp_1_1*.xml")):
         cls = parse_class_xml(xml_file)
-        if cls is None or not cls["members"]:
+        if cls is None or not (cls["members"] or cls["fields"]):
             continue
         parsed.append(cls)
+
+    # Disambiguate nested types that collide on their bare name (e.g. GeometryCollection2D::Entry
+    # and GeometryCollection3D::Entry both being called "Entry") by qualifying just those with
+    # their enclosing type. Everything else keeps its plain short name.
+    name_counts: dict[str, int] = {}
+    for c in parsed:
+        name_counts[c["name"]] = name_counts.get(c["name"], 0) + 1
+    for c in parsed:
+        if name_counts[c["name"]] > 1:
+            c["name"] = ".".join(c["name_parts"])
+
     known = {c["name"] for c in parsed}
 
     # Second pass: emit per-language Markdown, with class names cross-linked.
@@ -536,7 +695,40 @@ def main() -> int:
         (CPP_DIR / f"{cls['name']}.md").write_text(emit_cpp_md(cls, known), encoding="utf-8")
         print(f"  {cls['name']}.md -> python/, csharp/, cpp/md/")
 
-    print(f"\nGenerated docs for {len(parsed)} class(es) across 3 languages.")
+    print(f"\nGenerated docs for {len(parsed)} class(es)/struct(s) across 3 languages.")
+
+    # Third pass: free functions, grouped by namespace, documented as one page per group per
+    # language (reusing the class emitters on a synthetic "class" whose members are the
+    # namespace's free functions).
+    ff_count = 0
+    for xml_name, label, allowed, file_stem in FREE_FUNCTION_GROUPS:
+        members = parse_namespace_functions(XML_DIR / xml_name, allowed)
+        if not members:
+            print(f"  WARNING: no free functions found for {label} (expected {len(allowed)}) "
+                  f"— check FREE_FUNCTION_GROUPS against the bindings", file=sys.stderr)
+            continue
+        found_names = {m["name"] for m in members}
+        missing = allowed - found_names
+        if missing:
+            print(f"  WARNING: {label} free functions not found in Doxygen XML (undocumented, "
+                  f"renamed, or removed?): {sorted(missing)}", file=sys.stderr)
+        synthetic = {
+            "name": file_stem,
+            "name_parts": [file_stem],
+            "full_name": label,
+            "brief": f"Free functions in `{label}` (not methods on a class — call them directly).",
+            "detailed": "",
+            "members": members,
+            "fields": [],
+        }
+        (PY_DIR / f"{file_stem}.md").write_text(emit_python_md(synthetic, known), encoding="utf-8")
+        (CS_DIR / f"{file_stem}.md").write_text(
+            emit_csharp_md(synthetic, known, name_transform=cpp_to_cs_name), encoding="utf-8")
+        (CPP_DIR / f"{file_stem}.md").write_text(emit_cpp_md(synthetic, known), encoding="utf-8")
+        print(f"  {file_stem}.md -> python/, csharp/, cpp/md/ ({len(members)} function(s), {label})")
+        ff_count += len(members)
+
+    print(f"Generated free-function docs for {ff_count} function(s) across 3 language(s).")
     return 0
 
 

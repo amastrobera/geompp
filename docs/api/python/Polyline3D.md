@@ -340,27 +340,27 @@ Computes the convex hull of the polyline's knots.
 
 ## `reduce`
 
-`reduce(settings: PolylineDecimationParams) -> Polyline3D`
+`reduce(settings: `[`PolylineDecimationParams`](PolylineDecimationParams.md)`) -> Polyline3D`
 
 Reduces the polyline to one with fewer vertices.
 
 **Parameters**
 
-- `settings` (`PolylineDecimationParams`) — bundles the decimation strategy and its threshold — see PolylineDecimationParams and PolylineDecimationParams::Strategy for the per-strategy behavior and Big-O. Defaults to {RamerDouglasPeucker, 0.5} , so Reduce() with no arguments keeps working.
+- `settings` ([`PolylineDecimationParams`](PolylineDecimationParams.md)) — bundles the decimation strategy and its threshold — see [PolylineDecimationParams](PolylineDecimationParams.md) and [PolylineDecimationParams](PolylineDecimationParams.md)::Strategy for the per-strategy behavior and Big-O. Defaults to {RamerDouglasPeucker, 0.5} , so Reduce() with no arguments keeps working.
 
 **Returns** — A copy of this polyline with fewer vertices.
 
 ## `expand`
 
-`expand(settings: PolylineExpansionParams) -> Polyline3D`
+`expand(settings: `[`PolylineExpansionParams`](PolylineExpansionParams.md)`) -> Polyline3D`
 
 Rounds every inner corner of the polyline with a quadratic Bezier arc — the inverse direction of Reduce() : this adds vertices rather than removing them.
 
-Each corner is delegated to bezier_smoothing_2 independently (see PolylineExpansionParams for the per-corner controls); the true first/last knots are never smoothed. Corners whose sampled arc collapses to a single point (see PolylineExpansionParams::min_segment_length ) are deduplicated rather than emitted as repeated/zero-length segments.
+Each corner is delegated to bezier_smoothing_2 independently (see [PolylineExpansionParams](PolylineExpansionParams.md) for the per-corner controls); the true first/last knots are never smoothed. Corners whose sampled arc collapses to a single point (see [PolylineExpansionParams](PolylineExpansionParams.md)::min_segment_length ) are deduplicated rather than emitted as repeated/zero-length segments.
 
 **Parameters**
 
-- `settings` (`PolylineExpansionParams`) — bundles smoothness, sampling density, and the tiny-corner skip threshold. Defaults to {0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON} , so Expand() with no arguments works.
+- `settings` ([`PolylineExpansionParams`](PolylineExpansionParams.md)) — bundles smoothness, sampling density, and the tiny-corner skip threshold. Defaults to {0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON} , so Expand() with no arguments works.
 
 **Returns** — A copy of this polyline with rounded corners. Unchanged if it has fewer than 3 knots (no inner corner exists to round).
 
@@ -375,4 +375,4 @@ Converts this polyline to a [Polygon3D](Polygon3D.md) .
 
 ---
 
-**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Point3D](Point3D.md), [Polygon3D](Polygon3D.md), [Ray3D](Ray3D.md), [SegmentRange3D](SegmentRange3D.md)
+**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Point3D](Point3D.md), [Polygon3D](Polygon3D.md), [PolylineDecimationParams](PolylineDecimationParams.md), [PolylineExpansionParams](PolylineExpansionParams.md), [Ray3D](Ray3D.md), [SegmentRange3D](SegmentRange3D.md)

@@ -132,15 +132,15 @@ The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polyg
 
 ## `Triangulate`
 
-`std::vector< `[`Triangle2D`](Triangle2D.md)` > Triangulate(TriangulationParams::Strategy^ strategy)`
+`std::vector< `[`Triangle2D`](Triangle2D.md)` > Triangulate(`[`TriangulationParams`](TriangulationParams.md)`::Strategy^ strategy)`
 
 Breaks down the polygon (outer ring ONLY, holes are ignored) into a set of triangles.
 
-Make() already guarantees the outer ring is simple, CCW-wound, and free of collinear/duplicate points, so this always calls the free triangulate() with every TriangulationParams check set to Guaranteed — no re-validation cost.
+Make() already guarantees the outer ring is simple, CCW-wound, and free of collinear/duplicate points, so this always calls the free triangulate() with every [TriangulationParams](TriangulationParams.md) check set to Guaranteed — no re-validation cost.
 
 **Parameters**
 
-- `strategy` (`TriangulationParams::Strategy^`) — which triangulation algorithm to run (see TriangulationParams::Strategy).
+- `strategy` ([`TriangulationParams`](TriangulationParams.md)::Strategy^) — which triangulation algorithm to run (see [TriangulationParams](TriangulationParams.md)::Strategy).
 
 **Returns** — one [Triangle2D](Triangle2D.md) per triangle; Size() - 2 triangles.
 
@@ -341,4 +341,4 @@ Symmetric difference (the area covered by exactly one of the two polygons).
 
 ---
 
-**See also:** [Line2D](Line2D.md), [LineSegment2D](LineSegment2D.md), [Point2D](Point2D.md), [Ray2D](Ray2D.md), [SegmentRange2D](SegmentRange2D.md), [Triangle2D](Triangle2D.md)
+**See also:** [Line2D](Line2D.md), [LineSegment2D](LineSegment2D.md), [Point2D](Point2D.md), [Ray2D](Ray2D.md), [SegmentRange2D](SegmentRange2D.md), [Triangle2D](Triangle2D.md), [TriangulationParams](TriangulationParams.md)

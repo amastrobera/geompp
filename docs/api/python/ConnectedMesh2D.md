@@ -8,7 +8,7 @@ Per-facet edge adjacency is precomputed internally (see detail::TriangleCompactN
 
 **static** `from_triangles(triangles: list[`[`Triangle2D`](Triangle2D.md)`]) -> ConnectedMesh2D`
 
-Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell (see GridCell2D ) into a single shared vertex, and precomputing per-facet edge adjacency.
+Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell (see [GridCell2D](GridCell2D.md) ) into a single shared vertex, and precomputing per-facet edge adjacency.
 
 **Parameters**
 
@@ -37,4 +37,4 @@ A lazy view of every facet, each rebuilt as a [Triangle2D](Triangle2D.md) on dem
 
 ---
 
-**See also:** [Triangle2D](Triangle2D.md)
+**See also:** [GridCell2D](GridCell2D.md), [Triangle2D](Triangle2D.md)

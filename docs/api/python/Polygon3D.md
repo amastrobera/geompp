@@ -135,15 +135,15 @@ Decomposes a self-intersecting polygon into one or more simple polygons.
 
 ## `triangulate`
 
-`triangulate(strategy: TriangulationParams::Strategy) -> list[`[`Triangle3D`](Triangle3D.md)`]`
+`triangulate(strategy: `[`TriangulationParams`](TriangulationParams.md)`::Strategy) -> list[`[`Triangle3D`](Triangle3D.md)`]`
 
 Breaks down the polygon (outer ring ONLY, holes are ignored) into a set of triangles, in the polygon's own plane (GetPlane().normal() supplies the projection — no PCA re-fit needed since it's already known).
 
-Make() already guarantees the outer ring is simple, CCW-wound, and free of collinear/duplicate points, so this always calls the free triangulate() with every TriangulationParams check set to Guaranteed — no re-validation cost.
+Make() already guarantees the outer ring is simple, CCW-wound, and free of collinear/duplicate points, so this always calls the free triangulate() with every [TriangulationParams](TriangulationParams.md) check set to Guaranteed — no re-validation cost.
 
 **Parameters**
 
-- `strategy` (`TriangulationParams::Strategy`) — which triangulation algorithm to run (see TriangulationParams::Strategy).
+- `strategy` ([`TriangulationParams`](TriangulationParams.md)::Strategy) — which triangulation algorithm to run (see [TriangulationParams](TriangulationParams.md)::Strategy).
 
 **Returns** — one [Triangle3D](Triangle3D.md) per triangle; Size() - 2 triangles.
 
@@ -346,4 +346,4 @@ Symmetric difference (the area covered by exactly one of the two polygons).
 
 ---
 
-**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Plane](Plane.md), [Point3D](Point3D.md), [Ray3D](Ray3D.md), [SegmentRange3D](SegmentRange3D.md), [Triangle3D](Triangle3D.md)
+**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Plane](Plane.md), [Point3D](Point3D.md), [Ray3D](Ray3D.md), [SegmentRange3D](SegmentRange3D.md), [Triangle3D](Triangle3D.md), [TriangulationParams](TriangulationParams.md)
