@@ -2,12 +2,12 @@
 
 ## `x`
 
-`double const x() const`
+`double x() const`
 
 
 ## `y`
 
-`double const y() const`
+`double y() const`
 
 
 ## `ToPoint`
@@ -71,6 +71,15 @@
 
 `Vector2D Normalize() const`
 
+
+## `IsParallel`
+
+`bool IsParallel(Vector2D const & other) const`
+
+
+**Parameters**
+
+- `other` (`Vector2D const &`)
 
 ## `FromWkt`
 

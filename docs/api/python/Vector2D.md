@@ -72,6 +72,15 @@
 `normalize() -> Vector2D`
 
 
+## `is_parallel`
+
+`is_parallel(other: Vector2D) -> bool`
+
+
+**Parameters**
+
+- `other` (`Vector2D`)
+
 ## `from_wkt`
 
 **static** `from_wkt(wkt: str) -> Vector2D`

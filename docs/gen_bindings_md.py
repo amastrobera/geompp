@@ -43,6 +43,11 @@ def strip_cpp_quals(t: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
+def clean_cpp_type(t: str) -> str:
+    """Collapse whitespace/newlines in a raw C++ type string for display."""
+    return re.sub(r"\s+", " ", t).strip()
+
+
 def cpp_to_py_type(t: str) -> str:
     """Map a C++ type string to its Python binding equivalent."""
     t = strip_cpp_quals(t)
@@ -474,8 +479,7 @@ def emit_cpp_md(cls: dict, known: set[str]) -> str:
         lines.append(f"## `{name}`")
         for m in overloads:
             params = ", ".join(
-                f"{re.sub(r'\\s+', ' ', p_type).strip()} {p_name}"
-                for p_type, p_name, _ in m["params"]
+                f"{clean_cpp_type(p_type)} {p_name}" for p_type, p_name, _ in m["params"]
             )
             ret_cpp = re.sub(r"\s+", " ", m["ret"]).strip()
             suffix = " const" if m["const"] else ""

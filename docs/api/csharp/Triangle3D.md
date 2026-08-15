@@ -220,6 +220,20 @@ Tests whether this triangle intersects another triangle.
 
 **Returns** — true if the two triangles share any point.
 
+## `Overlaps`
+
+`bool Overlaps(Triangle3D^ other)`
+
+Tests whether this triangle coplanar-overlaps another triangle.
+
+See Overlap for what "overlap" means here (same-plane shared AREA), as opposed to Intersects (crossing planes).
+
+**Parameters**
+
+- `other` (`Triangle3D^`) — The other triangle.
+
+**Returns** — true if the two lie on the same plane and share a positive-area region (a mere touching point or shared edge, with no area in common, does not count — see Overlap ).
+
 ## `Intersection`
 
 [`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`Line3D`](Line3D.md)`^ line)`
@@ -264,13 +278,27 @@ Intersection of this triangle with a plane.
 
 [`Point3D`](Point3D.md)`^  (nullable) Intersection(Triangle3D^ other)`
 
-Intersection of two coplanar or skew triangles.
+Intersection of two triangles whose planes cross (are neither coincident nor parallel).
 
 **Parameters**
 
 - `other` (`Triangle3D^`) — The other triangle.
 
-**Returns** — A [Point3D](Point3D.md) , [LineSegment3D](LineSegment3D.md) , or std::nullopt depending on how the two triangles meet.
+**Returns** — The shared chord as a [LineSegment3D](LineSegment3D.md) where both triangles' bounded regions cover the two planes' common line, or std::nullopt if the chord falls outside one of the triangles (or the planes don't cross at all). For two triangles on the SAME plane, use Overlap instead — this method returns std::nullopt for coincident planes, since no such chord exists on a single plane.
+
+## `Overlap`
+
+[`Point3D`](Point3D.md)`^  (nullable) Overlap(Triangle3D^ other)`
+
+Coplanar overlap of two triangles — the shared region when both lie on the same plane.
+
+Complements Intersection(Triangle3D const&), which only handles crossing (non-coincident) planes and returns std::nullopt for coplanar input.
+
+**Parameters**
+
+- `other` (`Triangle3D^`) — The other triangle. If it does not lie on the same plane as this one, returns std::nullopt (use Intersection instead for that case).
+
+**Returns** — The shared area as a Triangle3D or [Polygon3D](Polygon3D.md) (whichever shape the overlap region takes), or std::nullopt if the two lie on the same plane but share no area — a mere touching vertex or a shared edge with no interior overlap does not count as an overlap here.
 
 
 ---

@@ -17,6 +17,23 @@
 - `points` (std::vector< [`Point2D`](Point2D.md) > const &)
 - `holes` (std::vector< std::vector< [`Point2D`](Point2D.md) > > const &)
 
+**static** `Polygon2D Make(std::vector< `[`Point2D`](Point2D.md)` > && points)`
+
+Same as the const& overload, but consumes points instead of copying it — every point-cleanup step (collinear removal, etc.) reuses points' own storage instead of allocating a fresh vector.
+
+**Parameters**
+
+- `points` (std::vector< [`Point2D`](Point2D.md) > &&)
+
+**static** `Polygon2D Make(std::vector< `[`Point2D`](Point2D.md)` > && points, std::vector< std::vector< `[`Point2D`](Point2D.md)` > > && holes)`
+
+Same as the const& overload, but consumes both points and holes instead of copying them.
+
+**Parameters**
+
+- `points` (std::vector< [`Point2D`](Point2D.md) > &&)
+- `holes` (std::vector< std::vector< [`Point2D`](Point2D.md) > > &&)
+
 ## `FromWkt`
 
 **static** `Polygon2D FromWkt(std::string const & wkt)`
@@ -64,11 +81,68 @@
 
 `double Area() const`
 
+Outer ring area minus holes.
+
+Holes are always simple (Make() rejects a self-intersecting hole outright), so their contribution is always a direct O(1)-per-hole shoelace sum. If the outer ring is also simple, the whole thing is O(n). If the outer ring self-intersects (e.g. a bowtie), it's decomposed at O(n log n) into its real bounded faces (discarding the unbounded "outside" face the decomposition also produces) and their areas summed — the total COVERED area, matching what Intersection() /Difference()/etc. operate against (winding-number membership counts every lobe as "inside" regardless of local winding sign), not a net/signed sum where opposite-winding lobes would otherwise partially cancel.
+
+## `PerimeterSize`
+
+`double PerimeterSize() const`
+
+
+## `IsSimple`
+
+`bool IsSimple() const`
+
+
+## `IsConvex`
+
+`bool IsConvex() const`
+
+
+## `ConvexHull`
+
+`Polygon2D ConvexHull()`
+
+
+## `Simplify`
+
+`std::vector< Polygon2D > Simplify() const`
+
+Decomposes a self-intersecting polygon into one or more simple polygons.
+
+**Returns** — {*this} if already simple; otherwise the set of simple polygons covering the same area.
 
 ## `Perimeter`
 
-`double Perimeter() const`
+`std::vector< `[`Point2D`](Point2D.md)` > const & Perimeter() const`
 
+
+## `HasHoles`
+
+`bool HasHoles() const`
+
+Whether this polygon has one or more holes.
+
+## `Holes`
+
+`std::vector< std::vector< `[`Point2D`](Point2D.md)` > > const & Holes() const`
+
+The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polygon has no holes.
+
+## `Triangulate`
+
+`std::vector< `[`Triangle2D`](Triangle2D.md)` > Triangulate(TriangulationParams::Strategy strategy) const`
+
+Breaks down the polygon (outer ring ONLY, holes are ignored) into a set of triangles.
+
+Make() already guarantees the outer ring is simple, CCW-wound, and free of collinear/duplicate points, so this always calls the free triangulate() with every TriangulationParams check set to Guaranteed — no re-validation cost.
+
+**Parameters**
+
+- `strategy` (`TriangulationParams::Strategy`) — which triangulation algorithm to run (see TriangulationParams::Strategy).
+
+**Returns** — one [Triangle2D](Triangle2D.md) per triangle; Size() - 2 triangles.
 
 ## `DistanceTo`
 
@@ -152,16 +226,19 @@ Tests whether this polygon intersects a segment.
 
 **Returns** — true if any part of the segment is inside the polygon or crosses its boundary.
 
+`bool Intersects(Polygon2D const & other) const`
+
+Tests whether this polygon shares any area (or boundary) with another.
+
+**Parameters**
+
+- `other` (`Polygon2D const &`) — The other polygon.
+
+**Returns** — true if the two polygons overlap, touch, or either fully contains the other.
+
 ## `Intersection`
 
-`ReturnSet` is `std::optional<std::variant<Point2D, std::vector<LineSegment2D>>>`.
-- `std::nullopt` — the line/ray/segment misses the polygon.
-- `Point2D` — single tangent touch (line grazes a convex vertex).
-- `std::vector<LineSegment2D>` — one or more chord segments (the typical case).
-
-Convex polygons use the Cyrus-Beck / Liang-Barsky parametric clip; non-convex polygons use Jordan-curve parity. Ray and segment results are clipped to their respective domains before being returned.
-
-`ReturnSet Intersection(`[`Line2D`](Line2D.md)` const & line) const`
+`std::optional< std::vector< `[`LineSegment2D`](LineSegment2D.md)` > > Intersection(`[`Line2D`](Line2D.md)` const & line) const`
 
 Intersection of this polygon with a line.
 
@@ -169,9 +246,9 @@ Intersection of this polygon with a line.
 
 - `line` ([`Line2D`](Line2D.md) const &) — The line.
 
-**Returns** — `std::nullopt` on miss; `Point2D` for a single tangent touch; `std::vector<LineSegment2D>` for one or more chord segments.
+**Returns** — The crossing point, or std::nullopt if the line misses the polygon.
 
-`ReturnSet Intersection(`[`Ray2D`](Ray2D.md)` const & ray) const`
+`std::optional< std::vector< `[`LineSegment2D`](LineSegment2D.md)` > > Intersection(`[`Ray2D`](Ray2D.md)` const & ray) const`
 
 Intersection of this polygon with a ray.
 
@@ -179,9 +256,9 @@ Intersection of this polygon with a ray.
 
 - `ray` ([`Ray2D`](Ray2D.md) const &) — The ray.
 
-**Returns** — `std::nullopt` on miss; `Point2D` for a tangent touch at the ray's domain boundary; `std::vector<LineSegment2D>` for chord(s) clipped to `[t ≥ 0]`. If the ray's origin is inside the polygon, the returned segment starts at the origin.
+**Returns** — The crossing point if within the ray's domain, or std::nullopt otherwise.
 
-`ReturnSet Intersection(`[`LineSegment2D`](LineSegment2D.md)` const & other) const`
+`std::optional< std::vector< `[`LineSegment2D`](LineSegment2D.md)` > > Intersection(`[`LineSegment2D`](LineSegment2D.md)` const & other) const`
 
 Intersection of this polygon with a segment.
 
@@ -189,9 +266,79 @@ Intersection of this polygon with a segment.
 
 - `other` ([`LineSegment2D`](LineSegment2D.md) const &) — The segment.
 
-**Returns** — `std::nullopt` on miss; `std::vector<LineSegment2D>` for chord(s) clipped to `[0, 1]` on the segment's parametric domain.
+**Returns** — The crossing point if it lies on the segment, or std::nullopt otherwise.
+
+`std::vector< Polygon2D > Intersection(Polygon2D const & other) const`
+
+Set intersection of this polygon and other (overloads Intersection() by argument type).
+
+**Parameters**
+
+- `other` (`Polygon2D const &`)
+
+**Returns** — Zero or more result polygons — empty if the two polygons don't overlap.
+
+## `Union`
+
+`std::vector< Polygon2D > Union(Polygon2D const & other) const`
+
+Set union of this polygon and other.
+
+Handles holes and self-intersecting operands; a disjoint pair of polygons yields more than one result polygon.
+
+**Parameters**
+
+- `other` (`Polygon2D const &`)
+
+**Returns** — Zero or more result polygons (zero is impossible for Union unless both operands are empty).
+
+## `Difference`
+
+`std::vector< Polygon2D > Difference(Polygon2D const & other) const`
+
+Set difference (this minus other).
+
+Handles the case where other lies entirely inside this polygon with no shared boundary, correctly producing a hole.
+
+**Parameters**
+
+- `other` (`Polygon2D const &`)
+
+**Returns** — Zero or more result polygons — empty if other fully covers this polygon.
+
+## `Xor`
+
+`std::vector< Polygon2D > Xor(Polygon2D const & other) const`
+
+Symmetric difference (the area covered by exactly one of the two polygons).
+
+**Parameters**
+
+- `other` (`Polygon2D const &`)
+
+**Returns** — Zero or more result polygons.
+
+## `begin`
+
+`const_iterator begin() const`
+
+
+## `end`
+
+`const_iterator end() const`
+
+
+## `cbegin`
+
+`const_iterator cbegin() const`
+
+
+## `cend`
+
+`const_iterator cend() const`
+
 
 
 ---
 
-**See also:** [Line2D](Line2D.md), [LineSegment2D](LineSegment2D.md), [Point2D](Point2D.md), [Ray2D](Ray2D.md), [SegmentRange2D](SegmentRange2D.md)
+**See also:** [Line2D](Line2D.md), [LineSegment2D](LineSegment2D.md), [Point2D](Point2D.md), [Ray2D](Ray2D.md), [SegmentRange2D](SegmentRange2D.md), [Triangle2D](Triangle2D.md)
