@@ -11,6 +11,20 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.17.3] - 2026-08-15
+
+### Added
+
+**C++ core**
+> `calc_utils2.cpp` and `calc_utils3d.cpp` have been split into several files, by topic, and now they belong to the `calc_utils` folder AND namespace. 
+
+**C# bindings**
+> the standard, default .Net project `GeomPP` has been changed into the new name `GeomPP_Net10` to be consistent with the naming of the other versions, and to make it clear that .Net10 is the default. 
+
+**Misc**
+> more documentation has been written for the `geompp/docs` path. that had been left behind for ages and is now updated. 
+
+
 ## [0.17.0] - 2026-08-13
 
 > All existing C++ core code now lives in an `inline namespace geometry` inside `geompp` (`geompp::geometry::Point2D`, transparently still reachable as `geompp::Point2D` — no downstream source changes needed in tests or bindings). New `geompp::maths` module: fixed-size linear algebra (`Vector2/3/4`, `Matrix2/3/4`) with Gauss/Cramer solvers and homogeneous-transform factories, bound in Python (`geompp.maths` submodule) and C# (`GeomPP.Maths` namespace). New `geompp::transformations` module built on top of it: affine transforms (translate/rotate/scale/shear/reflect, and the general `transform(primitive, matrix)`) for every `geompp::geometry` primitive from `Point2D/3D` to `PolyMesh2D/3D`, plus fluent composers `TransformBuilder2D`/`TransformBuilder3D`, bound in Python (`geompp.transformations`) and C# (`GeomPP.Transformations`).
