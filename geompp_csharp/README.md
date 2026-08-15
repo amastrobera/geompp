@@ -142,6 +142,8 @@ Each class supports a consistent set of spatial operations where applicable:
 - **Polygon boolean operations** — `Intersection()`, `Union()`, `Difference()`, `Xor()` between two polygons (map-overlay method), or `GeomUtil.Clip(clipperLoop, subjectLoop)` for raw point loops without constructing a `Polygon` first.
 - **Point cloud operations** — `GeomUtil.PrincipalAxes()` (PCA) finds the empirical 3 directive axes of a list of points in space.
 - **Triangulation** — decomposition of a polygon into n-triangles, using several possible algorithms such as the _Ear Clip_, a _Best Fit Ear Clip_, _Monotone Polygon_ or _Constrained Delaunay_. 
+- **Linear algebra** (`GeomPP.Maths`) — a small fixed-size linear algebra namespace, independent of the geometry classes above: `Vector2`/`Vector3`/`Vector4`, `Matrix2`/`Matrix3`/`Matrix4`, and the `Solvers.SolveGauss()` / `Solvers.SolveCramer()` system solvers for `Ax = b`.
+- **Affine transformations** (`GeomPP.Transformations`) — `Transform.Translate()`, `.Rotate()`, `.Scale()`, `.Shear()`, `.Reflect()` (fast, single-`Point`, no matrix needed), and the general `Transform.Transform(primitive, matrix)` for every primitive from `Point2D`/`Point3D` to `PolyMesh2D`/`PolyMesh3D`. Use `TransformBuilder2D`/`TransformBuilder3D` to fluently chain several transforms (e.g. `.Translate(...).Rotate(...).Scale(...)`) into a single `Matrix3`/`Matrix4`, then apply it once with `.Build()`/`Transform.Transform()`.
 
 Intersection-style methods return `object` (`null` on no intersection) — see the pattern-matching example above.
 
@@ -173,6 +175,14 @@ directly, without needing a class instance first:
 | `GeomUtil.DistanceTo(polygon, line)` | Distance from a polygon to a line (zero if they intersect) |
 | `GeomUtil.TangentsTo(polygon, pointOrPolygon)` | Tangent segments from a point to a polygon, or common outer tangents between two polygons |
 | `GeomUtil.Triangulate(polygons, settings)` | Returns a set of adjacent triangles replacing the surface of 1+ polygons (the engine behind `Polygon::Triangulate()` and `PolyMesh::Triangulate()`), and with a robust input validation |
+| `Maths.Solvers.SolveGauss(a, b)` | Solve `Ax = b` via Gaussian elimination |
+| `Maths.Solvers.SolveCramer(a, b)` | Solve `Ax = b` via Cramer's rule; throws if `a` is singular |
+| `Transformations.Transform.Translate(primitive, offset)` | Translate a primitive by a vector |
+| `Transformations.Transform.Rotate(primitive, angleRad[, axis])` | Rotate about the origin — 3D takes an `axis` |
+| `Transformations.Transform.Scale(primitive, factor \| sx, sy[, sz])` | Uniform or non-uniform scale about the origin |
+| `Transformations.Transform.Shear(primitive, ...)` | Shear along one axis by a multiple of another |
+| `Transformations.Transform.Reflect(primitive, normal)` | Reflect about a line/plane through the origin with the given normal |
+| `Transformations.Transform.Transform(primitive, matrix)` | Apply an arbitrary `Matrix3`/`Matrix4` (homogeneous) to any primitive from `Point` to `PolyMesh` |
 |||
 
 
@@ -195,7 +205,7 @@ msbuild geompp_csharp\GeomPP_Net8.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$P
 msbuild geompp_csharp\GeomPP_Net9.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
 # .NET 10 (LTS)
-msbuild geompp_csharp\GeomPP.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
+msbuild geompp_csharp\GeomPP_Net10.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]
 
 # .NET Framework 4.8
 msbuild geompp_csharp\GeomPP_Net48.vcxproj /p:Platform=x64 /p:GeomppBuildRoot="$PWD\build_win" [/p:Configuration=Release]

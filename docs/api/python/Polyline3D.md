@@ -130,87 +130,249 @@ Tests whether a point lies on the polyline.
 
 `intersects(line: `[`Line3D`](Line3D.md)`) -> bool`
 
-Tests whether this polyline intersects a line.
 
 **Parameters**
 
-- `line` ([`Line3D`](Line3D.md)) — The line.
-
-**Returns** — true if the line crosses any of the polyline's segments.
+- `line` ([`Line3D`](Line3D.md))
 
 `intersects(ray: `[`Ray3D`](Ray3D.md)`) -> bool`
 
-Tests whether this polyline intersects a ray.
 
 **Parameters**
 
-- `ray` ([`Ray3D`](Ray3D.md)) — The ray.
-
-**Returns** — true if the ray crosses any of the polyline's segments within its domain.
+- `ray` ([`Ray3D`](Ray3D.md))
 
 `intersects(segment: `[`LineSegment3D`](LineSegment3D.md)`) -> bool`
 
-Tests whether this polyline intersects a segment.
 
 **Parameters**
 
-- `segment` ([`LineSegment3D`](LineSegment3D.md)) — The segment.
-
-**Returns** — true if the segment crosses any of the polyline's segments.
+- `segment` ([`LineSegment3D`](LineSegment3D.md))
 
 `intersects(other: Polyline3D) -> bool`
 
-Tests whether two polylines intersect.
 
 **Parameters**
 
-- `other` (`Polyline3D`) — The other polyline.
-
-**Returns** — true if any segment of either polyline crosses any segment of the other.
+- `other` (`Polyline3D`)
 
 ## `intersection`
 
-`intersection(line: `[`Line3D`](Line3D.md)`) -> `[`Point3D`](Point3D.md)` | None`
+`intersection(line: `[`Line3D`](Line3D.md)`) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
 
-Intersection of this polyline with a line.
-
-**Parameters**
-
-- `line` ([`Line3D`](Line3D.md)) — The line.
-
-**Returns** — A single [Point3D](Point3D.md) when there's one crossing, a list when there are several, or std::nullopt if disjoint.
-
-`intersection(ray: `[`Ray3D`](Ray3D.md)`) -> `[`Point3D`](Point3D.md)` | None`
-
-Intersection of this polyline with a ray.
 
 **Parameters**
 
-- `ray` ([`Ray3D`](Ray3D.md)) — The ray.
+- `line` ([`Line3D`](Line3D.md))
 
-**Returns** — A single [Point3D](Point3D.md) or a list of crossings, or std::nullopt if disjoint.
+`intersection(ray: `[`Ray3D`](Ray3D.md)`) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
 
-`intersection(segment: `[`LineSegment3D`](LineSegment3D.md)`) -> `[`Point3D`](Point3D.md)` | None`
-
-Intersection of this polyline with a segment.
 
 **Parameters**
 
-- `segment` ([`LineSegment3D`](LineSegment3D.md)) — The segment.
+- `ray` ([`Ray3D`](Ray3D.md))
 
-**Returns** — A single [Point3D](Point3D.md) or a list of crossings, or std::nullopt if disjoint.
+`intersection(segment: `[`LineSegment3D`](LineSegment3D.md)`) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
 
-`intersection(other: Polyline3D) -> `[`Point3D`](Point3D.md)` | None`
-
-Intersection of two polylines.
 
 **Parameters**
 
-- `other` (`Polyline3D`) — The other polyline.
+- `segment` ([`LineSegment3D`](LineSegment3D.md))
 
-**Returns** — A single [Point3D](Point3D.md) or a list of crossings, or std::nullopt if disjoint.
+`intersection(other: Polyline3D) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
+
+
+**Parameters**
+
+- `other` (`Polyline3D`)
+
+## `overlaps`
+
+`overlaps(line: `[`Line3D`](Line3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`overlaps(ray: `[`Ray3D`](Ray3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `ray` ([`Ray3D`](Ray3D.md))
+
+`overlaps(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`overlaps(other: Polyline3D) -> bool`
+
+
+**Parameters**
+
+- `other` (`Polyline3D`)
+
+## `overlap`
+
+`overlap(line: `[`Line3D`](Line3D.md)`) -> std::vector< `[`LineSegment3D`](LineSegment3D.md)` > | None`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`overlap(ray: `[`Ray3D`](Ray3D.md)`) -> std::vector< `[`LineSegment3D`](LineSegment3D.md)` > | None`
+
+
+**Parameters**
+
+- `ray` ([`Ray3D`](Ray3D.md))
+
+`overlap(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> std::vector< `[`LineSegment3D`](LineSegment3D.md)` > | None`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`overlap(other: Polyline3D) -> std::vector< `[`LineSegment3D`](LineSegment3D.md)` > | None`
+
+
+**Parameters**
+
+- `other` (`Polyline3D`)
+
+## `touches`
+
+`touches(line: `[`Line3D`](Line3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`touches(ray: `[`Ray3D`](Ray3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `ray` ([`Ray3D`](Ray3D.md))
+
+`touches(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`touches(other: Polyline3D) -> bool`
+
+
+**Parameters**
+
+- `other` (`Polyline3D`)
+
+## `touch`
+
+`touch(line: `[`Line3D`](Line3D.md)`) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`touch(ray: `[`Ray3D`](Ray3D.md)`) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
+
+
+**Parameters**
+
+- `ray` ([`Ray3D`](Ray3D.md))
+
+`touch(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`touch(other: Polyline3D) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
+
+
+**Parameters**
+
+- `other` (`Polyline3D`)
+
+## `is_planar`
+
+`is_planar() -> bool`
+
+Tests whether all knots of the polyline are coplanar.
+
+**Returns** — true if all knots lie in a common plane.
+
+## `is_simple`
+
+`is_simple() -> bool`
+
+Tests whether the polyline has no self-intersections (when projected onto its best-fit plane).
+
+**Returns** — true if the polyline does not self-intersect.
+
+## `is_convex`
+
+`is_convex() -> bool`
+
+Tests whether the polyline is a convex polygon boundary.
+
+**Returns** — true if the polyline is planar, simple, and all turns go in the same direction.
+
+## `convex_hull`
+
+`convex_hull() -> Polyline3D`
+
+Computes the convex hull of the polyline's knots.
+
+**Returns** — A new Polyline3D containing the convex hull vertices in CCW order.
+
+## `reduce`
+
+`reduce(settings: `[`PolylineDecimationParams`](PolylineDecimationParams.md)`) -> Polyline3D`
+
+Reduces the polyline to one with fewer vertices.
+
+**Parameters**
+
+- `settings` ([`PolylineDecimationParams`](PolylineDecimationParams.md)) — bundles the decimation strategy and its threshold — see [PolylineDecimationParams](PolylineDecimationParams.md) and [PolylineDecimationParams](PolylineDecimationParams.md)::Strategy for the per-strategy behavior and Big-O. Defaults to {RamerDouglasPeucker, 0.5} , so Reduce() with no arguments keeps working.
+
+**Returns** — A copy of this polyline with fewer vertices.
+
+## `expand`
+
+`expand(settings: `[`PolylineExpansionParams`](PolylineExpansionParams.md)`) -> Polyline3D`
+
+Rounds every inner corner of the polyline with a quadratic Bezier arc — the inverse direction of Reduce() : this adds vertices rather than removing them.
+
+Each corner is delegated to bezier_smoothing_2 independently (see [PolylineExpansionParams](PolylineExpansionParams.md) for the per-corner controls); the true first/last knots are never smoothed. Corners whose sampled arc collapses to a single point (see [PolylineExpansionParams](PolylineExpansionParams.md)::min_segment_length ) are deduplicated rather than emitted as repeated/zero-length segments.
+
+**Parameters**
+
+- `settings` ([`PolylineExpansionParams`](PolylineExpansionParams.md)) — bundles smoothness, sampling density, and the tiny-corner skip threshold. Defaults to {0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON} , so Expand() with no arguments works.
+
+**Returns** — A copy of this polyline with rounded corners. Unchanged if it has fewer than 3 knots (no inner corner exists to round).
+
+## `to_polygon`
+
+`to_polygon() -> `[`Polygon3D`](Polygon3D.md)
+
+Converts this polyline to a [Polygon3D](Polygon3D.md) .
+
+**Returns** — A [Polygon3D](Polygon3D.md) with the same vertices.
 
 
 ---
 
-**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Point3D](Point3D.md), [Ray3D](Ray3D.md), [SegmentRange3D](SegmentRange3D.md)
+**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Point3D](Point3D.md), [Polygon3D](Polygon3D.md), [PolylineDecimationParams](PolylineDecimationParams.md), [PolylineExpansionParams](PolylineExpansionParams.md), [Ray3D](Ray3D.md), [SegmentRange3D](SegmentRange3D.md)

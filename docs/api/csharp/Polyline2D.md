@@ -52,6 +52,47 @@
 `double Length()`
 
 
+## `IsSimple`
+
+`bool IsSimple()`
+
+
+## `ConvexHull`
+
+[`Polygon2D`](Polygon2D.md)`^ ConvexHull()`
+
+Convex Hull via the Melkman's algorithm.
+
+It requires IsSimple() to be true in order to make sense
+
+**Returns** — The convex hull polygon of the polyline, even if the polyline is not simple (it will be a wrong hull in that case). So please check IsSimple() before running this.
+
+## `Reduce`
+
+`Polyline2D^ Reduce(`[`PolylineDecimationParams`](PolylineDecimationParams.md)`^ settings)`
+
+Reduces the polyline to one with fewer vertices.
+
+**Parameters**
+
+- `settings` ([`PolylineDecimationParams`](PolylineDecimationParams.md)^) — bundles the decimation strategy and its threshold — see [PolylineDecimationParams](PolylineDecimationParams.md) and [PolylineDecimationParams](PolylineDecimationParams.md)::Strategy for the per-strategy behavior and Big-O. Defaults to {RamerDouglasPeucker, 0.5} , so Reduce() with no arguments keeps working.
+
+**Returns** — A copy of this polyline with fewer vertices.
+
+## `Expand`
+
+`Polyline2D^ Expand(`[`PolylineExpansionParams`](PolylineExpansionParams.md)`^ settings)`
+
+Rounds every inner corner of the polyline with a quadratic Bezier arc — the inverse direction of Reduce() : this adds vertices rather than removing them.
+
+Each corner is delegated to bezier_smoothing_2 independently (see [PolylineExpansionParams](PolylineExpansionParams.md) for the per-corner controls); the true first/last knots are never smoothed. Corners whose sampled arc collapses to a single point (see [PolylineExpansionParams](PolylineExpansionParams.md)::min_segment_length ) are deduplicated rather than emitted as repeated/zero-length segments.
+
+**Parameters**
+
+- `settings` ([`PolylineExpansionParams`](PolylineExpansionParams.md)^) — bundles smoothness, sampling density, and the tiny-corner skip threshold. Defaults to {0.5, FixedSegments, 4, 0.1, DOUBLE_EPSILON} , so Expand() with no arguments works.
+
+**Returns** — A copy of this polyline with rounded corners. Unchanged if it has fewer than 3 knots (no inner corner exists to round).
+
 ## `ProjectOnto`
 
 [`Point2D`](Point2D.md)`^ ProjectOnto(`[`Point2D`](Point2D.md)`^ point)`
@@ -130,87 +171,183 @@ Tests whether a point lies on the polyline.
 
 `bool Intersects(`[`Line2D`](Line2D.md)`^ line)`
 
-Tests whether this polyline intersects a line.
 
 **Parameters**
 
-- `line` ([`Line2D`](Line2D.md)^) — The line.
-
-**Returns** — true if the line crosses any of the polyline's segments.
+- `line` ([`Line2D`](Line2D.md)^)
 
 `bool Intersects(`[`Ray2D`](Ray2D.md)`^ ray)`
 
-Tests whether this polyline intersects a ray.
 
 **Parameters**
 
-- `ray` ([`Ray2D`](Ray2D.md)^) — The ray.
-
-**Returns** — true if the ray crosses any of the polyline's segments.
+- `ray` ([`Ray2D`](Ray2D.md)^)
 
 `bool Intersects(`[`LineSegment2D`](LineSegment2D.md)`^ segment)`
 
-Tests whether this polyline intersects a segment.
 
 **Parameters**
 
-- `segment` ([`LineSegment2D`](LineSegment2D.md)^) — The segment.
-
-**Returns** — true if the segment crosses any of the polyline's segments.
+- `segment` ([`LineSegment2D`](LineSegment2D.md)^)
 
 `bool Intersects(Polyline2D^ other)`
 
-Tests whether two polylines intersect.
 
 **Parameters**
 
-- `other` (`Polyline2D^`) — The other polyline.
-
-**Returns** — true if any segment of either polyline crosses any segment of the other.
+- `other` (`Polyline2D^`)
 
 ## `Intersection`
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`Line2D`](Line2D.md)`^ line)`
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Intersection(`[`Line2D`](Line2D.md)`^ line)`
 
-Intersection of this polyline with a line.
-
-**Parameters**
-
-- `line` ([`Line2D`](Line2D.md)^) — The line.
-
-**Returns** — A single [Point2D](Point2D.md) when there's one crossing, a list when there are several, or std::nullopt if disjoint.
-
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`Ray2D`](Ray2D.md)`^ ray)`
-
-Intersection of this polyline with a ray.
 
 **Parameters**
 
-- `ray` ([`Ray2D`](Ray2D.md)^) — The ray.
+- `line` ([`Line2D`](Line2D.md)^)
 
-**Returns** — A single [Point2D](Point2D.md) or a list of crossings, or std::nullopt if disjoint.
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Intersection(`[`Ray2D`](Ray2D.md)`^ ray)`
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`LineSegment2D`](LineSegment2D.md)`^ segment)`
-
-Intersection of this polyline with a segment.
 
 **Parameters**
 
-- `segment` ([`LineSegment2D`](LineSegment2D.md)^) — The segment.
+- `ray` ([`Ray2D`](Ray2D.md)^)
 
-**Returns** — A single [Point2D](Point2D.md) or a list of crossings, or std::nullopt if disjoint.
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Intersection(`[`LineSegment2D`](LineSegment2D.md)`^ segment)`
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(Polyline2D^ other)`
-
-Intersection of two polylines.
 
 **Parameters**
 
-- `other` (`Polyline2D^`) — The other polyline.
+- `segment` ([`LineSegment2D`](LineSegment2D.md)^)
 
-**Returns** — A single [Point2D](Point2D.md) or a list of crossings, or std::nullopt if disjoint.
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Intersection(Polyline2D^ other)`
+
+
+**Parameters**
+
+- `other` (`Polyline2D^`)
+
+## `Overlaps`
+
+`bool Overlaps(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+`bool Overlaps(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+`bool Overlaps(`[`LineSegment2D`](LineSegment2D.md)`^ seg)`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment2D`](LineSegment2D.md)^)
+
+`bool Overlaps(Polyline2D^ other)`
+
+
+**Parameters**
+
+- `other` (`Polyline2D^`)
+
+## `Overlap`
+
+`std::vector< `[`LineSegment2D`](LineSegment2D.md)` >^  (nullable) Overlap(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+`std::vector< `[`LineSegment2D`](LineSegment2D.md)` >^  (nullable) Overlap(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+`std::vector< `[`LineSegment2D`](LineSegment2D.md)` >^  (nullable) Overlap(`[`LineSegment2D`](LineSegment2D.md)`^ seg)`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment2D`](LineSegment2D.md)^)
+
+`std::vector< `[`LineSegment2D`](LineSegment2D.md)` >^  (nullable) Overlap(Polyline2D^ other)`
+
+
+**Parameters**
+
+- `other` (`Polyline2D^`)
+
+## `Touches`
+
+`bool Touches(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+`bool Touches(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+`bool Touches(`[`LineSegment2D`](LineSegment2D.md)`^ seg)`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment2D`](LineSegment2D.md)^)
+
+`bool Touches(Polyline2D^ other)`
+
+
+**Parameters**
+
+- `other` (`Polyline2D^`)
+
+## `Touch`
+
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Touch(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Touch(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Touch(`[`LineSegment2D`](LineSegment2D.md)`^ seg)`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment2D`](LineSegment2D.md)^)
+
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Touch(Polyline2D^ other)`
+
+
+**Parameters**
+
+- `other` (`Polyline2D^`)
 
 
 ---
 
-**See also:** [Line2D](Line2D.md), [LineSegment2D](LineSegment2D.md), [Point2D](Point2D.md), [Ray2D](Ray2D.md), [SegmentRange2D](SegmentRange2D.md)
+**See also:** [Line2D](Line2D.md), [LineSegment2D](LineSegment2D.md), [Point2D](Point2D.md), [Polygon2D](Polygon2D.md), [PolylineDecimationParams](PolylineDecimationParams.md), [PolylineExpansionParams](PolylineExpansionParams.md), [Ray2D](Ray2D.md), [SegmentRange2D](SegmentRange2D.md)

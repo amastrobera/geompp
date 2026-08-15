@@ -2,17 +2,17 @@
 
 ## `x`
 
-`double const x() const`
+`double x() const`
 
 
 ## `y`
 
-`double const y() const`
+`double y() const`
 
 
 ## `z`
 
-`double const z() const`
+`double z() const`
 
 
 ## `ToPoint`

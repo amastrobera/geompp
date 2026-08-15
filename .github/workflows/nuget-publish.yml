@@ -77,9 +77,10 @@ jobs:
       # Output: geompp_csharp\x64\Release\GeomPP.dll
       - name: Build GeomPP.dll (.NET 10)
         run: |
-          msbuild geompp_csharp\GeomPP.vcxproj `
+          msbuild geompp_csharp\GeomPP_Net10.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:TargetName=GeomPP `
             /p:OutDir="${{ github.workspace }}\geompp_csharp\x64\Release\" `
             /p:GeomppBuildRoot="${{ github.workspace }}\build"
 

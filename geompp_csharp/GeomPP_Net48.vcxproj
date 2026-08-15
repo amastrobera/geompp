@@ -3,7 +3,7 @@
   .NET Framework 4.8 build of the GeomPP C++/CLI bindings.
   Uses /clr (classic CLR) instead of /clr:netcore.
   Output goes to x64\Release_Net48\ to avoid colliding with the .NET 8 build.
-  All source files are shared with GeomPP.vcxproj — do not duplicate logic here.
+  All source files are shared with GeomPP_Net10.vcxproj — do not duplicate logic here.
 -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
@@ -57,7 +57,7 @@
 
   <!--
     GeomppBuildRoot: root of the CMake Ninja build directory.
-    Same semantics as GeomPP.vcxproj. Override with /p:GeomppBuildRoot=...
+    Same semantics as GeomPP_Net10.vcxproj. Override with /p:GeomppBuildRoot=...
   -->
   <PropertyGroup>
     <GeomppBuildRoot Condition="'$(GeomppBuildRoot)'=='' AND '$(Configuration)'=='Debug'">$(ProjectDir)..\out\build\x64-Debug</GeomppBuildRoot>
@@ -110,7 +110,7 @@
     </Link>
   </ItemDefinitionGroup>
 
-  <!-- ── Source files (shared with GeomPP.vcxproj) ────────────────────── -->
+  <!-- ── Source files (shared with GeomPP_Net10.vcxproj) ────────────────── -->
   <ItemGroup>
     <ClCompile Include="src\Precision.cpp" />
     <ClCompile Include="src\Point2D.cpp" />

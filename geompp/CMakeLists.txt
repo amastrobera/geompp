@@ -70,7 +70,21 @@ add_library(${PROJECT_NAME}
     src/bball2d.cpp
     src/brect2d.cpp
     src/sweep_line2d.cpp
-    src/calc_utils2d.cpp
+
+    include/calc_utils2d.hpp
+    include/calc_utils/self_intersections2d.hpp
+    include/calc_utils/convex_hull2d.hpp
+    include/calc_utils/polygon_queries2d.hpp
+    include/calc_utils/polygon_ops2d.hpp
+    include/calc_utils/polyline_ops2d.hpp
+    include/calc_utils/triangulation2d.hpp
+    src/calc_utils/self_intersections2d.cpp
+    src/calc_utils/convex_hull2d.cpp
+    src/calc_utils/polygon_queries2d.cpp
+    src/calc_utils/polygon_ops2d.cpp
+    src/calc_utils/polyline_ops2d.cpp
+    src/calc_utils/triangulation2d.cpp
+
     src/grid_cell2d.cpp
     src/mesh2d.cpp
     src/polymesh2d.cpp
@@ -90,8 +104,18 @@ add_library(${PROJECT_NAME}
     src/bprism3d.cpp
     src/geometry_collection2d.cpp
     src/geometry_collection3d.cpp
-    src/calc_utils3d.cpp
     src/view2d.cpp
+
+    include/calc_utils3d.hpp
+    include/calc_utils/self_intersections3d.hpp
+    include/calc_utils/convex_hull3d.hpp
+    include/calc_utils/polygon_queries3d.hpp
+    include/calc_utils/triangulation3d.hpp
+    src/calc_utils/self_intersections3d.cpp
+    src/calc_utils/convex_hull3d.cpp
+    src/calc_utils/polygon_queries3d.cpp
+    src/calc_utils/triangulation3d.cpp
+
     src/grid_cell3d.cpp
     src/mesh3d.cpp
     src/polymesh3d.cpp

@@ -58,6 +58,11 @@
 `double Length()`
 
 
+## `Reversed`
+
+`LineSegment2D^ Reversed()`
+
+
 ## `ProjectOnto`
 
 [`Point2D`](Point2D.md)`^ ProjectOnto(`[`Point2D`](Point2D.md)`^ point)`
@@ -148,67 +153,183 @@ Tests whether a point lies on this segment.
 
 `bool Intersects(`[`Line2D`](Line2D.md)`^ line)`
 
-Tests whether this segment intersects a line.
 
 **Parameters**
 
-- `line` ([`Line2D`](Line2D.md)^) — The line.
-
-**Returns** — true if the line crosses or touches the segment.
+- `line` ([`Line2D`](Line2D.md)^)
 
 `bool Intersects(`[`Ray2D`](Ray2D.md)`^ ray)`
 
-Tests whether this segment intersects a ray.
 
 **Parameters**
 
-- `ray` ([`Ray2D`](Ray2D.md)^) — The ray.
-
-**Returns** — true if the segment is met within the ray's domain.
+- `ray` ([`Ray2D`](Ray2D.md)^)
 
 `bool Intersects(LineSegment2D^ segment)`
 
-Tests whether this segment intersects another segment.
 
 **Parameters**
 
-- `segment` (`LineSegment2D^`) — The other segment.
+- `segment` (`LineSegment2D^`)
 
-**Returns** — true if both segments' domains share the crossing point.
+`bool Intersects(`[`Polyline2D`](Polyline2D.md)`^ polyline)`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md)^)
 
 ## `Intersection`
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`Line2D`](Line2D.md)`^ line)`
+[`Point2D`](Point2D.md)`^  (nullable) Intersection(`[`Line2D`](Line2D.md)`^ line)`
 
-Intersection point of this segment with a line.
-
-**Parameters**
-
-- `line` ([`Line2D`](Line2D.md)^) — The line.
-
-**Returns** — The intersection point if it lies on the segment, or std::nullopt otherwise.
-
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(`[`Ray2D`](Ray2D.md)`^ ray)`
-
-Intersection point of this segment with a ray.
 
 **Parameters**
 
-- `ray` ([`Ray2D`](Ray2D.md)^) — The ray.
+- `line` ([`Line2D`](Line2D.md)^)
 
-**Returns** — The intersection point if it lies on both, or std::nullopt otherwise.
+[`Point2D`](Point2D.md)`^  (nullable) Intersection(`[`Ray2D`](Ray2D.md)`^ ray)`
 
-[`Point3D`](Point3D.md)`^  (nullable) Intersection(LineSegment2D^ other)`
-
-Intersection point of two segments.
 
 **Parameters**
 
-- `other` (`LineSegment2D^`) — The other segment.
+- `ray` ([`Ray2D`](Ray2D.md)^)
 
-**Returns** — The intersection point if it lies on both segments, or std::nullopt otherwise.
+[`Point2D`](Point2D.md)`^  (nullable) Intersection(LineSegment2D^ other)`
+
+
+**Parameters**
+
+- `other` (`LineSegment2D^`)
+
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Intersection(`[`Polyline2D`](Polyline2D.md)`^ polyline)`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md)^)
+
+## `Overlaps`
+
+`bool Overlaps(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+`bool Overlaps(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+`bool Overlaps(LineSegment2D^ seg)`
+
+
+**Parameters**
+
+- `seg` (`LineSegment2D^`)
+
+`bool Overlaps(`[`Polyline2D`](Polyline2D.md)`^ polyline)`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md)^)
+
+## `Overlap`
+
+`LineSegment2D^  (nullable) Overlap(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+`LineSegment2D^  (nullable) Overlap(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+`LineSegment2D^  (nullable) Overlap(LineSegment2D^ seg)`
+
+
+**Parameters**
+
+- `seg` (`LineSegment2D^`)
+
+`std::vector< LineSegment2D >^  (nullable) Overlap(`[`Polyline2D`](Polyline2D.md)`^ polyline)`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md)^)
+
+## `Touches`
+
+`bool Touches(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+`bool Touches(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+`bool Touches(LineSegment2D^ seg)`
+
+
+**Parameters**
+
+- `seg` (`LineSegment2D^`)
+
+`bool Touches(`[`Polyline2D`](Polyline2D.md)`^ polyline)`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md)^)
+
+## `Touch`
+
+[`Point2D`](Point2D.md)`^  (nullable) Touch(`[`Line2D`](Line2D.md)`^ line)`
+
+
+**Parameters**
+
+- `line` ([`Line2D`](Line2D.md)^)
+
+[`Point2D`](Point2D.md)`^  (nullable) Touch(`[`Ray2D`](Ray2D.md)`^ ray)`
+
+
+**Parameters**
+
+- `ray` ([`Ray2D`](Ray2D.md)^)
+
+[`Point2D`](Point2D.md)`^  (nullable) Touch(LineSegment2D^ seg)`
+
+
+**Parameters**
+
+- `seg` (`LineSegment2D^`)
+
+`std::vector< `[`Point2D`](Point2D.md)` >^  (nullable) Touch(`[`Polyline2D`](Polyline2D.md)`^ polyline)`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline2D`](Polyline2D.md)^)
 
 
 ---
 
-**See also:** [Line2D](Line2D.md), [Point2D](Point2D.md), [Ray2D](Ray2D.md)
+**See also:** [Line2D](Line2D.md), [Point2D](Point2D.md), [Polyline2D](Polyline2D.md), [Ray2D](Ray2D.md)

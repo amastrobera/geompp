@@ -196,67 +196,183 @@ Tests whether a point lies on this ray.
 
 `intersects(line: `[`Line3D`](Line3D.md)`) -> bool`
 
-Tests whether this ray intersects a line.
 
 **Parameters**
 
-- `line` ([`Line3D`](Line3D.md)) — The line.
-
-**Returns** — true if they meet at a point on the ray's domain (sc on the ray >= 0).
+- `line` ([`Line3D`](Line3D.md))
 
 `intersects(other: Ray3D) -> bool`
 
-Tests whether this ray intersects another ray.
 
 **Parameters**
 
-- `other` (`Ray3D`) — The other ray.
-
-**Returns** — true if both rays' domains share the crossing point.
+- `other` (`Ray3D`)
 
 `intersects(segment: `[`LineSegment3D`](LineSegment3D.md)`) -> bool`
 
-Tests whether this ray intersects a segment.
 
 **Parameters**
 
-- `segment` ([`LineSegment3D`](LineSegment3D.md)) — The segment.
+- `segment` ([`LineSegment3D`](LineSegment3D.md))
 
-**Returns** — true if the ray hits the segment within both domains.
+`intersects(polyline: `[`Polyline3D`](Polyline3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
 
 ## `intersection`
 
 `intersection(line: `[`Line3D`](Line3D.md)`) -> `[`Point3D`](Point3D.md)` | None`
 
-Intersection point of this ray with a line.
 
 **Parameters**
 
-- `line` ([`Line3D`](Line3D.md)) — The line.
-
-**Returns** — The intersection point if it lies on the ray (sc >= 0), or std::nullopt otherwise.
+- `line` ([`Line3D`](Line3D.md))
 
 `intersection(other: Ray3D) -> `[`Point3D`](Point3D.md)` | None`
 
-Intersection point of two rays.
 
 **Parameters**
 
-- `other` (`Ray3D`) — The other ray.
-
-**Returns** — The intersection point if it lies on both rays' domains, or std::nullopt otherwise.
+- `other` (`Ray3D`)
 
 `intersection(segment: `[`LineSegment3D`](LineSegment3D.md)`) -> `[`Point3D`](Point3D.md)` | None`
 
-Intersection point of this ray with a segment.
 
 **Parameters**
 
-- `segment` ([`LineSegment3D`](LineSegment3D.md)) — The segment.
+- `segment` ([`LineSegment3D`](LineSegment3D.md))
 
-**Returns** — The intersection point if it lies on both the ray and the segment, or std::nullopt otherwise.
+`intersection(polyline: `[`Polyline3D`](Polyline3D.md)`) -> std::variant< `[`Point3D`](Point3D.md)` , std::vector< `[`Point3D`](Point3D.md)` > > | None`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
+
+## `overlaps`
+
+`overlaps(line: `[`Line3D`](Line3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`overlaps(ray: Ray3D) -> bool`
+
+
+**Parameters**
+
+- `ray` (`Ray3D`)
+
+`overlaps(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`overlaps(polyline: `[`Polyline3D`](Polyline3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
+
+## `overlap`
+
+`overlap(line: `[`Line3D`](Line3D.md)`) -> Ray3D | None`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`overlap(ray: Ray3D) -> std::variant< Ray3D , `[`LineSegment3D`](LineSegment3D.md)` > | None`
+
+
+**Parameters**
+
+- `ray` (`Ray3D`)
+
+`overlap(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> `[`LineSegment3D`](LineSegment3D.md)` | None`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`overlap(polyline: `[`Polyline3D`](Polyline3D.md)`) -> std::vector< `[`LineSegment3D`](LineSegment3D.md)` > | None`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
+
+## `touches`
+
+`touches(line: `[`Line3D`](Line3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`touches(ray: Ray3D) -> bool`
+
+
+**Parameters**
+
+- `ray` (`Ray3D`)
+
+`touches(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`touches(polyline: `[`Polyline3D`](Polyline3D.md)`) -> bool`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
+
+## `touch`
+
+`touch(line: `[`Line3D`](Line3D.md)`) -> `[`Point3D`](Point3D.md)` | None`
+
+
+**Parameters**
+
+- `line` ([`Line3D`](Line3D.md))
+
+`touch(ray: Ray3D) -> `[`Point3D`](Point3D.md)` | None`
+
+
+**Parameters**
+
+- `ray` (`Ray3D`)
+
+`touch(seg: `[`LineSegment3D`](LineSegment3D.md)`) -> `[`Point3D`](Point3D.md)` | None`
+
+
+**Parameters**
+
+- `seg` ([`LineSegment3D`](LineSegment3D.md))
+
+`touch(polyline: `[`Polyline3D`](Polyline3D.md)`) -> std::vector< `[`Point3D`](Point3D.md)` > | None`
+
+
+**Parameters**
+
+- `polyline` ([`Polyline3D`](Polyline3D.md))
 
 
 ---
 
-**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Point3D](Point3D.md), [Vector3D](Vector3D.md)
+**See also:** [Line3D](Line3D.md), [LineSegment3D](LineSegment3D.md), [Point3D](Point3D.md), [Polyline3D](Polyline3D.md), [Vector3D](Vector3D.md)

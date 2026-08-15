@@ -72,6 +72,15 @@
 `Vector2D^ Normalize()`
 
 
+## `IsParallel`
+
+`bool IsParallel(Vector2D^ other)`
+
+
+**Parameters**
+
+- `other` (`Vector2D^`)
+
 ## `FromWkt`
 
 **static** `Vector2D^ FromWkt(System::String^ wkt)`
