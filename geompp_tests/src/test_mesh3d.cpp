@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <optional>
+
 namespace g = geompp;
 
 namespace geompp_tests {
@@ -123,6 +125,28 @@ TEST_F(Mesh3DTest, Connect_SharedEdge_ExposesAdjacency) {
   auto neighbor = connected[0].Neighbor(Edge::THIRD);
   ASSERT_TRUE(neighbor.has_value());
   EXPECT_EQ(1u, neighbor->ID());
+}
+
+TEST_F(Mesh3DTest, Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction) {
+  // 3D counterpart of Mesh2DTest.Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction, flat on z=0 --
+  // see its own comment for the full explanation.
+  auto mesh = g::Mesh3D::FromTriangles({
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(1, 0, 0), g::Point3D(2, 0, 0), g::Point3D(2, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(1, 0, 0), g::Point3D(2, 1, 0), g::Point3D(1, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(1, 1, 0), g::Point3D(2, 1, 0), g::Point3D(2, 2, 0)),
+      g::Triangle3D::Make(g::Point3D(1, 1, 0), g::Point3D(2, 2, 0), g::Point3D(1, 2, 0)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  std::optional<g::PolyMesh3D> poly_mesh;
+  EXPECT_NO_THROW(poly_mesh = mesh.Polygonize(params));
+  ASSERT_TRUE(poly_mesh.has_value());
+  EXPECT_EQ(poly_mesh->Size(), 2u);
+  EXPECT_NEAR(poly_mesh->Area(), 3.0, 1e-9);
 }
 
 TEST_F(Mesh3DTest, Polygonize_MatchesConnectThenPolygonize) {

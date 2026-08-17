@@ -30,16 +30,36 @@ Each release covers all three packages at the same version:
 **C# bindings**
 - `GeomUtil.Polygonize()` / `GeomUtil.Merge()` (both dimensions), `PolygonizationParams` / `PolygonizationStrategy`, and `Mesh2D/3D.Polygonize()` / `ConnectedMesh2D/3D.Polygonize()`.
 
+### Fixed
+
+- **`Mesh2D/3D::Polygonize()`/`ConnectedMesh2D/3D::Polygonize()` could throw a T-junction error on a
+  perfectly valid mesh** — every `polygonize()`/`merge()` output piece was packaged via
+  `Polygon2D/3D::Make()`, which runs its usual `remove_collinear()` cleanup on each piece
+  *independently*. A vertex collinear (hence redundant) on one piece's own boundary can still be a
+  genuine, load-bearing corner of a *neighboring* piece — e.g. `HertelMehlhorn` polygonizing an
+  L-shaped 6-triangle region into a 2x1 rectangle plus a 1x1 square, where the square's corner sits
+  exactly at the rectangle's top-edge midpoint. `remove_collinear()` silently dropped that midpoint
+  from the rectangle's ring alone, leaving the square's corner touching the middle of the rectangle's
+  edge once both pieces were welded into the same `PolyMesh2D/3D` — a T-junction
+  `PolyMesh2D/3D::FromPolygons()`'s own adjacency validation then correctly rejected, on input that
+  was never actually invalid. Fixed by having `polygonize()`, `merge()`, and both `Polygonize()`
+  entry points (all 4, both dimensions) package their output through a new shared
+  `detail::polygons_from_pieces()` helper that preserves every traced vertex, collinear or not,
+  instead of collinear-simplifying — winding (already a proven invariant of the trace/classification
+  step) and, for 3D, coplanarity are also trusted rather than re-derived, via the existing private
+  `Polygon2D::FromUniqueCCWPoints()`/`Polygon3D::FromUniqueCoplanarCCWPoints()` fast constructors
+  (previously friended only to `transform()`).
+
 ### Tests
 
 **C++ (`geompp_tests`)**
-- 39 new cases across `test_calc_utils2d.cpp`/`test_calc_utils3d.cpp` (face-view adjacency, coplanar clustering, all 3 strategies, `polygonize()`/`merge()` incl. plane-bucket grouping and touching-hole merges), `test_mesh2d.cpp`/`test_mesh3d.cpp`, and `test_connected_mesh2d.cpp`/`test_connected_mesh3d.cpp`.
+- 39 new cases across `test_calc_utils2d.cpp`/`test_calc_utils3d.cpp` (face-view adjacency, coplanar clustering, all 3 strategies, `polygonize()`/`merge()` incl. plane-bucket grouping and touching-hole merges), `test_mesh2d.cpp`/`test_mesh3d.cpp`, and `test_connected_mesh2d.cpp`/`test_connected_mesh3d.cpp`, plus 6 further T-junction regression cases (2 in `test_calc_utils2d.cpp`, 4 across `test_mesh2d/3d.cpp`/`test_connected_mesh2d/3d.cpp`) added with the fix above.
 
 **Python (`geompp_python/tests`)**
-- 19 new cases: `test_polygonize.py` (new file) plus additions to `test_mesh.py`/`test_connected_mesh.py`.
+- 19 new cases: `test_polygonize.py` (new file) plus additions to `test_mesh.py`/`test_connected_mesh.py`. +6 T-junction regression cases added with the fix above.
 
 **C# (`geompp_csharp/tests`)**
-- 19 new cases: `PolygonizeTests.cs` (new file) plus additions to `MeshTests.cs`/`ConnectedMeshTests.cs`.
+- 19 new cases: `PolygonizeTests.cs` (new file) plus additions to `MeshTests.cs`/`ConnectedMeshTests.cs`. +6 T-junction regression cases added with the fix above.
 
 ## [0.17.3] - 2026-08-15
 

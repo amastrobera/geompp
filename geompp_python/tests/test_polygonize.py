@@ -53,6 +53,19 @@ class TestPolygonize:
         assert len(polys) == 1
         assert approx(polys[0].area(), 4.0)
 
+    def test_l_shape_hertel_mehlhorn_preserves_shared_t_junction_vertex(self):
+        # 2x2 grid, top-left cell skipped -- an L-shape with a reflex vertex at (1, 1). HertelMehlhorn
+        # returns 2 convex pieces (a 2x1 rectangle and a 1x1 square) whose shared corner sits exactly at
+        # the midpoint of the rectangle's top edge. Regression test: polygonize() must not silently drop
+        # that vertex as collinear-on-its-own-ring, or Mesh2D.polygonize()/PolyMesh2D would reject the
+        # result as a T-junction once welded together (see test_mesh.py's mirror of this same case).
+        polys = geompp.polygonize(_grid_triangles(2, 2, skip={(1, 0)}))
+        assert len(polys) == 2
+
+        rectangle = next(p for p in polys if approx(p.area(), 2.0))
+        assert rectangle.size() == 6  # 4 real corners + (1, 0) and (1, 1), deliberately not simplified
+        assert any(v.almost_equals(geompp.Point2D(1, 1)) for v in rectangle.perimeter())
+
     def test_empty_input_raises(self):
         with pytest.raises(ValueError):
             geompp.polygonize([])
@@ -93,6 +106,23 @@ class TestMerge:
 
         assert len(result) == 1
         assert approx(result[0].area(), 8.0)
+
+    def test_three_squares_preserves_shared_t_junction_vertex(self):
+        # a and b share a full edge (x=1, y:0-1) and merge into a 2x1 rectangle; c only touches the
+        # merged piece at the single point (1, 1) (no full shared edge with a or b). Regression test for
+        # the same class of bug as test_l_shape_hertel_mehlhorn_preserves_shared_t_junction_vertex above,
+        # but via merge()'s own packaging: the merged rectangle must still carry (1, 1) as an explicit
+        # vertex, or c's own corner would land mid-edge on a T-junction once both pieces shared a mesh.
+        a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        b = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
+        c = geompp.Polygon2D.make([geompp.Point2D(1, 1), geompp.Point2D(1.5, 1), geompp.Point2D(1.5, 1.5), geompp.Point2D(1, 1.5)])
+
+        result = geompp.merge([a, b, c])
+
+        rectangle = next((p for p in result if approx(p.area(), 2.0)), None)
+        assert rectangle is not None
+        assert any(v.almost_equals(geompp.Point2D(1, 1)) for v in rectangle.perimeter())
+        assert approx(sum(p.area() for p in result), 2.25)  # 2.0 (rectangle) + 0.25 (c)
 
     def test_two_disjoint_squares_returns_both_unchanged(self):
         a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])

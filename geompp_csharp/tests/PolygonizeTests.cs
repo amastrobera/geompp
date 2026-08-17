@@ -67,6 +67,29 @@ public static class PolygonizeTests {
       Eq(4.0, poly.Area());
     });
 
+    Test("GeomUtil_Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctionVertex", () => {
+      // 2x2 grid, top-left cell skipped -- an L-shape with a reflex vertex at (1, 1). HertelMehlhorn
+      // returns 2 convex pieces (a 2x1 rectangle and a 1x1 square) whose shared corner sits exactly at
+      // the midpoint of the rectangle's top edge. Regression test: Polygonize() must not silently drop
+      // that vertex as collinear-on-its-own-ring, or Mesh2D.Polygonize()/PolyMesh2D would reject the
+      // result as a T-junction once welded together (see MeshTests.cs's mirror of this same case).
+      var triangles = GridTriangles(2, 2, new HashSet<(int, int)> { (1, 0) });
+      var polys = GeomUtil.Polygonize(triangles.ToArray(), new PolygonizationParams());
+      Eq(2, CountOf(polys), 0);
+
+      Polygon2D? rectangle = null;
+      foreach (var p in polys) {
+        if (System.Math.Abs(p.Area() - 2.0) < 1e-9) rectangle = p;
+      }
+      IsTrue(rectangle != null, "expected a piece with area 2.0");
+      Eq(6, rectangle!.Size(), 0);  // 4 real corners + (1,0) and (1,1), deliberately not simplified
+      bool hasMidpoint = false;
+      foreach (var v in rectangle.Perimeter()) {
+        if (v.AlmostEquals(new Point2D(1, 1))) hasMidpoint = true;
+      }
+      IsTrue(hasMidpoint, "expected the rectangle to keep (1,1) as an explicit vertex");
+    });
+
     Test("GeomUtil_Polygonize_EmptyInput_Throws", () => {
       bool threw = false;
       try { GeomUtil.Polygonize(new Triangle2D[] { }, new PolygonizationParams()); }
@@ -112,6 +135,30 @@ public static class PolygonizeTests {
       Eq(1, CountOf(result), 0);
       var poly = System.Linq.Enumerable.First(result);
       Eq(8.0, poly.Area());
+    });
+
+    Test("GeomUtil_Merge_ThreeSquares_PreservesSharedTJunctionVertex", () => {
+      // a and b share a full edge (x=1, y:0-1) and merge into a 2x1 rectangle; c only touches the
+      // merged piece at the single point (1, 1) (no full shared edge with a or b). Regression test for
+      // the same class of bug as the Polygonize() version above, but via Merge()'s own packaging.
+      var a = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var b = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var c = Polygon2D.Make(new Point2D[] { new(1, 1), new(1.5, 1), new(1.5, 1.5), new(1, 1.5) });
+      var result = GeomUtil.Merge(new[] { a, b, c });
+
+      Polygon2D? rectangle = null;
+      double totalArea = 0.0;
+      foreach (var p in result) {
+        totalArea += p.Area();
+        if (System.Math.Abs(p.Area() - 2.0) < 1e-9) rectangle = p;
+      }
+      IsTrue(rectangle != null, "expected a piece with area 2.0");
+      bool hasMidpoint = false;
+      foreach (var v in rectangle!.Perimeter()) {
+        if (v.AlmostEquals(new Point2D(1, 1))) hasMidpoint = true;
+      }
+      IsTrue(hasMidpoint, "expected the rectangle to keep (1,1) as an explicit vertex");
+      Eq(2.25, totalArea);  // 2.0 (rectangle) + 0.25 (c)
     });
 
     Test("GeomUtil_Merge_TwoDisjointSquares_ReturnsBothUnchanged", () => {

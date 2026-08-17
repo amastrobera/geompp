@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <optional>
+
 namespace g = geompp;
 
 namespace geompp_tests {
@@ -139,6 +141,34 @@ TEST_F(Mesh2DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad) {
   ASSERT_EQ(poly_mesh.Size(), 1u);
   EXPECT_NEAR(poly_mesh.Area(), 1.0, 1e-9);
   EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction) {
+  // 2x2 grid, top-left cell skipped: an L-shape. HertelMehlhorn returns 2 convex pieces -- a 2x1
+  // rectangle and a 1x1 square -- whose shared corner sits exactly at the midpoint of the rectangle's
+  // top edge. Regression test: this used to throw here (though not from the free polygonize() function,
+  // which has no mesh-conformity requirement to violate) because Polygonize() packaged each piece via
+  // Polygon2D::Make(), which silently drops that midpoint as collinear on the rectangle's own ring alone
+  // -- leaving the square's corner touching the middle of a neighbor's edge once PolyMesh2D::FromPolygons()
+  // re-welds and validates adjacency. Fixed by having Polygonize() preserve every traced vertex instead
+  // (see detail::polygons_from_pieces).
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  std::optional<g::PolyMesh2D> poly_mesh;
+  EXPECT_NO_THROW(poly_mesh = mesh.Polygonize(params));
+  ASSERT_TRUE(poly_mesh.has_value());
+  EXPECT_EQ(poly_mesh->Size(), 2u);
+  EXPECT_NEAR(poly_mesh->Area(), 3.0, 1e-9);
 }
 
 TEST_F(Mesh2DTest, Polygonize_MatchesConnectThenPolygonize) {

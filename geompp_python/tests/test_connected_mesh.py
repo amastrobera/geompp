@@ -155,6 +155,22 @@ class TestConnectedMesh2D:
         assert approx(poly_mesh.area(), 4.0)
         assert poly_mesh[0].is_convex()
 
+    def test_polygonize_l_shape_hertel_mehlhorn_does_not_throw_t_junction(self):
+        # Mirrors TestMesh2D's own version -- see its comment for the full explanation. ConnectedMesh2D.
+        # polygonize() packages pieces via the same fix, so it must not raise here either.
+        p00, p10, p11, p01 = geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)
+        p20, p21, p22, p12 = geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(2, 2), geompp.Point2D(1, 2)
+        mesh = geompp.ConnectedMesh2D.from_triangles([
+            geompp.Triangle2D.make(p00, p10, p11), geompp.Triangle2D.make(p00, p11, p01),
+            geompp.Triangle2D.make(p10, p20, p21), geompp.Triangle2D.make(p10, p21, p11),
+            geompp.Triangle2D.make(p11, p21, p22), geompp.Triangle2D.make(p11, p22, p12),
+        ])
+
+        poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
+
+        assert poly_mesh.size() == 2
+        assert approx(poly_mesh.area(), 3.0)
+
 class TestConnectedMesh3D:
     def test_from_triangles_empty_raises(self):
         with pytest.raises(ValueError):
@@ -283,3 +299,18 @@ class TestConnectedMesh3D:
         assert poly_mesh.size() == 1
         assert poly_mesh[0].size() == 4
         assert approx(poly_mesh.area(), 2.0 ** 0.5)
+
+    def test_polygonize_l_shape_hertel_mehlhorn_does_not_throw_t_junction(self):
+        # Mirrors TestConnectedMesh2D's own version, flat on z=0 -- see its comment for the explanation.
+        p00, p10, p11, p01 = geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)
+        p20, p21, p22, p12 = geompp.Point3D(2, 0, 0), geompp.Point3D(2, 1, 0), geompp.Point3D(2, 2, 0), geompp.Point3D(1, 2, 0)
+        mesh = geompp.ConnectedMesh3D.from_triangles([
+            geompp.Triangle3D.make(p00, p10, p11), geompp.Triangle3D.make(p00, p11, p01),
+            geompp.Triangle3D.make(p10, p20, p21), geompp.Triangle3D.make(p10, p21, p11),
+            geompp.Triangle3D.make(p11, p21, p22), geompp.Triangle3D.make(p11, p22, p12),
+        ])
+
+        poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
+
+        assert poly_mesh.size() == 2
+        assert approx(poly_mesh.area(), 3.0)

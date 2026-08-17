@@ -176,6 +176,28 @@ public static class ConnectedMeshTests {
       IsTrue(polyMesh[0].IsConvex(), "expected the merged 2x2 grid to be convex");
     });
 
+    Test("ConnectedMesh2D_Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction", () => {
+      // Mirrors Mesh2D's own version -- see its comment for the full explanation. ConnectedMesh2D.
+      // Polygonize() packages pieces via the same fix, so it must not throw here either.
+      var mesh = ConnectedMesh2D.FromTriangles(new[] {
+        Triangle2D.Make(new(0, 0), new(1, 0), new(1, 1)),
+        Triangle2D.Make(new(0, 0), new(1, 1), new(0, 1)),
+        Triangle2D.Make(new(1, 0), new(2, 0), new(2, 1)),
+        Triangle2D.Make(new(1, 0), new(2, 1), new(1, 1)),
+        Triangle2D.Make(new(1, 1), new(2, 1), new(2, 2)),
+        Triangle2D.Make(new(1, 1), new(2, 2), new(1, 2)),
+      });
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn);
+      PolyMesh2D? polyMesh = null;
+      bool threw = false;
+      try { polyMesh = mesh.Polygonize(settings); }
+      catch (Exception) { threw = true; }
+      IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
+      NotNull(polyMesh);
+      Eq(2, polyMesh!.Size(), 0);
+      Eq(3.0, polyMesh.Area());
+    });
+
     // ── ConnectedMesh3D ────────────────────────────────────────────────────────────
     Console.WriteLine("\nConnectedMesh3D");
 
@@ -321,6 +343,27 @@ public static class ConnectedMeshTests {
       Eq(1, polyMesh.Size(), 0);
       Eq(4, polyMesh[0].Size(), 0);
       Eq(System.Math.Sqrt(2.0), polyMesh.Area());
+    });
+
+    Test("ConnectedMesh3D_Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction", () => {
+      // Mirrors ConnectedMesh2D's own version, flat on z=0 -- see its comment for the explanation.
+      var mesh = ConnectedMesh3D.FromTriangles(new[] {
+        Triangle3D.Make(new(0, 0, 0), new(1, 0, 0), new(1, 1, 0)),
+        Triangle3D.Make(new(0, 0, 0), new(1, 1, 0), new(0, 1, 0)),
+        Triangle3D.Make(new(1, 0, 0), new(2, 0, 0), new(2, 1, 0)),
+        Triangle3D.Make(new(1, 0, 0), new(2, 1, 0), new(1, 1, 0)),
+        Triangle3D.Make(new(1, 1, 0), new(2, 1, 0), new(2, 2, 0)),
+        Triangle3D.Make(new(1, 1, 0), new(2, 2, 0), new(1, 2, 0)),
+      });
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn);
+      PolyMesh3D? polyMesh = null;
+      bool threw = false;
+      try { polyMesh = mesh.Polygonize(settings); }
+      catch (Exception) { threw = true; }
+      IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
+      NotNull(polyMesh);
+      Eq(2, polyMesh!.Size(), 0);
+      Eq(3.0, polyMesh.Area());
     });
   }
 }

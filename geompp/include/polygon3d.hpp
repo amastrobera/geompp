@@ -31,6 +31,16 @@ geometry::Polygon3D transform(geometry::Polygon3D const& poly, maths::Matrix4 co
 }  // namespace transformations
 
 inline namespace geometry {
+namespace detail {
+// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshFaceView3D> alias -- see
+// polygon2d.hpp's identical forward declaration for why) so Polygon3D can friend this exact overload
+// below. 3D counterpart of Polygon2D's own polygons_from_pieces() -- see that one's doc comment.
+std::vector<Polygon3D> polygons_from_pieces(
+    std::vector<std::pair<std::vector<Point3D>, std::vector<std::vector<Point3D>>>> pieces);
+}  // namespace detail
+}  // namespace geometry
+
+inline namespace geometry {
 
 class Polygon3D {
  public:
@@ -226,6 +236,11 @@ class Polygon3D {
                                                std::vector<std::vector<Point3D>> holes, bool is_convex);
 
   friend Polygon3D geompp::transformations::transform(Polygon3D const& poly, maths::Matrix4 const& m);
+
+  // Same trust as transform()'s own friend grant above -- see Polygon2D::polygons_from_pieces' doc
+  // comment for the full rationale (winding already proven, is_convex explicitly computed by the caller).
+  friend std::vector<Polygon3D> geompp::geometry::detail::polygons_from_pieces(
+      std::vector<std::pair<std::vector<Point3D>, std::vector<std::vector<Point3D>>>> pieces);
 
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex);
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,

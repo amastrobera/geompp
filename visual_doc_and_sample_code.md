@@ -6179,6 +6179,56 @@ A quick list of code examples per topic is provided here.
   winding → `Polygon2D::Union` → reverse winding back), so 2+ separate cut-outs that end up sharing an
   edge after their parent polygons merge don't leave a dangling, self-touching hole ring behind.
 
+  The pictures below run all three strategies on the same input — an L-shaped region (a reflex vertex
+  where the missing square would be), hand-triangulated into 6 unit triangles — so the three results
+  can be compared directly. `HertelMehlhorn` stops at 2 pieces: it can fuse every triangle within each
+  of the two visually-obvious rectangles, but the reflex corner means a 3rd merge across them would stop
+  being convex, so it refuses. `PlanarBoundaryExtraction` doesn't care about convexity at all, so it
+  cancels every internal edge and traces the *whole* L-shape as one 8-vertex non-convex polygon.
+  `PlanarQuads` never looks at the global shape, only at immediate neighbors — it greedily pairs
+  triangles from *different* source squares into one quad crossing the middle seam, which leaves one
+  triangle in each original square without a remaining partner, so the fourth square-worth of area ends
+  up as 2 quads plus 2 leftover triangles instead of the "obvious" 3 quads.
+
+  Look closely at the dots in the `HertelMehlhorn` and `PlanarBoundaryExtraction` pictures below and
+  you'll spot vertices sitting in the *middle* of an otherwise-straight edge (e.g. the rectangle's
+  bottom edge in `HertelMehlhorn`, at the seam between its two source triangle-squares) — these are
+  deliberately **not** simplified away. `polygonize()`/`merge()` never run a collinear-cleanup pass on
+  their output: a vertex that's collinear (hence redundant) on one piece's own boundary can still be a
+  genuine, load-bearing corner of a *neighboring* piece (the square's bottom-left corner, in this
+  example, sits exactly at the rectangle's top-edge midpoint) — dropping it would leave that neighbor's
+  corner touching the middle of an edge instead of another vertex, a T-junction that would make the two
+  pieces impossible to weld into one conforming `PolyMesh2D/3D`.
+
+  <p align="center">
+    <img src="./images/polygonize_before.png" width="260" alt="6 unit triangles forming an L-shaped region, teal fill with cyan edges -- the shared polygonize() input for all three strategies below">
+    &nbsp;&nbsp;
+    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="polygonize() with HertelMehlhorn on the L-shape: 2 convex polygons shaded differently (gold rectangle, rust-orange square) so the split at the reflex corner reads at a glance -- despite the rectangle's own top edge running unbroken through their shared corner">
+  </p>
+  <p align="center">
+    <img src="./images/polygonize_before.png" width="260" alt="The same 6 triangles forming an L-shaped region, before PlanarBoundaryExtraction">
+    &nbsp;&nbsp;
+    <img src="./images/polygonize_boundary_extraction.png" width="260" alt="polygonize() with PlanarBoundaryExtraction on the L-shape: 1 non-convex gold polygon tracing the whole outer boundary, reflex vertex intact">
+  </p>
+  <p align="center">
+    <img src="./images/polygonize_before.png" width="260" alt="The same 6 triangles forming an L-shaped region, before PlanarQuads">
+    <img src="./images/polygonize_planar_quads.png" width="260" alt="polygonize() with PlanarQuads on the L-shape: 2 gold quads (one crossing the middle seam) plus 2 leftover gold triangles">
+  </p>
+
+  `merge()` starts one level up from `polygonize()` — from `Polygon2D/3D`s, not triangles — so the
+  picture below uses two touching unit-rectangles, each already carrying its own hole, rather than a
+  triangle mesh. `merge()` cancels their shared outer edge and traces the combined boundary into one
+  bigger rectangle; neither hole touches the other, so both simply carry over into the result exactly
+  as they were, per input polygon. The same no-collinear-cleanup rule from above applies here too — the
+  merged outer ring keeps the two input rectangles' former shared corners (visible as the extra dots on
+  its top and bottom edges) rather than simplifying down to just the 4 outer corners.
+
+  <p align="center">
+    <img src="./images/merge_before.png" width="360" alt="Two touching Polygon2Ds, each a rectangle with its own square hole, teal fill with cyan edges -- the merge() input">
+    &nbsp;&nbsp;
+    <img src="./images/merge_after.png" width="360" alt="merge() result: one bigger gold rectangle with both original holes carried over unchanged, the shared outer edge cancelled -- the former A/B corners survive as extra vertices on the merged edge">
+  </p>
+
   The example below builds a 2×1 rectangle from 4 unit triangles (`0,0`–`2,1`) and polygonizes it with
   the two convex strategies, then again with `PlanarQuads` — which pairs triangles `A` (`0,0 1,0 1,1`)
   and `D` (`1,0 2,1 1,1`) into one quad first, leaving `B` and `C` each without a remaining partner, so
@@ -6225,11 +6275,11 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```bash
-  I20260817] hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  I20260817] hertel-mehlhorn:  POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
   I20260817] planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
   I20260817] planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
   I20260817] planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
-  I20260817] merge:            POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  I20260817] merge:            POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
   ```
 
    </details>
@@ -6270,11 +6320,11 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
   planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
-  merge:            POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  merge:            POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
   ```
 
    </details>
@@ -6314,11 +6364,11 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
   planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
-  merge:            POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  merge:            POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
   ```
 
    </details>

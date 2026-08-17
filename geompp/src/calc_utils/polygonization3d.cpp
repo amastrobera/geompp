@@ -1,5 +1,6 @@
 #include "calc_utils/polygonization3d.hpp"
 
+#include "calc_utils/convex_hull3d.hpp"
 #include "calc_utils/polygon_queries2d.hpp"
 #include "calc_utils/triangulation2d.hpp"
 #include "grid_cell3d.hpp"
@@ -40,6 +41,19 @@ TriangleCompactNeighborRef::TriangleEdge MeshFaceView3D::NeighborEntryEdge(
   return ref.edge_id();
 }
 
+std::vector<Polygon3D> polygons_from_pieces(RingPiecesOf<MeshFaceView3D> pieces) {
+  std::vector<Polygon3D> result;
+  result.reserve(pieces.size());
+  for (auto& [outer, holes] : pieces) {
+    Vector3D normal = newell_normal(outer).Normalize();
+    bool convex = is_convex(outer, holes, normal);
+    result.push_back(holes.empty() ? Polygon3D::FromUniqueCoplanarCCWPoints(std::move(outer), convex)
+                                    : Polygon3D::FromUniqueCoplanarCCWPoints(std::move(outer), std::move(holes),
+                                                                             convex));
+  }
+  return result;
+}
+
 }  // namespace detail
 
 std::vector<Polygon3D> polygonize(std::vector<Triangle3D> const& triangles, PolygonizationParams const& params) {
@@ -63,13 +77,7 @@ std::vector<Polygon3D> polygonize(std::vector<Triangle3D> const& triangles, Poly
   }
 
   auto pieces = detail::polygonize_impl(faces, params);
-
-  std::vector<Polygon3D> polygons;
-  polygons.reserve(pieces.size());
-  for (auto& [outer, holes] : pieces) {
-    polygons.push_back(Polygon3D::Make(std::move(outer), std::move(holes)));
-  }
-  return polygons;
+  return detail::polygons_from_pieces(std::move(pieces));
 }
 
 namespace {
@@ -231,6 +239,8 @@ std::vector<Polygon3D> merge(std::vector<Polygon3D> const& polygons) {
                        std::make_move_iterator(holes_2d.end()));
     auto pieces_2d = detail::package_result_rings(all_rings_2d);
 
+    detail::RingPiecesOf<detail::MeshFaceView3D> group_pieces3d;
+    group_pieces3d.reserve(pieces_2d.size());
     for (auto& [outer2d, holes2d] : pieces_2d) {
       std::vector<Point3D> outer3d;
       outer3d.reserve(outer2d.size());
@@ -249,8 +259,12 @@ std::vector<Polygon3D> merge(std::vector<Polygon3D> const& polygons) {
         holes3d.push_back(std::move(hole3d));
       }
 
-      result.push_back(Polygon3D::Make(std::move(outer3d), std::move(holes3d)));
+      group_pieces3d.emplace_back(std::move(outer3d), std::move(holes3d));
     }
+
+    auto group_polygons = detail::polygons_from_pieces(std::move(group_pieces3d));
+    result.insert(result.end(), std::make_move_iterator(group_polygons.begin()),
+                  std::make_move_iterator(group_polygons.end()));
   }
 
   return result;

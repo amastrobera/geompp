@@ -92,6 +92,26 @@ class TestMesh2D:
         assert direct.size() == via_connect.size()
         assert approx(direct.area(), via_connect.area())
 
+    def test_polygonize_l_shape_hertel_mehlhorn_does_not_throw_t_junction(self):
+        # 2x2 grid, top-left cell skipped: an L-shape. HertelMehlhorn returns 2 convex pieces (a 2x1
+        # rectangle and a 1x1 square) whose shared corner sits exactly at the midpoint of the rectangle's
+        # top edge. Regression test: this used to raise here because polygonize() packaged each piece
+        # via Polygon2D.make(), which silently drops that midpoint as collinear on the rectangle's ring
+        # alone -- leaving the square's corner touching the middle of a neighbor's edge once
+        # PolyMesh2D.from_polygons() re-welds and validates adjacency.
+        p00, p10, p11, p01 = geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)
+        p20, p21, p22, p12 = geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(2, 2), geompp.Point2D(1, 2)
+        mesh = geompp.Mesh2D.from_triangles([
+            geompp.Triangle2D.make(p00, p10, p11), geompp.Triangle2D.make(p00, p11, p01),
+            geompp.Triangle2D.make(p10, p20, p21), geompp.Triangle2D.make(p10, p21, p11),
+            geompp.Triangle2D.make(p11, p21, p22), geompp.Triangle2D.make(p11, p22, p12),
+        ])
+
+        poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
+
+        assert poly_mesh.size() == 2
+        assert approx(poly_mesh.area(), 3.0)
+
 class TestMesh3D:
     def test_from_triangles_empty_raises(self):
         with pytest.raises(ValueError):
@@ -110,6 +130,21 @@ class TestMesh3D:
         mesh = geompp.Mesh3D.from_triangles([t])
         assert mesh.size() == 1
         assert approx(mesh.area(), 0.5)
+
+    def test_polygonize_l_shape_hertel_mehlhorn_does_not_throw_t_junction(self):
+        # 3D counterpart of TestMesh2D's own version, flat on z=0 -- see its comment for the explanation.
+        p00, p10, p11, p01 = geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)
+        p20, p21, p22, p12 = geompp.Point3D(2, 0, 0), geompp.Point3D(2, 1, 0), geompp.Point3D(2, 2, 0), geompp.Point3D(1, 2, 0)
+        mesh = geompp.Mesh3D.from_triangles([
+            geompp.Triangle3D.make(p00, p10, p11), geompp.Triangle3D.make(p00, p11, p01),
+            geompp.Triangle3D.make(p10, p20, p21), geompp.Triangle3D.make(p10, p21, p11),
+            geompp.Triangle3D.make(p11, p21, p22), geompp.Triangle3D.make(p11, p22, p12),
+        ])
+
+        poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
+
+        assert poly_mesh.size() == 2
+        assert approx(poly_mesh.area(), 3.0)
 
     def test_shared_edge_welds_and_preserves_faces(self):
         t0 = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0))

@@ -14,6 +14,13 @@ inline namespace geometry {
 
 class Polygon3D;
 
+namespace detail {
+/// @brief 3D counterpart of Polygon2D's own polygons_from_pieces() (calc_utils/polygonization2d.hpp) --
+/// see its doc comment for the full rationale (preserves every traced vertex, including collinear ones,
+/// so two independently-produced pieces never end up with a T-junction between them).
+std::vector<Polygon3D> polygons_from_pieces(RingPiecesOf<MeshFaceView3D> pieces);
+}  // namespace detail
+
 /// @brief 3D counterpart of the Triangle2D overload (calc_utils/polygonization2d.hpp) -- see its own docs
 /// for the shared machinery (welding, adjacency, detail::polygonize_impl<detail::MeshFaceView3D>, already
 /// extern-template-instantiated alongside the 2D version in polygonization2d.cpp/.hpp).

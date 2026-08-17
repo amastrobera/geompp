@@ -63,9 +63,9 @@ This is the summary of the current test coverage. More on [test coverage](https:
 | Metric | Count | Notes |
 |--------|-------|-------|
 | Public methods (C++) | ~519 | Excl. ctors/dtors/operators. `geompp::maths`/`geompp::transformations` (templated/free-function, header-only) tracked separately, see test_coverage_report.md |
-| C++ methods tested | ~499/519 | ~96% (1254 TEST cases, 1252 run, 2 disabled — incl. 37+17 for `geompp::maths` +6 for its own `detail::`, 30 for `geompp::transformations`, +40 direct `detail::`/`detail::view::` tests, +39 for the `polygonize()`/`merge()`/`Mesh2D/3D.Polygonize()`/`ConnectedMesh2D/3D.Polygonize()` family) |
-| Python methods tested | 473/481 | ~98% (922 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`, +4 for `distance_to(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +19 for polygonization) |
-| C# methods tested | 522/589 | ~89% (1022 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +2 for `Triangle2D`-`Triangle2D` intersection parity, +19 for polygonization) |
+| C++ methods tested | ~499/519 | ~96% (1260 TEST cases, 1258 run, 2 disabled — incl. 37+17 for `geompp::maths` +6 for its own `detail::`, 30 for `geompp::transformations`, +40 direct `detail::`/`detail::view::` tests, +39 for the `polygonize()`/`merge()`/`Mesh2D/3D.Polygonize()`/`ConnectedMesh2D/3D.Polygonize()` family, +6 T-junction regression fix) |
+| Python methods tested | 473/481 | ~98% (928 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`, +4 for `distance_to(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +19 for polygonization, +6 T-junction regression fix) |
+| C# methods tested | 522/589 | ~89% (1028 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +2 for `Triangle2D`-`Triangle2D` intersection parity, +19 for polygonization, +6 T-junction regression fix) |
 | Stubs (not yet impl.) | 2 | `TriangulationParams::Strategy::MonotonePolygon`/`Delaunay` — intentional, see test_coverage_report.md |
 ||||
 

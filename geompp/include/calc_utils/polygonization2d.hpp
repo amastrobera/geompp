@@ -294,6 +294,30 @@ extern template RingPiecesOf<MeshFaceView2D> polygonize_impl(std::vector<MeshFac
 extern template RingPiecesOf<MeshFaceView3D> polygonize_impl(std::vector<MeshFaceView3D> const& faces,
                                                               PolygonizationParams const& params);
 
+/// @brief Packages polygonize_impl()/package_result_rings()'s {outer, holes} pieces into Polygon2D,
+/// deliberately WITHOUT running remove_collinear() on them: every strategy already only reaches this
+/// point after trace_face_group_boundary()/package_result_rings() classified each ring as outer (CCW) or
+/// hole (CW) by actually testing are_ccw()/are_cw() on it, so that fact is a proven invariant here, not a
+/// guess -- Polygon2D::FromUniqueCCWPoints() trusts it instead of re-deriving it. Skipping
+/// remove_collinear() specifically (not just the winding re-check) is a correctness requirement, not an
+/// optimization: two independently-produced pieces can share a boundary vertex that's collinear on ONE
+/// piece's ring but a genuine corner on its NEIGHBOR's ring (e.g. HertelMehlhorn merging an L-shaped
+/// 6-triangle region into a 2x1 rectangle plus a 1x1 square -- the square's corner sits exactly at the
+/// rectangle's top edge's midpoint). Running Polygon2D::Make()'s usual remove_collinear() pass on each
+/// piece independently would silently drop that shared vertex from the rectangle's ring alone, leaving
+/// the square's corner touching the middle of the rectangle's edge -- a T-junction that
+/// PolyMesh2D::FromPolygons()'s own adjacency validation (assert_adjacency/validate_adjacency) then
+/// rejects. Preserving every traced vertex, collinear or not, guarantees two adjacent pieces always keep
+/// their shared corners in lock-step, at the cost of the returned Polygon2D occasionally carrying a
+/// geometrically-redundant (but perfectly valid) 180-degree vertex.
+/// @param pieces Every {outer, holes} piece polygonize_impl() or merge()'s own packaging produced.
+/// @returns One Polygon2D per input piece, same order.
+/// @throws Whatever Polygon2D::FromUniqueCCWPoints() itself throws (e.g. a hole self-intersection) --
+/// everything it still checks (holes are pairwise non-crossing, don't cross the outer ring, are actually
+/// contained by it) is a genuine geometric relationship this function cannot vouch for on the caller's
+/// behalf, unlike winding and collinearity.
+std::vector<Polygon2D> polygons_from_pieces(RingPiecesOf<MeshFaceView2D> pieces);
+
 }  // namespace detail
 
 /// @brief Merges a set of (not necessarily adjacency-ordered) triangles into polygons, per

@@ -30,6 +30,22 @@ geometry::Polygon2D transform(geometry::Polygon2D const& poly, maths::Matrix3 co
 }  // namespace transformations
 
 inline namespace geometry {
+namespace detail {
+// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshFaceView2D> alias -- that
+// alias needs MeshFaceView2D's full definition to resolve, which would pull calc_utils/polygonization2d.hpp
+// in here and cycle straight back to this header) so Polygon2D can friend this exact overload below.
+// Packages polygonize()/merge()/Mesh2D::Polygonize()/ConnectedMesh2D::Polygonize()'s traced {outer, holes}
+// pieces into Polygon2D, WITHOUT running remove_collinear() on them first -- see this function's own doc
+// comment (calc_utils/polygonization2d.cpp) for why that's a correctness requirement here, not just an
+// optimization: a collinear point dropped from one piece's boundary can still be a genuine, load-bearing
+// corner of a NEIGHBORING piece, and silently dropping it produces a T-junction between the two once
+// they're welded into a PolyMesh2D.
+std::vector<Polygon2D> polygons_from_pieces(
+    std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> pieces);
+}  // namespace detail
+}  // namespace geometry
+
+inline namespace geometry {
 
 class Polygon2D {
  public:
@@ -207,6 +223,13 @@ class Polygon2D {
                                        bool is_convex);
 
   friend Polygon2D geompp::transformations::transform(Polygon2D const& poly, maths::Matrix3 const& m);
+
+  // Same trust as transform()'s own friend grant above: polygons_from_pieces() only ever calls this with
+  // pieces already proven CCW-outer/CW-hole (package_result_rings/the boundary trace both classify a ring
+  // into outer-vs-hole BY testing are_ccw/are_cw, so the fact is already computed before this ctor would
+  // redo it) and an explicitly-computed is_convex -- see polygons_from_pieces' own doc comment.
+  friend std::vector<Polygon2D> geompp::geometry::detail::polygons_from_pieces(
+      std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> pieces);
 
   Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex);
   Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes,

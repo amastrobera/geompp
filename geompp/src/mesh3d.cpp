@@ -1,5 +1,6 @@
 #include "mesh3d.hpp"
 
+#include "calc_utils/polygonization3d.hpp"
 #include "calc_utils2d.hpp"
 #include "connected_mesh3d.hpp"
 #include "grid_cell3d.hpp"
@@ -62,12 +63,7 @@ PolyMesh3D Mesh3D::Polygonize(PolygonizationParams const& params) const {
   }
 
   auto pieces = detail::polygonize_impl(faces, params);
-
-  std::vector<Polygon3D> polygons;
-  polygons.reserve(pieces.size());
-  for (auto& [outer, holes] : pieces) {
-    polygons.push_back(Polygon3D::Make(std::move(outer), std::move(holes)));
-  }
+  auto polygons = detail::polygons_from_pieces(std::move(pieces));
   return PolyMesh3D::FromPolygons(polygons);
 }
 

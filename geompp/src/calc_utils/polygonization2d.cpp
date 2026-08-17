@@ -444,6 +444,17 @@ template RingPiecesOf<MeshFaceView2D> polygonize_impl(std::vector<MeshFaceView2D
 template RingPiecesOf<MeshFaceView3D> polygonize_impl(std::vector<MeshFaceView3D> const&,
                                                        PolygonizationParams const&);
 
+std::vector<Polygon2D> polygons_from_pieces(RingPiecesOf<MeshFaceView2D> pieces) {
+  std::vector<Polygon2D> result;
+  result.reserve(pieces.size());
+  for (auto& [outer, holes] : pieces) {
+    bool convex = is_convex(outer, holes);
+    result.push_back(holes.empty() ? Polygon2D::FromUniqueCCWPoints(std::move(outer), convex)
+                                    : Polygon2D::FromUniqueCCWPoints(std::move(outer), std::move(holes), convex));
+  }
+  return result;
+}
+
 }  // namespace detail
 
 std::vector<Polygon2D> polygonize(std::vector<Triangle2D> const& triangles, PolygonizationParams const& params) {
@@ -467,13 +478,7 @@ std::vector<Polygon2D> polygonize(std::vector<Triangle2D> const& triangles, Poly
   }
 
   auto pieces = detail::polygonize_impl(faces, params);
-
-  std::vector<Polygon2D> polygons;
-  polygons.reserve(pieces.size());
-  for (auto& [outer, holes] : pieces) {
-    polygons.push_back(Polygon2D::Make(std::move(outer), std::move(holes)));
-  }
-  return polygons;
+  return detail::polygons_from_pieces(std::move(pieces));
 }
 
 namespace {
@@ -584,13 +589,7 @@ std::vector<Polygon2D> merge(std::vector<Polygon2D> const& polygons) {
   all_rings.insert(all_rings.end(), std::make_move_iterator(merged_holes.begin()),
                    std::make_move_iterator(merged_holes.end()));
   auto pieces = detail::package_result_rings(all_rings);
-
-  std::vector<Polygon2D> result;
-  result.reserve(pieces.size());
-  for (auto& [outer, holes] : pieces) {
-    result.push_back(Polygon2D::Make(std::move(outer), std::move(holes)));
-  }
-  return result;
+  return detail::polygons_from_pieces(std::move(pieces));
 }
 
 }  // namespace geometry

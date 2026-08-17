@@ -2697,6 +2697,45 @@ TEST_F(CalcUtils2DTest, Polygonize_GridWithCenterHole_ReturnsOuterWithOneHole) {
   EXPECT_NEAR(polys[0].Area(), 8.0, 1e-9);  // 9 (outer) - 1 (hole)
 }
 
+TEST_F(CalcUtils2DTest, Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctionVertex) {
+  // 2x2 grid with the top-left cell skipped -- an L-shape with a reflex vertex at (1,1). HertelMehlhorn
+  // can't merge across the reflex corner, so it returns 2 convex pieces: a 2x1 rectangle (area 2, cells
+  // (0,0)+(0,1)) and a 1x1 square on top of it (area 1, cell (1,1)). The rectangle piece itself comes
+  // from merging 2 sub-quads (cell (0,0) and cell (0,1)), each already merged from a triangle pair --
+  // the merge concatenates each sub-quad's own non-shared corners rather than collinear-simplifying, so
+  // the final ring keeps both (1,0) and (1,1) as explicit vertices (6 total, not the geometrically
+  // minimal 4). (1,1) is the load-bearing one: it's the exact midpoint of the rectangle's top edge
+  // (0,1)-(2,1) and also the square's bottom-left corner. If polygonize() ran its usual remove_collinear()
+  // pass on each piece independently, the rectangle's ring would silently drop it, leaving the square's
+  // corner touching the middle of the rectangle's edge -- a T-junction PolyMesh2D::FromPolygons() would
+  // reject (see Mesh2DTest.Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction). polygonize() must
+  // keep every traced vertex instead, (1,0) included even though no neighboring piece needs it.
+  auto polys = g::polygonize(BuildGridTriangles(2, 2, {{1, 0}}));
+  ASSERT_EQ(polys.size(), 2u);
+
+  double total_area = 0.0;
+  bool found_rectangle_with_midpoint = false;
+  for (auto const& p : polys) {
+    total_area += p.Area();
+    if (std::abs(p.Area() - 2.0) < 1e-9) {
+      ASSERT_EQ(p.Size(), 6u);  // 4 real corners + (1,0) and (1,1), deliberately not simplified
+      bool has_midpoint = false;
+      for (auto const& v : p.Perimeter()) {
+        if (v.AlmostEquals(g::Point2D(1, 1))) {
+          has_midpoint = true;
+        }
+      }
+      EXPECT_TRUE(has_midpoint);
+      found_rectangle_with_midpoint = true;
+    } else {
+      EXPECT_NEAR(p.Area(), 1.0, 1e-9);
+      EXPECT_EQ(p.Size(), 4u);
+    }
+  }
+  EXPECT_TRUE(found_rectangle_with_midpoint);
+  EXPECT_NEAR(total_area, 3.0, 1e-9);
+}
+
 TEST_F(CalcUtils2DTest, Polygonize_EmptyInput_Throws) {
   EXPECT_THROW(g::polygonize({}), std::invalid_argument);
 }
@@ -2720,6 +2759,40 @@ TEST_F(CalcUtils2DTest, Merge_TwoTouchingSquares_ReturnsSingleMergedOuter) {
   ASSERT_EQ(result.size(), 1u);
   EXPECT_FALSE(result[0].HasHoles());
   EXPECT_NEAR(result[0].Area(), 8.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Merge_ThreeSquares_PreservesSharedTJunctionVertex) {
+  // A and B share a full edge (x=1, y:0-1) and merge into a 2x1 rectangle; C only touches the merged
+  // piece at the single point (1,1) (no full shared edge with A or B, so it never merges with either).
+  // Regression test for the same class of bug as
+  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctionVertex, but via merge()'s
+  // own packaging instead of polygonize_impl()'s: the merged AB rectangle's traced boundary must still
+  // carry (1,1) as an explicit vertex (it's collinear on the AB pair alone, but load-bearing for C),
+  // or C's own corner would land mid-edge on a T-junction once both pieces sat in the same PolyMesh2D.
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto c = g::Polygon2D::Make(
+      {g::Point2D(1, 1), g::Point2D(1.5, 1), g::Point2D(1.5, 1.5), g::Point2D(1, 1.5)});
+
+  auto result = g::merge({a, b, c});
+
+  double total_area = 0.0;
+  bool found_rectangle_with_midpoint = false;
+  for (auto const& p : result) {
+    total_area += p.Area();
+    if (std::abs(p.Area() - 2.0) < 1e-9) {
+      bool has_midpoint = false;
+      for (auto const& v : p.Perimeter()) {
+        if (v.AlmostEquals(g::Point2D(1, 1))) {
+          has_midpoint = true;
+        }
+      }
+      EXPECT_TRUE(has_midpoint);
+      found_rectangle_with_midpoint = true;
+    }
+  }
+  EXPECT_TRUE(found_rectangle_with_midpoint);
+  EXPECT_NEAR(total_area, 2.25, 1e-9);  // 2.0 (rectangle) + 0.25 (c)
 }
 
 TEST_F(CalcUtils2DTest, Merge_TwoDisjointSquares_ReturnsBothUnchanged) {

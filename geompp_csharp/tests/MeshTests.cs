@@ -100,6 +100,33 @@ public static class MeshTests {
       Eq(direct.Area(), viaConnect.Area());
     });
 
+    Test("Mesh2D_Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction", () => {
+      // 2x2 grid, top-left cell skipped: an L-shape. HertelMehlhorn returns 2 convex pieces -- a 2x1
+      // rectangle and a 1x1 square -- whose shared corner sits exactly at the midpoint of the
+      // rectangle's top edge. Regression test: this used to throw here (though not from the free
+      // GeomUtil.Polygonize(), which has no mesh-conformity requirement to violate) because Polygonize()
+      // packaged each piece via Polygon2D.Make(), which silently drops that midpoint as collinear on
+      // the rectangle's own ring alone -- leaving the square's corner touching the middle of a
+      // neighbor's edge once PolyMesh2D.FromPolygons() re-welds and validates adjacency.
+      var mesh = Mesh2D.FromTriangles(new[] {
+        Triangle2D.Make(new(0, 0), new(1, 0), new(1, 1)),
+        Triangle2D.Make(new(0, 0), new(1, 1), new(0, 1)),
+        Triangle2D.Make(new(1, 0), new(2, 0), new(2, 1)),
+        Triangle2D.Make(new(1, 0), new(2, 1), new(1, 1)),
+        Triangle2D.Make(new(1, 1), new(2, 1), new(2, 2)),
+        Triangle2D.Make(new(1, 1), new(2, 2), new(1, 2)),
+      });
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn);
+      PolyMesh2D? polyMesh = null;
+      bool threw = false;
+      try { polyMesh = mesh.Polygonize(settings); }
+      catch (Exception) { threw = true; }
+      IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
+      NotNull(polyMesh);
+      Eq(2, polyMesh!.Size(), 0);
+      Eq(3.0, polyMesh.Area());
+    });
+
     Test("Mesh3D_FromTriangles_Empty_Throws", () => {
       bool threw = false;
       try { Mesh3D.FromTriangles(new Triangle3D[] { }); }
@@ -163,6 +190,27 @@ public static class MeshTests {
       Eq(direct.Size(), viaConnect.Size(), 0);
       Eq(direct.Area(), viaConnect.Area());
       Eq(1.0, direct.Area());
+    });
+
+    Test("Mesh3D_Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction", () => {
+      // 3D counterpart of Mesh2D's own version, flat on z=0 -- see its comment for the explanation.
+      var mesh = Mesh3D.FromTriangles(new[] {
+        Triangle3D.Make(new(0, 0, 0), new(1, 0, 0), new(1, 1, 0)),
+        Triangle3D.Make(new(0, 0, 0), new(1, 1, 0), new(0, 1, 0)),
+        Triangle3D.Make(new(1, 0, 0), new(2, 0, 0), new(2, 1, 0)),
+        Triangle3D.Make(new(1, 0, 0), new(2, 1, 0), new(1, 1, 0)),
+        Triangle3D.Make(new(1, 1, 0), new(2, 1, 0), new(2, 2, 0)),
+        Triangle3D.Make(new(1, 1, 0), new(2, 2, 0), new(1, 2, 0)),
+      });
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn);
+      PolyMesh3D? polyMesh = null;
+      bool threw = false;
+      try { polyMesh = mesh.Polygonize(settings); }
+      catch (Exception) { threw = true; }
+      IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
+      NotNull(polyMesh);
+      Eq(2, polyMesh!.Size(), 0);
+      Eq(3.0, polyMesh.Area());
     });
   }
 }
