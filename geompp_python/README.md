@@ -49,10 +49,10 @@ This is the summary of the current test coverage. More on [test coverage](https:
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (C++) | ~513 | Excl. ctors/dtors/operators. `geompp::maths`/`geompp::transformations` (templated/free-function, header-only) tracked separately, see test_coverage_report.md |
-| C++ methods tested | ~493/513 | ~96% (1204 TEST cases, 1202 run, 2 disabled — incl. 37+17 for `geompp::maths` +6 for its own `detail::`, 30 for `geompp::transformations`, +40 direct `detail::`/`detail::view::` tests) |
-| Python methods tested | 458/474 | ~97% (903 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`, +4 for `distance_to(Point)` on `Polygon2D/3D`/`Triangle2D/3D`) |
-| C# methods tested | 518/581 | ~89% (1003 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +2 for `Triangle2D`-`Triangle2D` intersection parity) |
+| Public methods (C++) | ~519 | Excl. ctors/dtors/operators. `geompp::maths`/`geompp::transformations` (templated/free-function, header-only) tracked separately, see test_coverage_report.md |
+| C++ methods tested | ~499/519 | ~96% (1254 TEST cases, 1252 run, 2 disabled — incl. 37+17 for `geompp::maths` +6 for its own `detail::`, 30 for `geompp::transformations`, +40 direct `detail::`/`detail::view::` tests, +39 for the `polygonize()`/`merge()`/`Mesh2D/3D.Polygonize()`/`ConnectedMesh2D/3D.Polygonize()` family) |
+| Python methods tested | 473/481 | ~98% (922 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`, +4 for `distance_to(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +19 for polygonization) |
+| C# methods tested | 522/589 | ~89% (1022 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +2 for `Triangle2D`-`Triangle2D` intersection parity, +19 for polygonization) |
 | Stubs (not yet impl.) | 2 | `TriangulationParams::Strategy::MonotonePolygon`/`Delaunay` — intentional, see test_coverage_report.md |
 ||||
 
@@ -124,6 +124,7 @@ Each class supports a consistent set of spatial operations where applicable:
 - **Polygon boolean operations** — `intersection()`, `union()`, `difference()`, `xor()` between two polygons (map-overlay method), or the free function `clip(clipper_loop, subject_loop)` for raw point loops without constructing a `Polygon` first.
 - **Point cloud operations** — `principal_axes()` (PCA) finds the empirical 3 directive axes of a list of points in space.
 - **Triangulation** — decomposition of a polygon into n-triangles, using several possible algorithms such as the _Ear Clip_, a _Best Fit Ear Clip_, _Monotone Polygon_ or _Constrained Delaunay_. 
+- **Polygonization** — the reverse of triangulation: merges coplanar, edge-adjacent triangles back into polygons, via `Mesh2D/3D.polygonize()` / `ConnectedMesh2D/3D.polygonize()` or the free `polygonize(triangles, settings)`, under 3 strategies (`PlanarBoundaryExtraction` — O(n) external boundary of a triangle set, `PlanarQuads` — O(n) pairs of coplanar triangles into quads, `HertelMehlhorn` — merges coplanar triangles into convex n-gons). A related free function `merge(polygons)` welds a set of non-overlapping polygons that tile a plane (3D: grouped by plane first) into fewer, bigger polygons, including merging any of their holes that touch along the same seam.
 - **Linear algebra** (`geompp.maths`) — a small fixed-size linear algebra submodule, independent of the geometry classes above: `Vector2`/`Vector3`/`Vector4`, `Matrix2`/`Matrix3`/`Matrix4`, and the `solve_gauss()` / `solve_cramer()` system solvers for `Ax = b`.
 - **Affine transformations** (`geompp.transformations`) — `translate()`, `rotate()`, `scale()`, `shear()`, `reflect()` (fast, single-point, no matrix needed), and the general `transform(primitive, matrix)` for every primitive from `Point2D`/`Point3D` to `PolyMesh2D`/`PolyMesh3D`. Use `TransformBuilder2D`/`TransformBuilder3D` to fluently chain several transforms (e.g. `.translate(...).rotate(...).scale(...)`) into a single `Matrix3`/`Matrix4`, then apply it once with `.build()`/`transform()`.
 

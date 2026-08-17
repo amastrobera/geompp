@@ -2,6 +2,8 @@
 
 #include "calc_utils2d.hpp"
 #include "grid_cell3d.hpp"
+#include "polygon3d.hpp"
+#include "polymesh3d.hpp"
 #include "triangle3d.hpp"
 
 #include <stdexcept>
@@ -66,6 +68,26 @@ detail::TriangleCompactNeighborRef::TriangleEdge ConnectedMesh3D::FaceView3D::Ne
   }
 
   return neighbor_ref.edge_id();
+}
+
+PolyMesh3D ConnectedMesh3D::Polygonize(PolygonizationParams const& params) const {
+  // Wraps this mesh's own already-stored VERTICES/TRIANGLES/NEIGHBORS directly -- no adjacency-building
+  // work of any kind, unlike Mesh3D::Polygonize() (which has to build a transient NEIGHBORS array first).
+  std::size_t n = TRIANGLES->size() / 3;
+  std::vector<detail::MeshFaceView3D> faces;
+  faces.reserve(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    faces.emplace_back(VERTICES->data(), TRIANGLES->data(), NEIGHBORS->data(), i);
+  }
+
+  auto pieces = detail::polygonize_impl(faces, params);
+
+  std::vector<Polygon3D> polygons;
+  polygons.reserve(pieces.size());
+  for (auto& [outer, holes] : pieces) {
+    polygons.push_back(Polygon3D::Make(std::move(outer), std::move(holes)));
+  }
+  return PolyMesh3D::FromPolygons(polygons);
 }
 
 }  // namespace geometry

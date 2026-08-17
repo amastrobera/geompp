@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.hpp"
 #include "point3d.hpp"
 #include "triangle3d.hpp"
 
@@ -14,6 +15,7 @@ namespace geompp {
 inline namespace geometry {
 
 class ConnectedMesh3D;
+class PolyMesh3D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 /// No adjacency structure is stored to find a face's neighbors.
@@ -61,6 +63,18 @@ class Mesh3D {
 #pragma endregion
 
   ConnectedMesh3D Connect() const;
+
+  /// @brief Merges coplanar, edge-adjacent facets into polygons, per @p params.strategy -- see
+  /// PolygonizationParams for what each strategy guarantees.
+  /// @note Deliberately does NOT go through Connect() -- see Mesh2D::Polygonize()'s own comment (same
+  /// reasoning applies here verbatim). Builds only a transient per-facet NEIGHBORS array via
+  /// detail::build_neighbor_refs() on FACE_INDICES directly, and wraps it together with the existing
+  /// VERTICES/FACE_INDICES buffers, unchanged, into the same detail::MeshFaceView3D view
+  /// ConnectedMesh3D::Polygonize() uses.
+  /// @param params Which polygonization strategy to run -- see PolygonizationParams::Strategy.
+  /// @returns A PolyMesh3D of the merged polygon facets.
+  /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.
+  PolyMesh3D Polygonize(PolygonizationParams const& params = PolygonizationParams{}) const;
 
  private:
   // shared_ptr, not plain vector: copying a Mesh3D (or handing its vertex buffer to a future

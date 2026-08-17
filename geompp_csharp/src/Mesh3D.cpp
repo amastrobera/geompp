@@ -1,6 +1,8 @@
 #include "Mesh3D.hpp"
-#include "Triangle3D.hpp"
 #include "ConnectedMesh3D.hpp"
+#include "GeomUtil.hpp"
+#include "PolyMesh3D.hpp"
+#include "Triangle3D.hpp"
 
 namespace GeomPP {
 
@@ -38,6 +40,10 @@ Triangle3D^ Mesh3D::default::get(int i) {
 
 ConnectedMesh3D^ Mesh3D::Connect() {
     return gcnew ConnectedMesh3D(new geompp::ConnectedMesh3D(_native->Connect()));
+}
+
+PolyMesh3D^ Mesh3D::Polygonize(PolygonizationParams^ settings) {
+    return gcnew PolyMesh3D(new geompp::PolyMesh3D(_native->Polygonize(settings->ToNative())));
 }
 
 System::String^ Mesh3D::ToString() {

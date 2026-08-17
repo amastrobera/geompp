@@ -403,6 +403,16 @@ geompp::TriangulationParams TriangulationParams::ToNative() {
     return native;
 }
 
+PolygonizationParams::PolygonizationParams() : _strategy(PolygonizationStrategy::HertelMehlhorn) {}
+
+PolygonizationParams::PolygonizationParams(PolygonizationStrategy strategy) : _strategy(strategy) {}
+
+geompp::PolygonizationParams PolygonizationParams::ToNative() {
+    geompp::PolygonizationParams native;
+    native.strategy = static_cast<geompp::PolygonizationParams::Strategy>(_strategy);
+    return native;
+}
+
 System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
     System::Collections::Generic::List<Point2D^>^ points, TriangulationParams^ settings) {
     auto native = geompp::triangulate(ToNativePoints2D(points), settings->ToNative());
@@ -465,6 +475,44 @@ static std::vector<geompp::Triangle3D> ToNativeTriangles3D(array<Triangle3D^>^ t
     for each (Triangle3D^ t in triangles)
         native.push_back(*t->_native);
     return native;
+}
+
+System::Collections::Generic::IEnumerable<Polygon2D^>^ GeomUtil::Polygonize(
+    array<Triangle2D^>^ triangles, PolygonizationParams^ settings) {
+    auto native = geompp::polygonize(ToNativeTriangles2D(triangles), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Polygon2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon2D(new geompp::Polygon2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Polygon3D^>^ GeomUtil::Polygonize(
+    array<Triangle3D^>^ triangles, PolygonizationParams^ settings) {
+    auto native = geompp::polygonize(ToNativeTriangles3D(triangles), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Polygon3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon3D(new geompp::Polygon3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Polygon2D^>^ GeomUtil::Merge(array<Polygon2D^>^ polygons) {
+    auto native = geompp::merge(ToNativePolygons2D(polygons));
+    auto list = gcnew System::Collections::Generic::List<Polygon2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon2D(new geompp::Polygon2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Polygon3D^>^ GeomUtil::Merge(array<Polygon3D^>^ polygons) {
+    auto native = geompp::merge(ToNativePolygons3D(polygons));
+    auto list = gcnew System::Collections::Generic::List<Polygon3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon3D(new geompp::Polygon3D(p)));
+    }
+    return list;
 }
 
 static System::Collections::Generic::List<int>^ ToManagedInts(std::vector<std::size_t> const& indices) {

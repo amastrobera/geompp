@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.hpp"
 #include "point2d.hpp"
 #include "triangle2d.hpp"
 
@@ -14,6 +15,7 @@ namespace geompp {
 inline namespace geometry {
 
 class ConnectedMesh2D;
+class PolyMesh2D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 /// No adjacency structure is stored to find a face's neighbors.
@@ -61,6 +63,23 @@ class Mesh2D {
 #pragma endregion
 
   ConnectedMesh2D Connect() const;
+
+  /// @brief Merges coplanar, edge-adjacent facets into polygons, per @p params.strategy -- see
+  /// PolygonizationParams for what each strategy guarantees (planar boundary extraction, quads, or
+  /// Hertel-Mehlhorn convex merging).
+  /// @note Deliberately does NOT go through Connect(): Connect() rebuilds every facet into a fresh
+  /// Triangle2D and reruns ConnectedMesh2D::FromTriangles' entire pipeline, including a second geometric
+  /// grid-cell re-weld of vertices this Mesh2D already welded once at FromTriangles() time, plus an
+  /// O(n^2) validate_adjacency pass this Mesh2D never needed (its own FromTriangles already proved the
+  /// adjacency invariant, and Mesh2D is immutable, so it can't have become invalid since). Polygonize()
+  /// instead builds only the missing piece -- a transient per-facet NEIGHBORS array, via
+  /// detail::build_neighbor_refs() on FACE_INDICES directly (already-welded indices in, pure index-hashmap
+  /// math, O(n), no geometry) -- and wraps it together with the existing VERTICES/FACE_INDICES buffers,
+  /// unchanged, into the same detail::MeshFaceView2D view ConnectedMesh2D::Polygonize() uses.
+  /// @param params Which polygonization strategy to run -- see PolygonizationParams::Strategy.
+  /// @returns A PolyMesh2D of the merged polygon facets.
+  /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.
+  PolyMesh2D Polygonize(PolygonizationParams const& params = PolygonizationParams{}) const;
 
  private:
   // shared_ptr, not plain vector: copying a Mesh2D (or handing its vertex buffer to a future

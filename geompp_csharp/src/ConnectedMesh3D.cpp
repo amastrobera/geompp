@@ -1,6 +1,8 @@
 #include "ConnectedMesh3D.hpp"
-#include "Triangle3D.hpp"
 #include "FaceView3D.hpp"
+#include "GeomUtil.hpp"
+#include "PolyMesh3D.hpp"
+#include "Triangle3D.hpp"
 
 namespace GeomPP {
 
@@ -34,6 +36,10 @@ double ConnectedMesh3D::Area() {
 
 FaceView3D^ ConnectedMesh3D::default::get(int i) {
     return gcnew FaceView3D(new geompp::ConnectedMesh3D::FaceView3D((*_native)[(std::size_t)i]), this);
+}
+
+PolyMesh3D^ ConnectedMesh3D::Polygonize(PolygonizationParams^ settings) {
+    return gcnew PolyMesh3D(new geompp::PolyMesh3D(_native->Polygonize(settings->ToNative())));
 }
 
 System::String^ ConnectedMesh3D::ToString() {

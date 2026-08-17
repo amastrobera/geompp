@@ -2,6 +2,7 @@
 
 #include "connected_mesh2d.hpp"
 #include "point2d.hpp"
+#include "polymesh2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
 
@@ -123,6 +124,44 @@ TEST_F(Mesh2DTest, Connect_SharedEdge_ExposesAdjacency) {
   auto neighbor = connected[0].Neighbor(Edge::THIRD);
   ASSERT_TRUE(neighbor.has_value());
   EXPECT_EQ(1u, neighbor->ID());
+}
+
+TEST_F(Mesh2DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_NEAR(poly_mesh.Area(), 1.0, 1e-9);
+  EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(Mesh2DTest, Polygonize_MatchesConnectThenPolygonize) {
+  // Mesh2D::Polygonize() takes a different (cheaper) internal path than Connect().Polygonize() would --
+  // no ConnectedMesh2D is ever constructed -- but must agree on the actual result.
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(1, 1)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  auto direct = mesh.Polygonize(params);
+  auto via_connect = mesh.Connect().Polygonize(params);
+
+  ASSERT_EQ(direct.Size(), via_connect.Size());
+  EXPECT_NEAR(direct.Area(), via_connect.Area(), 1e-9);
+  for (std::size_t i = 0; i < direct.Size(); ++i) {
+    EXPECT_TRUE(direct[i].AlmostEquals(via_connect[i]))
+        << "piece " << i << " differs between Mesh2D::Polygonize() and Connect().Polygonize()";
+  }
 }
 
 }  // namespace geompp_tests

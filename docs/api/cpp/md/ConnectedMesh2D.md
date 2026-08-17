@@ -34,7 +34,21 @@ A lazy view of every facet, each rebuilt as a [Triangle2D](Triangle2D.md) on dem
 
 **Returns** — A std::ranges::view of [Triangle2D](Triangle2D.md) , one per facet, in the same order as the input.
 
+## `Polygonize`
+
+[`PolyMesh2D`](PolyMesh2D.md)` Polygonize(`[`PolygonizationParams`](PolygonizationParams.md)` const & params) const`
+
+Merges coplanar, edge-adjacent facets into polygons, per params.strategy see [PolygonizationParams](PolygonizationParams.md) for what each strategy guarantees (planar boundary extraction, quads, or Hertel-Mehlhorn convex merging).
+
+Reads NEIGHBORS/TRIANGLES/VERTICES directly (already precomputed at FromTriangles() time), so this needs no extra adjacency-building work of its own.
+
+**Parameters**
+
+- `params` ([`PolygonizationParams`](PolygonizationParams.md) const &) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — A [PolyMesh2D](PolyMesh2D.md) of the merged polygon facets.
+
 
 ---
 
-**See also:** [GridCell2D](GridCell2D.md), [Triangle2D](Triangle2D.md)
+**See also:** [GridCell2D](GridCell2D.md), [PolyMesh2D](PolyMesh2D.md), [PolygonizationParams](PolygonizationParams.md), [Triangle2D](Triangle2D.md)

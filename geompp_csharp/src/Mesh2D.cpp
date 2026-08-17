@@ -1,6 +1,8 @@
 #include "Mesh2D.hpp"
-#include "Triangle2D.hpp"
 #include "ConnectedMesh2D.hpp"
+#include "GeomUtil.hpp"
+#include "PolyMesh2D.hpp"
+#include "Triangle2D.hpp"
 
 namespace GeomPP {
 
@@ -38,6 +40,10 @@ Triangle2D^ Mesh2D::default::get(int i) {
 
 ConnectedMesh2D^ Mesh2D::Connect() {
     return gcnew ConnectedMesh2D(new geompp::ConnectedMesh2D(_native->Connect()));
+}
+
+PolyMesh2D^ Mesh2D::Polygonize(PolygonizationParams^ settings) {
+    return gcnew PolyMesh2D(new geompp::PolyMesh2D(_native->Polygonize(settings->ToNative())));
 }
 
 System::String^ Mesh2D::ToString() {

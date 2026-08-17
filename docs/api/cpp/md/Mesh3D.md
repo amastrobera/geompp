@@ -39,7 +39,19 @@ A lazy view of every facet, each rebuilt as a [Triangle3D](Triangle3D.md) on dem
 [`ConnectedMesh3D`](ConnectedMesh3D.md)` Connect() const`
 
 
+## `Polygonize`
+
+[`PolyMesh3D`](PolyMesh3D.md)` Polygonize(`[`PolygonizationParams`](PolygonizationParams.md)` const & params) const`
+
+Merges coplanar, edge-adjacent facets into polygons, per params.strategy see [PolygonizationParams](PolygonizationParams.md) for what each strategy guarantees.
+
+**Parameters**
+
+- `params` ([`PolygonizationParams`](PolygonizationParams.md) const &) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — A [PolyMesh3D](PolyMesh3D.md) of the merged polygon facets.
+
 
 ---
 
-**See also:** [ConnectedMesh3D](ConnectedMesh3D.md), [GridCell3D](GridCell3D.md), [Triangle3D](Triangle3D.md)
+**See also:** [ConnectedMesh3D](ConnectedMesh3D.md), [GridCell3D](GridCell3D.md), [PolyMesh3D](PolyMesh3D.md), [PolygonizationParams](PolygonizationParams.md), [Triangle3D](Triangle3D.md)

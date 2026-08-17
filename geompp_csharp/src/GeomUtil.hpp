@@ -190,6 +190,39 @@ private:
     AdjacencyConformity _conformity;
 };
 
+// Which polygonization algorithm to run, and under what constraint -- see PolygonizationParams. Values
+// must stay in the same order as geompp::PolygonizationParams::Strategy: ToNative() converts via a raw
+// static_cast by ordinal, same reasoning as TriangulationStrategy above.
+public enum class PolygonizationStrategy {
+    // Finds the external boundary of a set of triangles in O(N), returning 1+ planar polygon (not
+    // guaranteed convex).
+    PlanarBoundaryExtraction = 0,
+    // Pairs 2 adjacent coplanar triangles into 1 planar quad, in O(N); planar yet not necessarily convex.
+    PlanarQuads = 1,
+    // Merges as many triangles as possible into polygons in O(N); polygons are planar and convex. Default.
+    HertelMehlhorn = 2
+};
+
+// Bundles the polygonization strategy for GeomUtil.Polygonize() / Mesh2D.Polygonize() /
+// Mesh3D.Polygonize() / ConnectedMesh2D.Polygonize() / ConnectedMesh3D.Polygonize(). Defaults to
+// HertelMehlhorn, matching the native PolygonizationParams' own default.
+public ref class PolygonizationParams {
+public:
+    PolygonizationParams();
+    PolygonizationParams(PolygonizationStrategy strategy);
+
+    property PolygonizationStrategy Strategy {
+        PolygonizationStrategy get() { return _strategy; }
+        void set(PolygonizationStrategy value) { _strategy = value; }
+    }
+
+internal:
+    geompp::PolygonizationParams ToNative();
+
+private:
+    PolygonizationStrategy _strategy;
+};
+
 // One "more than 1 neighbor" violation found by GeomUtil.ValidateAdjacency() across a batch of 2D
 // facets. A T-junction (a vertex partially overlapping an edge) is fixable -- see OnVertex; a
 // non-manifold edge (a full edge shared by 3+ facets) is not, since there's no principled way to pick
@@ -398,6 +431,22 @@ public:
     // T-junction, still throws on a non-manifold edge.
     static System::Collections::Generic::IEnumerable<Triangle2D^>^ Triangulate(
         array<Polygon2D^>^ polygons, TriangulationParams^ settings);
+
+    // Polygonize — merges a set of (not necessarily adjacency-ordered) triangles into polygons, per the
+    // given PolygonizationParams. The free-function equivalent of Mesh2D.FromTriangles(triangles)
+    // .Polygonize(settings) / Mesh3D's 3D counterpart, for callers who just want polygons without
+    // constructing/keeping a full Mesh2D/3D.
+    static System::Collections::Generic::IEnumerable<Polygon2D^>^ Polygonize(
+        array<Triangle2D^>^ triangles, PolygonizationParams^ settings);
+    static System::Collections::Generic::IEnumerable<Polygon3D^>^ Polygonize(
+        array<Triangle3D^>^ triangles, PolygonizationParams^ settings);
+
+    // Merge — welds a set of non-overlapping polygons that tile a plane (2D: one implicit plane; 3D:
+    // grouped by plane first) into fewer, bigger polygons, by cancelling every outer-ring edge shared
+    // between two of them and tracing what's left. Holes are merged the same way one level down:
+    // touching holes (any point of one on the other's perimeter) are unioned into one bigger hole.
+    static System::Collections::Generic::IEnumerable<Polygon2D^>^ Merge(array<Polygon2D^>^ polygons);
+    static System::Collections::Generic::IEnumerable<Polygon3D^>^ Merge(array<Polygon3D^>^ polygons);
 };
 
 }  // namespace GeomPP

@@ -3,6 +3,8 @@
 #include "calc_utils2d.hpp"
 #include "connected_mesh3d.hpp"
 #include "grid_cell3d.hpp"
+#include "polygon3d.hpp"
+#include "polymesh3d.hpp"
 #include "triangle3d.hpp"
 
 #include <stdexcept>
@@ -44,6 +46,29 @@ ConnectedMesh3D Mesh3D::Connect() const {
     triangles.emplace_back(Triangle3D::Make((*VERTICES)[f_idx[0]], (*VERTICES)[f_idx[1]], (*VERTICES)[f_idx[2]]));
   }
   return ConnectedMesh3D::FromTriangles(triangles);
+}
+
+PolyMesh3D Mesh3D::Polygonize(PolygonizationParams const& params) const {
+  // FACE_INDICES's std::array<size_t,3> elements are laid out contiguously, so data()->data() is a valid
+  // flat size_t[3*n] view with no copy -- see this method's own header doc comment / Mesh2D::Polygonize()'s
+  // for why that (plus build_neighbor_refs' pure index-hashmap math) makes this cheaper than Connect().
+  std::size_t n = FACE_INDICES->size();
+  auto neighbor_refs = detail::build_neighbor_refs(FACE_INDICES->data()->data(), n);
+
+  std::vector<detail::MeshFaceView3D> faces;
+  faces.reserve(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    faces.emplace_back(VERTICES->data(), FACE_INDICES->data()->data(), neighbor_refs.data(), i);
+  }
+
+  auto pieces = detail::polygonize_impl(faces, params);
+
+  std::vector<Polygon3D> polygons;
+  polygons.reserve(pieces.size());
+  for (auto& [outer, holes] : pieces) {
+    polygons.push_back(Polygon3D::Make(std::move(outer), std::move(holes)));
+  }
+  return PolyMesh3D::FromPolygons(polygons);
 }
 
 }  // namespace geometry

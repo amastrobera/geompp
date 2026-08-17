@@ -151,6 +151,58 @@ Like the point overload, this requires both polygons to lie in the same plane �
 - `polygon` ([`Polygon3D`](Polygon3D.md) const &)
 - `other` ([`Polygon3D`](Polygon3D.md) const &)
 
+## `polygonize`
+
+`std::vector< `[`Polygon2D`](Polygon2D.md)` > polygonize(std::vector< `[`Triangle2D`](Triangle2D.md)` > const & triangles, `[`PolygonizationParams`](PolygonizationParams.md)` const & params)`
+
+Merges a set of (not necessarily adjacency-ordered) triangles into polygons, per params.strategy see [PolygonizationParams](PolygonizationParams.md) for what each strategy guarantees.
+
+The free-function equivalent of [Mesh2D](Mesh2D.md)::FromTriangles(triangles).Polygonize(params) for callers who just want polygons without constructing/keeping a full [Mesh2D](Mesh2D.md) welds vertices ( detail::GridCellMapForMesh2D , same welding [Mesh2D](Mesh2D.md)::FromTriangles itself uses) and validates adjacency once (every edge has at most 1 neighbor untrusted raw input gets this checked here, same as every other *::FromTriangles/batch- triangulate() entry point), then builds adjacency ( detail::build_neighbor_refs ) and dispatches through detail::polygonize_impl .
+
+**Parameters**
+
+- `triangles` (std::vector< [`Triangle2D`](Triangle2D.md) > const &) — The triangles to polygonize. Order is not required to reflect adjacency.
+- `params` ([`PolygonizationParams`](PolygonizationParams.md) const &) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — One [Polygon2D](Polygon2D.md) per output piece (see each Strategy's own doc for how many, and whether holes are possible).
+
+`std::vector< `[`Polygon3D`](Polygon3D.md)` > polygonize(std::vector< `[`Triangle3D`](Triangle3D.md)` > const & triangles, `[`PolygonizationParams`](PolygonizationParams.md)` const & params)`
+
+3D counterpart of the [Triangle2D](Triangle2D.md) overload ( calc_utils/polygonization2d.hpp ) see its own docs for the shared machinery (welding, adjacency, detail::polygonize_impl<detail::MeshFaceView3D> , already extern-template-instantiated alongside the 2D version in polygonization2d.cpp/.hpp).
+
+**Parameters**
+
+- `triangles` (std::vector< [`Triangle3D`](Triangle3D.md) > const &) — The triangles to polygonize. Order is not required to reflect adjacency.
+- `params` ([`PolygonizationParams`](PolygonizationParams.md) const &) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — One [Polygon3D](Polygon3D.md) per output piece.
+
+## `merge`
+
+`std::vector< `[`Polygon2D`](Polygon2D.md)` > merge(std::vector< `[`Polygon2D`](Polygon2D.md)` > const & polygons)`
+
+Welds a set of (not necessarily adjacent) polygons that tile a plane without overlapping into fewer, bigger polygons, by cancelling every edge shared between two of them and tracing what's left.
+
+A 2D-native operation (2D has one implicit "plane") see the [Polygon3D](Polygon3D.md) overload for the 3D version, which additionally groups input by plane first. Two input polygons touching along a shared OUTER-ring edge merge into one bigger outer boundary. Holes are handled the same way, one level down: every input hole ring is checked against every other for touching (does any of one ring's points lie on the other's perimeter an O(h^2) pass, h = total hole count, matching validate_adjacency's own "not a hot loop" complexity acceptance elsewhere in this codebase), and touching holes are unioned into one bigger hole via reverse-winding + [Polygon2D](Polygon2D.md)::Union() reverse-winding-back (reusing Union()'s already-correct, already-tested set-union logic rather than reimplementing a second cancel-and-trace pass for holes specifically Union() also transparently handles the case of 3+ mutually-touching holes chaining into one, or holes that overlap rather than just touch). A hole untouched by any other hole passes through unchanged. The resulting outer boundaries and (merged or untouched) holes are then grouped into {outer, holes} polygons by containment, exactly like boolean_op()'s own result packaging.
+
+**Parameters**
+
+- `polygons` (std::vector< [`Polygon2D`](Polygon2D.md) > const &) — The polygons to merge. Order doesn't matter; polygons that don't touch anything simply pass through as their own separate output piece.
+
+**Returns** — One [Polygon2D](Polygon2D.md) per disjoint merged region.
+
+`std::vector< `[`Polygon3D`](Polygon3D.md)` > merge(std::vector< `[`Polygon3D`](Polygon3D.md)` > const & polygons)`
+
+3D counterpart of the [Polygon2D](Polygon2D.md) overload ( calc_utils/polygonization2d.hpp ) see its own docs for the shared "cancel outer edges, merge touching holes via reverse+Union+reverse" machinery.
+
+The one genuinely 3D-specific step, absent from the 2D version, is grouping the input by plane first: two-phase, a coarse hash bucket keyed by each polygon's plane Normal (rounded via floor(v/epsilon) into 3 int64 components, same idiom [GridCell2D](GridCell2D.md)/3DHash use for vertex welding), then verified within a normal-bucket against each existing sub-group's representative via [Plane](Plane.md)::AlmostEquals() correctly keeps two same-normal-but-different-offset planes (e.g. two parallel floors) in separate groups. Cancellation and hole-touch-detection then run per plane group, each projected through that group's own [View2D](View2D.md)::OnPlane, with results unprojected back to [Point3D](Point3D.md) via [View2D](View2D.md)::xyz() before assembly same round-trip [Polygon3D](Polygon3D.md)::Union() /Simplify() already use.
+
+**Parameters**
+
+- `polygons` (std::vector< [`Polygon3D`](Polygon3D.md) > const &) — The polygons to merge. Order doesn't matter.
+
+**Returns** — One [Polygon3D](Polygon3D.md) per disjoint merged region.
+
 ## `dist_decimation`
 
 `template <typename Points> Points dist_decimation(Points const & points, double threshold)`
@@ -769,4 +821,4 @@ Linear interpolation: P0 + t * (P1 - P0). Not clamped — t outside [0, 1] extra
 
 ---
 
-**See also:** [AdjacencyViolation](AdjacencyViolation.md), [ConnectedMesh2D](ConnectedMesh2D.md), [CoordinateFrame](CoordinateFrame.md), [ExtremePoints](ExtremePoints.md), [Line2D](Line2D.md), [Line3D](Line3D.md), [LineSegment2D](LineSegment2D.md), [LineSegment3D](LineSegment3D.md), [Mesh2D](Mesh2D.md), [Plane](Plane.md), [Point2D](Point2D.md), [Point3D](Point3D.md), [PolyMesh2D](PolyMesh2D.md), [Polygon2D](Polygon2D.md), [Polygon3D](Polygon3D.md), [PolygonTangents](PolygonTangents.md), [Polyline2D](Polyline2D.md), [Polyline3D](Polyline3D.md), [PolylineExpansionParams](PolylineExpansionParams.md), [Triangle2D](Triangle2D.md), [Triangle3D](Triangle3D.md), [TriangulationParams](TriangulationParams.md), [Vector3D](Vector3D.md)
+**See also:** [AdjacencyViolation](AdjacencyViolation.md), [ConnectedMesh2D](ConnectedMesh2D.md), [CoordinateFrame](CoordinateFrame.md), [ExtremePoints](ExtremePoints.md), [GridCell2D](GridCell2D.md), [Line2D](Line2D.md), [Line3D](Line3D.md), [LineSegment2D](LineSegment2D.md), [LineSegment3D](LineSegment3D.md), [Mesh2D](Mesh2D.md), [Plane](Plane.md), [Point2D](Point2D.md), [Point3D](Point3D.md), [PolyMesh2D](PolyMesh2D.md), [Polygon2D](Polygon2D.md), [Polygon3D](Polygon3D.md), [PolygonTangents](PolygonTangents.md), [PolygonizationParams](PolygonizationParams.md), [Polyline2D](Polyline2D.md), [Polyline3D](Polyline3D.md), [PolylineExpansionParams](PolylineExpansionParams.md), [Triangle2D](Triangle2D.md), [Triangle3D](Triangle3D.md), [TriangulationParams](TriangulationParams.md), [Vector3D](Vector3D.md), [View2D](View2D.md)

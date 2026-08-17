@@ -66,6 +66,32 @@ class TestMesh2D:
         assert connected.size() == mesh.size()
         assert approx(connected.area(), mesh.area())
 
+    def test_polygonize_unit_square_from_two_triangles_returns_single_quad(self):
+        t0 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1))
+        t1 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1))
+        mesh = geompp.Mesh2D.from_triangles([t0, t1])
+
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.PlanarBoundaryExtraction)
+        poly_mesh = mesh.polygonize(settings)
+
+        assert poly_mesh.size() == 1
+        assert approx(poly_mesh.area(), 1.0)
+        assert poly_mesh[0].size() == 4
+
+    def test_polygonize_matches_connect_then_polygonize(self):
+        # Mesh2D.polygonize() takes a different (cheaper) internal path than connect().polygonize()
+        # would -- no ConnectedMesh2D is ever constructed -- but must agree on the actual result.
+        t0 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1))
+        t1 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1))
+        mesh = geompp.Mesh2D.from_triangles([t0, t1])
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn)
+
+        direct = mesh.polygonize(settings)
+        via_connect = mesh.connect().polygonize(settings)
+
+        assert direct.size() == via_connect.size()
+        assert approx(direct.area(), via_connect.area())
+
 class TestMesh3D:
     def test_from_triangles_empty_raises(self):
         with pytest.raises(ValueError):
@@ -102,3 +128,16 @@ class TestMesh3D:
         connected = mesh.connect()
         assert connected.size() == mesh.size()
         assert approx(connected.area(), mesh.area())
+
+    def test_polygonize_matches_connect_then_polygonize(self):
+        t0 = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0))
+        t1 = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0))
+        mesh = geompp.Mesh3D.from_triangles([t0, t1])
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.PlanarBoundaryExtraction)
+
+        direct = mesh.polygonize(settings)
+        via_connect = mesh.connect().polygonize(settings)
+
+        assert direct.size() == via_connect.size() == 1
+        assert approx(direct.area(), via_connect.area())
+        assert approx(direct.area(), 1.0)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.hpp"
 #include "point2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
@@ -14,6 +15,8 @@
 namespace geompp {
 
 inline namespace geometry {
+
+class PolyMesh2D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 /// Per-facet edge adjacency is precomputed internally (see `detail::TriangleCompactNeighborRef`) and
@@ -92,6 +95,15 @@ class ConnectedMesh2D {
   auto Faces() const;  // practically read-only faces (built just before returning)
 
 #pragma endregion
+
+  /// @brief Merges coplanar, edge-adjacent facets into polygons, per @p params.strategy -- see
+  /// PolygonizationParams for what each strategy guarantees (planar boundary extraction, quads, or
+  /// Hertel-Mehlhorn convex merging). Reads NEIGHBORS/TRIANGLES/VERTICES directly (already precomputed at
+  /// FromTriangles() time), so this needs no extra adjacency-building work of its own.
+  /// @param params Which polygonization strategy to run -- see PolygonizationParams::Strategy.
+  /// @returns A PolyMesh2D of the merged polygon facets.
+  /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.
+  PolyMesh2D Polygonize(PolygonizationParams const& params = PolygonizationParams{}) const;
 
  private:
   std::shared_ptr<std::vector<Point2D>> VERTICES;

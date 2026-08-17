@@ -124,6 +124,37 @@ class TestConnectedMesh2D:
         assert back.id() == face0.id()
         assert face1.neighbor_entry_edge(entry_edge) == geompp.TriangleEdge.THIRD
 
+    def test_polygonize_unit_square_from_two_triangles_returns_single_quad(self):
+        t0 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1))
+        t1 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1))
+        mesh = geompp.ConnectedMesh2D.from_triangles([t0, t1])
+
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.PlanarBoundaryExtraction)
+        poly_mesh = mesh.polygonize(settings)
+
+        assert poly_mesh.size() == 1
+        assert approx(poly_mesh.area(), 1.0)
+        assert poly_mesh[0].size() == 4
+
+    def test_polygonize_2x2_grid_hertel_mehlhorn_merges_into_single_convex_piece(self):
+        triangles = []
+        for r in range(2):
+            for c in range(2):
+                p00 = geompp.Point2D(c, r)
+                p10 = geompp.Point2D(c + 1, r)
+                p11 = geompp.Point2D(c + 1, r + 1)
+                p01 = geompp.Point2D(c, r + 1)
+                triangles.append(geompp.Triangle2D.make(p00, p10, p11))
+                triangles.append(geompp.Triangle2D.make(p00, p11, p01))
+        mesh = geompp.ConnectedMesh2D.from_triangles(triangles)
+
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn)
+        poly_mesh = mesh.polygonize(settings)
+
+        assert poly_mesh.size() == 1
+        assert approx(poly_mesh.area(), 4.0)
+        assert poly_mesh[0].is_convex()
+
 class TestConnectedMesh3D:
     def test_from_triangles_empty_raises(self):
         with pytest.raises(ValueError):
@@ -236,3 +267,19 @@ class TestConnectedMesh3D:
         assert back is not None
         assert back.id() == face0.id()
         assert face1.neighbor_entry_edge(entry_edge) == geompp.TriangleEdge.THIRD
+
+    def test_polygonize_tilted_square_from_two_triangles_returns_single_quad(self):
+        p00 = geompp.Point3D(0, 0, 0)
+        p10 = geompp.Point3D(1, 0, 1)
+        p11 = geompp.Point3D(1, 1, 1)
+        p01 = geompp.Point3D(0, 1, 0)
+        t0 = geompp.Triangle3D.make(p00, p10, p11)
+        t1 = geompp.Triangle3D.make(p00, p11, p01)
+        mesh = geompp.ConnectedMesh3D.from_triangles([t0, t1])
+
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.PlanarBoundaryExtraction)
+        poly_mesh = mesh.polygonize(settings)
+
+        assert poly_mesh.size() == 1
+        assert poly_mesh[0].size() == 4
+        assert approx(poly_mesh.area(), 2.0 ** 0.5)

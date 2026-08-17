@@ -488,4 +488,35 @@ void bind_free_functions(py::module_& m) {
           "PolyMesh2D.from_polygons(polygons).triangulate()). Unlike PolyMesh2D.from_polygons (which "
           "always raises on bad adjacency), settings.conformity defaults to Enforce: auto-repairs a "
           "T-junction, still raises on a non-manifold edge. Returns list[Triangle2D].");
+
+    // ── polygonization ("merges coplanar, edge-adjacent triangles into polygons") ────────────────
+    // PolygonizationParams and its Strategy enum are registered separately, earlier -- see
+    // bind_polygonization_params.cpp for why.
+    m.def("polygonize",
+          [](const std::vector<geompp::Triangle2D>& triangles, const geompp::PolygonizationParams& settings) {
+              return geompp::polygonize(triangles, settings);
+          },
+          "triangles"_a, "settings"_a = geompp::PolygonizationParams{},
+          "Merges a set of (not necessarily adjacency-ordered) 2D triangles into polygons, per "
+          "settings.strategy -- the free-function equivalent of Mesh2D.from_triangles(triangles)"
+          ".polygonize(settings). Returns list[Polygon2D].");
+    m.def("polygonize",
+          [](const std::vector<geompp::Triangle3D>& triangles, const geompp::PolygonizationParams& settings) {
+              return geompp::polygonize(triangles, settings);
+          },
+          "triangles"_a, "settings"_a = geompp::PolygonizationParams{},
+          "Same as the Triangle2D overload, for Triangle3D facets -> list[Polygon3D].");
+
+    m.def("merge",
+          [](const std::vector<geompp::Polygon2D>& polygons) { return geompp::merge(polygons); },
+          "polygons"_a,
+          "Welds a set of non-overlapping polygons that tile a plane (2D has one implicit plane) into "
+          "fewer, bigger polygons, by cancelling every outer-ring edge shared between two of them and "
+          "tracing what's left. Holes are merged the same way one level down: touching holes (any point "
+          "of one on the other's perimeter) are unioned into one bigger hole. Returns list[Polygon2D].");
+    m.def("merge",
+          [](const std::vector<geompp::Polygon3D>& polygons) { return geompp::merge(polygons); },
+          "polygons"_a,
+          "Same as the Polygon2D overload, for Polygon3D input -> list[Polygon3D]. Additionally groups "
+          "the input by plane first (coplanar polygons only merge with each other).");
 }

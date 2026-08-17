@@ -39,7 +39,19 @@ A lazy view of every facet, each rebuilt as a [Triangle2D](Triangle2D.md) on dem
 [`ConnectedMesh2D`](ConnectedMesh2D.md)`^ Connect()`
 
 
+## `Polygonize`
+
+[`PolyMesh2D`](PolyMesh2D.md)`^ Polygonize(`[`PolygonizationParams`](PolygonizationParams.md)`^ params)`
+
+Merges coplanar, edge-adjacent facets into polygons, per params.strategy see [PolygonizationParams](PolygonizationParams.md) for what each strategy guarantees (planar boundary extraction, quads, or Hertel-Mehlhorn convex merging).
+
+**Parameters**
+
+- `params` ([`PolygonizationParams`](PolygonizationParams.md)^) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — A [PolyMesh2D](PolyMesh2D.md) of the merged polygon facets.
+
 
 ---
 
-**See also:** [ConnectedMesh2D](ConnectedMesh2D.md), [GridCell2D](GridCell2D.md), [Triangle2D](Triangle2D.md)
+**See also:** [ConnectedMesh2D](ConnectedMesh2D.md), [GridCell2D](GridCell2D.md), [PolyMesh2D](PolyMesh2D.md), [PolygonizationParams](PolygonizationParams.md), [Triangle2D](Triangle2D.md)

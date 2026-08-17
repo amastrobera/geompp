@@ -64,5 +64,8 @@ void bind_connected_mesh2d(py::module_& m) {
                 faces.append(face);
             }
             return faces.attr("__iter__")();
-        });
+        })
+        .def("polygonize", &geompp::ConnectedMesh2D::Polygonize, "params"_a = geompp::PolygonizationParams{},
+             "Merges coplanar, edge-adjacent facets into polygons, per params.strategy. Returns a "
+             "PolyMesh2D.");
 }

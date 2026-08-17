@@ -1,13 +1,17 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cctype>
 #include <cmath>
 #include <compare>
 #include <iomanip>   // For setting precision in debug output
 #include <iostream>  // debug only
+#include <limits>
 #include <ranges>
 #include <sstream>
+#include <stdexcept>
+#include <unordered_map>
 
 namespace geompp {
 
@@ -152,6 +156,64 @@ void remove_all_duplicated_elements(std::vector<double>& sorted_vec, double epsi
   // Physically chop off the dead space at the back
   sorted_vec.erase(write_it, sorted_vec.end());
 }
+
+namespace detail {
+
+std::vector<std::array<TriangleCompactNeighborRef, 3>> build_neighbor_refs(std::size_t const* triangle_indices,
+                                                                           std::size_t n_triangles) {
+  if (n_triangles * 3 > std::numeric_limits<std::uint32_t>::max()) {
+    throw std::overflow_error("Mesh vertex count exceeds 32-bit limit (4.29B vertices).");
+  }
+  if (n_triangles >= (1ULL << 30)) {
+    throw std::overflow_error("Mesh triangle count exceeds TriangleCompactNeighborRef limit (1.07B triangles).");
+  }
+
+  // Default-constructed TriangleCompactNeighborRef already encodes INVALID (boundary) -- no explicit init needed.
+  std::vector<std::array<TriangleCompactNeighborRef, 3>> neighbour_refs(n_triangles);
+
+  // Hashmap of edges (keyed by their 2 vertex indices) to their owning triangle/local-edge, used to find twins.
+  std::unordered_map<std::uint64_t, TriangleCompactNeighborRef> edge_map;
+  edge_map.reserve(n_triangles * 3);
+  auto make_edge_key = [](std::size_t u, std::size_t v) -> std::uint64_t {
+    // Fail fast in Debug mode if vertex indices overflow 32-bit limits
+    assert(u <= std::numeric_limits<std::uint32_t>::max() && "Vertex index 'u' exceeds 32-bit limits!");
+    assert(v <= std::numeric_limits<std::uint32_t>::max() && "Vertex index 'v' exceeds 32-bit limits!");
+
+    return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(u)) << 32) | static_cast<std::uint32_t>(v);
+  };
+
+  for (std::size_t t = 0; t < n_triangles; ++t) {
+    std::size_t tri_id = t * 3;  // used to pick triangle points, in the triangle_indices array
+
+    for (std::size_t edge_id = 0; edge_id < 3; ++edge_id) {
+      std::uint32_t u = static_cast<std::uint32_t>(triangle_indices[tri_id + edge_id]);
+      std::uint32_t v = static_cast<std::uint32_t>(triangle_indices[tri_id + (edge_id + 1) % 3]);
+
+      // TriangleEdge is 0-indexed (FIRST=0, SECOND=1, THIRD=2), matching neighbour_refs' std::array.
+      auto local_edge = static_cast<TriangleCompactNeighborRef::TriangleEdge>(edge_id);
+
+      // Look for the opposite twin edge (v -> u)
+      std::uint64_t twin_key = make_edge_key(v, u);
+      if (auto search = edge_map.find(twin_key); search != edge_map.end()) {
+        // The twin edge exists: wire up both sides of the adjacency link.
+        TriangleCompactNeighborRef neighbor_ref = search->second;
+
+        neighbour_refs[t][edge_id] = neighbor_ref;
+        neighbour_refs[neighbor_ref.triangle_id()][static_cast<std::size_t>(neighbor_ref.edge_id())] =
+            TriangleCompactNeighborRef(static_cast<std::uint32_t>(t), local_edge);
+
+      } else {
+        // First time seeing this edge: save it so a later triangle can find its twin.
+        std::uint64_t my_key = make_edge_key(u, v);
+        edge_map[my_key] = TriangleCompactNeighborRef(static_cast<std::uint32_t>(t), local_edge);
+      }
+    }
+  }
+
+  return neighbour_refs;
+}
+
+}  // namespace detail
 
 }  // namespace geometry
 

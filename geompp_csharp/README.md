@@ -62,10 +62,10 @@ This is the summary of the current test coverage. More on [test coverage](https:
 
 | Metric | Count | Notes |
 |--------|-------|-------|
-| Public methods (C++) | ~513 | Excl. ctors/dtors/operators. `geompp::maths`/`geompp::transformations` (templated/free-function, header-only) tracked separately, see test_coverage_report.md |
-| C++ methods tested | ~493/513 | ~96% (1204 TEST cases, 1202 run, 2 disabled — incl. 37+17 for `geompp::maths` +6 for its own `detail::`, 30 for `geompp::transformations`, +40 direct `detail::`/`detail::view::` tests) |
-| Python methods tested | 458/474 | ~97% (903 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`, +4 for `distance_to(Point)` on `Polygon2D/3D`/`Triangle2D/3D`) |
-| C# methods tested | 518/581 | ~89% (1003 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +2 for `Triangle2D`-`Triangle2D` intersection parity) |
+| Public methods (C++) | ~519 | Excl. ctors/dtors/operators. `geompp::maths`/`geompp::transformations` (templated/free-function, header-only) tracked separately, see test_coverage_report.md |
+| C++ methods tested | ~499/519 | ~96% (1254 TEST cases, 1252 run, 2 disabled — incl. 37+17 for `geompp::maths` +6 for its own `detail::`, 30 for `geompp::transformations`, +40 direct `detail::`/`detail::view::` tests, +39 for the `polygonize()`/`merge()`/`Mesh2D/3D.Polygonize()`/`ConnectedMesh2D/3D.Polygonize()` family) |
+| Python methods tested | 473/481 | ~98% (922 pytest cases — incl. 27+6 for `geompp.maths`, 24+9 for `geompp.transformations`, +4 for `distance_to(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +19 for polygonization) |
+| C# methods tested | 522/589 | ~89% (1022 harness tests — incl. 24+6 for `GeomPP.Maths`, 23+9 for `GeomPP.Transformations`, +6 for `DistanceTo(Point)` on `Polygon2D/3D`/`Triangle2D/3D`, +2 for `Triangle2D`-`Triangle2D` intersection parity, +19 for polygonization) |
 | Stubs (not yet impl.) | 2 | `TriangulationParams::Strategy::MonotonePolygon`/`Delaunay` — intentional, see test_coverage_report.md |
 ||||
 
@@ -141,7 +141,8 @@ Each class supports a consistent set of spatial operations where applicable:
 - **Polyline operations** — `Polyline.Reduce()` (decimation) and `Polyline.Expand()` (Bezier corner smoothing), or the underlying `GeomUtil.DistDecimation()`/`RdpDecimation()`/`VwDecimation()`/`BezierSmoothing2()`/`PolylineExpansion()` for a plain point list.
 - **Polygon boolean operations** — `Intersection()`, `Union()`, `Difference()`, `Xor()` between two polygons (map-overlay method), or `GeomUtil.Clip(clipperLoop, subjectLoop)` for raw point loops without constructing a `Polygon` first.
 - **Point cloud operations** — `GeomUtil.PrincipalAxes()` (PCA) finds the empirical 3 directive axes of a list of points in space.
-- **Triangulation** — decomposition of a polygon into n-triangles, using several possible algorithms such as the _Ear Clip_, a _Best Fit Ear Clip_, _Monotone Polygon_ or _Constrained Delaunay_. 
+- **Triangulation** — decomposition of a polygon into n-triangles, using several possible algorithms such as the _Ear Clip_, a _Best Fit Ear Clip_, _Monotone Polygon_ or _Constrained Delaunay_.
+- **Polygonization** — the reverse of triangulation: merges coplanar, edge-adjacent triangles back into polygons, via `Mesh2D/3D.Polygonize()` / `ConnectedMesh2D/3D.Polygonize()` or `GeomUtil.Polygonize(triangles, settings)`, under 3 strategies (`PlanarBoundaryExtraction` — O(n) external boundary of a triangle set, `PlanarQuads` — O(n) pairs of coplanar triangles into quads, `HertelMehlhorn` — merges coplanar triangles into convex n-gons). A related `GeomUtil.Merge(polygons)` welds a set of non-overlapping polygons that tile a plane (3D: grouped by plane first) into fewer, bigger polygons, including merging any of their holes that touch along the same seam. 
 - **Linear algebra** (`GeomPP.Maths`) — a small fixed-size linear algebra namespace, independent of the geometry classes above: `Vector2`/`Vector3`/`Vector4`, `Matrix2`/`Matrix3`/`Matrix4`, and the `Solvers.SolveGauss()` / `Solvers.SolveCramer()` system solvers for `Ax = b`.
 - **Affine transformations** (`GeomPP.Transformations`) — `Transform.Translate()`, `.Rotate()`, `.Scale()`, `.Shear()`, `.Reflect()` (fast, single-`Point`, no matrix needed), and the general `Transform.Transform(primitive, matrix)` for every primitive from `Point2D`/`Point3D` to `PolyMesh2D`/`PolyMesh3D`. Use `TransformBuilder2D`/`TransformBuilder3D` to fluently chain several transforms (e.g. `.Translate(...).Rotate(...).Scale(...)`) into a single `Matrix3`/`Matrix4`, then apply it once with `.Build()`/`Transform.Transform()`.
 
@@ -175,6 +176,8 @@ directly, without needing a class instance first:
 | `GeomUtil.DistanceTo(polygon, line)` | Distance from a polygon to a line (zero if they intersect) |
 | `GeomUtil.TangentsTo(polygon, pointOrPolygon)` | Tangent segments from a point to a polygon, or common outer tangents between two polygons |
 | `GeomUtil.Triangulate(polygons, settings)` | Returns a set of adjacent triangles replacing the surface of 1+ polygons (the engine behind `Polygon::Triangulate()` and `PolyMesh::Triangulate()`), and with a robust input validation |
+| `GeomUtil.Polygonize(triangles, settings)` | Merges coplanar, edge-adjacent triangles into polygons (the engine behind `Mesh.Polygonize()` and `ConnectedMesh.Polygonize()`), under 3 strategies |
+| `GeomUtil.Merge(polygons)` | Welds a set of non-overlapping, plane-tiling polygons into fewer, bigger polygons, merging touching holes along the way |
 | `Maths.Solvers.SolveGauss(a, b)` | Solve `Ax = b` via Gaussian elimination |
 | `Maths.Solvers.SolveCramer(a, b)` | Solve `Ax = b` via Cramer's rule; throws if `a` is singular |
 | `Transformations.Transform.Translate(primitive, offset)` | Translate a primitive by a vector |

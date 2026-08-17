@@ -78,6 +78,28 @@ public static class MeshTests {
       Eq(mesh.Area(), connected.Area());
     });
 
+    Test("Mesh2D_Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad", () => {
+      var t0 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(1, 1));
+      var t1 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 1), new Point2D(0, 1));
+      var mesh = Mesh2D.FromTriangles(new[] { t0, t1 });
+      var settings = new PolygonizationParams(PolygonizationStrategy.PlanarBoundaryExtraction);
+      var polyMesh = mesh.Polygonize(settings);
+      Eq(1, polyMesh.Size(), 0);
+      Eq(1.0, polyMesh.Area());
+      Eq(4, polyMesh[0].Size(), 0);
+    });
+
+    Test("Mesh2D_Polygonize_MatchesConnectThenPolygonize", () => {
+      var t0 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(1, 1));
+      var t1 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 1), new Point2D(0, 1));
+      var mesh = Mesh2D.FromTriangles(new[] { t0, t1 });
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn);
+      var direct = mesh.Polygonize(settings);
+      var viaConnect = mesh.Connect().Polygonize(settings);
+      Eq(direct.Size(), viaConnect.Size(), 0);
+      Eq(direct.Area(), viaConnect.Area());
+    });
+
     Test("Mesh3D_FromTriangles_Empty_Throws", () => {
       bool threw = false;
       try { Mesh3D.FromTriangles(new Triangle3D[] { }); }
@@ -129,6 +151,18 @@ public static class MeshTests {
       var connected = mesh.Connect();
       Eq(mesh.Size(), connected.Size(), 0);
       Eq(mesh.Area(), connected.Area());
+    });
+
+    Test("Mesh3D_Polygonize_MatchesConnectThenPolygonize", () => {
+      var t0 = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0));
+      var t1 = Triangle3D.Make(new Point3D(0, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0));
+      var mesh = Mesh3D.FromTriangles(new[] { t0, t1 });
+      var settings = new PolygonizationParams(PolygonizationStrategy.PlanarBoundaryExtraction);
+      var direct = mesh.Polygonize(settings);
+      var viaConnect = mesh.Connect().Polygonize(settings);
+      Eq(direct.Size(), viaConnect.Size(), 0);
+      Eq(direct.Area(), viaConnect.Area());
+      Eq(1.0, direct.Area());
     });
   }
 }

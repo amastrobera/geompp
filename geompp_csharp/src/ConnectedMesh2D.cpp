@@ -1,6 +1,8 @@
 #include "ConnectedMesh2D.hpp"
-#include "Triangle2D.hpp"
 #include "FaceView2D.hpp"
+#include "GeomUtil.hpp"
+#include "PolyMesh2D.hpp"
+#include "Triangle2D.hpp"
 
 namespace GeomPP {
 
@@ -34,6 +36,10 @@ double ConnectedMesh2D::Area() {
 
 FaceView2D^ ConnectedMesh2D::default::get(int i) {
     return gcnew FaceView2D(new geompp::ConnectedMesh2D::FaceView2D((*_native)[(std::size_t)i]), this);
+}
+
+PolyMesh2D^ ConnectedMesh2D::Polygonize(PolygonizationParams^ settings) {
+    return gcnew PolyMesh2D(new geompp::PolyMesh2D(_native->Polygonize(settings->ToNative())));
 }
 
 System::String^ ConnectedMesh2D::ToString() {

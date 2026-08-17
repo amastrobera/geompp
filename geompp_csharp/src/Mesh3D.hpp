@@ -9,6 +9,8 @@ namespace GeomPP {
 
 ref class Triangle3D;
 ref class ConnectedMesh3D;
+ref class PolyMesh3D;
+ref class PolygonizationParams;
 
 // A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple. No
 // adjacency structure is stored to find a face's neighbors.
@@ -27,6 +29,9 @@ public:
 
     // Same facets/vertices, plus precomputed per-facet edge adjacency (see ConnectedMesh3D).
     ConnectedMesh3D^ Connect();
+
+    // Merges coplanar, edge-adjacent facets into polygons, per settings.Strategy.
+    PolyMesh3D^ Polygonize(PolygonizationParams^ settings);
 
     virtual System::String^ ToString() override;
 

@@ -11,6 +11,36 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.18.0] - 2026-08-17
+
+> New polygonization feature family: `polygonize(vector<Triangle2D/3D>, PolygonizationParams)` (triangles → polygons, the reverse of triangulation, 3 strategies: `PlanarBoundaryExtraction`, `PlanarQuads`, `HertelMehlhorn`) and `merge(vector<Polygon2D/3D>)` (coalesce touching/adjacent polygons, including their holes, into fewer polygons), plus `Mesh2D/3D::Polygonize()` and `ConnectedMesh2D/3D::Polygonize()` convenience methods, bound in Python and C#.
+
+### Added
+
+**C++ core**
+- `polygonize(vector<Triangle2D/3D> const&, PolygonizationParams const& = {})` (`calc_utils/polygonization2d.hpp`/`3d.hpp`) — groups input triangles into coplanar clusters (union-find over shared-edge adjacency, gated by `Plane::AlmostEquals()` in 3D) and merges each cluster into one or more output polygons per the chosen strategy: `PlanarBoundaryExtraction` (cancel shared reverse-direction edges, trace the remaining directed edges into boundary loops — the fast O(n) path), `HertelMehlhorn` (iteratively merge adjacent triangle pairs across an edge whenever the merge stays convex), or `PlanarQuads` (greedily pair adjacent coplanar triangles into quads, leaving an unpaired odd triangle out as its own 3-point polygon).
+- `merge(vector<Polygon2D/3D> const&)` (same files) — the batch counterpart: groups input polygons by supporting plane (3D: two-phase hash-bucket-by-normal then `Plane::AlmostEquals()` verify, so near-identical normals on different-offset planes don't collide; 2D: single implicit group), cancels each group's shared outer-ring edges and traces the merged outer boundary, and separately detects touching holes (point-on-edge test) and folds each touching cluster into one merged hole via reverse-winding → `Polygon2D::Union` → reverse-winding back — a merged polygon inherits every hole from its inputs.
+- `Mesh2D/3D::Polygonize(PolygonizationParams const& = {})` / `ConnectedMesh2D/3D::Polygonize(PolygonizationParams const& = {})` — mesh-level convenience wrappers returning a `PolyMesh2D/3D`; both build adjacency directly off the mesh's own already-welded vertex/index buffers rather than rewelding (`Mesh2D/3D::Polygonize()` deliberately does not route through `Connect()`, avoiding a redundant grid-cell re-weld and O(n²) adjacency re-validation).
+- `detail::build_neighbor_refs(size_t const*, size_t)` (`utils.hpp`/`.cpp`) — extracted the edge-hashmap adjacency-building logic previously inlined in `GridCellMapForConnectedMesh2D/3D::Make`, generalized to take a raw welded-index pointer + count so it works over both `Mesh2D/3D`'s `array<size_t,3>`-per-face layout and `ConnectedMesh2D/3D`'s flat stride-3 layout.
+- `MeshFaceView2D`/`MeshFaceView3D` (`calc_utils/polygonization2d.hpp`/`3d.hpp`) — non-owning views over a shared vertex buffer plus per-face index/neighbor arrays, satisfying the new `MeshFaceView` concept (`generic_concepts.hpp`); the common type the 3 strategies and both mesh-class entry points are templated over.
+
+**Python bindings**
+- `geompp.polygonize()` / `geompp.merge()` (both dimensions), `geompp.PolygonizationParams` / `geompp.PolygonizationStrategy`, and `Mesh2D/3D.polygonize()` / `ConnectedMesh2D/3D.polygonize()`.
+
+**C# bindings**
+- `GeomUtil.Polygonize()` / `GeomUtil.Merge()` (both dimensions), `PolygonizationParams` / `PolygonizationStrategy`, and `Mesh2D/3D.Polygonize()` / `ConnectedMesh2D/3D.Polygonize()`.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- 39 new cases across `test_calc_utils2d.cpp`/`test_calc_utils3d.cpp` (face-view adjacency, coplanar clustering, all 3 strategies, `polygonize()`/`merge()` incl. plane-bucket grouping and touching-hole merges), `test_mesh2d.cpp`/`test_mesh3d.cpp`, and `test_connected_mesh2d.cpp`/`test_connected_mesh3d.cpp`.
+
+**Python (`geompp_python/tests`)**
+- 19 new cases: `test_polygonize.py` (new file) plus additions to `test_mesh.py`/`test_connected_mesh.py`.
+
+**C# (`geompp_csharp/tests`)**
+- 19 new cases: `PolygonizeTests.cs` (new file) plus additions to `MeshTests.cs`/`ConnectedMeshTests.cs`.
+
 ## [0.17.3] - 2026-08-15
 
 ### Added

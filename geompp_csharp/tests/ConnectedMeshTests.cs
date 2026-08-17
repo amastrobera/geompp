@@ -145,6 +145,37 @@ public static class ConnectedMeshTests {
       IsTrue(s.Contains("ConnectedMesh2D"), "missing ConnectedMesh2D label");
     });
 
+    Test("ConnectedMesh2D_Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad", () => {
+      var t0 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(1, 1));
+      var t1 = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 1), new Point2D(0, 1));
+      var mesh = ConnectedMesh2D.FromTriangles(new[] { t0, t1 });
+      var settings = new PolygonizationParams(PolygonizationStrategy.PlanarBoundaryExtraction);
+      var polyMesh = mesh.Polygonize(settings);
+      Eq(1, polyMesh.Size(), 0);
+      Eq(1.0, polyMesh.Area());
+      Eq(4, polyMesh[0].Size(), 0);
+    });
+
+    Test("ConnectedMesh2D_Polygonize_2x2Grid_HertelMehlhorn_MergesIntoSingleConvexPiece", () => {
+      var triangles = new System.Collections.Generic.List<Triangle2D>();
+      for (int r = 0; r < 2; r++) {
+        for (int c = 0; c < 2; c++) {
+          var p00 = new Point2D(c, r);
+          var p10 = new Point2D(c + 1, r);
+          var p11 = new Point2D(c + 1, r + 1);
+          var p01 = new Point2D(c, r + 1);
+          triangles.Add(Triangle2D.Make(p00, p10, p11));
+          triangles.Add(Triangle2D.Make(p00, p11, p01));
+        }
+      }
+      var mesh = ConnectedMesh2D.FromTriangles(triangles.ToArray());
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn);
+      var polyMesh = mesh.Polygonize(settings);
+      Eq(1, polyMesh.Size(), 0);
+      Eq(4.0, polyMesh.Area());
+      IsTrue(polyMesh[0].IsConvex(), "expected the merged 2x2 grid to be convex");
+    });
+
     // ── ConnectedMesh3D ────────────────────────────────────────────────────────────
     Console.WriteLine("\nConnectedMesh3D");
 
@@ -275,6 +306,21 @@ public static class ConnectedMeshTests {
       var mesh = ConnectedMesh3D.FromTriangles(new[] { t });
       var s = mesh.ToString();
       IsTrue(s.Contains("ConnectedMesh3D"), "missing ConnectedMesh3D label");
+    });
+
+    Test("ConnectedMesh3D_Polygonize_TiltedSquareFromTwoTriangles_ReturnsSingleQuad", () => {
+      var p00 = new Point3D(0, 0, 0);
+      var p10 = new Point3D(1, 0, 1);
+      var p11 = new Point3D(1, 1, 1);
+      var p01 = new Point3D(0, 1, 0);
+      var t0 = Triangle3D.Make(p00, p10, p11);
+      var t1 = Triangle3D.Make(p00, p11, p01);
+      var mesh = ConnectedMesh3D.FromTriangles(new[] { t0, t1 });
+      var settings = new PolygonizationParams(PolygonizationStrategy.PlanarBoundaryExtraction);
+      var polyMesh = mesh.Polygonize(settings);
+      Eq(1, polyMesh.Size(), 0);
+      Eq(4, polyMesh[0].Size(), 0);
+      Eq(System.Math.Sqrt(2.0), polyMesh.Area());
     });
   }
 }

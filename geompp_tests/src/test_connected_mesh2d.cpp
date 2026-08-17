@@ -1,6 +1,7 @@
 #include "connected_mesh2d.hpp"
 
 #include "point2d.hpp"
+#include "polymesh2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
 
@@ -174,6 +175,53 @@ TEST_F(ConnectedMesh2DTest, FaceView_Neighbor_CrossingBackViaEntryEdge_ReturnsTo
   ASSERT_TRUE(back.has_value());
   EXPECT_EQ(face0.ID(), back->ID());
   EXPECT_EQ(Edge::THIRD, face1->NeighborEntryEdge(entry_edge));
+}
+
+TEST_F(ConnectedMesh2DTest, Polygonize_UnitSquareFromTwoTriangles_PlanarBoundaryExtraction_ReturnsSingleQuad) {
+  auto t0 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1));
+  auto t1 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::ConnectedMesh2D::FromTriangles({t0, t1});
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_NEAR(poly_mesh.Area(), 1.0, 1e-9);
+  EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(ConnectedMesh2DTest, Polygonize_2x2Grid_HertelMehlhorn_MergesIntoSingleConvexPiece) {
+  std::vector<g::Triangle2D> tris;
+  for (int r = 0; r < 2; ++r) {
+    for (int c = 0; c < 2; ++c) {
+      g::Point2D p00(c, r), p10(c + 1, r), p11(c + 1, r + 1), p01(c, r + 1);
+      tris.push_back(g::Triangle2D::Make(p00, p10, p11));
+      tris.push_back(g::Triangle2D::Make(p00, p11, p01));
+    }
+  }
+  auto mesh = g::ConnectedMesh2D::FromTriangles(tris);
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_NEAR(poly_mesh.Area(), 4.0, 1e-9);
+  EXPECT_TRUE(poly_mesh[0].IsConvex());
+}
+
+TEST_F(ConnectedMesh2DTest, Polygonize_UnitSquareFromTwoTriangles_PlanarQuads_ReturnsSingleQuad) {
+  auto t0 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1));
+  auto t1 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::ConnectedMesh2D::FromTriangles({t0, t1});
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarQuads;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_EQ(poly_mesh[0].Size(), 4u);
 }
 
 }  // namespace geompp_tests

@@ -30,5 +30,8 @@ void bind_mesh3d(py::module_& m) {
             return faces.attr("__iter__")();
         })
         .def("connect", &geompp::Mesh3D::Connect,
-             "Same facets/vertices, plus precomputed per-facet edge adjacency (see ConnectedMesh3D).");
+             "Same facets/vertices, plus precomputed per-facet edge adjacency (see ConnectedMesh3D).")
+        .def("polygonize", &geompp::Mesh3D::Polygonize, "params"_a = geompp::PolygonizationParams{},
+             "Merges coplanar, edge-adjacent facets into polygons, per params.strategy. Returns a "
+             "PolyMesh3D.");
 }

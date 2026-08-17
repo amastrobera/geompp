@@ -1,6 +1,7 @@
 #include "connected_mesh3d.hpp"
 
 #include "point3d.hpp"
+#include "polymesh3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
 
@@ -175,6 +176,20 @@ TEST_F(ConnectedMesh3DTest, FaceView_Neighbor_CrossingBackViaEntryEdge_ReturnsTo
   ASSERT_TRUE(back.has_value());
   EXPECT_EQ(face0.ID(), back->ID());
   EXPECT_EQ(Edge::THIRD, face1->NeighborEntryEdge(entry_edge));
+}
+
+TEST_F(ConnectedMesh3DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad) {
+  auto t0 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0));
+  auto t1 = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0));
+  auto mesh = g::ConnectedMesh3D::FromTriangles({t0, t1});
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_NEAR(poly_mesh.Area(), 1.0, 1e-9);
+  EXPECT_EQ(poly_mesh[0].Size(), 4u);
 }
 
 }  // namespace geompp_tests

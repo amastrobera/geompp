@@ -2,6 +2,7 @@
 
 #include "connected_mesh3d.hpp"
 #include "point3d.hpp"
+#include "polymesh3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
 
@@ -122,6 +123,28 @@ TEST_F(Mesh3DTest, Connect_SharedEdge_ExposesAdjacency) {
   auto neighbor = connected[0].Neighbor(Edge::THIRD);
   ASSERT_TRUE(neighbor.has_value());
   EXPECT_EQ(1u, neighbor->ID());
+}
+
+TEST_F(Mesh3DTest, Polygonize_MatchesConnectThenPolygonize) {
+  // Same reasoning as the Mesh2DTest counterpart: Mesh3D::Polygonize() takes a different (cheaper)
+  // internal path than Connect().Polygonize() would, but must agree on the actual result.
+  auto mesh = g::Mesh3D::FromTriangles({
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+
+  auto direct = mesh.Polygonize(params);
+  auto via_connect = mesh.Connect().Polygonize(params);
+
+  ASSERT_EQ(direct.Size(), via_connect.Size());
+  EXPECT_NEAR(direct.Area(), via_connect.Area(), 1e-9);
+  for (std::size_t i = 0; i < direct.Size(); ++i) {
+    EXPECT_TRUE(direct[i].AlmostEquals(via_connect[i]))
+        << "piece " << i << " differs between Mesh3D::Polygonize() and Connect().Polygonize()";
+  }
 }
 
 }  // namespace geompp_tests

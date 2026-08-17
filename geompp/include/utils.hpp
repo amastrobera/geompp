@@ -2,8 +2,10 @@
 
 #include "constants.hpp"
 
+#include <array>
 #include <compare>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <sstream>
 #include <string>
@@ -70,6 +72,27 @@ struct TriangleCompactNeighborRef {
   /// @brief the entering edge of the neighbor triangle (0,1,2 - unless invalid)
   [[nodiscard]] TriangleEdge edge_id() const;
 };
+
+/// @brief Builds the per-facet edge-adjacency table for a set of triangles whose vertices are ALREADY
+/// welded into shared indices (i.e. two triangles sharing an edge in space also share the same 2 vertex
+/// indices) -- purely index math, no geometry, no re-welding. Used by GridCellMapForConnectedMesh2D/3D::Make
+/// (which welds raw Triangle2D/3D first, then calls this) and directly by Mesh2D/3D::Polygonize() (whose
+/// FACE_INDICES are already welded at FromTriangles() time, so it skips the weld and calls this alone --
+/// see Mesh2D::Polygonize()'s own comment for why re-welding via Connect() would be wasteful).
+/// @param triangle_indices Flattened, 3-per-triangle vertex indices (triangle t's vertices are
+/// triangle_indices[3*t], [3*t+1], [3*t+2]), already welded (shared vertices use the same index). A raw
+/// pointer + count, not a std::vector<size_t> const&, specifically so a caller whose own storage is
+/// already laid out as 3-contiguous-size_t-per-triangle under a DIFFERENT container type (e.g. Mesh2D/3D's
+/// std::vector<std::array<std::size_t,3>> FACE_INDICES -- guaranteed layout-compatible with a flat
+/// size_t[3*n] by std::array's own contiguity guarantee) can pass it directly, with zero copy/flatten.
+/// @param n_triangles Number of triangles @p triangle_indices describes (i.e. 3*n_triangles indices).
+/// @returns One std::array<TriangleCompactNeighborRef, 3> per triangle, FIRST/SECOND/THIRD matching the
+/// input's local edge order; a boundary edge (no twin) is left at its default-constructed INVALID state.
+/// @throws std::overflow_error if 3*n_triangles exceeds the 32-bit vertex limit, or @p n_triangles exceeds
+/// TriangleCompactNeighborRef's 1.07B-triangle limit.
+std::vector<std::array<TriangleCompactNeighborRef, 3>> build_neighbor_refs(std::size_t const* triangle_indices,
+                                                                           std::size_t n_triangles);
+
 }  // namespace detail
 
 #pragma region Template Implementation

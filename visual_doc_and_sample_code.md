@@ -6142,3 +6142,187 @@ A quick list of code examples per topic is provided here.
   </details>
 
 </details>
+
+<details open>
+<summary><b> &nbsp; 14. Polygonization</b></summary>
+
+  The reverse of triangulation (§11): `polygonize(triangles, settings)` merges a set of triangles back
+  into one or more `Polygon2D`/`Polygon3D` pieces. Input triangles don't need to already be given in
+  adjacency order — they're welded (same `GridCell2D/3D`-bucketed hashing `Mesh2D/3D::FromTriangles`
+  uses), grouped into coplanar clusters (3D only — via `Plane::AlmostEquals()` on each triangle's own
+  plane; 2D has one implicit plane), and each cluster is merged per `PolygonizationParams::Strategy`:
+
+  - **`HertelMehlhorn`** (the default) — repeatedly fuses two edge-adjacent triangles into one polygon
+    whenever the merge stays convex, until no more merges are possible. Produces the fewest, most convex
+    pieces of the three strategies.
+  - **`PlanarBoundaryExtraction`** — ignores convexity entirely: cancels every internal edge shared by
+    two triangles and traces whatever's left into boundary loops, O(n) and non-convexity-aware. On a
+    fully convex input region it produces the same result as `HertelMehlhorn`; on a concave or
+    multi-piece input it's the cheaper, non-convex-safe choice.
+  - **`PlanarQuads`** — greedily pairs each still-unpaired triangle with one still-unpaired coplanar
+    neighbor into a quad. Whichever triangle runs out of an available partner first (odd counts, or an
+    unlucky pairing order) is returned on its own, as a 3-point `Polygon2D/3D` — `Make()` already
+    accepts a 3-point outer ring, so no special-casing is needed downstream.
+
+  `Mesh2D/3D::Polygonize(settings)` / `ConnectedMesh2D/3D::Polygonize(settings)` are thin wrappers
+  around the same free function, returning a `PolyMesh2D/3D` (§10.2) instead of a bare
+  `vector<Polygon>` — both build adjacency directly off the mesh's own already-welded buffers rather
+  than re-welding, so `Mesh2D/3D::Polygonize()` deliberately does *not* route through `Connect()`.
+
+  `merge(polygons)` is the same idea one level up the stack: instead of triangles, it takes
+  already-built polygons that tile a plane without overlapping, and welds together every pair that
+  shares an outer-ring edge — the free-function equivalent of "polygonize the polygons". 3D groups
+  input by supporting plane first (two-phase: hash-bucket by normal, then verify with
+  `Plane::AlmostEquals()` within a bucket, so near-parallel planes at different offsets don't
+  collide); 2D has one implicit plane. A merged polygon **inherits every hole** from its inputs —
+  holes that happen to touch each other are additionally unioned into one bigger hole (reverse
+  winding → `Polygon2D::Union` → reverse winding back), so 2+ separate cut-outs that end up sharing an
+  edge after their parent polygons merge don't leave a dangling, self-touching hole ring behind.
+
+  The example below builds a 2×1 rectangle from 4 unit triangles (`0,0`–`2,1`) and polygonizes it with
+  the two convex strategies, then again with `PlanarQuads` — which pairs triangles `A` (`0,0 1,0 1,1`)
+  and `D` (`1,0 2,1 1,1`) into one quad first, leaving `B` and `C` each without a remaining partner, so
+  they come back as their own 3-point polygons. It finishes by calling `merge()` directly on two
+  pre-built unit-square `Polygon2D`s spanning the same rectangle, confirming it reaches the same result
+  without ever going through triangles.
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polygon2d.hpp"
+  #include "calc_utils2d.hpp"
+
+  namespace g = geompp;
+
+  // A 2x1 rectangle, hand-split into 4 unit triangles across two unit squares.
+  g::Point2D p0(0, 0), p1(1, 0), p2(1, 1), p3(0, 1), p4(2, 0), p5(2, 1);
+  auto A = g::Triangle2D::Make(p0, p1, p2);
+  auto B = g::Triangle2D::Make(p0, p2, p3);
+  auto C = g::Triangle2D::Make(p1, p4, p5);
+  auto D = g::Triangle2D::Make(p1, p5, p2);
+
+  // HertelMehlhorn (the default) and PlanarBoundaryExtraction both merge the whole convex region
+  // into one clean rectangle.
+  for (auto const& poly : g::polygonize({A, B, C, D}))
+      GEOMPP_LOG(INFO) << "hertel-mehlhorn:  " << poly.ToWkt();
+
+  // PlanarQuads pairs A+D into a quad first; B and C are left without a remaining partner and
+  // come back as their own 3-point polygons.
+  g::PolygonizationParams quads{g::PolygonizationParams::Strategy::PlanarQuads};
+  for (auto const& poly : g::polygonize({A, B, C, D}, quads))
+      GEOMPP_LOG(INFO) << "planar-quads:     " << poly.ToWkt();
+
+  // merge() reaches the same rectangle directly from two pre-built unit squares -- no triangles
+  // involved at all.
+  auto sq0 = g::Polygon2D::Make({p0, p1, p2, p3});
+  auto sq1 = g::Polygon2D::Make({p1, p4, p5, p2});
+  for (auto const& poly : g::merge({sq0, sq1}))
+      GEOMPP_LOG(INFO) << "merge:            " << poly.ToWkt();
+  ```
+
+  ```bash
+  I20260817] hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  I20260817] planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
+  I20260817] planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
+  I20260817] planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
+  I20260817] merge:            POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # A 2x1 rectangle, hand-split into 4 unit triangles across two unit squares.
+  p0, p1, p2, p3, p4, p5 = (
+      g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1),
+      g.Point2D(0, 1), g.Point2D(2, 0), g.Point2D(2, 1),
+  )
+  A = g.Triangle2D.make(p0, p1, p2)
+  B = g.Triangle2D.make(p0, p2, p3)
+  C = g.Triangle2D.make(p1, p4, p5)
+  D = g.Triangle2D.make(p1, p5, p2)
+
+  # HertelMehlhorn (the default) and PlanarBoundaryExtraction both merge the whole convex region
+  # into one clean rectangle.
+  for poly in g.polygonize([A, B, C, D]):
+      print(f"hertel-mehlhorn:  {poly.to_wkt()}")
+
+  # PlanarQuads pairs A+D into a quad first; B and C are left without a remaining partner and
+  # come back as their own 3-point polygons.
+  quads = g.PolygonizationParams(g.PolygonizationStrategy.PlanarQuads)
+  for poly in g.polygonize([A, B, C, D], quads):
+      print(f"planar-quads:     {poly.to_wkt()}")
+
+  # merge() reaches the same rectangle directly from two pre-built unit squares -- no triangles
+  # involved at all.
+  sq0 = g.Polygon2D.make([p0, p1, p2, p3])
+  sq1 = g.Polygon2D.make([p1, p4, p5, p2])
+  for poly in g.merge([sq0, sq1]):
+      print(f"merge:            {poly.to_wkt()}")
+  ```
+
+  ```
+  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
+  planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
+  planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
+  merge:            POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // A 2x1 rectangle, hand-split into 4 unit triangles across two unit squares.
+  var p0 = new G.Point2D(0, 0); var p1 = new G.Point2D(1, 0); var p2 = new G.Point2D(1, 1);
+  var p3 = new G.Point2D(0, 1); var p4 = new G.Point2D(2, 0); var p5 = new G.Point2D(2, 1);
+  var A = G.Triangle2D.Make(p0, p1, p2);
+  var B = G.Triangle2D.Make(p0, p2, p3);
+  var C = G.Triangle2D.Make(p1, p4, p5);
+  var D = G.Triangle2D.Make(p1, p5, p2);
+
+  // HertelMehlhorn (the default) and PlanarBoundaryExtraction both merge the whole convex region
+  // into one clean rectangle.
+  var triangles = new G.Triangle2D[] { A, B, C, D };
+  foreach (var poly in G.GeomUtil.Polygonize(triangles, new G.PolygonizationParams()))
+      Console.WriteLine($"hertel-mehlhorn:  {poly.ToWkt()}");
+
+  // PlanarQuads pairs A+D into a quad first; B and C are left without a remaining partner and
+  // come back as their own 3-point polygons.
+  var quads = new G.PolygonizationParams(G.PolygonizationStrategy.PlanarQuads);
+  foreach (var poly in G.GeomUtil.Polygonize(triangles, quads))
+      Console.WriteLine($"planar-quads:     {poly.ToWkt()}");
+
+  // merge() reaches the same rectangle directly from two pre-built unit squares -- no triangles
+  // involved at all.
+  var sq0 = G.Polygon2D.Make(new G.Point2D[] { p0, p1, p2, p3 });
+  var sq1 = G.Polygon2D.Make(new G.Point2D[] { p1, p4, p5, p2 });
+  foreach (var poly in G.GeomUtil.Merge(new G.Polygon2D[] { sq0, sq1 }))
+      Console.WriteLine($"merge:            {poly.ToWkt()}");
+  ```
+
+  ```
+  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
+  planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
+  planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
+  merge:            POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
+  ```
+
+   </details>
+
+  </details>
+
+</details>

@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 
 #include "constants.hpp"
+#include "grid_cell2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
@@ -2387,6 +2388,376 @@ TEST_F(CalcUtils2DTest, AssertAdjacency_NonManifoldViolation_Throws) {
   auto violations = g::validate_adjacency(std::vector<g::Polygon2D>{a, b, c});
   ASSERT_FALSE(violations.empty());
   EXPECT_THROW(gd::assert_adjacency(violations), std::invalid_argument);
+}
+
+#pragma endregion
+
+#pragma region polygonization (MeshFaceView2D, partition_into_coplanar_clusters, cancel_reverse_pairs,
+// boundary_extraction_polygonization, polygonize_impl)
+
+namespace {
+
+// Bundles a MeshFaceView2D vector together with the shared_ptr buffers it points into, so the whole thing
+// can be kept alive as one RAII object in a test's local scope -- MeshFaceView2D is a non-owning raw-
+// pointer view (same lifetime contract as ConnectedMesh2D::FaceView2D), so returning `.faces` alone from a
+// helper that let its own shared_ptr locals go out of scope would leave dangling pointers.
+struct FaceViewFixture2D {
+  std::shared_ptr<std::vector<g::Point2D>> vertices;
+  std::shared_ptr<std::vector<std::size_t>> tri_indices;
+  std::shared_ptr<std::vector<std::array<gd::TriangleCompactNeighborRef, 3>>> neighbor_refs;
+  std::vector<gd::MeshFaceView2D> faces;
+
+  static FaceViewFixture2D Build(std::vector<g::Triangle2D> const& triangles) {
+    auto mesh_maker = gd::GridCellMapForConnectedMesh2D::Make(triangles);
+    FaceViewFixture2D fx;
+    fx.vertices = mesh_maker.GetUniques();
+    fx.tri_indices = mesh_maker.GetTriangles();
+    fx.neighbor_refs = mesh_maker.GetNeighborRefs();
+    std::size_t n = fx.tri_indices->size() / 3;
+    fx.faces.reserve(n);
+    for (std::size_t i = 0; i < n; ++i) {
+      fx.faces.emplace_back(fx.vertices->data(), fx.tri_indices->data(), fx.neighbor_refs->data(), i);
+    }
+    return fx;
+  }
+};
+
+// Axis-aligned unit-square triangles for a `rows` x `cols` grid at the origin, each square split into 2
+// CCW triangles (diagonal from the square's bottom-left to top-right), skipping any cell in `skip_cells`
+// (row, col) -- used to carve a hole out of the grid for the hole-detection test below.
+std::vector<g::Triangle2D> BuildGridTriangles(int rows, int cols,
+                                              std::set<std::pair<int, int>> const& skip_cells = {}) {
+  std::vector<g::Triangle2D> tris;
+  for (int r = 0; r < rows; ++r) {
+    for (int c = 0; c < cols; ++c) {
+      if (skip_cells.count({r, c})) {
+        continue;
+      }
+      g::Point2D p00(c, r), p10(c + 1, r), p11(c + 1, r + 1), p01(c, r + 1);
+      tris.push_back(g::Triangle2D::Make(p00, p10, p11));
+      tris.push_back(g::Triangle2D::Make(p00, p11, p01));
+    }
+  }
+  return tris;
+}
+
+}  // namespace
+
+TEST_F(CalcUtils2DTest, MeshFaceView2D_SharedEdgeSquare_NeighborsAcrossDiagonalOnly) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  ASSERT_EQ(fx.faces.size(), 2u);
+
+  int neighbor_count_0 = 0, neighbor_count_1 = 0;
+  for (auto edge : {gd::TriangleCompactNeighborRef::TriangleEdge::FIRST,
+                    gd::TriangleCompactNeighborRef::TriangleEdge::SECOND,
+                    gd::TriangleCompactNeighborRef::TriangleEdge::THIRD}) {
+    if (fx.faces[0].Neighbor(edge)) {
+      ++neighbor_count_0;
+      EXPECT_EQ(fx.faces[0].Neighbor(edge)->ID(), 1u);
+    }
+    if (fx.faces[1].Neighbor(edge)) {
+      ++neighbor_count_1;
+      EXPECT_EQ(fx.faces[1].Neighbor(edge)->ID(), 0u);
+    }
+  }
+  EXPECT_EQ(neighbor_count_0, 1);  // only the shared diagonal has a twin, the other 2 edges are boundary
+  EXPECT_EQ(neighbor_count_1, 1);
+}
+
+TEST_F(CalcUtils2DTest, PartitionIntoCoplanarClusters_ConnectedTriangles_SingleCluster) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(2, 2));  // 4 squares, 8 triangles, all edge-connected
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  ASSERT_EQ(clusters.size(), 1u);
+  EXPECT_EQ(clusters[0].size(), 8u);
+}
+
+TEST_F(CalcUtils2DTest, PartitionIntoCoplanarClusters_TwoDisjointSquares_TwoClusters) {
+  auto left = BuildGridTriangles(1, 1);
+  auto right = BuildGridTriangles(1, 1);
+  // Shift the second square far away so it shares no vertex (hence no Neighbor() link) with the first.
+  std::vector<g::Triangle2D> shifted;
+  for (auto const& t : right) {
+    auto const& [p0, p1, p2] = t.Vertices();
+    g::Vector2D d(10, 0);
+    shifted.push_back(g::Triangle2D::Make(p0 + d, p1 + d, p2 + d));
+  }
+  auto all = left;
+  all.insert(all.end(), shifted.begin(), shifted.end());
+
+  auto fx = FaceViewFixture2D::Build(all);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  ASSERT_EQ(clusters.size(), 2u);
+  EXPECT_EQ(clusters[0].size(), 2u);
+  EXPECT_EQ(clusters[1].size(), 2u);
+}
+
+TEST_F(CalcUtils2DTest, CancelReversePairs_SharedEdge_CancelsBothDirections) {
+  std::vector<g::LineSegment2D> edges{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+                                      g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 0))};
+  auto survivors = gd::cancel_reverse_pairs(edges);
+  EXPECT_TRUE(survivors.empty());
+}
+
+TEST_F(CalcUtils2DTest, CancelReversePairs_UnmatchedEdge_Survives) {
+  std::vector<g::LineSegment2D> edges{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0))};
+  auto survivors = gd::cancel_reverse_pairs(edges);
+  ASSERT_EQ(survivors.size(), 1u);
+  EXPECT_TRUE(survivors[0].First().AlmostEquals(g::Point2D(0, 0)));
+  EXPECT_TRUE(survivors[0].Last().AlmostEquals(g::Point2D(1, 0)));
+}
+
+TEST_F(CalcUtils2DTest, BoundaryExtractionPolygonization_UnitSquareFromTwoTriangles_ReturnsSingleQuadNoHoles) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::boundary_extraction_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  auto const& [outer, holes] = pieces[0];
+  EXPECT_EQ(outer.size(), 4u);
+  EXPECT_TRUE(holes.empty());
+  EXPECT_NEAR(std::abs(g::signed_area(outer)), 1.0, 1e-9);
+  EXPECT_TRUE(g::are_ccw(outer));
+}
+
+TEST_F(CalcUtils2DTest, BoundaryExtractionPolygonization_GridWithCenterHole_ReturnsOuterWithOneHole) {
+  // 3x3 grid of unit squares with the center cell (row 1, col 1) omitted: a 3x3 outer boundary with a
+  // 1x1 hole in the middle.
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(3, 3, {{1, 1}}));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  ASSERT_EQ(clusters.size(), 1u);  // still one edge-connected ring of triangles around the hole
+
+  auto pieces = gd::boundary_extraction_polygonization(fx.faces, clusters);
+  ASSERT_EQ(pieces.size(), 1u);
+  auto const& [outer, holes] = pieces[0];
+
+  // 12, not 4: cancel_reverse_pairs only removes shared INTERNAL edges, it doesn't collinear-simplify the
+  // surviving boundary -- each outer side of length 3 keeps its 3 unit-length grid vertices (corner
+  // shared with the next side not double-counted), so 3 vertices/side x 4 sides = 12.
+  EXPECT_EQ(outer.size(), 12u);
+  EXPECT_NEAR(std::abs(g::signed_area(outer)), 9.0, 1e-9);
+  EXPECT_TRUE(g::are_ccw(outer));
+
+  // The 1x1 hole is a single ungridded cell, so its own boundary has no intermediate vertices to keep: 4.
+  ASSERT_EQ(holes.size(), 1u);
+  EXPECT_EQ(holes[0].size(), 4u);
+  EXPECT_NEAR(std::abs(g::signed_area(holes[0])), 1.0, 1e-9);
+  EXPECT_FALSE(g::are_ccw(holes[0]));  // holes are CW
+}
+
+TEST_F(CalcUtils2DTest, PolygonizeImpl_PlanarBoundaryExtraction_MatchesDirectCall) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+
+  auto via_impl = gd::polygonize_impl(fx.faces, params);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto direct = gd::boundary_extraction_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(via_impl.size(), direct.size());
+  ASSERT_EQ(via_impl.size(), 1u);
+  EXPECT_EQ(via_impl[0].first.size(), direct[0].first.size());
+  EXPECT_NEAR(std::abs(g::signed_area(via_impl[0].first)), std::abs(g::signed_area(direct[0].first)), 1e-9);
+}
+
+namespace {
+
+// Two triangles sharing edge (4,0)-(0,4), whose merged quad (0,0),(4,0),(6,-1),(0,4) has a reflex vertex
+// at (4,0) -- see the turn-direction derivation in the M3 design discussion this test backs. Used to
+// verify HertelMehlhorn refuses to merge across a diagonal that would produce a non-convex result, while
+// PlanarQuads (no convexity requirement) merges it anyway.
+std::vector<g::Triangle2D> BuildNonConvexPairTriangles() {
+  return {g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 4)),
+          g::Triangle2D::Make(g::Point2D(0, 4), g::Point2D(4, 0), g::Point2D(6, -1))};
+}
+
+// 3 triangles chained T0-T1-T2 (T0/T1 share an edge, T1/T2 share a different edge, T0/T2 don't touch) --
+// an odd-sized coplanar cluster, used to exercise PlanarQuads' "leftover unpaired facet" case: greedy
+// pairing in face-id order pairs (T0,T1) first, leaving T2 with no unpaired same-cluster neighbor.
+std::vector<g::Triangle2D> BuildThreeTriangleChain() {
+  return {g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1)),
+          g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+          g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(1, 1))};
+}
+
+}  // namespace
+
+TEST_F(CalcUtils2DTest, HertelMehlhorn_TwoTrianglesSharedEdge_MergesIntoSingleConvexQuad) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0].first.size(), 4u);
+  EXPECT_TRUE(pieces[0].second.empty());
+  EXPECT_NEAR(std::abs(g::signed_area(pieces[0].first)), 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, HertelMehlhorn_NonConvexPair_StaysUnmergedAsTwoTriangles) {
+  auto fx = FaceViewFixture2D::Build(BuildNonConvexPairTriangles());
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 2u);
+  for (auto const& [outer, holes] : pieces) {
+    EXPECT_EQ(outer.size(), 3u);
+    EXPECT_TRUE(holes.empty());
+  }
+}
+
+TEST_F(CalcUtils2DTest, HertelMehlhorn_2x2Grid_MergesFullyIntoOneConvexSquare) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(2, 2));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  // 8, not 4: like boundary_extraction_polygonization, no collinear simplification is done on the traced
+  // boundary -- each side of length 2 keeps its 2 unit-length grid vertices (shared corners not
+  // double-counted), so 2 vertices/side x 4 sides = 8. Area + convexity are what actually confirm the
+  // whole grid merged into one region.
+  EXPECT_EQ(pieces[0].first.size(), 8u);
+  EXPECT_TRUE(pieces[0].second.empty());
+  EXPECT_NEAR(std::abs(g::signed_area(pieces[0].first)), 4.0, 1e-9);
+  EXPECT_TRUE(gd::is_convex(pieces[0].first, {}));
+}
+
+TEST_F(CalcUtils2DTest, PlanarQuads_TwoTrianglesSharedEdge_ReturnsSingleQuad) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0].first.size(), 4u);
+  EXPECT_TRUE(pieces[0].second.empty());
+}
+
+TEST_F(CalcUtils2DTest, PlanarQuads_NonConvexPair_MergesAnywayNoConvexityRequirement) {
+  auto fx = FaceViewFixture2D::Build(BuildNonConvexPairTriangles());
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0].first.size(), 4u);
+  EXPECT_TRUE(pieces[0].second.empty());
+  EXPECT_FALSE(gd::is_convex(pieces[0].first, {}));  // confirms this quad really is the non-convex one
+}
+
+TEST_F(CalcUtils2DTest, PlanarQuads_OddTriangleChain_LeftoverEmittedAsTriangle) {
+  auto fx = FaceViewFixture2D::Build(BuildThreeTriangleChain());
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 2u);
+  std::vector<std::size_t> sizes{pieces[0].first.size(), pieces[1].first.size()};
+  std::sort(sizes.begin(), sizes.end());
+  EXPECT_EQ(sizes[0], 3u);  // the leftover, unpaired triangle
+  EXPECT_EQ(sizes[1], 4u);  // the paired quad
+}
+
+TEST_F(CalcUtils2DTest, PolygonizeImpl_HertelMehlhorn_MatchesDirectCall) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  auto via_impl = gd::polygonize_impl(fx.faces, params);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto direct = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(via_impl.size(), direct.size());
+  ASSERT_EQ(via_impl.size(), 1u);
+  EXPECT_EQ(via_impl[0].first.size(), direct[0].first.size());
+}
+
+TEST_F(CalcUtils2DTest, PolygonizeImpl_PlanarQuads_MatchesDirectCall) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarQuads;
+
+  auto via_impl = gd::polygonize_impl(fx.faces, params);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto direct = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(via_impl.size(), direct.size());
+  ASSERT_EQ(via_impl.size(), 1u);
+  EXPECT_EQ(via_impl[0].first.size(), direct[0].first.size());
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad) {
+  auto polys = g::polygonize(BuildGridTriangles(1, 1));  // default strategy: HertelMehlhorn
+  ASSERT_EQ(polys.size(), 1u);
+  EXPECT_EQ(polys[0].Size(), 4u);
+  EXPECT_NEAR(polys[0].Area(), 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_GridWithCenterHole_ReturnsOuterWithOneHole) {
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+  auto polys = g::polygonize(BuildGridTriangles(3, 3, {{1, 1}}), params);
+
+  ASSERT_EQ(polys.size(), 1u);
+  EXPECT_NEAR(polys[0].Area(), 8.0, 1e-9);  // 9 (outer) - 1 (hole)
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_EmptyInput_Throws) {
+  EXPECT_THROW(g::polygonize({}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_NonManifoldInput_Throws) {
+  // Same non-manifold fixture shape used by ValidateAdjacency_NonManifoldEdge_DetectsViolation elsewhere
+  // in this file -- polygonize() must Assert adjacency on untrusted raw input, same as *::FromTriangles.
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1));
+  auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1));
+  auto c = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2));
+  EXPECT_THROW(g::polygonize({a, b, c}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Merge_EmptyInput_ReturnsEmpty) { EXPECT_TRUE(g::merge({}).empty()); }
+
+TEST_F(CalcUtils2DTest, Merge_TwoTouchingSquares_ReturnsSingleMergedOuter) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)});
+  auto b = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(2, 2)});
+
+  auto result = g::merge({a, b});
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_FALSE(result[0].HasHoles());
+  EXPECT_NEAR(result[0].Area(), 8.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Merge_TwoDisjointSquares_ReturnsBothUnchanged) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(10, 0), g::Point2D(11, 0), g::Point2D(11, 1), g::Point2D(10, 1)});
+
+  auto result = g::merge({a, b});
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_NEAR(result[0].Area(), 1.0, 1e-9);
+  EXPECT_NEAR(result[1].Area(), 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Merge_PolygonWithUntouchedHole_HolePassesThroughUnchanged) {
+  // Holes must be given in CW order (Polygon2D::Make rejects a CCW hole outright, no auto-normalizing).
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 3), g::Point2D(0, 3)},
+                              {{g::Point2D(1, 1), g::Point2D(1, 2), g::Point2D(2, 2), g::Point2D(2, 1)}});
+
+  auto result = g::merge({a});
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_TRUE(result[0].HasHoles());
+  EXPECT_NEAR(result[0].Area(), 8.0, 1e-9);  // 9 - 1
+}
+
+TEST_F(CalcUtils2DTest, Merge_TwoPolygonsWithTouchingHoles_MergesIntoOneBiggerHole) {
+  // Two 2x2 squares merging along x=2, each with a hole reaching that same shared seam -- the seam is
+  // cancelled from the OUTER boundary the same way a plain touching-squares merge does, and (per this
+  // test) the two holes touching along that same seam get detected and unioned into one.
+  // Holes must be given in CW order (Polygon2D::Make rejects a CCW hole outright, no auto-normalizing).
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)},
+                              {{g::Point2D(1, 0.5), g::Point2D(1, 1.5), g::Point2D(2, 1.5), g::Point2D(2, 0.5)}});
+  auto b = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(2, 2)},
+                              {{g::Point2D(2, 0.5), g::Point2D(2, 1.5), g::Point2D(3, 1.5), g::Point2D(3, 0.5)}});
+
+  auto result = g::merge({a, b});
+  ASSERT_EQ(result.size(), 1u);
+  ASSERT_TRUE(result[0].HasHoles());
+  EXPECT_EQ(result[0].Holes().size(), 1u);
+  EXPECT_NEAR(result[0].Area(), 6.0, 1e-9);  // 8 (outer) - 2 (merged 1x2 hole)
 }
 
 #pragma endregion

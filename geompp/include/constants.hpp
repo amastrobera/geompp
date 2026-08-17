@@ -185,6 +185,21 @@ struct TriangulationParams {
   AdjacencyConformity conformity = AdjacencyConformity::Enforce;
 };
 
+struct PolygonizationParams {
+  /// @brief chooses what algorithm to use, under what contraints
+  ///       - Coplanar Boundary: finds the external boundary of a set of triangles in O(N), under the contraint of
+  ///                            returning 1+ planar polygon (not guaranted convex)
+  ///       - Coplanar Quads: returns only quadrilaterals in O(N), planar yet not necessarily convex
+  ///       - Hertel Mehlhorn: merges as many triangles as possible into polygons in O(N), polygons are planar and
+  ///                          convex
+  enum class Strategy {
+    PlanarBoundaryExtraction,  // 1D feature / crease loops
+    PlanarQuads,               // Pair 2 adjacent coplanar tris -> 1 planar quad
+    HertelMehlhorn             // Merge coplanar tris -> convex n-gons
+  };
+  Strategy strategy = Strategy::HertelMehlhorn;
+};
+
 }  // namespace geometry
 
 }  // namespace geompp
