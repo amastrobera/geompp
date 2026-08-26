@@ -58,13 +58,17 @@ class TestPolygonize:
         # returns 2 convex pieces (a 2x1 rectangle and a 1x1 square) whose shared corner sits exactly at
         # the midpoint of the rectangle's top edge. Regression test: polygonize() must not silently drop
         # that vertex as collinear-on-its-own-ring, or Mesh2D.polygonize()/PolyMesh2D would reject the
-        # result as a T-junction once welded together (see test_mesh.py's mirror of this same case).
+        # result as a T-junction once welded together (see test_mesh.py's mirror of this same case). The
+        # OTHER seam, at (1, 0) (between the rectangle's own 2 source sub-quads), faces nothing but the
+        # mesh's own outer boundary on both sides, so the seam-collapse pass in polygonization2d.cpp
+        # safely drops it -- 5 vertices (4 real corners + (1, 1)), not the older, more conservative 6.
         polys = geompp.polygonize(_grid_triangles(2, 2, skip={(1, 0)}))
         assert len(polys) == 2
 
         rectangle = next(p for p in polys if approx(p.area(), 2.0))
-        assert rectangle.size() == 6  # 4 real corners + (1, 0) and (1, 1), deliberately not simplified
+        assert rectangle.size() == 5  # 4 real corners + (1, 1) -- (1, 0) collapses away, see comment above
         assert any(v.almost_equals(geompp.Point2D(1, 1)) for v in rectangle.perimeter())
+        assert not any(v.almost_equals(geompp.Point2D(1, 0)) for v in rectangle.perimeter())
 
     def test_empty_input_raises(self):
         with pytest.raises(ValueError):

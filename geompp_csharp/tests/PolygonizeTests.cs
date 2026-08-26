@@ -72,7 +72,10 @@ public static class PolygonizeTests {
       // returns 2 convex pieces (a 2x1 rectangle and a 1x1 square) whose shared corner sits exactly at
       // the midpoint of the rectangle's top edge. Regression test: Polygonize() must not silently drop
       // that vertex as collinear-on-its-own-ring, or Mesh2D.Polygonize()/PolyMesh2D would reject the
-      // result as a T-junction once welded together (see MeshTests.cs's mirror of this same case).
+      // result as a T-junction once welded together (see MeshTests.cs's mirror of this same case). The
+      // OTHER seam, at (1,0) (between the rectangle's own 2 source sub-quads), faces nothing but the
+      // mesh's own outer boundary on both sides, so the seam-collapse pass in polygonization2d.cpp
+      // safely drops it -- 5 vertices (4 real corners + (1,1)), not the older, more conservative 6.
       var triangles = GridTriangles(2, 2, new HashSet<(int, int)> { (1, 0) });
       var polys = GeomUtil.Polygonize(triangles.ToArray(), new PolygonizationParams());
       Eq(2, CountOf(polys), 0);
@@ -82,12 +85,15 @@ public static class PolygonizeTests {
         if (System.Math.Abs(p.Area() - 2.0) < 1e-9) rectangle = p;
       }
       IsTrue(rectangle != null, "expected a piece with area 2.0");
-      Eq(6, rectangle!.Size(), 0);  // 4 real corners + (1,0) and (1,1), deliberately not simplified
+      Eq(5, rectangle!.Size(), 0);  // 4 real corners + (1,1) -- (1,0) collapses away, see comment above
       bool hasMidpoint = false;
+      bool hasDroppedSeam = false;
       foreach (var v in rectangle.Perimeter()) {
         if (v.AlmostEquals(new Point2D(1, 1))) hasMidpoint = true;
+        if (v.AlmostEquals(new Point2D(1, 0))) hasDroppedSeam = true;
       }
       IsTrue(hasMidpoint, "expected the rectangle to keep (1,1) as an explicit vertex");
+      IsTrue(!hasDroppedSeam, "expected the rectangle to have collapsed the redundant (1,0) seam vertex");
     });
 
     Test("GeomUtil_Polygonize_EmptyInput_Throws", () => {

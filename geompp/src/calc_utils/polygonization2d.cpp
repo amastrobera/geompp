@@ -48,11 +48,28 @@ constexpr std::array<TriangleCompactNeighborRef::TriangleEdge, 3> kLocalEdges = 
     TriangleCompactNeighborRef::TriangleEdge::FIRST, TriangleCompactNeighborRef::TriangleEdge::SECOND,
     TriangleCompactNeighborRef::TriangleEdge::THIRD};
 
+// Rounded-to-DECIMAL_PRECISION directed-edge key, shared by cancel_reverse_pairs() and the seam-collapse
+// pass below (collapse_redundant_seams/far_side_group_of_boundary) so both index the exact same key space
+// over the exact same edges.
+using EdgeVertexKey = std::pair<long long, long long>;
+using EdgeKey = std::pair<EdgeVertexKey, EdgeVertexKey>;
+
+EdgeVertexKey edge_vertex_key(Point2D const& p) {
+  double scale = std::pow(10.0, static_cast<double>(DECIMAL_PRECISION));
+  return {llround(p.x() * scale), llround(p.y() * scale)};
+}
+
+EdgeKey edge_key(Point2D const& a, Point2D const& b) { return {edge_vertex_key(a), edge_vertex_key(b)}; }
+
+// Sentinel far-side identity for a boundary edge with no neighbor triangle at all (a genuine mesh-boundary
+// edge) -- see far_side_group_of_boundary()'s own doc comment.
+constexpr std::size_t kNoNeighborGroup = static_cast<std::size_t>(-1);
+
 // The projection every strategy helper below traces a face group's edges through: identity (View2D::XY())
 // for a 2D mesh, or the plane fitted from face_ids[0] for a 3D one. Internal-linkage helper, not part of
 // the public detail:: API -- every strategy needs it, but callers outside this file only ever go through
 // polygonize_impl.
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 View2D cluster_view(std::vector<FaceViewT> const& faces, std::vector<std::size_t> const& face_ids) {
   using PointT = FaceViewPointT<FaceViewT>;
   if constexpr (std::is_same_v<PointT, Point3D>) {
@@ -60,6 +77,73 @@ View2D cluster_view(std::vector<FaceViewT> const& faces, std::vector<std::size_t
     return View2D::OnPlane(Plane::From3Points(p0, p1, p2));
   } else {
     return View2D::XY();
+  }
+}
+
+// For every one of @p face_ids' raw triangle edges (projected through @p view), the OUTPUT-GROUP identity
+// of whatever lies immediately across it: kNoNeighborGroup for a true mesh-boundary edge (Neighbor()
+// returns nullopt), or @p face_group_id[neighbor face id] otherwise. @p face_group_id must already hold
+// each face's FINAL output-group id (uf_find(parent, f) once HertelMehlhorn's merging is fully settled;
+// the owning cluster/pair index for the other two strategies, which don't grow groups incrementally) --
+// see collapse_redundant_seams()'s own doc for why this can't be a candidate/in-progress id.
+//
+// An edge shared with a SAME-group neighbor (the kind cancel_reverse_pairs() cancels outright) never needs
+// a tag, since it never survives into the traced boundary -- this only needs to be exact for edges that
+// DO survive, so a stale/irrelevant entry for a cancelled edge's key is harmless.
+template <TriangleFaceView FaceViewT>
+std::map<EdgeKey, std::size_t> far_side_group_of_boundary(std::vector<FaceViewT> const& faces, View2D const& view,
+                                                           std::vector<std::size_t> const& face_ids,
+                                                           std::vector<std::size_t> const& face_group_id) {
+  std::map<EdgeKey, std::size_t> far_side;
+  for (std::size_t face_id : face_ids) {
+    auto const& [p0, p1, p2] = faces[face_id].Geometry().Vertices();
+    Point2D a(view.x(p0), view.y(p0));
+    Point2D b(view.x(p1), view.y(p1));
+    Point2D c(view.x(p2), view.y(p2));
+    std::array<std::pair<Point2D, Point2D>, 3> local_edges = {{{a, b}, {b, c}, {c, a}}};
+    for (std::size_t i = 0; i < 3; ++i) {
+      auto neighbor = faces[face_id].Neighbor(kLocalEdges[i]);
+      std::size_t far = neighbor ? face_group_id[neighbor->ID()] : kNoNeighborGroup;
+      far_side[edge_key(local_edges[i].first, local_edges[i].second)] = far;
+    }
+  }
+  return far_side;
+}
+
+// Drops a boundary vertex between two collinear, SAME-far-side-identity survivor edges (both facing the
+// mesh's own outer boundary, or both facing the exact same neighboring output group). A blind
+// remove_collinear() pass can't make this distinction -- collinear-on-this-ring-alone doesn't mean
+// unneeded: the HertelMehlhorn L-shape example in this file's module doc (and polygonization2d.hpp's
+// polygons_from_pieces() doc) has a vertex collinear on the rectangle piece's own ring that's still the
+// square piece's one load-bearing shared corner, because the far side changes there (mesh boundary on one
+// side, the square's group on the other) even though the two flanking edges are perfectly straight. This
+// only collapses the OTHER case: a vertex where nothing's identity actually changes, like the leftover
+// seam between two triangle-squares HertelMehlhorn merged into one rectangle -- both flanking edges face
+// the mesh's own outer boundary there, so nothing downstream can ever need that vertex.
+void collapse_redundant_seams(std::vector<Point2D>& ring, std::map<EdgeKey, std::size_t> const& far_side) {
+  std::size_t n = ring.size();
+  if (n < 4) {
+    return;  // a triangle has no redundant vertex to drop
+  }
+
+  auto far_side_of = [&](Point2D const& a, Point2D const& b) -> std::size_t {
+    auto it = far_side.find(edge_key(a, b));
+    return it != far_side.end() ? it->second : kNoNeighborGroup;
+  };
+
+  std::vector<Point2D> kept;
+  kept.reserve(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    Point2D const& prev = ring[(i + n - 1) % n];
+    Point2D const& cur = ring[i];
+    Point2D const& next = ring[(i + 1) % n];
+    if (are_collinear(prev, cur, next) && far_side_of(prev, cur) == far_side_of(cur, next)) {
+      continue;  // redundant: nothing on either side needs a corner here
+    }
+    kept.push_back(cur);
+  }
+  if (kept.size() >= 3) {
+    ring = std::move(kept);
   }
 }
 
@@ -76,8 +160,8 @@ View2D cluster_view(std::vector<FaceViewT> const& faces, std::vector<std::size_t
 // single leftover facet), hertel_mehlhorn_polygonization with a candidate (and, once committed, final)
 // union-find group. All 3 need exactly this same "cancel this sub-group's internal edges, trace what's
 // left" operation, just over a different-sized face_ids list, so it's shared rather than reimplemented.
-template <MeshFaceView FaceViewT>
-RingPieces trace_face_group_boundary_2d(std::vector<FaceViewT> const& faces, View2D const& view,
+template <TriangleFaceView TriView>
+RingPieces trace_face_group_boundary_2d(std::vector<TriView> const& faces, View2D const& view,
                                         std::vector<std::size_t> const& face_ids) {
   std::vector<LineSegment2D> edges;
   edges.reserve(face_ids.size() * 3);
@@ -98,11 +182,28 @@ RingPieces trace_face_group_boundary_2d(std::vector<FaceViewT> const& faces, Vie
 
 // trace_face_group_boundary_2d(), unprojected back to @p faces' own point type (a no-op for a 2D mesh; for
 // a 3D mesh, View2D::xyz() per point -- same round-trip Polygon3D::Union()/Simplify() already use).
-template <MeshFaceView FaceViewT>
+//
+// @p face_group_id, when supplied, must hold every face's FINAL output-group id (see
+// far_side_group_of_boundary()'s own doc) -- this runs collapse_redundant_seams() on every ring while
+// still in the 2D-projected form, before unprojecting. Left null for a CANDIDATE trace (is_group_boundary_
+// convex, mid-merge in hertel_mehlhorn_polygonization) where no group id is settled yet and only raw
+// convexity is being tested -- collapsing collinear vertices wouldn't change that answer anyway.
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> trace_face_group_boundary(std::vector<FaceViewT> const& faces, View2D const& view,
-                                                   std::vector<std::size_t> const& face_ids) {
+                                                   std::vector<std::size_t> const& face_ids,
+                                                   std::vector<std::size_t> const* face_group_id = nullptr) {
   using PointT = FaceViewPointT<FaceViewT>;
   auto pieces_2d = trace_face_group_boundary_2d(faces, view, face_ids);
+
+  if (face_group_id) {
+    auto far_side = far_side_group_of_boundary(faces, view, face_ids, *face_group_id);
+    for (auto& [outer2d, holes2d] : pieces_2d) {
+      collapse_redundant_seams(outer2d, far_side);
+      for (auto& hole2d : holes2d) {
+        collapse_redundant_seams(hole2d, far_side);
+      }
+    }
+  }
 
   RingPiecesOf<FaceViewT> result;
   result.reserve(pieces_2d.size());
@@ -140,7 +241,7 @@ RingPiecesOf<FaceViewT> trace_face_group_boundary(std::vector<FaceViewT> const& 
 // Whether trace_face_group_boundary_2d(faces, view, face_ids) is a single, hole-free, convex region.
 // Reuses detail::is_convex (calc_utils/convex_hull2d.hpp) rather than reimplementing the turn-direction
 // sweep.
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 bool is_group_boundary_convex(std::vector<FaceViewT> const& faces, View2D const& view,
                               std::vector<std::size_t> const& face_ids) {
   auto pieces_2d = trace_face_group_boundary_2d(faces, view, face_ids);
@@ -152,7 +253,7 @@ bool is_group_boundary_convex(std::vector<FaceViewT> const& faces, View2D const&
 
 }  // namespace
 
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<FaceViewT> const& faces) {
   using PointT = FaceViewPointT<FaceViewT>;
 
@@ -215,17 +316,10 @@ template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(
 template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<MeshFaceView3D> const&);
 
 std::vector<LineSegment2D> cancel_reverse_pairs(std::vector<LineSegment2D> const& edges) {
-  double scale = std::pow(10.0, static_cast<double>(DECIMAL_PRECISION));
-  auto vkey = [scale](Point2D const& p) -> std::pair<long long, long long> {
-    return {llround(p.x() * scale), llround(p.y() * scale)};
-  };
-  using EdgeKey = std::pair<std::pair<long long, long long>, std::pair<long long, long long>>;
-  auto ekey = [&vkey](Point2D const& a, Point2D const& b) -> EdgeKey { return {vkey(a), vkey(b)}; };
-
   // How many times each directed edge occurs.
   std::map<EdgeKey, int> count;
   for (auto const& e : edges) {
-    count[ekey(e.First(), e.Last())]++;
+    count[edge_key(e.First(), e.Last())]++;
   }
 
   // How many (forward, reverse) pairs to cancel per key, computed once from the FIXED counts above (not
@@ -244,7 +338,7 @@ std::vector<LineSegment2D> cancel_reverse_pairs(std::vector<LineSegment2D> const
   std::vector<LineSegment2D> survivors;
   survivors.reserve(edges.size());
   for (auto const& e : edges) {
-    auto key = ekey(e.First(), e.Last());
+    auto key = edge_key(e.First(), e.Last());
     auto it = to_cancel.find(key);
     if (it != to_cancel.end() && it->second > 0) {
       --it->second;
@@ -263,16 +357,25 @@ std::size_t uf_find(std::vector<std::size_t>& parent, std::size_t x) {
   return x;
 }
 
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> boundary_extraction_polygonization(std::vector<FaceViewT> const& faces,
                                                             std::vector<std::vector<std::size_t>> const& clusters) {
+  // A whole cluster IS this strategy's output group, so a face's cluster index already is its final
+  // output-group id -- feeds collapse_redundant_seams() via trace_face_group_boundary() below.
+  std::vector<std::size_t> face_group_id(faces.size(), kNoNeighborGroup);
+  for (std::size_t ci = 0; ci < clusters.size(); ++ci) {
+    for (std::size_t fid : clusters[ci]) {
+      face_group_id[fid] = ci;
+    }
+  }
+
   RingPiecesOf<FaceViewT> result;
   for (auto const& cluster : clusters) {
     if (cluster.empty()) {
       continue;
     }
     auto view = cluster_view(faces, cluster);
-    auto pieces = trace_face_group_boundary(faces, view, cluster);
+    auto pieces = trace_face_group_boundary(faces, view, cluster, &face_group_id);
     result.insert(result.end(), std::make_move_iterator(pieces.begin()), std::make_move_iterator(pieces.end()));
   }
   return result;
@@ -283,7 +386,7 @@ template RingPiecesOf<MeshFaceView2D> boundary_extraction_polygonization(
 template RingPiecesOf<MeshFaceView3D> boundary_extraction_polygonization(
     std::vector<MeshFaceView3D> const&, std::vector<std::vector<std::size_t>> const&);
 
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> const& faces,
                                                        std::vector<std::vector<std::size_t>> const& clusters) {
   std::size_t n = faces.size();
@@ -298,15 +401,19 @@ RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> co
   std::vector<std::size_t> parent(n);
   std::iota(parent.begin(), parent.end(), std::size_t{0});
 
-  RingPiecesOf<FaceViewT> result;
-
+  // Phase 1: greedily dissolve every internal edge that keeps the merged region convex, one cluster at a
+  // time. Merges never cross a cluster boundary (guarded below), so every cluster's final union-find state
+  // is independent of every other's -- settling ALL of them here, before any tracing starts, is what lets
+  // face_group_id below hold each face's TRUE final group even when the face sits in a cluster this loop
+  // hasn't reached yet. Interleaving merge-then-trace per cluster (as this used to) would instead have to
+  // tag a not-yet-merged neighbor cluster's faces with their premature, still-unmerged ids, which is still
+  // SAFE for collapse_redundant_seams() below (a stale tag can only miss a valid collapse, never cause a
+  // wrong one -- see that function's own doc) but needlessly conservative.
   for (auto const& cluster : clusters) {
     if (cluster.empty()) {
       continue;
     }
     auto view = cluster_view(faces, cluster);
-
-    // Greedily dissolve every internal edge that keeps the merged region convex, one edge at a time.
     for (std::size_t face_id : cluster) {
       for (auto edge : kLocalEdges) {
         auto neighbor = faces[face_id].Neighbor(edge);
@@ -341,14 +448,29 @@ RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> co
         }
       }
     }
+  }
 
-    // Package final groups: one output piece per surviving union-find root in this cluster.
+  // Every face's FINAL output-group id, now that every cluster's merges are settled -- feeds
+  // collapse_redundant_seams() via trace_face_group_boundary() below.
+  std::vector<std::size_t> face_group_id(n);
+  for (std::size_t f = 0; f < n; ++f) {
+    face_group_id[f] = uf_find(parent, f);
+  }
+
+  // Phase 2: package final groups -- one output piece per surviving union-find root per cluster.
+  RingPiecesOf<FaceViewT> result;
+  for (auto const& cluster : clusters) {
+    if (cluster.empty()) {
+      continue;
+    }
+    auto view = cluster_view(faces, cluster);
+
     std::map<std::size_t, std::vector<std::size_t>> groups;
     for (std::size_t fid : cluster) {
-      groups[uf_find(parent, fid)].push_back(fid);
+      groups[face_group_id[fid]].push_back(fid);
     }
     for (auto const& [root, members] : groups) {
-      auto pieces = trace_face_group_boundary(faces, view, members);
+      auto pieces = trace_face_group_boundary(faces, view, members, &face_group_id);
       result.insert(result.end(), std::make_move_iterator(pieces.begin()), std::make_move_iterator(pieces.end()));
     }
   }
@@ -361,7 +483,7 @@ template RingPiecesOf<MeshFaceView2D> hertel_mehlhorn_polygonization(
 template RingPiecesOf<MeshFaceView3D> hertel_mehlhorn_polygonization(
     std::vector<MeshFaceView3D> const&, std::vector<std::vector<std::size_t>> const&);
 
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> quad_only_polygonization(std::vector<FaceViewT> const& faces,
                                                  std::vector<std::vector<std::size_t>> const& clusters) {
   std::size_t n = faces.size();
@@ -374,14 +496,16 @@ RingPiecesOf<FaceViewT> quad_only_polygonization(std::vector<FaceViewT> const& f
   }
 
   std::vector<bool> paired(n, false);
-  RingPiecesOf<FaceViewT> result;
 
+  // Phase 1: decide every pairing (and leftover) first, settling each face's FINAL output-group id before
+  // any tracing starts -- same reason hertel_mehlhorn_polygonization above splits into 2 phases: tracing a
+  // group as soon as it's decided would tag a not-yet-visited face's neighbor with a premature id.
+  std::vector<std::vector<std::size_t>> groups;
+  std::vector<std::size_t> face_group_id(n, kNoNeighborGroup);
   for (auto const& cluster : clusters) {
     if (cluster.empty()) {
       continue;
     }
-    auto view = cluster_view(faces, cluster);
-
     for (std::size_t face_id : cluster) {
       if (paired[face_id]) {
         continue;
@@ -401,19 +525,27 @@ RingPiecesOf<FaceViewT> quad_only_polygonization(std::vector<FaceViewT> const& f
         break;
       }
 
-      std::vector<std::size_t> group;
+      std::size_t group_id = groups.size();
       if (partner) {
         paired[face_id] = true;
         paired[*partner] = true;
-        group = {face_id, *partner};
+        face_group_id[face_id] = group_id;
+        face_group_id[*partner] = group_id;
+        groups.push_back({face_id, *partner});
       } else {
         paired[face_id] = true;
-        group = {face_id};
+        face_group_id[face_id] = group_id;
+        groups.push_back({face_id});
       }
-
-      auto pieces = trace_face_group_boundary(faces, view, group);
-      result.insert(result.end(), std::make_move_iterator(pieces.begin()), std::make_move_iterator(pieces.end()));
     }
+  }
+
+  // Phase 2: trace every decided group.
+  RingPiecesOf<FaceViewT> result;
+  for (auto const& group : groups) {
+    auto view = cluster_view(faces, group);
+    auto pieces = trace_face_group_boundary(faces, view, group, &face_group_id);
+    result.insert(result.end(), std::make_move_iterator(pieces.begin()), std::make_move_iterator(pieces.end()));
   }
 
   return result;
@@ -424,7 +556,7 @@ template RingPiecesOf<MeshFaceView2D> quad_only_polygonization(std::vector<MeshF
 template RingPiecesOf<MeshFaceView3D> quad_only_polygonization(std::vector<MeshFaceView3D> const&,
                                                                 std::vector<std::vector<std::size_t>> const&);
 
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> polygonize_impl(std::vector<FaceViewT> const& faces, PolygonizationParams const& params) {
   auto clusters = partition_into_coplanar_clusters(faces);
 

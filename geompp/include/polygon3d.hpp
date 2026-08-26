@@ -229,8 +229,8 @@ class Polygon3D {
   // source polygon's own IsConvex() carries over unchanged. The outer_plane itself still has to be
   // recomputed fresh via newell_normal() -- that's not redundant, it's the thing that makes the result
   // correct regardless of the transform's determinant sign (see transformations3d.cpp). Private and
-  // friended to transform() specifically -- NOT exposed publicly, for the same reason as
-  // Polygon2D::FromUniqueCCWPoints (see its doc comment).
+  // friended to transform() and polygons_from_pieces() specifically -- NOT exposed publicly, for the same
+  // reason as Polygon2D::FromUniqueCCWPoints (see its doc comment).
   static Polygon3D FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points, bool is_convex);
   static Polygon3D FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points,
                                                std::vector<std::vector<Point3D>> holes, bool is_convex);

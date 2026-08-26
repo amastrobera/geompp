@@ -33,7 +33,7 @@ concept PointContainer =
 /// index-adjacent) storage -- see calc_utils/polygonization2d.hpp's own docs for why no ConnectedMesh2D
 /// object needs to be constructed just to call Polygonize() on a Mesh2D.
 template <typename T>
-concept MeshFaceView = requires(T const& f, detail::TriangleCompactNeighborRef::TriangleEdge e) {
+concept TriangleFaceView = requires(T const& f, detail::TriangleCompactNeighborRef::TriangleEdge e) {
   { f.ID() } -> std::convertible_to<std::size_t>;
   f.Geometry();
   { f.Neighbor(e) } -> std::same_as<std::optional<T>>;

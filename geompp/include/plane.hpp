@@ -192,8 +192,22 @@ inline Plane Plane::ZX() { return Plane(Point3D::Zero(), Vector3D::BasisY()); }
 // multiple checks (e.g. Polygon3D::FromUniquePoints, which also needs it for are_ccw()) compute it once.
 bool are_coplanar(std::vector<Point3D> const& points, std::optional<Plane> plane = std::nullopt);
 
-// Newell's method (M. Newell, Utah): a polygon normal robust to any single reflex/near-collinear vertex,
-// since it accumulates a contribution from EVERY edge rather than trusting just 3 points. Not normalized.
+/// @brief Newell's method (M. Newell, Utah): computes a polygon's normal directly from its point
+/// positions, with no plane assumed or required going in -- unlike signed_area(points, plane), which
+/// consumes a plane rather than producing one. Robust to any single reflex/near-collinear vertex, since
+/// it accumulates a contribution from EVERY edge (three shoelace-style sums, one per coordinate pair —
+/// the genuine 3D generalization of the 2D shoelace formula) rather than trusting just 3 points.
+/// @param points The polygon's ring, in winding order (CCW as seen from the side the normal should
+/// point toward).
+/// @returns The polygon's normal vector, **not normalized** — its direction already reflects the given
+/// winding, but its magnitude is exactly `2 * area` (the same relationship the 2D shoelace sum has to
+/// area before its own `/2`), not `1`. Left un-normalized deliberately: about half of this codebase's
+/// call sites (`Polygon3D::FromUniquePoints`/`FromUniqueCoplanarCCWPoints`) need a genuine unit normal
+/// to build a `Plane` and chain `.Normalize()` themselves, but `are_coplanar()`'s no-plane-given branch
+/// uses the raw vector directly in a `Dot()`-against-zero orthogonality test, where scaling by any
+/// positive factor changes nothing — normalizing there would just be a wasted `sqrt()`. A caller that
+/// wants the polygon's area gets it for the cost of one already-computed `Length() / 2`, no separate
+/// area pass needed; a caller that wants a unit normal calls `.Normalize()` explicitly.
 Vector3D newell_normal(std::vector<Point3D> const& points);
 
 // returns the XY, YZ or ZX world plane whose normal is closest to the normal of the points' plane

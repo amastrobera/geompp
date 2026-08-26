@@ -156,6 +156,14 @@ A quick list of code examples per topic is provided here.
   For 3D, every point just gets one more coordinate — same tags, same structure. One example,
   `LineSegment3D`: `LINESTRING (1 0 0, -1 0 2)`.
 
+  Note for WKT purists. Certain text was made up just for this library and **is not real WKT**. So if you need to transfer the wkt from these classes to another library expecting perfect WKT, use these workarounds. 
+
+  |Not real WKT | Workaround | Notes |
+  |-------------|------------|-------|
+  |LINE(from_point, to_point)| Transform it into a LineSegment, and elongate the points as much as you can  | Displaying a line *visually true to size* depends on the size of other shapes around it. So, if you have all of them available, make an (axis-aligned) bounding box around all of them, and make sure the line touches its borders, or goes beyond them  |
+  |RAY(origin, direction_unit_vector)| Same | Same |
+  |TRIANGLE(p0, p1, p2)| triangle.ToPolygon().ToWkt() | Perfect |
+
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
 
@@ -726,24 +734,27 @@ A quick list of code examples per topic is provided here.
 <details open>
 <summary><b> &nbsp; &nbsp; 2.3 Intersection </b></summary>
 
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.3.1 Primitive vs Primitive </b></summary>
+
   Every 2D primitive (`Line2D`, `Ray2D`, `LineSegment2D`, `Triangle2D`, `Polygon2D`) can intersect any
   other 2D primitive, and the same holds in 3D across `Line3D`, `Ray3D`, `LineSegment3D`, `Triangle3D`,
   and `Plane`. Results are `std::optional<std::variant<...>>` for point-or-segment outcomes, or
   `std::optional<std::vector<LineSegment2D>>` when polygon clipping can produce multiple chords.
-  `find_intersections(segments)` (Bentley–Ottmann) reports all crossing points across an arbitrary set
-  of 2D segments, sorted left-to-right.
 
   Methods return `object` (null on miss) in C#; use pattern matching to extract the result type.
 
   <p align="center">
     <img src="./images/img_2-3-intersection.png" width="420" alt="A vertical line crossing a C-shaped polygon, producing two chord segments">
+    &nbsp;&nbsp;
+    <img src="./images/img_2-3-1-ray-segment.png" width="420" alt="A ray from the origin crossing a line segment at a single point (2,2), the ray continuing past it (dashed) to show it doesn't stop there">
   </p>
 
   <details closed>
-  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
 
    <details closed>
-   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
 
   ```cpp
   #include "polygon2d.hpp"
@@ -751,7 +762,6 @@ A quick list of code examples per topic is provided here.
   #include "ray2d.hpp"
   #include "line_segment2d.hpp"
   #include "triangle3d.hpp"
-  #include "calc_utils2d.hpp"
 
   namespace g = geompp;
 
@@ -801,16 +811,6 @@ A quick list of code examples per topic is provided here.
   auto cross = s1.Intersection(s2);
   if (cross)
       GEOMPP_LOG(INFO) << std::get<g::Point2D>(*cross).ToWkt();  // POINT (2 1)
-
-  // find_intersections — all crossing points (Bentley–Ottmann)
-  std::vector<g::LineSegment2D> segs = {
-      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(4, 4)),
-      g::LineSegment2D::Make(g::Point2D(0, 4), g::Point2D(4, 0)),
-      g::LineSegment2D::Make(g::Point2D(0, 2), g::Point2D(4, 2)),
-  };
-  auto crossings = g::find_intersections(segs);   // sorted left-to-right
-  for (auto const& p : crossings)
-      GEOMPP_LOG(INFO) << p.ToWkt();
   ```
 
   ```bash
@@ -820,15 +820,12 @@ A quick list of code examples per topic is provided here.
   LINESTRING (2 3, 2 4)
   POINT (1 1 0)
   POINT (2 1)
-  POINT (1 2)
-  POINT (2 2)
-  POINT (3 2)
   ```
 
    </details>
 
    <details closed>
-   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
 
   ```python
   import geompp as g
@@ -874,15 +871,6 @@ A quick list of code examples per topic is provided here.
   s2    = g.LineSegment2D.make(g.Point2D(2, 0), g.Point2D(2, 4))
   cross = s1.intersection(s2)
   print(cross.to_wkt() if cross else None)  # POINT (2 1)
-
-  # find_intersections — all crossing points (Bentley–Ottmann)
-  segs = [
-      g.LineSegment2D.make(g.Point2D(0, 0), g.Point2D(4, 4)),
-      g.LineSegment2D.make(g.Point2D(0, 4), g.Point2D(4, 0)),
-      g.LineSegment2D.make(g.Point2D(0, 2), g.Point2D(4, 2)),
-  ]
-  for p in g.find_intersections(segs):
-      print(p.to_wkt())
   ```
 
   ```
@@ -892,15 +880,12 @@ A quick list of code examples per topic is provided here.
   LINESTRING (2 3, 2 4)
   POINT (1 1 0)
   POINT (2 1)
-  POINT (1 2)
-  POINT (2 2)
-  POINT (3 2)
   ```
 
    </details>
 
    <details closed>
-   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
 
   ```csharp
   using G = GeomPP;
@@ -944,15 +929,6 @@ A quick list of code examples per topic is provided here.
   var s2    = G.LineSegment2D.Make(new G.Point2D(2, 0), new G.Point2D(2, 4));
   var cross = s1.Intersection(s2) as G.Point2D;
   Console.WriteLine(cross?.ToWkt() ?? "null");   // POINT (2 1)
-
-  // GeomUtil.FindIntersections — all crossing points (Bentley–Ottmann)
-  var segs = new System.Collections.Generic.List<G.LineSegment2D> {
-      G.LineSegment2D.Make(new G.Point2D(0, 0), new G.Point2D(4, 4)),
-      G.LineSegment2D.Make(new G.Point2D(0, 4), new G.Point2D(4, 0)),
-      G.LineSegment2D.Make(new G.Point2D(0, 2), new G.Point2D(4, 2)),
-  };
-  foreach (var p in G.GeomUtil.FindIntersections(segs))
-      Console.WriteLine(p.ToWkt());
   ```
 
   ```
@@ -962,17 +938,151 @@ A quick list of code examples per topic is provided here.
   LINESTRING (2 3, 2 4)
   POINT (1 1 0)
   POINT (2 1)
-  POINT (1 2)
-  POINT (2 2)
-  POINT (3 2)
   ```
 
    </details>
 
   </details>
 
+</details>
+
 <details open>
-<summary><b> &nbsp; &nbsp; &nbsp; 2.3.1 Split a complex polygon </b></summary>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.3.2 Set of Segments </b></summary>
+
+  Beyond primitive-vs-primitive intersection, two free functions work on an arbitrary *set* of
+  `LineSegment2D` at once. `has_intersections(segments)` (**Shamos–Hoey**) is a yes/no sweep that exits
+  as soon as the first crossing is found, returning `bool` — this is the same routine
+  `Polygon2D::IsSimple()` uses internally to check a ring for self-intersections. `find_intersections
+  (segments)` (**Bentley–Ottmann**) instead sweeps the whole set and reports every crossing point,
+  sorted left-to-right — more expensive than `has_intersections()` when all you need is a yes/no
+  answer, but it's the only one of the two that tells you *where*.
+
+  <p align="center">
+    <img src="./images/img_2-3-2-set-of-segments.png" width="420" alt="Two crossing diagonal segments and a horizontal segment, all three concurrent at a single shared crossing point (2,2), found by find_intersections()">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "line_segment2d.hpp"
+
+  namespace g = geompp;
+
+  // Three segments: two diagonals crossing at (2,2), plus a horizontal line through both
+  std::vector<g::LineSegment2D> segs = {
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(4, 4)),
+      g::LineSegment2D::Make(g::Point2D(0, 4), g::Point2D(4, 0)),
+      g::LineSegment2D::Make(g::Point2D(0, 2), g::Point2D(4, 2)),
+  };
+
+  // has_intersections — Shamos–Hoey: true/false, exits at the first crossing found
+  GEOMPP_LOG(INFO) << g::has_intersections(segs);   // 1
+
+  // find_intersections — Bentley–Ottmann: every crossing point, sorted left-to-right
+  for (auto const& p : g::find_intersections(segs))
+      GEOMPP_LOG(INFO) << p.ToWkt();
+  // POINT (2 2)
+
+  // Two parallel, non-crossing segments
+  std::vector<g::LineSegment2D> disjoint = {
+      g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(4, 0)),
+      g::LineSegment2D::Make(g::Point2D(0, 1), g::Point2D(4, 1)),
+  };
+  GEOMPP_LOG(INFO) << g::has_intersections(disjoint);  // 0
+  ```
+
+  ```bash
+  1
+  POINT (2 2)
+  0
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # Three segments: two diagonals crossing at (2,2), plus a horizontal line through both
+  segs = [
+      g.LineSegment2D.make(g.Point2D(0, 0), g.Point2D(4, 4)),
+      g.LineSegment2D.make(g.Point2D(0, 4), g.Point2D(4, 0)),
+      g.LineSegment2D.make(g.Point2D(0, 2), g.Point2D(4, 2)),
+  ]
+
+  # has_intersections — Shamos–Hoey: True/False, exits at the first crossing found
+  print(g.has_intersections(segs))          # True
+
+  # find_intersections — Bentley–Ottmann: every crossing point, sorted left-to-right
+  for p in g.find_intersections(segs):
+      print(p.to_wkt())
+  # POINT (2 2)
+
+  # Two parallel, non-crossing segments
+  disjoint = [
+      g.LineSegment2D.make(g.Point2D(0, 0), g.Point2D(4, 0)),
+      g.LineSegment2D.make(g.Point2D(0, 1), g.Point2D(4, 1)),
+  ]
+  print(g.has_intersections(disjoint))       # False
+  ```
+
+  ```
+  True
+  POINT (2 2)
+  False
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // Three segments: two diagonals crossing at (2,2), plus a horizontal line through both
+  var segs = new System.Collections.Generic.List<G.LineSegment2D> {
+      G.LineSegment2D.Make(new G.Point2D(0, 0), new G.Point2D(4, 4)),
+      G.LineSegment2D.Make(new G.Point2D(0, 4), new G.Point2D(4, 0)),
+      G.LineSegment2D.Make(new G.Point2D(0, 2), new G.Point2D(4, 2)),
+  };
+
+  // GeomUtil.HasIntersections — Shamos–Hoey: True/False, exits at the first crossing found
+  Console.WriteLine(G.GeomUtil.HasIntersections(segs));   // True
+
+  // GeomUtil.FindIntersections — Bentley–Ottmann: every crossing point, sorted left-to-right
+  foreach (var p in G.GeomUtil.FindIntersections(segs))
+      Console.WriteLine(p.ToWkt());
+  // POINT (2 2)
+
+  // Two parallel, non-crossing segments
+  var disjoint = new System.Collections.Generic.List<G.LineSegment2D> {
+      G.LineSegment2D.Make(new G.Point2D(0, 0), new G.Point2D(4, 0)),
+      G.LineSegment2D.Make(new G.Point2D(0, 1), new G.Point2D(4, 1)),
+  };
+  Console.WriteLine(G.GeomUtil.HasIntersections(disjoint));  // False
+  ```
+
+  ```
+  True
+  POINT (2 2)
+  False
+  ```
+
+   </details>
+
+  </details>
+
+</details>
+
+<details open>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.3.3 Split a complex polygon </b></summary>
 
   A **complex polygon** (also called a self-intersecting polygon) is a polygon whose edges cross
   each other. `Simplify()` decomposes it into a list of simple (non-self-intersecting) polygons by
@@ -1109,7 +1219,7 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; &nbsp; &nbsp; 2.3.2 Triangle &times; Triangle </b></summary>
+<summary><b> &nbsp; &nbsp; &nbsp; 2.3.4 Triangle &times; Triangle </b></summary>
 
   `Triangle2D::Intersection(Triangle2D)` returns the shared region directly: a `Triangle2D` when the
   overlap happens to be a triangle, or a `Polygon2D` when clipping produces more vertices — as with two
@@ -1444,7 +1554,7 @@ A quick list of code examples per topic is provided here.
 <summary><b> &nbsp; &nbsp; &nbsp; 2.4.1 Triangle &times; Triangle (coplanar) </b></summary>
 
   `Triangle3D::Overlaps(Triangle3D)` / `Overlap(Triangle3D)` complement `Intersection(Triangle3D)`
-  (section 2.3.2): they handle two triangles that lie on the *same* plane, returning the shared area as
+  (section 2.3.4): they handle two triangles that lie on the *same* plane, returning the shared area as
   a `Triangle3D` or `Polygon3D` — a mere touching vertex or edge, with no interior area in common, does
   not count (see section 2.5.1). The two triangles' planes must have the *same* normal direction (i.e.
   matching winding) to be considered the same plane here — a plane and its own reverse face compare
@@ -1453,7 +1563,7 @@ A quick list of code examples per topic is provided here.
 
   `Triangle2D` has no separate `Overlaps`/`Overlap` — in 2D every triangle pair is automatically
   coplanar, so this coplanar-area case is exactly what `Intersection(Triangle2D)` already computes (the
-  hexagram example in section 2.3.2).
+  hexagram example in section 2.3.4).
 
   <p align="center">
     <img src="./images/img_2-4-2-triangle-overlap-3d.png" width="420" alt="Two coplanar triangles on a tilted plane overlapping like a hexagram, with their hexagonal Overlap() result filled in gold">
@@ -1757,7 +1867,7 @@ A quick list of code examples per topic is provided here.
   Neither `Triangle2D`/`Triangle3D` nor `Polygon2D`/`Polygon3D` has a dedicated `Touches`/`Touch` pair.
   A mere point or edge contact with no shared area is absorbed into the same result used for "no
   overlap at all": `Intersects(other)` still reports `true` for a touch (the shapes *do* share a point),
-  but `Intersection(other)` (section 2.3.2) and `Overlaps`/`Overlap` (section 2.4.1) return
+  but `Intersection(other)` (section 2.3.4) and `Overlaps`/`Overlap` (section 2.4.1) return
   `std::nullopt` for it — exactly as for two fully disjoint triangles. There is no way to tell the two
   cases apart from the return value alone; if that distinction matters, check `Intersects()` first. The
   same rule holds in 3D, whether the touch is between two coplanar triangles (`Overlaps`/`Overlap`) or
@@ -5368,74 +5478,36 @@ A quick list of code examples per topic is provided here.
 <details open>
 <summary><b> &nbsp; 11. Triangulation</b></summary>
 
-  Every `Polygon2D`/`Polygon3D`'s outer ring, and every `PolyMesh2D`/`PolyMesh3D` facet, can be broken
-  down into triangles. All of it runs through one free function, `triangulate(points, settings)`: 2D
-  is native, and the 3D overload assumes flat/coplanar input, projected via either a caller-supplied
-  plane normal or one fitted automatically via PCA (`principal_normal`) when omitted.
+  Every `Polygon2D`/`Polygon3D` outer ring, and every `PolyMesh2D`/`PolyMesh3D` facet, can be broken
+  into triangles, via one free function: `triangulate(points, settings)`. 2D is native; the 3D overload
+  projects flat/coplanar input through a plane normal (given, or fitted via PCA when omitted).
 
-  `TriangulationParams` bundles the algorithm choice with how strictly to trust the input:
+  `TriangulationParams` bundles the algorithm with how much to trust the input:
 
-  - **`Strategy`** — four values, two implemented so far:
-    - `EarClipping` walks the ring and clips the *first* valid convex "ear" vertex it finds, in scan
-      order, tracking which vertices are reflex as it goes so later ears can't accidentally clip
-      through one. O(n²) worst case, but often close to O(n) in practice on well-behaved polygons —
-      clipping at one vertex frequently leaves its neighbor immediately clippable too. It has no
-      concept of triangle *quality*, though: taking whatever's first in scan order can produce a
-      visibly thin sliver triangle purely by luck of vertex ordering, even on an otherwise ordinary
-      polygon (not just adversarial input) — see the second picture below.
-    - `EarClippingBestFit` (**the default**) clips one ear at a time the same way, but each step first
-      does a full lap over the *current* ring to find the best-scoring valid ear — by a cheap,
-      scale-invariant shape-quality score, `|cross(prev, cur, next)| / (a² + b² + c²)` (proportional to
-      `4√3·Area/(a²+b²+c²)`, 1.0 for an equilateral triangle, → 0 for a sliver) — instead of just
-      taking the first one found. It never rejects a geometrically valid ear outright, only reorders
-      which one gets preferred, so it keeps the exact same termination guarantee (the Two Ears
-      Theorem) `EarClipping` relies on — critically, a strict angle/area floor that *rejects* thin
-      candidates instead of just deprioritizing them can't make that same promise, and risks never
-      terminating on a polygon with a genuinely sharp (but valid) vertex. The cost of the quality win:
-      unconditionally ~O(n²), since the full rescan runs on *every* clip, not only in the worst case —
-      so `EarClippingBestFit` is slower than `EarClipping` even on inputs `EarClipping` would finish
-      quickly.
-    - `MonotonePolygon` and `Delaunay` are declared but **not yet implemented** — both `throw`.
-      `MonotonePolygon` would decompose the ring into y-monotone pieces and triangulate each with a
-      stack-based sweep, O(n log n) worst case — faster than either ear-clipping strategy, but unlike
-      them can't triangulate an arbitrary simple polygon directly; it needs the monotone-decomposition
-      step first. `Delaunay` would triangulate a *point set's* convex hull rather than a polygon
-      boundary (a different problem — no notion of "outside" the input), O(n log n) worst case, and is
-      the only one of the four with a *provable* global shape guarantee: it maximizes the minimum angle
-      across the whole triangulation, rather than `EarClippingBestFit`'s local, per-step preference.
-  - **`Simplicity` / `Winding` / `Collinearity`** — each independently `Guaranteed` (skip the check,
-    run at your own risk), `Assert` (throw if violated), or `Enforce` (fix it in place — decompose
-    into simple rings, reverse to CCW, or strip collinear/duplicate points — before triangulating).
+  - **`Strategy`**
+  1. `EarClipping` — clips the first valid ear found each pass. Fast, but scan order alone can
+     produce a thin sliver triangle, even on an ordinary (non-adversarial) polygon.
+  2. `EarClippingBestFit` (**the default**) — same idea, but scores every valid ear each pass and
+     clips the best one instead. Same termination guarantee as `EarClipping`, just fatter triangles.
+     Slower: unconditionally ~O(n²), not just worst case.
+  3. `MonotonePolygon`, `Delaunay` — declared, not implemented yet. Both `throw`.
+  - **`Simplicity` / `Winding` / `Collinearity`** — each `Guaranteed` (skip the check), `Assert`
+    (throw if violated), or `Enforce` (fix it: decompose, reverse winding, strip bad points).
 
-  `Polygon2D/3D::Triangulate(strategy)` and `PolyMesh2D/3D::Triangulate(strategy)` (§10.4) are thin
-  wrappers around the same free function: since `Make()`/`FromPolygons()` already validated
-  simplicity/winding/collinearity at construction time, they pass `Guaranteed` for all three checks
-  and only expose the `Strategy` choice. Calling `triangulate()` directly on a raw point list is the
-  more general entry point — no `Polygon2D/3D` required, and full control over how much to trust the
-  input via `TriangulationParams`.
+  `Polygon2D/3D::Triangulate()` and `PolyMesh2D/3D::Triangulate()` (§10.4) wrap the free function with
+  every check `Guaranteed`, since `Make()`/`FromPolygons()` already validated the input. Calling
+  `triangulate()` directly on a raw point list works too, with full control over how much to trust it.
 
-  A third overload, `triangulate(vector<Polygon2D>, settings)`, batches this across a whole set of
-  polygon facets at once — the free-function equivalent of
-  `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
-  constructing/keeping a full `PolyMesh2D`. It reads one extra field off the same `TriangulationParams`,
-  **`AdjacencyConformity conformity`**, that the single-ring overload ignores: `Guaranteed` skips the
-  cross-facet check entirely, `Assert` throws on any violation, `Enforce` (the default) auto-repairs a
-  T-junction and still throws on a non-manifold edge. Unlike `PolyMesh2D::FromPolygons()` (§10), which
-  always rejects a non-conforming set of facets outright, this overload defaults `conformity` to
-  `Enforce`: since the caller isn't building a persistent mesh object here, it's more useful to
-  auto-repair whatever's fixable (splice a stray T-junction vertex back in — see `fix_adjacency()`, §10)
-  than to simply refuse the input. It still throws on a non-manifold edge either way, since that one has
-  no valid automatic fix.
+  A third overload, `triangulate(vector<Polygon2D>, settings)`, batches this across a whole facet set —
+  what `PolyMesh2D::FromPolygons(polygons).Triangulate()` uses internally, for callers who just want
+  triangles without keeping a full `PolyMesh2D`. It also reads `AdjacencyConformity conformity`:
+  `Guaranteed` skips the cross-facet check, `Assert` throws on any violation, `Enforce` (the default)
+  auto-repairs a T-junction and still throws on a non-manifold edge.
 
-  The picture below triangulates a 5-pointed star — a classic concave shape with 5 reflex vertices
-  at its inner corners — using `EarClippingBestFit`, the default. The first lap around the ring clips
-  each of the star's 5 points off as its own ear; what's left is the inner pentagon, which the second
-  lap then fans from one of its vertices. That two-stage split is a property of this particular vertex
-  ordering (and of how close a triple is to collinear), not something the algorithm guarantees in
-  general. Alongside it, a 3-tooth "comb" — the classic *adversarial* shape for naive ear-clipping: its
-  deep, narrow notches mean some vertices get checked, rejected, and only clipped later once an
-  unrelated clip elsewhere in the ring shrinks the set of blocking reflex vertices, so the algorithm
-  needs more than one pass around it to finish.
+  Below: a 5-pointed star (5 reflex inner vertices), triangulated with `EarClippingBestFit`. The first
+  lap clips off each point as its own ear; what's left is the inner pentagon, fanned on the second lap.
+  Alongside it, a 3-tooth comb — the classic adversarial shape for ear-clipping, needing several passes
+  before its deep notches fully clip.
 
   <p align="center">
     <img src="./images/triangulation.png" width="420" alt="A 5-pointed star polygon before and after Triangulate() with EarClippingBestFit: 8 triangles (every edge in gold) -- the 5 point-ears clipped first, the remaining pentagon fanned from one of its vertices">
@@ -5443,14 +5515,10 @@ A quick list of code examples per topic is provided here.
     <img src="./images/comb_triangulation.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate() with EarClippingBestFit: 10 triangles fanning from the base, the classic adversarial case that needs multiple traversal laps to fully clip">
   </p>
 
-  The same two shapes again below, but with plain `EarClipping` (fast, first-found) instead of the
-  default. Same polygons, same triangle counts, same total area — both are valid triangulations — but
-  scan order alone produces two visibly thin sliver triangles in the star (flagged red) that
-  `EarClippingBestFit` avoids entirely, simply by preferring a fatter ear when one's available. The
-  comb's sliver, also flagged red, shows up under *both* strategies: that one is forced by the notch's
-  own geometry, not by which ear got picked first, and no re-triangulation of a *fixed* vertex set can
-  fix a triangle whose thinness is inherited from a genuinely sharp input angle — only inserting new
-  points (Steiner refinement, which neither strategy does) could.
+  Same two shapes again, but with plain `EarClipping` instead. Same triangle counts and area — both are
+  valid triangulations — but scan order alone produces two sliver triangles in the star (flagged red)
+  that `EarClippingBestFit` avoids. The comb's sliver, also flagged red, shows up under *both*
+  strategies: that one's forced by the notch's own geometry, not by which ear got picked first.
 
   <p align="center">
     <img src="./images/triangulation_ear_clipping.png" width="420" alt="The same 5-pointed star triangulated with plain EarClipping: 8 triangles, gold = healthy edge, red = two sliver triangles produced purely by scan order">
@@ -5592,48 +5660,41 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; 12. geompp::maths — Linear Algebra</b></summary>
+<summary><b> &nbsp; 12. Linear Algebra (geompp::maths) </b></summary>
 
-  Everything above lives in `geompp::geometry` — as of this section, an *inline* C++ namespace nested
-  inside `geompp` (`namespace geompp { inline namespace geometry { ... } }`), so `geompp::Point2D` and
-  `geompp::geometry::Point2D` name the exact same type and every existing call site keeps compiling
-  unchanged. `geompp::maths` sits alongside it as a sibling, *not* inline — a deliberately separate,
-  independent module for fixed-size linear algebra, with no dependency on any geometry class. Python and
-  C# have no equivalent to an inline namespace, so the split is mirrored there as a real submodule
-  instead: `geompp.maths` (Python) and `GeomPP.Maths` (C#).
+  For convenience, I thought of providing a Lin. Alg. part of the lib. It's still minimal but you can 
+  find a few useful things inside it. Others are functions used by the `::geometry` or `::transformation`
+  namespaces. 
 
-  The core types are `Vector<T, N>` and `Matrix<T, Rows, Cols>` — both compile-time-dimensioned (`N`,
-  `Rows`, `Cols` are template parameters, not runtime fields) and constrained to `Numeric<T>`
-  (`std::is_arithmetic_v<T>`). `geompp::maths` only ever instantiates them at `double` and the sizes
-  geometry actually needs, exposed as six aliases: `Vector2`/`Vector3`/`Vector4` and
-  `Matrix2`/`Matrix3`/`Matrix4` (the last three square). This is a deliberately different kind of vector
-  from `geompp::geometry::Vector2D`/`Vector3D`: the geometry vectors are WKT-serializable, carry a
-  `DECIMAL_PRECISION`-aware `AlmostEquals()`, and exist to be added to `Point2D`/`Point3D`; `maths::Vector3`
-  is a bare 3-tuple of doubles with no geometric meaning of its own — just the column vector a `Matrix4`
-  multiplies. `geompp::transformations` (§13) is what bridges the two.
+  - Data Structures
 
-  Because size is part of the type, operand compatibility for `+`/`-`/matrix products is a **compile-time**
-  question: `Matrix3{} * Vector2{}` is a compiler error, not a runtime exception — a stronger guarantee
-  than a check-and-throw, and one the caller can't forget to hit. Runtime `throw`/`ValueError`/exception is
-  reserved for genuinely runtime-only failures: `Normalized()` on a zero-length vector, `Inverse()` /
-  `solve_gauss()` / `solve_cramer()` on a singular matrix, `Rotation()` about a zero-length axis.
+  `Vector<T, N>` and `Matrix<T, Rows, Cols>` can be of any size. Then we have standard aliases, 
+  like `Vector2`/`Vector3`/`Vector4` or square matrices `Matrix2`/`Matrix3`/`Matrix4`. `T` is a 
+  forced to be a numerical type (int, long, double, float...). 
 
-  `Matrix::Determinant()` uses recursive cofactor (Laplace) expansion; `Matrix::Inverse()` and
-  `solve_gauss()` share one Gauss-Jordan elimination routine (partial pivoting) under the hood, so a
-  fix to the elimination logic fixes both at once. `solve_cramer()` solves the same `A x = b` system a
-  different way — replace column `i` of `A` with `b`, `x_i = det(A_i) / det(A)` — useful when a caller
-  specifically wants that closed form (e.g. to inspect one unknown's ratio in isolation) rather than the
-  faster, more numerically stable elimination `solve_gauss()` runs.
+  They are used for algebra problems (like solving a system of equations) or to ma `::geometry` 
+  primitives (like `Polygon`, `LineSegment`, `Triangle`, etc) rotate, shift or apply any 
+  other transformations in `::transformation`. 
 
-  `Matrix4` additionally provides static factories building the elementary 4x4 *homogeneous*
-  affine-transform matrices — `Identity()`/`Translation(offset)`/`Rotation(angle_rad, axis)` (axis-angle,
-  Rodrigues' formula)/`Scale(factor)`/`Scale(sx, sy, sz)`/`Shear(xy, xz, yx, yz, zx, zy)` (each axis
-  offset by a multiple of the other two)/`Reflection(normal)` (Householder reflection `I - 2nn^T` across
-  the plane through the origin with the given normal; throws on a zero-length normal) — the building
-  blocks `geompp::transformations::TransformBuilder3D` (§13) composes via ordinary `Matrix4`
-  multiplication. `Matrix3` mirrors the same set (2D: `Shear(shx, shy)`, `Reflection(normal)` across a
-  line through the origin) for `geompp::transformations`' 2D `transform()` path, composed the same way by
-  `TransformBuilder2D`.
+  - Algorithms
+  
+  Operations between vectors an matrices, like `+`, `-`, `*`. 
+
+  Operations for matrices, like `Determinant()`, `Inverse()`, `Identity()`.
+
+  Helper functions for transformations, used by the `::transformations::TransformBuilder`
+
+1. `Translation(offset)`
+2. `Rotation(angle_rad, axis)` (axis-angle, Rodrigues' formula)
+3. `Scale(factor)`, `Scale(sx, sy, sz)`
+4. `Shear(xy, xz, yx, yz, zx, zy)` (each axis offset by a multiple of the other two)
+5. `Reflection(normal)` (Householder reflection `I - 2nn^T` across the plane through the origin with the given normal) 
+
+  Solvers
+    
+1. `solve_gauss()` share one Gauss-Jordan elimination routine (partial pivoting) under the hood, so a fix to the elimination logic fixes both at once. 
+
+2. `solve_cramer()` solves the same `A x = b` system a different way — replace column `i` of `A` with `b`, `x_i = det(A_i) / det(A)` — useful when a caller specifically wants that closed form (e.g. to inspect one unknown's ratio in isolation) rather than the faster, more numerically stable elimination `solve_gauss()` runs.
 
   <details closed>
   <summary><b> &nbsp; &nbsp; Samples</b></summary>
@@ -5800,57 +5861,54 @@ A quick list of code examples per topic is provided here.
 </details>
 
 <details open>
-<summary><b> &nbsp; 13. geompp::transformations — Affine Transforms</b></summary>
+<summary><b> &nbsp; 13. Affine Transforms (geompp::transformations) </b></summary>
 
-  `geompp::transformations` is the third module built on top of `geompp::geometry`: affine transforms
-  (translate/rotate/scale/shear/reflect) for every `geompp::geometry` primitive, built entirely on
-  `geompp::maths` (§12) rather than on hand-derived per-primitive formulas. Two distinct families cover
-  different needs:
+  `::transformations` is the third module that works on `::geometry`: primitives and is built entirely on 
+  `::maths`. There are two ways of transforming a shape:
 
-  - **`translate()`/`rotate()`/`scale()`/`shear()`/`reflect()`** — the fast path, direct arithmetic on a
-    single `Point2D`/`Point3D`, no matrix ever constructed. `rotate()` in 2D takes a scalar angle
-    (rotation about the origin, in the XY plane); in 3D it takes an axis-angle pair (Rodrigues' formula,
-    throws on a zero-length axis). `shear()` takes 2 terms in 2D (`shx`, `shy`) or 6 in 3D (each axis
-    offset by a multiple of the other two). `reflect()` takes a normal vector (`Vector2`/`Vector3`) and
-    mirrors the point across the line/plane through the origin perpendicular to it (Householder
-    reflection), throwing on a zero-length normal. This is the cheapest possible path when all you have
-    is one point.
-  - **`transform(primitive, matrix)`** — the general path: a 3x3 (`Matrix3`, 2D) or 4x4 (`Matrix4`, 3D)
-    homogeneous matrix applied to *any* primitive, from `Point2D/3D`/`Vector2D/3D` through
-    `LineSegment`/`Polyline`/`Triangle`/`Polygon` (outer ring **and** every hole ring) to `Mesh`/
-    `PolyMesh` — 16 overloads in total (8 per dimension). A composite primitive is rebuilt by
-    transforming each constituent point and re-validating through the type's own `Make()`/
-    `FromTriangles()`/`FromPolygons()`, so a single matrix combining rotation *and* translation applies
-    to an entire `Polygon2D` or `Mesh3D` in one call. `Vector2D`/`Vector3D` are the one exception worth
-    calling out: their homogeneous coordinate is `0` rather than `1`, so any translation baked into the
-    matrix has **no effect** on a transformed vector — correct, since a displacement has no position to
-    translate, only a direction/length to rotate and scale.
+  - One sole transform to apply directly to a `Point`, a `Polygon`, anything.
+  1. `translate()`: preserve area, volume, angles, lenghts (rigid body)
+  2. `rotate()`   : preserve area, volume, angles, lenghts (rigid body)
+  3. `scale()`    : preserves angles but not area
+  4. `shear()`    : preserves area, volume
+  5. `reflect()`  : preserves area, volume and angles but flips orientation (determinant -1, winding order changes)
+ 
+- A **set of operations** applied all **at once** to the primitive, via a `Matrix` which
+ summarizes them all
 
-  `TransformBuilder3D` is a fluent composer for a single `Matrix4`: each `Translate()`/`Rotate()`/
-  `Scale()`/`Shear()`/`Reflect()`/`Combine()` call **pre-multiplies** the new operation onto the matrix
-  accumulated so far, so chained calls apply in the order they're *written*, left to right —
-  `builder.Translate(t).Rotate(r)` moves a point by `t` first, then rotates the *result* by `r`,
-  matching how a reader expects a chain of method calls to read ("do this, then this"). Reversing the
-  chain (`Rotate` then `Translate`) produces a genuinely different transform, not just a
-  different-looking call — see the worked example below. `TransformBuilder2D` is the `Matrix3` 2D
-  counterpart, same composition rule, `Rotate(angle_rad)` with no axis.
+    ```
+        namespace gt = geompp::transformations;
 
-  A note on which transforms preserve what: translation/rotation are rigid (preserve both area/volume
-  and angles); uniform `Scale()` preserves angles but not area; `Shear()` preserves area/volume (its
-  matrix has determinant 1) but not angles — it's what turns a square into a parallelogram;
-  `Reflection()` preserves area/volume and angles but flips orientation (determinant -1) — a CCW
-  `Polygon2D`/`Polygon3D` ring transformed through a reflection comes out CW, so a caller doing a
-  deliberate mirror should expect to re-run `IsSimple()`/winding checks before feeding the result back
-  through something that assumes CCW-outer/CW-holes.
+        auto new_privitive = gt::transform(primitive, matrix)
 
-  All five, before/after, on the same square `S = POLYGON ((1 1, 4 1, 4 4, 1 4))`: dashed cyan is `S`
-  before, solid gold is `S'` after, and the dotted lines connect each vertex to where it lands.
-  `Rotate`/`Scale`/`Reflect` all pivot **about the origin** (marked in salmon where it falls inside the
-  frame) — that's why the square moves even though nothing in the call names a pivot point; there's no
-  "about this point" overload for the fast path or the `Matrix3` factories, so rotating/scaling/
-  reflecting about anywhere else means translating the pivot to the origin first, transforming, then
-  translating back (or composing that into one matrix with `TransformBuilder3D`/`Combine()`).
-  `Translate`/`Shear` don't reference the origin at all, so it's omitted from those two.
+        // using homogeneous coorinates, so 
+        // if primitive is 2D -> Matrix3
+        // if primitive is 3D -> Matrix4
+    ```
+  
+- A **set of operations** applied **sequentially**
+  
+  The class `TransformBuilder` helps you build the pipeline of transforms to apply to the primitive.
+ 
+  You can compose it by adding them on in a chain. The result is the matrix you can use, 
+  with the previous section's transform:
+
+    ```
+      namespace gt = geompp::transformations;
+
+      gt::TransformationBuilder3D builder;
+
+      builder.Translate(t)    // shift by t-vector, first
+             .Rotate(r, ax);  // then rotate by r-radians around axis ax
+
+      auto new_primitive = gt::transform(privive, builder.Get());
+    ```
+
+  They will be applied exacly in this order. 
+
+
+  In the examples, we see a before/after of all five, on the same square `S = POLYGON ((1 1, 4 1, 4 4, 1 4))`. 
+  Dashed cyan is `S` before, solid gold is `S'` after, and the dotted lines connect each vertex to where it lands.
 
   <p align="center">
     <img src="./images/img_13-translate-square.png" width="330" alt="A square translated by offset (5, 2)">
@@ -6146,59 +6204,41 @@ A quick list of code examples per topic is provided here.
 <details open>
 <summary><b> &nbsp; 14. Polygonization</b></summary>
 
-  The reverse of triangulation (§11): `polygonize(triangles, settings)` merges a set of triangles back
-  into one or more `Polygon2D`/`Polygon3D` pieces. Input triangles don't need to already be given in
-  adjacency order — they're welded (same `GridCell2D/3D`-bucketed hashing `Mesh2D/3D::FromTriangles`
-  uses), grouped into coplanar clusters (3D only — via `Plane::AlmostEquals()` on each triangle's own
-  plane; 2D has one implicit plane), and each cluster is merged per `PolygonizationParams::Strategy`:
+  The reverse of triangulation (§11): `polygonize(triangles, settings)` merges triangles back into
+  `Polygon2D`/`Polygon3D` pieces. Input doesn't need to be pre-ordered — triangles get welded, grouped
+  into coplanar clusters (3D only; 2D has one implicit plane), then merged per
+  `PolygonizationParams::Strategy`:
 
-  - **`HertelMehlhorn`** (the default) — repeatedly fuses two edge-adjacent triangles into one polygon
-    whenever the merge stays convex, until no more merges are possible. Produces the fewest, most convex
-    pieces of the three strategies.
-  - **`PlanarBoundaryExtraction`** — ignores convexity entirely: cancels every internal edge shared by
-    two triangles and traces whatever's left into boundary loops, O(n) and non-convexity-aware. On a
-    fully convex input region it produces the same result as `HertelMehlhorn`; on a concave or
-    multi-piece input it's the cheaper, non-convex-safe choice.
-  - **`PlanarQuads`** — greedily pairs each still-unpaired triangle with one still-unpaired coplanar
-    neighbor into a quad. Whichever triangle runs out of an available partner first (odd counts, or an
-    unlucky pairing order) is returned on its own, as a 3-point `Polygon2D/3D` — `Make()` already
-    accepts a 3-point outer ring, so no special-casing is needed downstream.
+  1. `HertelMehlhorn` (**the default**) — fuses edge-adjacent triangles while the merge stays convex.
+     Fewest, most convex pieces of the three.
+  2. `PlanarBoundaryExtraction` — ignores convexity: cancels shared internal edges and traces what's
+     left, O(n). Cheap and safe on concave or multi-piece input.
+  3. `PlanarQuads` — greedily pairs each unpaired triangle with an unpaired neighbor into a quad; a
+     triangle with no partner left comes back as its own 3-point polygon.
 
-  `Mesh2D/3D::Polygonize(settings)` / `ConnectedMesh2D/3D::Polygonize(settings)` are thin wrappers
-  around the same free function, returning a `PolyMesh2D/3D` (§10.2) instead of a bare
-  `vector<Polygon>` — both build adjacency directly off the mesh's own already-welded buffers rather
-  than re-welding, so `Mesh2D/3D::Polygonize()` deliberately does *not* route through `Connect()`.
+  `Mesh2D/3D::Polygonize()` / `ConnectedMesh2D/3D::Polygonize()` wrap the same free function and return
+  a `PolyMesh2D/3D` (§10.2) instead of a bare list.
 
-  `merge(polygons)` is the same idea one level up the stack: instead of triangles, it takes
-  already-built polygons that tile a plane without overlapping, and welds together every pair that
-  shares an outer-ring edge — the free-function equivalent of "polygonize the polygons". 3D groups
-  input by supporting plane first (two-phase: hash-bucket by normal, then verify with
-  `Plane::AlmostEquals()` within a bucket, so near-parallel planes at different offsets don't
-  collide); 2D has one implicit plane. A merged polygon **inherits every hole** from its inputs —
-  holes that happen to touch each other are additionally unioned into one bigger hole (reverse
-  winding → `Polygon2D::Union` → reverse winding back), so 2+ separate cut-outs that end up sharing an
-  edge after their parent polygons merge don't leave a dangling, self-touching hole ring behind.
+  `merge(polygons)` is the same idea one level up: instead of triangles, it welds already-built polygons
+  that share an outer-ring edge — "polygonize the polygons". 3D groups input by supporting plane first;
+  2D has one implicit plane. Holes carry over from the inputs, and holes that end up touching each other
+  get unioned into one.
 
-  The pictures below run all three strategies on the same input — an L-shaped region (a reflex vertex
-  where the missing square would be), hand-triangulated into 6 unit triangles — so the three results
-  can be compared directly. `HertelMehlhorn` stops at 2 pieces: it can fuse every triangle within each
-  of the two visually-obvious rectangles, but the reflex corner means a 3rd merge across them would stop
-  being convex, so it refuses. `PlanarBoundaryExtraction` doesn't care about convexity at all, so it
-  cancels every internal edge and traces the *whole* L-shape as one 8-vertex non-convex polygon.
-  `PlanarQuads` never looks at the global shape, only at immediate neighbors — it greedily pairs
-  triangles from *different* source squares into one quad crossing the middle seam, which leaves one
-  triangle in each original square without a remaining partner, so the fourth square-worth of area ends
-  up as 2 quads plus 2 leftover triangles instead of the "obvious" 3 quads.
+  The pictures below run all three strategies on the same L-shaped input (6 unit triangles, one missing
+  square, reflex vertex where it's missing). `HertelMehlhorn` stops at 2 convex pieces — a 3rd merge
+  across the reflex corner would break convexity. `PlanarBoundaryExtraction` traces the whole thing as
+  one 6-vertex non-convex polygon, the geometric minimum. `PlanarQuads` pairs across the middle seam,
+  leaving 2 quads plus 2 leftover triangles.
 
-  Look closely at the dots in the `HertelMehlhorn` and `PlanarBoundaryExtraction` pictures below and
-  you'll spot vertices sitting in the *middle* of an otherwise-straight edge (e.g. the rectangle's
-  bottom edge in `HertelMehlhorn`, at the seam between its two source triangle-squares) — these are
-  deliberately **not** simplified away. `polygonize()`/`merge()` never run a collinear-cleanup pass on
-  their output: a vertex that's collinear (hence redundant) on one piece's own boundary can still be a
-  genuine, load-bearing corner of a *neighboring* piece (the square's bottom-left corner, in this
-  example, sits exactly at the rectangle's top-edge midpoint) — dropping it would leave that neighbor's
-  corner touching the middle of an edge instead of another vertex, a T-junction that would make the two
-  pieces impossible to weld into one conforming `PolyMesh2D/3D`.
+  Look at the dot on the `HertelMehlhorn` rectangle's top edge — the square's corner sits there, kept
+  even though it's just as collinear on the rectangle's own ring as any other point on that edge.
+  `polygonize()` tags each boundary edge with whatever's on its far side (a neighboring piece, or the
+  mesh's own boundary) and only drops a vertex once that identity matches on both sides. That's also why
+  the rectangle's *bottom* edge has no such dot at its own former seam: nothing but the mesh's own
+  boundary is on either side there, so it collapses away. A blind `remove_collinear()` per piece
+  couldn't tell the two apart and would drop the load-bearing one too, leaving a T-junction
+  `PolyMesh2D/3D` would reject. `merge()` has no such neighbor info to draw on (it starts from finished
+  `Polygon2D`s, not the mesh), so it keeps every vertex unconditionally — see its own picture below.
 
   <p align="center">
     <img src="./images/polygonize_before.png" width="260" alt="6 unit triangles forming an L-shaped region, teal fill with cyan edges -- the shared polygonize() input for all three strategies below">
@@ -6215,13 +6255,11 @@ A quick list of code examples per topic is provided here.
     <img src="./images/polygonize_planar_quads.png" width="260" alt="polygonize() with PlanarQuads on the L-shape: 2 gold quads (one crossing the middle seam) plus 2 leftover gold triangles">
   </p>
 
-  `merge()` starts one level up from `polygonize()` — from `Polygon2D/3D`s, not triangles — so the
-  picture below uses two touching unit-rectangles, each already carrying its own hole, rather than a
-  triangle mesh. `merge()` cancels their shared outer edge and traces the combined boundary into one
-  bigger rectangle; neither hole touches the other, so both simply carry over into the result exactly
-  as they were, per input polygon. The same no-collinear-cleanup rule from above applies here too — the
-  merged outer ring keeps the two input rectangles' former shared corners (visible as the extra dots on
-  its top and bottom edges) rather than simplifying down to just the 4 outer corners.
+  `merge()` starts one level up from `polygonize()` — `Polygon2D/3D`s, not triangles — so the picture
+  below uses two touching unit-rectangles, each with its own hole, instead of a triangle mesh. `merge()`
+  cancels their shared edge and traces one bigger rectangle; neither hole touches the other, so both
+  carry over unchanged. The merged ring keeps both input rectangles' former shared corners (the extra
+  dots on its top and bottom edges) since `merge()` always keeps every vertex, redundant or not.
 
   <p align="center">
     <img src="./images/merge_before.png" width="360" alt="Two touching Polygon2Ds, each a rectangle with its own square hole, teal fill with cyan edges -- the merge() input">
@@ -6229,12 +6267,9 @@ A quick list of code examples per topic is provided here.
     <img src="./images/merge_after.png" width="360" alt="merge() result: one bigger gold rectangle with both original holes carried over unchanged, the shared outer edge cancelled -- the former A/B corners survive as extra vertices on the merged edge">
   </p>
 
-  The example below builds a 2×1 rectangle from 4 unit triangles (`0,0`–`2,1`) and polygonizes it with
-  the two convex strategies, then again with `PlanarQuads` — which pairs triangles `A` (`0,0 1,0 1,1`)
-  and `D` (`1,0 2,1 1,1`) into one quad first, leaving `B` and `C` each without a remaining partner, so
-  they come back as their own 3-point polygons. It finishes by calling `merge()` directly on two
-  pre-built unit-square `Polygon2D`s spanning the same rectangle, confirming it reaches the same result
-  without ever going through triangles.
+  Below: a 2×1 rectangle built from 4 unit triangles, polygonized with all three strategies (`PlanarQuads`
+  pairs `A`+`D` into one quad, leaving `B`/`C` as their own triangles), then `merge()`d directly from two
+  pre-built unit-square `Polygon2D`s to confirm it reaches the same result without going through triangles.
 
   <details closed>
   <summary><b> &nbsp; &nbsp; Samples</b></summary>
@@ -6275,7 +6310,7 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```bash
-  I20260817] hertel-mehlhorn:  POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
+  I20260817] hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
   I20260817] planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
   I20260817] planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
   I20260817] planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
@@ -6320,7 +6355,7 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
   planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))
@@ -6364,7 +6399,7 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((0 0, 1 0, 2 0, 2 1, 1 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 0 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
   planar-quads:     POLYGON ((0 0, 1 1, 0 1, 0 0))
   planar-quads:     POLYGON ((1 0, 2 0, 2 1, 1 0))

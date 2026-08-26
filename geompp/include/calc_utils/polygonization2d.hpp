@@ -29,7 +29,7 @@ class Polygon2D;
 namespace detail {
 
 /// @brief Non-owning view over one facet of a welded 2D triangle mesh, plus its precomputed edge-adjacency
-/// (see build_neighbor_refs) -- models the MeshFaceView concept (generic_concepts.hpp) that polygonize_impl
+/// (see build_neighbor_refs) -- models the TriangleFaceView concept (generic_concepts.hpp) that polygonize_impl
 /// and its strategy helpers below are templated over.
 ///
 /// Deliberately independent of ConnectedMesh2D/Mesh2D: both Mesh2D's per-face std::array<size_t,3> layout
@@ -107,7 +107,7 @@ class MeshFaceView3D {
   /// @param neighbor_base Pointer to the first of n_faces per-facet neighbor-ref arrays.
   /// @param face_id Which facet this view refers to.
   MeshFaceView3D(Point3D const* vertices, std::size_t const* face_index_base,
-                std::array<TriangleCompactNeighborRef, 3> const* neighbor_base, std::size_t face_id);
+                 std::array<TriangleCompactNeighborRef, 3> const* neighbor_base, std::size_t face_id);
 
   /// @returns This facet's index into the mesh's face buffer.
   std::size_t ID() const;
@@ -145,7 +145,7 @@ inline std::size_t MeshFaceView3D::VertexIndex(std::size_t local_i) const {
   return m_face_index_base[m_face_id * 3 + local_i];
 }
 
-/// @brief Extracts the point type (Point2D/Point3D) a MeshFaceView-modeling type's Geometry() works in,
+/// @brief Extracts the point type (Point2D/Point3D) a TriangleFaceView-modeling type's Geometry() works in,
 /// via its Triangle2D/3D's own Vertices() tuple -- used to keep polygonize_impl's strategy helpers generic
 /// over both dimensions without hard-coding either Triangle type by name.
 /// @note remove_const_t is required, not cosmetic: Triangle2D/3D::Vertices() returns
@@ -153,15 +153,17 @@ inline std::size_t MeshFaceView3D::VertexIndex(std::size_t local_i) const {
 /// std::tuple_element_t propagates onto the extracted element -- without stripping it here, every
 /// std::vector<FaceViewPointT<FaceViewT>> below would be a std::vector<PointT const>, which
 /// static_asserts at compile time ("the C++ Standard forbids containers of const elements").
-template <MeshFaceView FaceViewT>
-using FaceViewPointT = std::remove_const_t<
-    std::tuple_element_t<0, decltype(std::declval<FaceViewT const&>().Geometry().Vertices())>>;
+template <TriangleFaceView FaceViewT>
+using FaceViewPointT =
+    std::remove_const_t<std::tuple_element_t<0, decltype(std::declval<FaceViewT const&>().Geometry().Vertices())>>;
 
 /// @brief One disjoint output component of any polygonize_impl strategy: an outer ring plus its holes (if
-/// any), in whichever point type (Point2D/Point3D) @p FaceViewT's own Geometry() works in -- shorthand for
-/// the return type every strategy helper and polygonize_impl itself share.
-template <MeshFaceView FaceViewT>
-using RingPiecesOf = std::vector<std::pair<std::vector<FaceViewPointT<FaceViewT>>, std::vector<std::vector<FaceViewPointT<FaceViewT>>>>>;
+///        any), in whichever point type (Point2D/Point3D)
+/// @p FaceViewT's own Geometry() works in -- shorthand for the return type every strategy helper and polygonize_impl
+///                itself share.
+template <TriangleFaceView FaceViewT>
+using RingPiecesOf =
+    std::vector<std::pair<std::vector<FaceViewPointT<FaceViewT>>, std::vector<std::vector<FaceViewPointT<FaceViewT>>>>>;
 
 /// @brief Partitions a welded triangle mesh's facets into coplanar, edge-connected clusters -- BFS over
 /// each facet's Neighbor() links, only crossing into a neighbor if it's coplanar with the CLUSTER's own
@@ -178,7 +180,7 @@ using RingPiecesOf = std::vector<std::pair<std::vector<FaceViewPointT<FaceViewT>
 /// @tparam FaceViewT MeshFaceView2D or MeshFaceView3D.
 /// @param faces Every facet of the mesh, one MeshFaceView2D/3D per facet, ID() == index into this vector.
 /// @returns One inner vector of facet IDs per coplanar cluster; every facet appears in exactly one cluster.
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<FaceViewT> const& faces);
 
 extern template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(
@@ -224,9 +226,9 @@ std::size_t uf_find(std::vector<std::size_t>& parent, std::size_t x);
 /// @returns One {outer, holes} piece per disjoint boundary loop found (usually, but not always, one per
 /// cluster -- a cluster can still decompose into >1 disjoint piece, e.g. two triangle fans touching only at
 /// a single shared vertex).
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> boundary_extraction_polygonization(std::vector<FaceViewT> const& faces,
-                                                            std::vector<std::vector<std::size_t>> const& clusters);
+                                                           std::vector<std::vector<std::size_t>> const& clusters);
 
 extern template RingPiecesOf<MeshFaceView2D> boundary_extraction_polygonization(
     std::vector<MeshFaceView2D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
@@ -250,7 +252,7 @@ extern template RingPiecesOf<MeshFaceView3D> boundary_extraction_polygonization(
 /// @param faces Every facet of the mesh (see partition_into_coplanar_clusters).
 /// @param clusters partition_into_coplanar_clusters(faces)'s own output.
 /// @returns One convex output piece per final union-find group (never has holes -- a convex region can't).
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> const& faces,
                                                        std::vector<std::vector<std::size_t>> const& clusters);
 
@@ -270,7 +272,7 @@ extern template RingPiecesOf<MeshFaceView3D> hertel_mehlhorn_polygonization(
 /// @param faces Every facet of the mesh (see partition_into_coplanar_clusters).
 /// @param clusters partition_into_coplanar_clusters(faces)'s own output.
 /// @returns One piece per pair (a quad) or leftover single facet (a triangle); never has holes.
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> quad_only_polygonization(std::vector<FaceViewT> const& faces,
                                                  std::vector<std::vector<std::size_t>> const& clusters);
 
@@ -286,13 +288,13 @@ extern template RingPiecesOf<MeshFaceView3D> quad_only_polygonization(
 /// @param params Which polygonization strategy to run.
 /// @returns One {outer, holes} piece per disjoint output region -- see each strategy's own docs.
 /// @throws std::invalid_argument if @p params names an unknown enumerator.
-template <MeshFaceView FaceViewT>
+template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> polygonize_impl(std::vector<FaceViewT> const& faces, PolygonizationParams const& params);
 
 extern template RingPiecesOf<MeshFaceView2D> polygonize_impl(std::vector<MeshFaceView2D> const& faces,
-                                                              PolygonizationParams const& params);
+                                                             PolygonizationParams const& params);
 extern template RingPiecesOf<MeshFaceView3D> polygonize_impl(std::vector<MeshFaceView3D> const& faces,
-                                                              PolygonizationParams const& params);
+                                                             PolygonizationParams const& params);
 
 /// @brief Packages polygonize_impl()/package_result_rings()'s {outer, holes} pieces into Polygon2D,
 /// deliberately WITHOUT running remove_collinear() on them: every strategy already only reaches this
@@ -304,12 +306,20 @@ extern template RingPiecesOf<MeshFaceView3D> polygonize_impl(std::vector<MeshFac
 /// piece's ring but a genuine corner on its NEIGHBOR's ring (e.g. HertelMehlhorn merging an L-shaped
 /// 6-triangle region into a 2x1 rectangle plus a 1x1 square -- the square's corner sits exactly at the
 /// rectangle's top edge's midpoint). Running Polygon2D::Make()'s usual remove_collinear() pass on each
-/// piece independently would silently drop that shared vertex from the rectangle's ring alone, leaving
-/// the square's corner touching the middle of the rectangle's edge -- a T-junction that
-/// PolyMesh2D::FromPolygons()'s own adjacency validation (assert_adjacency/validate_adjacency) then
-/// rejects. Preserving every traced vertex, collinear or not, guarantees two adjacent pieces always keep
-/// their shared corners in lock-step, at the cost of the returned Polygon2D occasionally carrying a
-/// geometrically-redundant (but perfectly valid) 180-degree vertex.
+/// piece independently (with no awareness of what's on the other side of a given edge) would silently
+/// drop that shared vertex from the rectangle's ring alone, leaving the square's corner touching the
+/// middle of the rectangle's edge -- a T-junction that PolyMesh2D::FromPolygons()'s own adjacency
+/// validation (assert_adjacency/validate_adjacency) then rejects.
+///
+/// This function itself still never runs remove_collinear() -- by the time pieces gets here, each ring
+/// has ALREADY been through trace_face_group_boundary()'s own collapse_redundant_seams() pass
+/// (polygonization2d.cpp), which is neighbor-aware: it only drops a collinear vertex once the output-group
+/// identity on both flanking edges' far side matches (both the mesh's own outer boundary, or both the
+/// exact same neighboring piece), so a genuinely load-bearing shared corner like the one above survives
+/// while a truly redundant one (e.g. the seam between the rectangle's own 2 source triangle-squares, on
+/// its OTHER, non-shared edge) collapses away. Running remove_collinear() again here would be redundant at
+/// best for a merge()-sourced piece (see merge()'s own doc comment: it has no such per-edge neighbor
+/// information to draw on, so it always keeps every traced vertex).
 /// @param pieces Every {outer, holes} piece polygonize_impl() or merge()'s own packaging produced.
 /// @returns One Polygon2D per input piece, same order.
 /// @throws Whatever Polygon2D::FromUniqueCCWPoints() itself throws (e.g. a hole self-intersection) --

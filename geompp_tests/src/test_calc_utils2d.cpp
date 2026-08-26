@@ -2530,10 +2530,12 @@ TEST_F(CalcUtils2DTest, BoundaryExtractionPolygonization_GridWithCenterHole_Retu
   ASSERT_EQ(pieces.size(), 1u);
   auto const& [outer, holes] = pieces[0];
 
-  // 12, not 4: cancel_reverse_pairs only removes shared INTERNAL edges, it doesn't collinear-simplify the
-  // surviving boundary -- each outer side of length 3 keeps its 3 unit-length grid vertices (corner
-  // shared with the next side not double-counted), so 3 vertices/side x 4 sides = 12.
-  EXPECT_EQ(outer.size(), 12u);
+  // 4, the geometric minimum: cancel_reverse_pairs only removes shared INTERNAL edges, but
+  // trace_face_group_boundary()'s seam-collapse pass then drops every remaining grid vertex along each
+  // side too, since this is the only output piece -- nothing else is traced separately that could need one
+  // of them as a load-bearing shared corner (contrast Polygonize_LShape_HertelMehlhorn_
+  // PreservesSharedTJunctionVertex below, where a second piece DOES need one).
+  EXPECT_EQ(outer.size(), 4u);
   EXPECT_NEAR(std::abs(g::signed_area(outer)), 9.0, 1e-9);
   EXPECT_TRUE(g::are_ccw(outer));
 
@@ -2610,11 +2612,11 @@ TEST_F(CalcUtils2DTest, HertelMehlhorn_2x2Grid_MergesFullyIntoOneConvexSquare) {
   auto pieces = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
 
   ASSERT_EQ(pieces.size(), 1u);
-  // 8, not 4: like boundary_extraction_polygonization, no collinear simplification is done on the traced
-  // boundary -- each side of length 2 keeps its 2 unit-length grid vertices (shared corners not
-  // double-counted), so 2 vertices/side x 4 sides = 8. Area + convexity are what actually confirm the
+  // 4, the geometric minimum: like boundary_extraction_polygonization, the seam-collapse pass drops every
+  // internal grid vertex along each side once tracing settles, since this is the only output piece and
+  // nothing else needs one of them as a shared corner. Area + convexity are what actually confirm the
   // whole grid merged into one region.
-  EXPECT_EQ(pieces[0].first.size(), 8u);
+  EXPECT_EQ(pieces[0].first.size(), 4u);
   EXPECT_TRUE(pieces[0].second.empty());
   EXPECT_NEAR(std::abs(g::signed_area(pieces[0].first)), 4.0, 1e-9);
   EXPECT_TRUE(gd::is_convex(pieces[0].first, {}));
@@ -2701,15 +2703,20 @@ TEST_F(CalcUtils2DTest, Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctio
   // 2x2 grid with the top-left cell skipped -- an L-shape with a reflex vertex at (1,1). HertelMehlhorn
   // can't merge across the reflex corner, so it returns 2 convex pieces: a 2x1 rectangle (area 2, cells
   // (0,0)+(0,1)) and a 1x1 square on top of it (area 1, cell (1,1)). The rectangle piece itself comes
-  // from merging 2 sub-quads (cell (0,0) and cell (0,1)), each already merged from a triangle pair --
-  // the merge concatenates each sub-quad's own non-shared corners rather than collinear-simplifying, so
-  // the final ring keeps both (1,0) and (1,1) as explicit vertices (6 total, not the geometrically
-  // minimal 4). (1,1) is the load-bearing one: it's the exact midpoint of the rectangle's top edge
-  // (0,1)-(2,1) and also the square's bottom-left corner. If polygonize() ran its usual remove_collinear()
-  // pass on each piece independently, the rectangle's ring would silently drop it, leaving the square's
-  // corner touching the middle of the rectangle's edge -- a T-junction PolyMesh2D::FromPolygons() would
-  // reject (see Mesh2DTest.Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction). polygonize() must
-  // keep every traced vertex instead, (1,0) included even though no neighboring piece needs it.
+  // from merging 2 sub-quads (cell (0,0) and cell (0,1)), each already merged from a triangle pair, and
+  // the seam between those two sub-quads at (1,0) is genuinely redundant -- no other traced piece is
+  // adjacent to the rectangle's bottom edge, so trace_face_group_boundary()'s seam-collapse pass drops it,
+  // leaving 5 vertices (the geometric minimum 4, plus (1,1)). (1,1) is the one vertex that CANNOT collapse
+  // away even though it's just as collinear on the rectangle's own ring as (1,0) was: it's the exact
+  // midpoint of the rectangle's top edge (0,1)-(2,1) and ALSO the square piece's bottom-left corner --
+  // collapse_redundant_seams() (polygonization2d.cpp) tags each survivor edge with whatever output group
+  // lies immediately across it, and only merges two collinear edges when that tag matches on both sides.
+  // At (1,0) both flanking edges face the mesh's own outer boundary (same tag) -- collapses. At (1,1) one
+  // flanking edge faces the square's group and the other faces the outer boundary (different tags) --
+  // survives. Silently dropping it (e.g. a blind Polygon2D::Make()-style remove_collinear() pass run per
+  // piece) would leave the square's corner touching the middle of the rectangle's edge -- a T-junction
+  // PolyMesh2D::FromPolygons() would reject (see Mesh2DTest.Polygonize_LShape_HertelMehlhorn_
+  // DoesNotThrowTJunction).
   auto polys = g::polygonize(BuildGridTriangles(2, 2, {{1, 0}}));
   ASSERT_EQ(polys.size(), 2u);
 
@@ -2718,14 +2725,19 @@ TEST_F(CalcUtils2DTest, Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctio
   for (auto const& p : polys) {
     total_area += p.Area();
     if (std::abs(p.Area() - 2.0) < 1e-9) {
-      ASSERT_EQ(p.Size(), 6u);  // 4 real corners + (1,0) and (1,1), deliberately not simplified
+      ASSERT_EQ(p.Size(), 5u);  // 4 real corners + (1,1) -- (1,0) collapses away, see comment above
       bool has_midpoint = false;
+      bool has_dropped_seam = false;
       for (auto const& v : p.Perimeter()) {
         if (v.AlmostEquals(g::Point2D(1, 1))) {
           has_midpoint = true;
         }
+        if (v.AlmostEquals(g::Point2D(1, 0))) {
+          has_dropped_seam = true;
+        }
       }
       EXPECT_TRUE(has_midpoint);
+      EXPECT_FALSE(has_dropped_seam);
       found_rectangle_with_midpoint = true;
     } else {
       EXPECT_NEAR(p.Area(), 1.0, 1e-9);
