@@ -194,4 +194,49 @@ TEST_F(Mesh2DTest, Polygonize_MatchesConnectThenPolygonize) {
   }
 }
 
+TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_OperatorBracketPreservesSharedTJunctionVertex) {
+  // Regression test for a bug found alongside Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction
+  // above: that test only checks Polygonize() doesn't throw at construction time, which is not enough --
+  // PolyMesh2D::FromPolygons() validates and welds correctly, but PolyMesh2D::operator[] used to
+  // reconstruct each returned Polygon2D via Polygon2D::Make(vertices), whose remove_collinear() pass
+  // silently stripped the same load-bearing T-junction vertex right back out on every read (it has no way
+  // to know (1,1) here is a genuine corner of the neighboring square, since it only ever sees one facet's
+  // ring at a time) -- reintroducing, downstream, the exact defect FromPolygons() had just proved absent.
+  // Feeding poly_mesh[i]'s own output back into a fresh PolyMesh2D::FromPolygons() used to throw as a
+  // result. Fixed by having operator[] use FromUniquePoints() (no remove_collinear()) instead of Make().
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+  });
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+  auto poly_mesh = mesh.Polygonize(params);
+  ASSERT_EQ(poly_mesh.Size(), 2u);
+
+  std::vector<g::Polygon2D> extracted;
+  bool found_rectangle_with_midpoint = false;
+  for (std::size_t i = 0; i < poly_mesh.Size(); ++i) {
+    g::Polygon2D piece = poly_mesh[i];
+    extracted.push_back(piece);
+    if (std::abs(piece.Area() - 2.0) < 1e-9) {
+      bool has_midpoint = false;
+      for (auto const& v : piece.Perimeter()) {
+        if (v.AlmostEquals(g::Point2D(1, 1))) {
+          has_midpoint = true;
+        }
+      }
+      EXPECT_TRUE(has_midpoint) << "rectangle piece lost the square's shared T-junction corner (1,1)";
+      found_rectangle_with_midpoint = true;
+    }
+  }
+  EXPECT_TRUE(found_rectangle_with_midpoint);
+
+  // Round-trips clean: feeding operator[]'s own output back into a fresh PolyMesh2D shouldn't throw.
+  EXPECT_NO_THROW(g::PolyMesh2D::FromPolygons(extracted));
+}
+
 }  // namespace geompp_tests

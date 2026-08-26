@@ -6224,36 +6224,200 @@ A quick list of code examples per topic is provided here.
   2D has one implicit plane. Holes carry over from the inputs, and holes that end up touching each other
   get unioned into one.
 
-  The pictures below run all three strategies on the same L-shaped input (6 unit triangles, one missing
-  square, reflex vertex where it's missing). `HertelMehlhorn` stops at 2 convex pieces — a 3rd merge
-  across the reflex corner would break convexity. `PlanarBoundaryExtraction` traces the whole thing as
-  one 6-vertex non-convex polygon, the geometric minimum. `PlanarQuads` pairs across the middle seam,
-  leaving 2 quads plus 2 leftover triangles.
+  The pictures below build a `Mesh2D` from 8 hand-placed triangles (area 3.5) and run all three
+  strategies via `Mesh2D::Polygonize()` — an L-shape (missing top-left square) plus two triangular
+  "spikes" hanging off the right column, one below and one to the right. `HertelMehlhorn` stops at 3
+  convex pieces: the L-shape's own reflex corner blocks one merge, and each spike is only convex when
+  fused with its own square, not with its neighbor's. `PlanarBoundaryExtraction` traces the whole thing
+  as one 10-vertex non-convex polygon. `PlanarQuads` pairs what it can (3 quads) and leaves the 2 spikes
+  unpaired as their own 3-point polygons.
 
-  Look at the dot on the `HertelMehlhorn` rectangle's top edge — the square's corner sits there, kept
-  even though it's just as collinear on the rectangle's own ring as any other point on that edge.
-  `polygonize()` tags each boundary edge with whatever's on its far side (a neighboring piece, or the
-  mesh's own boundary) and only drops a vertex once that identity matches on both sides. That's also why
-  the rectangle's *bottom* edge has no such dot at its own former seam: nothing but the mesh's own
-  boundary is on either side there, so it collapses away. A blind `remove_collinear()` per piece
-  couldn't tell the two apart and would drop the load-bearing one too, leaving a T-junction
-  `PolyMesh2D/3D` would reject. `merge()` has no such neighbor info to draw on (it starts from finished
-  `Polygon2D`s, not the mesh), so it keeps every vertex unconditionally — see its own picture below.
+  Look at the two dots on the `HertelMehlhorn` rectangle's own straight edges — one where the spike below
+  touches, one where the wedge piece above touches. Both are just as collinear on the rectangle's own
+  ring as any other point on those edges, and both are kept anyway, because `Mesh2D::Polygonize()` tags
+  each boundary edge with whatever output group lies on its far side and only drops a vertex once that
+  identity matches on both flanking edges. This has to hold at two separate layers: `polygonize_impl()`'s
+  own seam-collapse pass while tracing, *and* `PolyMesh2D::operator[]()` when it later hands a stored
+  piece back out — reconstructing straight from the mesh's own welded vertex buffer via
+  `Polygon2D::FromUniquePoints()`, never `Make()`, for the exact same reason: `Make()`'s
+  `remove_collinear()` has no visibility into a neighboring facet and would happily strip a vertex that's
+  a genuine corner one ring over, silently reintroducing a T-junction `PolyMesh2D::FromPolygons()` had
+  already proved didn't exist. `merge()` has no per-edge neighbor info to draw on at all (it starts from
+  finished `Polygon2D`s, not a mesh), so it keeps every vertex unconditionally — see its own picture
+  below.
 
   <p align="center">
-    <img src="./images/polygonize_before.png" width="260" alt="6 unit triangles forming an L-shaped region, teal fill with cyan edges -- the shared polygonize() input for all three strategies below">
+    <img src="./images/polygonize_before.png" width="260" alt="8 triangles forming an L-shape with two triangular spikes hanging off the right column, teal fill with cyan edges -- the shared Mesh2D::Polygonize() input for all three strategies below">
     &nbsp;&nbsp;
-    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="polygonize() with HertelMehlhorn on the L-shape: 2 convex polygons shaded differently (gold rectangle, rust-orange square) so the split at the reflex corner reads at a glance -- despite the rectangle's own top edge running unbroken through their shared corner">
+    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn: 3 convex polygons shaded differently (gold rectangle, rust-orange bottom spike, steel-blue top wedge) -- the rectangle's own edges run unbroken through both dots where its neighbors' corners touch">
   </p>
   <p align="center">
-    <img src="./images/polygonize_before.png" width="260" alt="The same 6 triangles forming an L-shaped region, before PlanarBoundaryExtraction">
+    <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before PlanarBoundaryExtraction">
     &nbsp;&nbsp;
-    <img src="./images/polygonize_boundary_extraction.png" width="260" alt="polygonize() with PlanarBoundaryExtraction on the L-shape: 1 non-convex gold polygon tracing the whole outer boundary, reflex vertex intact">
+    <img src="./images/polygonize_boundary_extraction.png" width="260" alt="Mesh2D::Polygonize() with PlanarBoundaryExtraction: 1 non-convex gold polygon tracing the whole outer boundary, both spikes and the reflex corner intact">
   </p>
   <p align="center">
-    <img src="./images/polygonize_before.png" width="260" alt="The same 6 triangles forming an L-shaped region, before PlanarQuads">
-    <img src="./images/polygonize_planar_quads.png" width="260" alt="polygonize() with PlanarQuads on the L-shape: 2 gold quads (one crossing the middle seam) plus 2 leftover gold triangles">
+    <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before PlanarQuads">
+    <img src="./images/polygonize_planar_quads.png" width="260" alt="Mesh2D::Polygonize() with PlanarQuads: 3 gold quads plus the 2 spike triangles left unpaired">
   </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; Samples (the pictures above)</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "mesh2d.hpp"
+  #include "polymesh2d.hpp"
+
+  namespace g = geompp;
+
+  // The L-shape-plus-2-spikes mesh the pictures above are rendered from.
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1.5, -0.5), g::Point2D(2, 0)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+      g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
+  });
+
+  // HertelMehlhorn (the default): 3 convex pieces. Both (1,0) and (1,1) survive on the rectangle
+  // piece's own ring -- each is a genuine corner of a different neighboring spike/wedge piece, even
+  // though both are perfectly collinear on the rectangle's own two straight edges.
+  auto hertel = mesh.Polygonize({});
+  for (std::size_t i = 0; i < hertel.Size(); ++i)
+      GEOMPP_LOG(INFO) << "hertel-mehlhorn:  " << hertel[i].ToWkt();
+
+  g::PolygonizationParams boundary{g::PolygonizationParams::Strategy::PlanarBoundaryExtraction};
+  auto be = mesh.Polygonize(boundary);
+  for (std::size_t i = 0; i < be.Size(); ++i)
+      GEOMPP_LOG(INFO) << "boundary-extraction:  " << be[i].ToWkt();
+
+  g::PolygonizationParams quads{g::PolygonizationParams::Strategy::PlanarQuads};
+  auto pq = mesh.Polygonize(quads);
+  for (std::size_t i = 0; i < pq.Size(); ++i)
+      GEOMPP_LOG(INFO) << "planar-quads:  " << pq[i].ToWkt();
+  ```
+
+  ```bash
+  I20260826] hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  I20260826] hertel-mehlhorn:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  I20260826] hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  I20260826] boundary-extraction:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1.5 -0.5, 2 0, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  I20260826] planar-quads:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1 1))
+  I20260826] planar-quads:  POLYGON ((2 1, 1 1, 1 0, 2 0, 2 1))
+  I20260826] planar-quads:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 1))
+  I20260826] planar-quads:  POLYGON ((1 1, 2 2, 1 2, 1 1))
+  I20260826] planar-quads:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # The L-shape-plus-2-spikes mesh the pictures above are rendered from.
+  mesh = g.Mesh2D.from_triangles([
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 1), g.Point2D(0, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1)),
+      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(2, 1), g.Point2D(1, 1)),
+      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(2, 0), g.Point2D(2, 1)),
+      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(1.5, -0.5), g.Point2D(2, 0)),
+      g.Triangle2D.make(g.Point2D(1, 1), g.Point2D(2, 1), g.Point2D(2, 2)),
+      g.Triangle2D.make(g.Point2D(1, 1), g.Point2D(2, 2), g.Point2D(1, 2)),
+      g.Triangle2D.make(g.Point2D(2, 1), g.Point2D(2.5, 1.5), g.Point2D(2, 2)),
+  ])
+
+  # HertelMehlhorn (the default): 3 convex pieces. Both (1,0) and (1,1) survive on the rectangle
+  # piece's own ring -- each is a genuine corner of a different neighboring spike/wedge piece, even
+  # though both are perfectly collinear on the rectangle's own two straight edges.
+  hertel = mesh.polygonize(g.PolygonizationParams())
+  for i in range(hertel.size()):
+      print(f"hertel-mehlhorn:  {hertel[i].to_wkt()}")
+
+  boundary = g.PolygonizationParams(g.PolygonizationStrategy.PlanarBoundaryExtraction)
+  be = mesh.polygonize(boundary)
+  for i in range(be.size()):
+      print(f"boundary-extraction:  {be[i].to_wkt()}")
+
+  quads = g.PolygonizationParams(g.PolygonizationStrategy.PlanarQuads)
+  pq = mesh.polygonize(quads)
+  for i in range(pq.size()):
+      print(f"planar-quads:  {pq[i].to_wkt()}")
+  ```
+
+  ```
+  hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  hertel-mehlhorn:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  boundary-extraction:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1.5 -0.5, 2 0, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  planar-quads:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1 1))
+  planar-quads:  POLYGON ((2 1, 1 1, 1 0, 2 0, 2 1))
+  planar-quads:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 1))
+  planar-quads:  POLYGON ((1 1, 2 2, 1 2, 1 1))
+  planar-quads:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // The L-shape-plus-2-spikes mesh the pictures above are rendered from.
+  var mesh = G.Mesh2D.FromTriangles(new G.Triangle2D[] {
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 1), new G.Point2D(0, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0), new G.Point2D(1, 1)),
+      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(2, 1), new G.Point2D(1, 1)),
+      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(2, 0), new G.Point2D(2, 1)),
+      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(1.5, -0.5), new G.Point2D(2, 0)),
+      G.Triangle2D.Make(new G.Point2D(1, 1), new G.Point2D(2, 1), new G.Point2D(2, 2)),
+      G.Triangle2D.Make(new G.Point2D(1, 1), new G.Point2D(2, 2), new G.Point2D(1, 2)),
+      G.Triangle2D.Make(new G.Point2D(2, 1), new G.Point2D(2.5, 1.5), new G.Point2D(2, 2)),
+  });
+
+  // HertelMehlhorn (the default): 3 convex pieces. Both (1,0) and (1,1) survive on the rectangle
+  // piece's own ring -- each is a genuine corner of a different neighboring spike/wedge piece, even
+  // though both are perfectly collinear on the rectangle's own two straight edges.
+  var hertel = mesh.Polygonize(new G.PolygonizationParams());
+  for (int i = 0; i < hertel.Size(); i++)
+      Console.WriteLine($"hertel-mehlhorn:  {hertel[i].ToWkt()}");
+
+  var boundary = new G.PolygonizationParams(G.PolygonizationStrategy.PlanarBoundaryExtraction);
+  var be = mesh.Polygonize(boundary);
+  for (int i = 0; i < be.Size(); i++)
+      Console.WriteLine($"boundary-extraction:  {be[i].ToWkt()}");
+
+  var quads = new G.PolygonizationParams(G.PolygonizationStrategy.PlanarQuads);
+  var pq = mesh.Polygonize(quads);
+  for (int i = 0; i < pq.Size(); i++)
+      Console.WriteLine($"planar-quads:  {pq[i].ToWkt()}");
+  ```
+
+  ```
+  hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  hertel-mehlhorn:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  boundary-extraction:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1.5 -0.5, 2 0, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  planar-quads:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1 1))
+  planar-quads:  POLYGON ((2 1, 1 1, 1 0, 2 0, 2 1))
+  planar-quads:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 1))
+  planar-quads:  POLYGON ((1 1, 2 2, 1 2, 1 1))
+  planar-quads:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  ```
+
+   </details>
+
+  </details>
 
   `merge()` starts one level up from `polygonize()` — `Polygon2D/3D`s, not triangles — so the picture
   below uses two touching unit-rectangles, each with its own hole, instead of a triangle mesh. `merge()`

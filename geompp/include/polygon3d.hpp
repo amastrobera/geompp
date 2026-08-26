@@ -21,6 +21,7 @@ class LineSegment3D;
 class Polyline3D;
 class Triangle3D;
 class Polygon3D;
+class PolyMesh3D;
 
 }  // namespace geometry
 
@@ -241,6 +242,12 @@ class Polygon3D {
   // comment for the full rationale (winding already proven, is_convex explicitly computed by the caller).
   friend std::vector<Polygon3D> geompp::geometry::detail::polygons_from_pieces(
       std::vector<std::pair<std::vector<Point3D>, std::vector<std::vector<Point3D>>>> pieces);
+
+  // Same reason as Polygon2D::PolyMesh2D's own friend grant -- see its doc comment. PolyMesh3D::operator[]
+  // must reconstruct from its stored VERTICES/FACE_INDICES via FromUniquePoints(), not Make(), or every
+  // read silently re-strips whatever load-bearing collinear vertex FromPolygons() just validated needed
+  // to stay in place.
+  friend class PolyMesh3D;
 
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex);
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,

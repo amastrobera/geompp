@@ -45,7 +45,11 @@ Polygon3D PolyMesh3D::operator[](std::size_t i) const {
     vertices.emplace_back((*VERTICES)[v_idx]);
   }
 
-  return Polygon3D::Make(vertices);
+  // NOT Make(): vertices came straight from FromPolygons()'s own validated, welded storage, and may
+  // deliberately still contain a collinear vertex that's load-bearing for a neighboring facet (see
+  // Polygon3D's PolyMesh3D friend-grant doc comment). Make()'s remove_collinear() would silently strip it
+  // back out on every read, reintroducing the exact T-junction FromPolygons() already proved doesn't exist.
+  return Polygon3D::FromUniquePoints(std::move(vertices));
 }
 
 Mesh3D PolyMesh3D::Triangulate(TriangulationParams::Strategy strategy) const {

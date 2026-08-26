@@ -20,6 +20,7 @@ class Ray2D;
 class Polyline2D;
 class Triangle2D;
 class Polygon2D;
+class PolyMesh2D;
 
 }  // namespace geometry
 
@@ -231,6 +232,15 @@ class Polygon2D {
   // redo it) and an explicitly-computed is_convex -- see polygons_from_pieces' own doc comment.
   friend std::vector<Polygon2D> geompp::geometry::detail::polygons_from_pieces(
       std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> pieces);
+
+  // PolyMesh2D::operator[]() reconstructs a Polygon2D from its own stored VERTICES/FACE_INDICES buffers --
+  // vertices FromPolygons() already welded and validated (assert_adjacency) at construction time, in the
+  // exact order they were given. It must use FromUniquePoints() here, NOT the public Make(), for the same
+  // load-bearing-collinear-vertex reason as polygons_from_pieces() above: Make()'s remove_collinear() pass
+  // has no visibility into a neighboring facet's needs, so it would happily strip a vertex that's collinear
+  // on THIS facet's own ring but is another facet's genuine corner touching this edge -- silently
+  // reintroducing, on every read, the exact T-junction FromPolygons() just finished proving doesn't exist.
+  friend class PolyMesh2D;
 
   Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex);
   Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes,
