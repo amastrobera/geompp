@@ -2,6 +2,7 @@
 
 #include "calc_utils2d.hpp"
 #include "grid_cell2d.hpp"
+#include "mesh2d.hpp"
 #include "polygon2d.hpp"
 #include "polymesh2d.hpp"
 #include "triangle2d.hpp"
@@ -83,6 +84,16 @@ PolyMesh2D ConnectedMesh2D::Polygonize(PolygonizationParams const& params) const
   auto pieces = detail::polygonize_impl(faces, params);
   auto polygons = detail::polygons_from_pieces(std::move(pieces));
   return PolyMesh2D::FromPolygons(polygons);
+}
+
+Mesh2D ConnectedMesh2D::Disconnect() const {
+  std::size_t n = TRIANGLES->size() / 3;
+  auto face_indices = std::make_shared<std::vector<std::array<std::size_t, 3>>>();
+  face_indices->reserve(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    face_indices->push_back({(*TRIANGLES)[3 * i], (*TRIANGLES)[3 * i + 1], (*TRIANGLES)[3 * i + 2]});
+  }
+  return Mesh2D(VERTICES, face_indices, AREA);
 }
 
 }  // namespace geometry

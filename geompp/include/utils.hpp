@@ -93,6 +93,18 @@ struct TriangleCompactNeighborRef {
 std::vector<std::array<TriangleCompactNeighborRef, 3>> build_neighbor_refs(std::size_t const* triangle_indices,
                                                                            std::size_t n_triangles);
 
+/// @brief Splits @p content into its top-level parenthesized groups, siblings separated by commas
+/// outside any parens, each returned WITHOUT its own single outermost enclosing '(' ')' pair (any nested
+/// parens inside stay intact). Shared by Mesh2D/3D::FromWkt() and PolyMesh2D/3D::FromWkt(): a facet in
+/// their "MESH (((x0 y0, ...)), ((x0 y0, ...)))" / "POLYMESH (...)" format is doubly-parenthesized (one
+/// level marking it as a list entry, one level being the ring's own coordinate-list parens, exactly like
+/// a bare POLYGON's own inner ring syntax) -- this strips just the outer, list-entry level, leaving each
+/// returned string as "(x0 y0, ...)", ready for the same per-ring coordinate scan Polygon2D/3D::FromWkt()
+/// already does.
+/// @param content Everything between a WKT geometry's own outermost "GEOMNAME (" ... ")" pair.
+/// @returns One string per top-level group, in order; empty if @p content has no top-level '(' at all.
+std::vector<std::string> extract_wkt_top_level_groups(std::string const& content);
+
 }  // namespace detail
 
 #pragma region Template Implementation

@@ -366,3 +366,36 @@ which contradicts both the code and the prose right above it. That's almost cert
 
 
 
+
+
+> bro given <Mesh>=Mesh, Mesh, PolyMesh, and <D>=2D,3D,
+>
+>  Can you add for <Mesh><D>
+>  GeometryCollection<D> ToGeometryCollection() const;
+>
+>  then for PolyMesh<D> add the function
+>
+>  Mesh<D> Disconnect() const;
+>
+>  Then for Mesh<D>, and PolyMesh<D>
+>
+>  std::string ToWkt() const;
+>  static <Mesh><D> FromWkt(std::string const& wkt);
+>  void ToFile(std::string const& path) const;
+>  static <Mesh><D> FromFile(std::string const& path);
+>
+>  The criteria to write WKT is 
+>
+>  "MESH ( polygon, polygon, ...)"
+>  "POLYMESH (polygon, polygon ...)"
+>      \_ _where polygon = ((x0 y0,x1 y1, x2 y2, ... x0 y0))
+>      \_ expect only 1 loop, or ... handle only the first loop because in 
+>         meshes we do not yet care about holes
+
+  
+
+
+
+
+
+

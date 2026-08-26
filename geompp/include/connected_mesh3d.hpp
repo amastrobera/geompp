@@ -16,6 +16,7 @@ namespace geompp {
 
 inline namespace geometry {
 
+class Mesh3D;
 class PolyMesh3D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
@@ -104,6 +105,13 @@ class ConnectedMesh3D {
   /// @returns A PolyMesh3D of the merged polygon facets.
   /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.
   PolyMesh3D Polygonize(PolygonizationParams const& params = PolygonizationParams{}) const;
+
+  /// @brief Drops this mesh's precomputed adjacency (NEIGHBORS), keeping the same welded vertices and
+  /// facets -- the inverse of Mesh3D::Connect(). VERTICES is reused as-is (O(1) refcount bump); only
+  /// TRIANGLES' flat std::vector<size_t> layout needs repacking into Mesh3D::FACE_INDICES'
+  /// std::vector<array<size_t,3>> one, so this is O(n) with no re-welding or re-validation.
+  /// @returns A Mesh3D over the exact same vertices/facets, with no adjacency structure.
+  Mesh3D Disconnect() const;
 
  private:
   std::shared_ptr<std::vector<Point3D>> VERTICES;

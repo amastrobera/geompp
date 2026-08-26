@@ -1,5 +1,6 @@
 #include "connected_mesh2d.hpp"
 
+#include "mesh2d.hpp"
 #include "point2d.hpp"
 #include "polymesh2d.hpp"
 #include "triangle2d.hpp"
@@ -247,6 +248,24 @@ TEST_F(ConnectedMesh2DTest, Polygonize_UnitSquareFromTwoTriangles_PlanarQuads_Re
 
   ASSERT_EQ(poly_mesh.Size(), 1u);
   EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(ConnectedMesh2DTest, Disconnect_PreservesFacesAndArea) {
+  auto mesh = g::ConnectedMesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+
+  auto disconnected = mesh.Disconnect();
+  EXPECT_EQ(disconnected.Size(), mesh.Size());
+  EXPECT_NEAR(disconnected.Area(), mesh.Area(), 1e-9);
+  for (std::size_t i = 0; i < mesh.Size(); ++i) {
+    EXPECT_TRUE(disconnected[i].AlmostEquals(mesh[i].Geometry()))
+        << "facet " << i << " differs between ConnectedMesh2D and its Disconnect()ed Mesh2D";
+  }
+
+  // The disconnected mesh is still fully usable -- no adjacency info needed for this.
+  EXPECT_NO_THROW(disconnected.Polygonize());
 }
 
 }  // namespace geompp_tests

@@ -1,17 +1,26 @@
 #include "polymesh2d.hpp"
 
+#include "geometry_collection2d.hpp"
+#include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "mesh2d.hpp"
 #include "point2d.hpp"
 #include "polygon2d.hpp"
+#include "polyline2d.hpp"
+#include "ray2d.hpp"
 #include "utils.hpp"
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <iostream>
 
 namespace g = geompp;
+namespace fs = std::filesystem;
 
 namespace geompp_tests {
+
+extern fs::path test_res_path;
 
 class PolyMesh2DTest : public ::testing::Test {
  protected:
@@ -123,6 +132,56 @@ TEST_F(PolyMesh2DTest, Triangulate_TwoDisjointFacets_PreservesTotalArea) {
   std::cout << "PolyMesh2D::Triangulate() on 2 disjoint quads: " << tri_mesh.Size() << " triangles, area="
             << tri_mesh.Area() << " (mesh.Area()=" << mesh.Area() << ")\n";
   EXPECT_NEAR(mesh.Area(), tri_mesh.Area(), 1e-9);
+}
+
+TEST_F(PolyMesh2DTest, ToGeometryCollection_MatchesSizeAndArea) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+
+  auto collection = mesh.ToGeometryCollection();
+  ASSERT_EQ(collection.Size(), mesh.Size());
+  double total_area = 0.0;
+  for (std::size_t i = 0; i < collection.Size(); ++i) {
+    auto shape = collection.Get(i);
+    ASSERT_TRUE(std::holds_alternative<g::Polygon2D>(shape));
+    total_area += std::get<g::Polygon2D>(shape).Area();
+  }
+  EXPECT_NEAR(total_area, mesh.Area(), 1e-9);
+}
+
+TEST_F(PolyMesh2DTest, ToWkt_FromWkt_RoundTripsExactly) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0, p1});
+
+  std::string wkt = mesh.ToWkt();
+  EXPECT_EQ(wkt, "POLYMESH (((0 0, 1 0, 1 1, 0 1, 0 0)), ((1 0, 2 0, 2 1, 1 1, 1 0)))");
+
+  auto roundtrip = g::PolyMesh2D::FromWkt(wkt);
+  EXPECT_EQ(roundtrip.Size(), mesh.Size());
+  EXPECT_NEAR(roundtrip.Area(), mesh.Area(), 1e-9);
+  EXPECT_EQ(roundtrip.ToWkt(), wkt);
+}
+
+TEST_F(PolyMesh2DTest, FromWkt_WrongGeometryName_Throws) {
+  EXPECT_THROW(g::PolyMesh2D::FromWkt("MESH (((0 0, 1 0, 1 1, 0 0)))"), std::exception);
+}
+
+TEST_F(PolyMesh2DTest, FromWkt_FacetTooFewVertices_Throws) {
+  EXPECT_THROW(g::PolyMesh2D::FromWkt("POLYMESH (((0 0, 1 0, 0 0)))"), std::exception);
+}
+
+TEST_F(PolyMesh2DTest, ToFile_FromFile_RoundTrips) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto mesh = g::PolyMesh2D::FromPolygons({p0});
+
+  std::string path = (test_res_path / "temp" / "polymesh2d_roundtrip.wkt").string();
+  mesh.ToFile(path);
+  auto from_file = g::PolyMesh2D::FromFile(path);
+  EXPECT_EQ(from_file.Size(), mesh.Size());
+  EXPECT_NEAR(from_file.Area(), mesh.Area(), 1e-9);
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 }  // namespace geompp_tests

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <ranges>
+#include <string>
 #include <vector>
 
 namespace geompp {
@@ -15,6 +16,7 @@ namespace geompp {
 inline namespace geometry {
 
 class ConnectedMesh3D;
+class GeometryCollection3D;
 class PolyMesh3D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
@@ -76,6 +78,26 @@ class Mesh3D {
   /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.
   PolyMesh3D Polygonize(PolygonizationParams const& params = PolygonizationParams{}) const;
 
+  /// @brief Every facet, as its own standalone Triangle3D, packaged into one GeometryCollection3D.
+  /// @returns A GeometryCollection3D with Size() entries, all Triangle3D, same order as Faces().
+  GeometryCollection3D ToGeometryCollection() const;
+
+  /// @brief WKT-like serialization, specific to this library: "MESH ((x0 y0 z0, ..., x0 y0 z0), ...)" --
+  /// one doubly-parenthesized ring per facet (the same syntax a bare POLYGON's own ring uses), closed by
+  /// repeating its first point, comma-separated, wrapped once more in "MESH ( ... )". Not a standard OGC
+  /// WKT geometry type.
+  /// @returns The serialized mesh, one triangle ring per facet, in Faces() order.
+  std::string ToWkt() const;
+  /// @brief Parses a mesh written by ToWkt() (or matching its "MESH (((...)), ...)" grammar) back into a
+  /// Mesh3D. Every facet must have exactly 3 vertices (a mesh facet is always a triangle).
+  /// @throws std::runtime_error if @p wkt doesn't parse, or any facet doesn't have exactly 3 vertices.
+  static Mesh3D FromWkt(std::string const& wkt);
+  /// @brief Writes ToWkt()'s output to @p path (plain text, truncates any existing content).
+  void ToFile(std::string const& path) const;
+  /// @brief Reads a file written by ToFile() and parses it via FromWkt().
+  /// @throws std::runtime_error if @p path can't be opened or its content doesn't parse.
+  static Mesh3D FromFile(std::string const& path);
+
  private:
   // shared_ptr, not plain vector: copying a Mesh3D (or handing its vertex buffer to a future
   // Polygonize()/Triangulate() conversion) becomes an O(1) refcount bump instead of an O(n) deep
@@ -89,6 +111,9 @@ class Mesh3D {
   // bump (no vector copy), so there's no expensive-copy case left to avoid with a move overload.
   Mesh3D(std::shared_ptr<std::vector<Point3D>> const& unique_vertices,
          std::shared_ptr<std::vector<std::array<std::size_t, 3>>> const& face_indices, double area);
+
+  // Same reason as Mesh2D::ConnectedMesh2D's own friend grant -- see its doc comment.
+  friend class ConnectedMesh3D;
 };
 
 #pragma region Inlined Functions

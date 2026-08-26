@@ -34,6 +34,8 @@ NUL.i
 
 # AI
 CLAUDE.md
+.claude 
+prompt*.md
 
 # other
 notes.txt

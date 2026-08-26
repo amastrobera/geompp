@@ -16,6 +16,7 @@ namespace geompp {
 
 inline namespace geometry {
 
+class Mesh2D;
 class PolyMesh2D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
@@ -104,6 +105,13 @@ class ConnectedMesh2D {
   /// @returns A PolyMesh2D of the merged polygon facets.
   /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.
   PolyMesh2D Polygonize(PolygonizationParams const& params = PolygonizationParams{}) const;
+
+  /// @brief Drops this mesh's precomputed adjacency (NEIGHBORS), keeping the same welded vertices and
+  /// facets -- the inverse of Mesh2D::Connect(). VERTICES is reused as-is (O(1) refcount bump); only
+  /// TRIANGLES' flat std::vector<size_t> layout needs repacking into Mesh2D::FACE_INDICES'
+  /// std::vector<array<size_t,3>> one, so this is O(n) with no re-welding or re-validation.
+  /// @returns A Mesh2D over the exact same vertices/facets, with no adjacency structure.
+  Mesh2D Disconnect() const;
 
  private:
   std::shared_ptr<std::vector<Point2D>> VERTICES;

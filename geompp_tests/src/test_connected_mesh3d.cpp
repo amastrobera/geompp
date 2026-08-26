@@ -1,5 +1,6 @@
 #include "connected_mesh3d.hpp"
 
+#include "mesh3d.hpp"
 #include "point3d.hpp"
 #include "polymesh3d.hpp"
 #include "triangle3d.hpp"
@@ -213,6 +214,23 @@ TEST_F(ConnectedMesh3DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQ
   ASSERT_EQ(poly_mesh.Size(), 1u);
   EXPECT_NEAR(poly_mesh.Area(), 1.0, 1e-9);
   EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(ConnectedMesh3DTest, Disconnect_PreservesFacesAndArea) {
+  auto mesh = g::ConnectedMesh3D::FromTriangles({
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)),
+  });
+
+  auto disconnected = mesh.Disconnect();
+  EXPECT_EQ(disconnected.Size(), mesh.Size());
+  EXPECT_NEAR(disconnected.Area(), mesh.Area(), 1e-9);
+  for (std::size_t i = 0; i < mesh.Size(); ++i) {
+    EXPECT_TRUE(disconnected[i].AlmostEquals(mesh[i].Geometry()))
+        << "facet " << i << " differs between ConnectedMesh3D and its Disconnect()ed Mesh3D";
+  }
+
+  EXPECT_NO_THROW(disconnected.Polygonize());
 }
 
 }  // namespace geompp_tests

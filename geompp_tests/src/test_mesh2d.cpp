@@ -1,18 +1,27 @@
 #include "mesh2d.hpp"
 
 #include "connected_mesh2d.hpp"
+#include "geometry_collection2d.hpp"
+#include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "point2d.hpp"
+#include "polyline2d.hpp"
 #include "polymesh2d.hpp"
+#include "ray2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <optional>
 
 namespace g = geompp;
+namespace fs = std::filesystem;
 
 namespace geompp_tests {
+
+extern fs::path test_res_path;
 
 class Mesh2DTest : public ::testing::Test {
  protected:
@@ -237,6 +246,55 @@ TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_OperatorBracketPreservesShar
 
   // Round-trips clean: feeding operator[]'s own output back into a fresh PolyMesh2D shouldn't throw.
   EXPECT_NO_THROW(g::PolyMesh2D::FromPolygons(extracted));
+}
+
+TEST_F(Mesh2DTest, ToGeometryCollection_MatchesSizeAndArea) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+  auto collection = mesh.ToGeometryCollection();
+  ASSERT_EQ(collection.Size(), mesh.Size());
+  double total_area = 0.0;
+  for (std::size_t i = 0; i < collection.Size(); ++i) {
+    auto shape = collection.Get(i);
+    ASSERT_TRUE(std::holds_alternative<g::Triangle2D>(shape));
+    total_area += std::get<g::Triangle2D>(shape).Area();
+  }
+  EXPECT_NEAR(total_area, mesh.Area(), 1e-9);
+}
+
+TEST_F(Mesh2DTest, ToWkt_FromWkt_RoundTripsExactly) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+  std::string wkt = mesh.ToWkt();
+  EXPECT_EQ(wkt, "MESH (((0 0, 1 0, 1 1, 0 0)), ((0 0, 1 1, 0 1, 0 0)))");
+
+  auto roundtrip = g::Mesh2D::FromWkt(wkt);
+  EXPECT_EQ(roundtrip.Size(), mesh.Size());
+  EXPECT_NEAR(roundtrip.Area(), mesh.Area(), 1e-9);
+  EXPECT_EQ(roundtrip.ToWkt(), wkt);
+}
+
+TEST_F(Mesh2DTest, FromWkt_WrongGeometryName_Throws) { EXPECT_THROW(g::Mesh2D::FromWkt("POLYGON ((0 0))"), std::exception); }
+
+TEST_F(Mesh2DTest, FromWkt_FacetNotATriangle_Throws) {
+  // A facet with 4 vertices -- a mesh facet must always be exactly a triangle.
+  EXPECT_THROW(g::Mesh2D::FromWkt("MESH (((0 0, 1 0, 1 1, 0 1, 0 0)))"), std::exception);
+}
+
+TEST_F(Mesh2DTest, ToFile_FromFile_RoundTrips) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+  });
+  std::string path = (test_res_path / "temp" / "mesh2d_roundtrip.wkt").string();
+  mesh.ToFile(path);
+  auto from_file = g::Mesh2D::FromFile(path);
+  EXPECT_EQ(from_file.Size(), mesh.Size());
+  EXPECT_NEAR(from_file.Area(), mesh.Area(), 1e-9);
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 }  // namespace geompp_tests

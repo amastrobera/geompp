@@ -1,12 +1,23 @@
 #include "polymesh2d.hpp"
 
 #include "calc_utils2d.hpp"
+#include "geometry_collection2d.hpp"
 #include "grid_cell2d.hpp"
+#include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "mesh2d.hpp"
 #include "polygon2d.hpp"
+#include "polyline2d.hpp"
+#include "ray2d.hpp"
 #include "triangle2d.hpp"
+#include "utils.hpp"
 
+#include "geompp_log.hpp"
+
+#include <format>
+#include <fstream>
 #include <iterator>
+#include <sstream>
 #include <stdexcept>
 
 namespace geompp {
@@ -87,6 +98,143 @@ Mesh2D PolyMesh2D::Triangulate(TriangulationParams::Strategy strategy) const {
   }
 
   return Mesh2D::FromTriangles(triangles);
+}
+
+GeometryCollection2D PolyMesh2D::ToGeometryCollection() const {
+  GeometryCollection2D collection;
+  for (auto const& poly : Faces()) {
+    collection.Add(poly);
+  }
+  return collection;
+}
+
+std::string PolyMesh2D::ToWkt() const {
+  std::ostringstream buf;
+  buf << "POLYMESH (";
+  std::size_t n = FACE_IDX_BEGINS->size();
+  for (std::size_t i = 0; i < n; ++i) {
+    std::size_t f_idx_begin = (*FACE_IDX_BEGINS)[i];
+    std::size_t f_idx_offset = (*FACE_IDX_OFFSETS)[i];
+
+    buf << "((";
+    for (std::size_t j = 0; j < f_idx_offset; ++j) {
+      Point2D const& p = (*VERTICES)[(*FACE_INDICES)[f_idx_begin + j]];
+      buf << std::format("{} {}, ", round(p.x()), round(p.y()));
+    }
+    Point2D const& p0 = (*VERTICES)[(*FACE_INDICES)[f_idx_begin]];
+    buf << std::format("{} {}", round(p0.x()), round(p0.y()));
+    buf << "))";
+    if (i + 1 < n) {
+      buf << ", ";
+    }
+  }
+  buf << ")";
+  return buf.str();
+}
+
+PolyMesh2D PolyMesh2D::FromWkt(std::string const& wkt) {
+  try {
+    std::size_t end_gtype = wkt.find('(');
+    if (end_gtype == std::string::npos) {
+      throw std::runtime_error("brakets");
+    }
+
+    std::string g_type = geompp::to_upper(geompp::trim(wkt.substr(0, end_gtype)));
+    if (g_type != "POLYMESH") {
+      throw std::runtime_error("geometry name");
+    }
+
+    std::size_t outer_close = wkt.rfind(')');
+    if (outer_close == std::string::npos) {
+      throw std::runtime_error("brakets (outer close)");
+    }
+
+    std::string content = wkt.substr(end_gtype + 1, outer_close - end_gtype - 1);
+    auto facets = detail::extract_wkt_top_level_groups(content);
+    if (facets.empty()) {
+      throw std::runtime_error("no facets");
+    }
+
+    std::vector<Polygon2D> polygons;
+    polygons.reserve(facets.size());
+    for (auto const& facet : facets) {
+      std::size_t ring_open = facet.find('(');
+      if (ring_open == std::string::npos) {
+        throw std::runtime_error("brakets (ring open)");
+      }
+      std::size_t ring_close = facet.find(')', ring_open);
+      if (ring_close == std::string::npos) {
+        throw std::runtime_error("brakets (ring close)");
+      }
+      std::string ring_str = facet.substr(ring_open + 1, ring_close - ring_open - 1);
+
+      std::vector<Point2D> ring;
+      for (std::string const& tok : geompp::tokenize_string(ring_str, ',')) {
+        auto nums = geompp::tokenize_to_doubles(geompp::trim(tok));
+        if (nums.size() != 2) {
+          throw std::runtime_error("numbers");
+        }
+        ring.emplace_back(nums[0], nums[1]);
+      }
+      // WKT rings close by repeating the first point -- drop it before passing to Polygon2D::Make.
+      if (ring.size() > 1 && ring.back().AlmostEquals(ring.front())) {
+        ring.pop_back();
+      }
+      if (ring.size() < 3) {
+        throw std::runtime_error("polymesh facet must have at least 3 vertices");
+      }
+      polygons.push_back(Polygon2D::Make(ring));
+    }
+
+    return PolyMesh2D::FromPolygons(polygons);
+
+  } catch (std::exception const& e) {
+    GEOMPP_LOG(ERROR) << e.what();
+  }
+
+  throw std::runtime_error("failed to parse WKT");
+}
+
+void PolyMesh2D::ToFile(std::string const& path) const {
+  try {
+    std::string content = ToWkt();
+
+    std::ofstream outfile(path);
+    if (!outfile.is_open()) {
+      throw std::runtime_error("Could not open file");
+    }
+
+    outfile << content;
+    outfile.close();
+
+  } catch (...) {
+    GEOMPP_LOG(ERROR) << "bad path " << path;
+  }
+}
+
+PolyMesh2D PolyMesh2D::FromFile(std::string const& path) {
+  try {
+    std::string content;
+
+    std::ifstream in_file(path);
+    if (!in_file.is_open()) {
+      throw std::runtime_error("could not open file");
+    }
+
+    in_file.seekg(0, std::ios::end);
+    std::streamsize fileSize = in_file.tellg();
+    in_file.seekg(0, std::ios::beg);
+
+    content.resize(static_cast<std::size_t>(fileSize));
+    in_file.read(&content[0], fileSize);
+
+    return FromWkt(content);
+
+  } catch (...) {
+    GEOMPP_LOG(ERROR) << "bad path " << path;
+  }
+
+  throw std::runtime_error("failed to parse WKT");
 }
 
 }  // namespace geometry

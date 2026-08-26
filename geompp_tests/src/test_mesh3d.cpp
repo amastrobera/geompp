@@ -1,18 +1,27 @@
 #include "mesh3d.hpp"
 
 #include "connected_mesh3d.hpp"
+#include "geometry_collection3d.hpp"
+#include "line3d.hpp"
+#include "line_segment3d.hpp"
 #include "point3d.hpp"
+#include "polyline3d.hpp"
 #include "polymesh3d.hpp"
+#include "ray3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <optional>
 
 namespace g = geompp;
+namespace fs = std::filesystem;
 
 namespace geompp_tests {
+
+extern fs::path test_res_path;
 
 class Mesh3DTest : public ::testing::Test {
  protected:
@@ -169,6 +178,54 @@ TEST_F(Mesh3DTest, Polygonize_MatchesConnectThenPolygonize) {
     EXPECT_TRUE(direct[i].AlmostEquals(via_connect[i]))
         << "piece " << i << " differs between Mesh3D::Polygonize() and Connect().Polygonize()";
   }
+}
+
+TEST_F(Mesh3DTest, ToGeometryCollection_MatchesSizeAndArea) {
+  auto mesh = g::Mesh3D::FromTriangles({
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)),
+  });
+  auto collection = mesh.ToGeometryCollection();
+  ASSERT_EQ(collection.Size(), mesh.Size());
+  double total_area = 0.0;
+  for (std::size_t i = 0; i < collection.Size(); ++i) {
+    auto shape = collection.Get(i);
+    ASSERT_TRUE(std::holds_alternative<g::Triangle3D>(shape));
+    total_area += std::get<g::Triangle3D>(shape).Area();
+  }
+  EXPECT_NEAR(total_area, mesh.Area(), 1e-9);
+}
+
+TEST_F(Mesh3DTest, ToWkt_FromWkt_RoundTripsExactly) {
+  auto mesh = g::Mesh3D::FromTriangles({
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)),
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)),
+  });
+  std::string wkt = mesh.ToWkt();
+  EXPECT_EQ(wkt, "MESH (((0 0 0, 1 0 0, 1 1 0, 0 0 0)), ((0 0 0, 1 1 0, 0 1 0, 0 0 0)))");
+
+  auto roundtrip = g::Mesh3D::FromWkt(wkt);
+  EXPECT_EQ(roundtrip.Size(), mesh.Size());
+  EXPECT_NEAR(roundtrip.Area(), mesh.Area(), 1e-9);
+  EXPECT_EQ(roundtrip.ToWkt(), wkt);
+}
+
+TEST_F(Mesh3DTest, FromWkt_WrongGeometryName_Throws) { EXPECT_THROW(g::Mesh3D::FromWkt("POLYGON ((0 0 0))"), std::exception); }
+
+TEST_F(Mesh3DTest, FromWkt_FacetNotATriangle_Throws) {
+  EXPECT_THROW(g::Mesh3D::FromWkt("MESH (((0 0 0, 1 0 0, 1 1 0, 0 1 0, 0 0 0)))"), std::exception);
+}
+
+TEST_F(Mesh3DTest, ToFile_FromFile_RoundTrips) {
+  auto mesh = g::Mesh3D::FromTriangles({
+      g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0)),
+  });
+  std::string path = (test_res_path / "temp" / "mesh3d_roundtrip.wkt").string();
+  mesh.ToFile(path);
+  auto from_file = g::Mesh3D::FromFile(path);
+  EXPECT_EQ(from_file.Size(), mesh.Size());
+  EXPECT_NEAR(from_file.Area(), mesh.Area(), 1e-9);
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 }  // namespace geompp_tests

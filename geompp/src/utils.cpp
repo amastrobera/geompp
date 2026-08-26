@@ -213,6 +213,27 @@ std::vector<std::array<TriangleCompactNeighborRef, 3>> build_neighbor_refs(std::
   return neighbour_refs;
 }
 
+std::vector<std::string> extract_wkt_top_level_groups(std::string const& content) {
+  std::vector<std::string> groups;
+  int depth = 0;
+  std::size_t start = std::string::npos;
+  for (std::size_t i = 0; i < content.size(); ++i) {
+    if (content[i] == '(') {
+      if (depth == 0) {
+        start = i + 1;
+      }
+      ++depth;
+    } else if (content[i] == ')') {
+      --depth;
+      if (depth == 0 && start != std::string::npos) {
+        groups.push_back(content.substr(start, i - start));
+        start = std::string::npos;
+      }
+    }
+  }
+  return groups;
+}
+
 }  // namespace detail
 
 }  // namespace geometry

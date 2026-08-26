@@ -7,12 +7,14 @@
 #include <cstddef>
 #include <memory>
 #include <ranges>
+#include <string>
 #include <vector>
 
 namespace geompp {
 
 inline namespace geometry {
 
+class GeometryCollection2D;
 class Mesh2D;
 
 /// @brief A mesh made of adjacent, arbitrary-sided polygonal faces, stored as a flat index buffer for efficiency
@@ -76,6 +78,26 @@ class PolyMesh2D {
   /// not-yet-implemented strategy).
   Mesh2D Triangulate(
       TriangulationParams::Strategy strategy = TriangulationParams::Strategy::EarClippingBestFit) const;
+
+  /// @brief Every facet, as its own standalone Polygon2D, packaged into one GeometryCollection2D.
+  /// @returns A GeometryCollection2D with Size() entries, all Polygon2D, same order as Faces().
+  GeometryCollection2D ToGeometryCollection() const;
+
+  /// @brief WKT-like serialization, specific to this library: "POLYMESH ((x0 y0, ..., x0 y0), ...)" --
+  /// one doubly-parenthesized ring per facet (the same syntax a bare POLYGON's own ring uses), closed by
+  /// repeating its first point, comma-separated, wrapped once more in "POLYMESH ( ... )". Not a standard
+  /// OGC WKT geometry type.
+  /// @returns The serialized mesh, one facet ring per facet, in Faces() order.
+  std::string ToWkt() const;
+  /// @brief Parses a mesh written by ToWkt() (or matching its "POLYMESH (((...)), ...)" grammar) back
+  /// into a PolyMesh2D. Every facet must have at least 3 vertices.
+  /// @throws std::runtime_error if @p wkt doesn't parse, or any facet has fewer than 3 vertices.
+  static PolyMesh2D FromWkt(std::string const& wkt);
+  /// @brief Writes ToWkt()'s output to @p path (plain text, truncates any existing content).
+  void ToFile(std::string const& path) const;
+  /// @brief Reads a file written by ToFile() and parses it via FromWkt().
+  /// @throws std::runtime_error if @p path can't be opened or its content doesn't parse.
+  static PolyMesh2D FromFile(std::string const& path);
 
  private:
   // shared_ptr, not plain vector: copying a PolyMesh2D (or handing its vertex buffer to a future
