@@ -768,6 +768,37 @@ TEST(TransformBuilder3DTest, Build_ReturnsIndependentCopy) {
   EXPECT_TRUE(snapshot == gm::Matrix4::Translation(gm::Vector3(1, 0, 0)));
 }
 
+TEST(TransformBuilder3DTest, Apply_MatchesTransformWithGet) {
+  gt::TransformBuilder3D builder;
+  builder.Translate(gm::Vector3(5, 0, 0)).Rotate(std::numbers::pi / 2.0, gm::Vector3(0, 0, 1));
+  auto p = g::Point3D(1, 0, 0);
+  EXPECT_TRUE(builder.Apply(p) == gt::transform(p, builder.Get()));
+}
+
+TEST(TransformBuilder3DTest, Apply_WorksOnCompositePrimitive) {
+  gt::TransformBuilder3D builder;
+  builder.Translate(gm::Vector3(0, 0, 5));
+  auto poly = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});
+  EXPECT_TRUE(builder.Apply(poly) == gt::transform(poly, builder.Get()));
+}
+
+TEST(TransformBuilder3DTest, Apply_DoesNotConsumeShapeOrBuilder) {
+  // Apply() takes `shape` by const&: the original must be untouched, and the builder must keep
+  // composing normally afterward, so the same chain can Apply() to more than one shape.
+  gt::TransformBuilder3D builder;
+  builder.Translate(gm::Vector3(1, 0, 0));
+  auto const p = g::Point3D(0, 0, 0);
+
+  auto first = builder.Apply(p);
+  EXPECT_TRUE(p == g::Point3D(0, 0, 0));  // `p` itself unchanged
+  EXPECT_TRUE(first == g::Point3D(1, 0, 0));
+
+  builder.Translate(gm::Vector3(0, 1, 0));  // builder keeps composing after Apply()
+  auto second = builder.Apply(p);
+  EXPECT_TRUE(second == g::Point3D(1, 1, 0));
+}
+
 #pragma endregion
 
 #pragma region TransformBuilder2D
@@ -848,6 +879,36 @@ TEST(TransformBuilder2DTest, Build_ReturnsIndependentCopy) {
   auto snapshot = builder.Build();
   builder.Translate(gm::Vector2(0, 1));  // further chaining must not retroactively change `snapshot`
   EXPECT_TRUE(snapshot == gm::Matrix3::Translation(gm::Vector2(1, 0)));
+}
+
+TEST(TransformBuilder2DTest, Apply_MatchesTransformWithGet) {
+  gt::TransformBuilder2D builder;
+  builder.Translate(gm::Vector2(5, 0)).Rotate(std::numbers::pi / 2.0);
+  auto p = g::Point2D(1, 0);
+  EXPECT_TRUE(builder.Apply(p) == gt::transform(p, builder.Get()));
+}
+
+TEST(TransformBuilder2DTest, Apply_WorksOnCompositePrimitive) {
+  gt::TransformBuilder2D builder;
+  builder.Scale(2.0);
+  auto poly = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  EXPECT_TRUE(builder.Apply(poly) == gt::transform(poly, builder.Get()));
+}
+
+TEST(TransformBuilder2DTest, Apply_DoesNotConsumeShapeOrBuilder) {
+  // Apply() takes `shape` by const&: the original must be untouched, and the builder must keep
+  // composing normally afterward, so the same chain can Apply() to more than one shape.
+  gt::TransformBuilder2D builder;
+  builder.Translate(gm::Vector2(1, 0));
+  auto const p = g::Point2D(0, 0);
+
+  auto first = builder.Apply(p);
+  EXPECT_TRUE(p == g::Point2D(0, 0));  // `p` itself unchanged
+  EXPECT_TRUE(first == g::Point2D(1, 0));
+
+  builder.Translate(gm::Vector2(0, 1));  // builder keeps composing after Apply()
+  auto second = builder.Apply(p);
+  EXPECT_TRUE(second == g::Point2D(1, 1));
 }
 
 #pragma endregion

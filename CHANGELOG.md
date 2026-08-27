@@ -11,6 +11,31 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.19.0] - 2026-08-27
+
+> `TransformBuilder2D`/`TransformBuilder3D` gain `Apply(shape)` — a one-step shorthand for
+> `transform(shape, builder.Get())` that applies the builder's composed matrix directly to a primitive
+> without the caller needing to fetch the matrix first.
+
+### Added
+
+**C++ core**
+- `TransformBuilder2D::Apply<T>(T const&)` / `TransformBuilder3D::Apply<T>(T const&)`
+  (`transformations/transform_builder2d.hpp`/`3d.hpp`) — template method, shorthand for
+  `transform(shape, builder.Get())`; works for any 2D/3D primitive `transform()` has an overload for.
+  Doesn't consume `shape` or the builder — chaining continues normally afterward, so the same builder
+  can `Apply()` to several different shapes.
+
+**Python bindings**
+- `TransformBuilder2D.apply()` / `TransformBuilder3D.apply()`, one overload per bound primitive
+  (`Point`/`Vector`/`LineSegment`/`Polyline`/`Triangle`/`Polygon`/`Mesh`/`PolyMesh`, 2D+3D).
+
+**C# bindings**
+- `TransformBuilder2D.Apply()` / `TransformBuilder3D.Apply()`, one overload per bound primitive
+  (`Point`/`Vector`/`LineSegment`/`Polyline`/`Triangle`/`Polygon`/`Mesh`/`PolyMesh`, 2D+3D).
+
+---
+
 ## [0.18.0] - 2026-08-17
 
 > New polygonization feature family: `polygonize(vector<Triangle2D/3D>, PolygonizationParams)` (triangles → polygons, the reverse of triangulation, 3 strategies: `PlanarBoundaryExtraction`, `PlanarQuads`, `HertelMehlhorn`) and `merge(vector<Polygon2D/3D>)` (coalesce touching/adjacent polygons, including their holes, into fewer polygons), plus `Mesh2D/3D::Polygonize()` and `ConnectedMesh2D/3D::Polygonize()` convenience methods, bound in Python and C#.

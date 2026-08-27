@@ -48,7 +48,17 @@ Reads NEIGHBORS/TRIANGLES/VERTICES directly (already precomputed at FromTriangle
 
 **Returns** — A [PolyMesh3D](PolyMesh3D.md) of the merged polygon facets.
 
+## `disconnect`
+
+`disconnect() -> `[`Mesh3D`](Mesh3D.md)
+
+Drops this mesh's precomputed adjacency (NEIGHBORS), keeping the same welded vertices and facets the inverse of [Mesh3D](Mesh3D.md)::Connect().
+
+VERTICES is reused as-is (O(1) refcount bump); only TRIANGLES' flat std::vector<size_t> layout needs repacking into [Mesh3D](Mesh3D.md)::FACE_INDICES' std::vector<array<size_t,3>> one, so this is O(n) with no re-welding or re-validation.
+
+**Returns** — A [Mesh3D](Mesh3D.md) over the exact same vertices/facets, with no adjacency structure.
+
 
 ---
 
-**See also:** [GridCell3D](GridCell3D.md), [PolyMesh3D](PolyMesh3D.md), [PolygonizationParams](PolygonizationParams.md), [Triangle3D](Triangle3D.md)
+**See also:** [GridCell3D](GridCell3D.md), [Mesh3D](Mesh3D.md), [PolyMesh3D](PolyMesh3D.md), [PolygonizationParams](PolygonizationParams.md), [Triangle3D](Triangle3D.md)

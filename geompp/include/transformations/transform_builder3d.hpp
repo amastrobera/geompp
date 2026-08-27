@@ -1,11 +1,13 @@
 #pragma once
 
 #include "../maths.hpp"
+#include "transformations3d.hpp"
 
 /// @file transform_builder3d.hpp
 /// @brief Fluent composer for a single 4x4 homogeneous affine transform (translation + rotation + scale,
 /// in any order/repetition), applied to 3D primitives via transform(primitive, TransformBuilder3D::Get())
-/// (transformations3d.hpp). See transform_builder2d.hpp for the Matrix3-backed 2D counterpart -- both
+/// (transformations3d.hpp), or in one step via TransformBuilder3D::Apply(). See transform_builder2d.hpp
+/// for the Matrix3-backed 2D counterpart -- both
 /// compose the same way: each chained call PRE-multiplies the new operation onto the accumulated matrix
 /// (`new_op * accumulated`) so operations apply in the order they're called, matching how a reader
 /// expects a chain of method calls to read left-to-right as "do this, then this" -- see Combine()'s doc
@@ -57,6 +59,15 @@ class TransformBuilder3D {
   /// @brief Copy of the composed matrix so far -- same value as Get(), but by value for a caller who
   /// wants to keep it independent of this builder's further chaining.
   maths::Matrix4 Build() const;
+
+  /// @brief Applies the composed matrix to `shape` and returns the transformed copy -- shorthand for
+  /// transform(shape, builder.Get()), for any 3D primitive transform() has an overload for (Point3D,
+  /// Polygon3D, Mesh3D, ...). Doesn't consume or store `shape` -- the builder keeps composing normally
+  /// afterward, so the same chain can Apply() to several different shapes.
+  template <typename T>
+  T Apply(T const& shape) const {
+    return transform(shape, m_matrix);
+  }
 
  private:
   maths::Matrix4 m_matrix = maths::Matrix4::Identity();

@@ -83,3 +83,20 @@ The composed matrix so far.
 `Matrix3^ Build()`
 
 Copy of the composed matrix so far same value as Get() , but by value for a caller who wants to keep it independent of this builder's further chaining.
+
+## `Apply`
+
+`T^ Apply(T^ shape)`
+
+Applies the composed matrix to shape and returns the transformed copy shorthand for transform(shape, builder.Get()), for any 2D primitive transform() has an overload for ( [Point2D](Point2D.md) , [Polygon2D](Polygon2D.md) , [Mesh2D](Mesh2D.md) , ...).
+
+Doesn't consume or store shape the builder keeps composing normally afterward, so the same chain can Apply() to several different shapes.
+
+**Parameters**
+
+- `shape` (`T^`)
+
+
+---
+
+**See also:** [Mesh2D](Mesh2D.md), [Point2D](Point2D.md), [Polygon2D](Polygon2D.md)

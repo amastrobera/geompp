@@ -1,14 +1,15 @@
 #pragma once
 
 #include "../maths.hpp"
+#include "transformations2d.hpp"
 
 /// @file transform_builder2d.hpp
 /// @brief Fluent composer for a single 3x3 homogeneous affine transform (translation + rotation + scale,
 /// in any order/repetition), applied to 2D primitives via transform(primitive, TransformBuilder2D::Get())
-/// (transformations2d.hpp). 2D counterpart of TransformBuilder3D (transform_builder3d.hpp) -- see its
-/// docs for the pre-multiply / call-order composition semantics, identical here. Rotate() takes a plain
-/// angle (no axis -- 2D rotation is about the implicit Z), and Shear() takes the 2 terms of a 2D shear
-/// rather than 6.
+/// (transformations2d.hpp), or in one step via TransformBuilder2D::Apply(). 2D counterpart of
+/// TransformBuilder3D (transform_builder3d.hpp) -- see its docs for the pre-multiply / call-order
+/// composition semantics, identical here. Rotate() takes a plain angle (no axis -- 2D rotation is about
+/// the implicit Z), and Shear() takes the 2 terms of a 2D shear rather than 6.
 namespace geompp::transformations {
 
 /// @brief 2D counterpart of TransformBuilder3D -- builds a composite Matrix3 by chaining translate()/
@@ -52,6 +53,15 @@ class TransformBuilder2D {
   /// @brief Copy of the composed matrix so far -- same value as Get(), but by value for a caller who
   /// wants to keep it independent of this builder's further chaining.
   maths::Matrix3 Build() const;
+
+  /// @brief Applies the composed matrix to `shape` and returns the transformed copy -- shorthand for
+  /// transform(shape, builder.Get()), for any 2D primitive transform() has an overload for (Point2D,
+  /// Polygon2D, Mesh2D, ...). Doesn't consume or store `shape` -- the builder keeps composing normally
+  /// afterward, so the same chain can Apply() to several different shapes.
+  template <typename T>
+  T Apply(T const& shape) const {
+    return transform(shape, m_matrix);
+  }
 
  private:
   maths::Matrix3 m_matrix = maths::Matrix3::Identity();

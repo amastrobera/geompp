@@ -305,6 +305,32 @@ class TestTransformBuilder3D:
         builder.translate(maths.Vector3(0, 1, 0))
         assert snapshot == maths.Matrix4.translation(maths.Vector3(1, 0, 0))
 
+    def test_apply_matches_transform_with_get(self):
+        builder = tf.TransformBuilder3D()
+        builder.translate(maths.Vector3(5, 0, 0)).rotate(math.pi / 2, maths.Vector3(0, 0, 1))
+        p = geompp.Point3D(1, 0, 0)
+        assert builder.apply(p) == tf.transform(p, builder.get())
+
+    def test_apply_works_on_composite_primitive(self):
+        builder = tf.TransformBuilder3D()
+        builder.translate(maths.Vector3(0, 0, 5))
+        poly = geompp.Polygon3D.make(
+            [geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)])
+        assert builder.apply(poly) == tf.transform(poly, builder.get())
+
+    def test_apply_does_not_consume_shape_or_builder(self):
+        builder = tf.TransformBuilder3D()
+        builder.translate(maths.Vector3(1, 0, 0))
+        p = geompp.Point3D(0, 0, 0)
+
+        first = builder.apply(p)
+        assert p == geompp.Point3D(0, 0, 0)
+        assert first == geompp.Point3D(1, 0, 0)
+
+        builder.translate(maths.Vector3(0, 1, 0))
+        second = builder.apply(p)
+        assert second == geompp.Point3D(1, 1, 0)
+
 
 class TestTransformBuilder2D:
     def test_default_constructed_is_identity(self):
@@ -357,6 +383,32 @@ class TestTransformBuilder2D:
         snapshot = builder.build()
         builder.translate(maths.Vector2(0, 1))
         assert snapshot == maths.Matrix3.translation(maths.Vector2(1, 0))
+
+    def test_apply_matches_transform_with_get(self):
+        builder = tf.TransformBuilder2D()
+        builder.translate(maths.Vector2(5, 0)).rotate(math.pi / 2)
+        p = geompp.Point2D(1, 0)
+        assert builder.apply(p) == tf.transform(p, builder.get())
+
+    def test_apply_works_on_composite_primitive(self):
+        builder = tf.TransformBuilder2D()
+        builder.scale(2.0)
+        poly = geompp.Polygon2D.make(
+            [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
+        assert builder.apply(poly) == tf.transform(poly, builder.get())
+
+    def test_apply_does_not_consume_shape_or_builder(self):
+        builder = tf.TransformBuilder2D()
+        builder.translate(maths.Vector2(1, 0))
+        p = geompp.Point2D(0, 0)
+
+        first = builder.apply(p)
+        assert p == geompp.Point2D(0, 0)
+        assert first == geompp.Point2D(1, 0)
+
+        builder.translate(maths.Vector2(0, 1))
+        second = builder.apply(p)
+        assert second == geompp.Point2D(1, 1)
 
 
 def test_transformations_submodule_importable_both_ways():

@@ -16,6 +16,28 @@ Builds a mesh from a set of (hole-free) polygons, welding vertices that land in 
 
 **Returns** — A mesh whose vertex count is ≤ the sum of every polygon's Size() (fewer once shared vertices are welded).
 
+## `FromWkt`
+
+**static** `PolyMesh2D FromWkt(std::string const & wkt)`
+
+Parses a mesh written by ToWkt() (or matching its "POLYMESH (((...)), ...)" grammar) back into a PolyMesh2D .
+
+Every facet must have at least 3 vertices.
+
+**Parameters**
+
+- `wkt` (`std::string const &`)
+
+## `FromFile`
+
+**static** `PolyMesh2D FromFile(std::string const & path)`
+
+Reads a file written by ToFile() and parses it via FromWkt() .
+
+**Parameters**
+
+- `path` (`std::string const &`)
+
 ## `Size`
 
 `std::size_t Size() const`
@@ -46,7 +68,35 @@ Returns a mesh of triangles instead of n-gons — every facet is triangulated in
 
 **Returns** — A [Mesh2D](Mesh2D.md) with sum(facet_vertex_count - 2) triangles across every facet.
 
+## `ToGeometryCollection`
+
+[`GeometryCollection2D`](GeometryCollection2D.md)` ToGeometryCollection() const`
+
+Every facet, as its own standalone [Polygon2D](Polygon2D.md) , packaged into one [GeometryCollection2D](GeometryCollection2D.md) .
+
+**Returns** — A [GeometryCollection2D](GeometryCollection2D.md) with Size() entries, all [Polygon2D](Polygon2D.md) , same order as Faces() .
+
+## `ToWkt`
+
+`std::string ToWkt() const`
+
+WKT-like serialization, specific to this library: "POLYMESH ((x0 y0, ..., x0 y0), ...)" one doubly-parenthesized ring per facet (the same syntax a bare POLYGON's own ring uses), closed by repeating its first point, comma-separated, wrapped once more in "POLYMESH ( ... )".
+
+Not a standard OGC WKT geometry type.
+
+**Returns** — The serialized mesh, one facet ring per facet, in Faces() order.
+
+## `ToFile`
+
+`void ToFile(std::string const & path) const`
+
+Writes ToWkt() 's output to path (plain text, truncates any existing content).
+
+**Parameters**
+
+- `path` (`std::string const &`)
+
 
 ---
 
-**See also:** [GridCell2D](GridCell2D.md), [Mesh2D](Mesh2D.md), [Polygon2D](Polygon2D.md), [TriangulationParams](TriangulationParams.md)
+**See also:** [GeometryCollection2D](GeometryCollection2D.md), [GridCell2D](GridCell2D.md), [Mesh2D](Mesh2D.md), [Polygon2D](Polygon2D.md), [TriangulationParams](TriangulationParams.md)
