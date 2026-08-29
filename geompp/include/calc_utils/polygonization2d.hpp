@@ -43,14 +43,14 @@ namespace detail {
 ///
 /// @warning Non-owning: the vertex/index/neighbor buffers it points into must outlive it -- same lifetime
 /// contract as ConnectedMesh2D::FaceView2D / Mesh2D::Faces().
-class MeshFaceView2D {
+class MeshTriangleFaceView2D {
  public:
   /// @param vertices Pointer to the mesh's shared unique-vertex buffer.
   /// @param face_index_base Pointer to the first of 3*n_faces contiguous vertex indices (face f's are at
   /// face_index_base[3*f], [3*f+1], [3*f+2]).
   /// @param neighbor_base Pointer to the first of n_faces per-facet neighbor-ref arrays.
   /// @param face_id Which facet this view refers to.
-  MeshFaceView2D(Point2D const* vertices, std::size_t const* face_index_base,
+  MeshTriangleFaceView2D(Point2D const* vertices, std::size_t const* face_index_base,
                  std::array<TriangleCompactNeighborRef, 3> const* neighbor_base, std::size_t face_id);
 
   /// @returns This facet's index into the mesh's face buffer.
@@ -66,7 +66,7 @@ class MeshFaceView2D {
 
   /// @param edge Which of this facet's 3 edges to cross.
   /// @returns The adjacent facet, or std::nullopt if @p edge is a boundary edge (no twin).
-  std::optional<MeshFaceView2D> Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const;
+  std::optional<MeshTriangleFaceView2D> Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const;
   /// @param edge Which of this facet's 3 edges to cross.
   /// @returns The local edge id of the twin edge on the other side of @p edge, or TriangleEdge::INVALID
   /// if @p edge is a boundary edge (no twin).
@@ -79,34 +79,34 @@ class MeshFaceView2D {
   std::size_t m_face_id;
 };
 
-inline MeshFaceView2D::MeshFaceView2D(Point2D const* vertices, std::size_t const* face_index_base,
+inline MeshTriangleFaceView2D::MeshTriangleFaceView2D(Point2D const* vertices, std::size_t const* face_index_base,
                                       std::array<TriangleCompactNeighborRef, 3> const* neighbor_base,
                                       std::size_t face_id)
     : m_vertices(vertices), m_face_index_base(face_index_base), m_neighbor_base(neighbor_base), m_face_id(face_id) {}
 
-inline std::size_t MeshFaceView2D::ID() const { return m_face_id; }
+inline std::size_t MeshTriangleFaceView2D::ID() const { return m_face_id; }
 
-inline std::size_t MeshFaceView2D::VertexIndex(std::size_t local_i) const {
+inline std::size_t MeshTriangleFaceView2D::VertexIndex(std::size_t local_i) const {
   return m_face_index_base[m_face_id * 3 + local_i];
 }
 
-/// @brief 3D counterpart of MeshFaceView2D -- same non-owning, raw-pointer-index view shape, over a welded
+/// @brief 3D counterpart of MeshTriangleFaceView2D -- same non-owning, raw-pointer-index view shape, over a welded
 /// 3D triangle mesh (Mesh3D's std::array<size_t,3>-per-face layout or ConnectedMesh3D's flat, stride-3
 /// std::vector<size_t> layout). Declared here, defined in polygonization3d.cpp -- mirrors this codebase's
 /// existing triangulation2d.hpp/.cpp split, where the PointT-generic algorithm (ear_clipping_triangulation,
 /// triangulate_impl, ...) and its extern template declarations for BOTH Point2D and Point3D live in the
 /// "2d" file, and the "3d" file/pair is a thin wrapper providing the 3D-specific public API. Kept alongside
-/// MeshFaceView2D (rather than only in polygonization3d.hpp) because FaceViewPointT/RingPiecesOf/every
-/// strategy helper below need MeshFaceView3D's full declaration (specifically Geometry()'s return type) to
-/// even name `RingPiecesOf<MeshFaceView3D>` in this header's own extern template declarations.
-class MeshFaceView3D {
+/// MeshTriangleFaceView2D (rather than only in polygonization3d.hpp) because FaceViewPointT/RingPiecesOf/every
+/// strategy helper below need MeshTriangleFaceView3D's full declaration (specifically Geometry()'s return type) to
+/// even name `RingPiecesOf<MeshTriangleFaceView3D>` in this header's own extern template declarations.
+class MeshTriangleFaceView3D {
  public:
   /// @param vertices Pointer to the mesh's shared unique-vertex buffer.
   /// @param face_index_base Pointer to the first of 3*n_faces contiguous vertex indices (face f's are at
   /// face_index_base[3*f], [3*f+1], [3*f+2]).
   /// @param neighbor_base Pointer to the first of n_faces per-facet neighbor-ref arrays.
   /// @param face_id Which facet this view refers to.
-  MeshFaceView3D(Point3D const* vertices, std::size_t const* face_index_base,
+  MeshTriangleFaceView3D(Point3D const* vertices, std::size_t const* face_index_base,
                  std::array<TriangleCompactNeighborRef, 3> const* neighbor_base, std::size_t face_id);
 
   /// @returns This facet's index into the mesh's face buffer.
@@ -121,7 +121,7 @@ class MeshFaceView3D {
 
   /// @param edge Which of this facet's 3 edges to cross.
   /// @returns The adjacent facet, or std::nullopt if @p edge is a boundary edge (no twin).
-  std::optional<MeshFaceView3D> Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const;
+  std::optional<MeshTriangleFaceView3D> Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const;
   /// @param edge Which of this facet's 3 edges to cross.
   /// @returns The local edge id of the twin edge on the other side of @p edge, or TriangleEdge::INVALID
   /// if @p edge is a boundary edge (no twin).
@@ -134,14 +134,14 @@ class MeshFaceView3D {
   std::size_t m_face_id;
 };
 
-inline MeshFaceView3D::MeshFaceView3D(Point3D const* vertices, std::size_t const* face_index_base,
+inline MeshTriangleFaceView3D::MeshTriangleFaceView3D(Point3D const* vertices, std::size_t const* face_index_base,
                                       std::array<TriangleCompactNeighborRef, 3> const* neighbor_base,
                                       std::size_t face_id)
     : m_vertices(vertices), m_face_index_base(face_index_base), m_neighbor_base(neighbor_base), m_face_id(face_id) {}
 
-inline std::size_t MeshFaceView3D::ID() const { return m_face_id; }
+inline std::size_t MeshTriangleFaceView3D::ID() const { return m_face_id; }
 
-inline std::size_t MeshFaceView3D::VertexIndex(std::size_t local_i) const {
+inline std::size_t MeshTriangleFaceView3D::VertexIndex(std::size_t local_i) const {
   return m_face_index_base[m_face_id * 3 + local_i];
 }
 
@@ -177,16 +177,16 @@ using RingPiecesOf =
 /// coplanarity check is skipped entirely (resolved via `if constexpr` on the deduced point type, not a
 /// runtime branch) and the whole mesh -- if edge-connected -- collapses to a single cluster.
 ///
-/// @tparam FaceViewT MeshFaceView2D or MeshFaceView3D.
-/// @param faces Every facet of the mesh, one MeshFaceView2D/3D per facet, ID() == index into this vector.
+/// @tparam FaceViewT MeshTriangleFaceView2D or MeshTriangleFaceView3D.
+/// @param faces Every facet of the mesh, one MeshTriangleFaceView2D/3D per facet, ID() == index into this vector.
 /// @returns One inner vector of facet IDs per coplanar cluster; every facet appears in exactly one cluster.
 template <TriangleFaceView FaceViewT>
 std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<FaceViewT> const& faces);
 
 extern template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(
-    std::vector<MeshFaceView2D> const& faces);
+    std::vector<MeshTriangleFaceView2D> const& faces);
 extern template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(
-    std::vector<MeshFaceView3D> const& faces);
+    std::vector<MeshTriangleFaceView3D> const& faces);
 
 /// @brief Removes edges that appear once in each direction (e.g. (A,B) and (B,A), within DECIMAL_PRECISION)
 /// -- an internal seam shared by two adjacent facets/polygons, not a genuine boundary. Shared by
@@ -230,10 +230,10 @@ template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> boundary_extraction_polygonization(std::vector<FaceViewT> const& faces,
                                                            std::vector<std::vector<std::size_t>> const& clusters);
 
-extern template RingPiecesOf<MeshFaceView2D> boundary_extraction_polygonization(
-    std::vector<MeshFaceView2D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
-extern template RingPiecesOf<MeshFaceView3D> boundary_extraction_polygonization(
-    std::vector<MeshFaceView3D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
+extern template RingPiecesOf<MeshTriangleFaceView2D> boundary_extraction_polygonization(
+    std::vector<MeshTriangleFaceView2D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
+extern template RingPiecesOf<MeshTriangleFaceView3D> boundary_extraction_polygonization(
+    std::vector<MeshTriangleFaceView3D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
 
 /// @brief PolygonizationParams::HertelMehlhorn strategy: per coplanar cluster, greedily merges adjacent
 /// facets across a shared edge whenever dissolving that edge into an internal diagonal keeps the merged
@@ -256,10 +256,10 @@ template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> const& faces,
                                                        std::vector<std::vector<std::size_t>> const& clusters);
 
-extern template RingPiecesOf<MeshFaceView2D> hertel_mehlhorn_polygonization(
-    std::vector<MeshFaceView2D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
-extern template RingPiecesOf<MeshFaceView3D> hertel_mehlhorn_polygonization(
-    std::vector<MeshFaceView3D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
+extern template RingPiecesOf<MeshTriangleFaceView2D> hertel_mehlhorn_polygonization(
+    std::vector<MeshTriangleFaceView2D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
+extern template RingPiecesOf<MeshTriangleFaceView3D> hertel_mehlhorn_polygonization(
+    std::vector<MeshTriangleFaceView3D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
 
 /// @brief PolygonizationParams::PlanarQuads strategy: per coplanar cluster, greedily pairs each
 /// still-unpaired facet with one still-unpaired same-cluster Neighbor() across a shared edge (first found,
@@ -276,10 +276,10 @@ template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> quad_only_polygonization(std::vector<FaceViewT> const& faces,
                                                  std::vector<std::vector<std::size_t>> const& clusters);
 
-extern template RingPiecesOf<MeshFaceView2D> quad_only_polygonization(
-    std::vector<MeshFaceView2D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
-extern template RingPiecesOf<MeshFaceView3D> quad_only_polygonization(
-    std::vector<MeshFaceView3D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
+extern template RingPiecesOf<MeshTriangleFaceView2D> quad_only_polygonization(
+    std::vector<MeshTriangleFaceView2D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
+extern template RingPiecesOf<MeshTriangleFaceView3D> quad_only_polygonization(
+    std::vector<MeshTriangleFaceView3D> const& faces, std::vector<std::vector<std::size_t>> const& clusters);
 
 /// @brief Shared implementation behind every Polygonize()/polygonize() entry point: partitions @p faces
 /// into coplanar clusters (partition_into_coplanar_clusters), then dispatches to the strategy named by
@@ -291,9 +291,9 @@ extern template RingPiecesOf<MeshFaceView3D> quad_only_polygonization(
 template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> polygonize_impl(std::vector<FaceViewT> const& faces, PolygonizationParams const& params);
 
-extern template RingPiecesOf<MeshFaceView2D> polygonize_impl(std::vector<MeshFaceView2D> const& faces,
+extern template RingPiecesOf<MeshTriangleFaceView2D> polygonize_impl(std::vector<MeshTriangleFaceView2D> const& faces,
                                                              PolygonizationParams const& params);
-extern template RingPiecesOf<MeshFaceView3D> polygonize_impl(std::vector<MeshFaceView3D> const& faces,
+extern template RingPiecesOf<MeshTriangleFaceView3D> polygonize_impl(std::vector<MeshTriangleFaceView3D> const& faces,
                                                              PolygonizationParams const& params);
 
 /// @brief Packages polygonize_impl()/package_result_rings()'s {outer, holes} pieces into Polygon2D,
@@ -326,7 +326,7 @@ extern template RingPiecesOf<MeshFaceView3D> polygonize_impl(std::vector<MeshFac
 /// everything it still checks (holes are pairwise non-crossing, don't cross the outer ring, are actually
 /// contained by it) is a genuine geometric relationship this function cannot vouch for on the caller's
 /// behalf, unlike winding and collinearity.
-std::vector<Polygon2D> polygons_from_pieces(RingPiecesOf<MeshFaceView2D> pieces);
+std::vector<Polygon2D> polygons_from_pieces(RingPiecesOf<MeshTriangleFaceView2D> pieces);
 
 }  // namespace detail
 

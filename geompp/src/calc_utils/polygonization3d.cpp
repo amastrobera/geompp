@@ -20,19 +20,19 @@ inline namespace geometry {
 
 namespace detail {
 
-Triangle3D MeshFaceView3D::Geometry() const {
+Triangle3D MeshTriangleFaceView3D::Geometry() const {
   return Triangle3D::Make(m_vertices[VertexIndex(0)], m_vertices[VertexIndex(1)], m_vertices[VertexIndex(2)]);
 }
 
-std::optional<MeshFaceView3D> MeshFaceView3D::Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const {
+std::optional<MeshTriangleFaceView3D> MeshTriangleFaceView3D::Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const {
   auto const& ref = m_neighbor_base[m_face_id][static_cast<std::uint32_t>(edge)];
   if (ref.is_boundary()) {
     return std::nullopt;
   }
-  return MeshFaceView3D(m_vertices, m_face_index_base, m_neighbor_base, ref.triangle_id());
+  return MeshTriangleFaceView3D(m_vertices, m_face_index_base, m_neighbor_base, ref.triangle_id());
 }
 
-TriangleCompactNeighborRef::TriangleEdge MeshFaceView3D::NeighborEntryEdge(
+TriangleCompactNeighborRef::TriangleEdge MeshTriangleFaceView3D::NeighborEntryEdge(
     TriangleCompactNeighborRef::TriangleEdge edge) const {
   auto const& ref = m_neighbor_base[m_face_id][static_cast<std::uint32_t>(edge)];
   if (ref.is_boundary()) {
@@ -41,7 +41,7 @@ TriangleCompactNeighborRef::TriangleEdge MeshFaceView3D::NeighborEntryEdge(
   return ref.edge_id();
 }
 
-std::vector<Polygon3D> polygons_from_pieces(RingPiecesOf<MeshFaceView3D> pieces) {
+std::vector<Polygon3D> polygons_from_pieces(RingPiecesOf<MeshTriangleFaceView3D> pieces) {
   std::vector<Polygon3D> result;
   result.reserve(pieces.size());
   for (auto& [outer, holes] : pieces) {
@@ -70,7 +70,7 @@ std::vector<Polygon3D> polygonize(std::vector<Triangle3D> const& triangles, Poly
   std::size_t n = face_indices->size();
   auto neighbor_refs = detail::build_neighbor_refs(face_indices->data()->data(), n);
 
-  std::vector<detail::MeshFaceView3D> faces;
+  std::vector<detail::MeshTriangleFaceView3D> faces;
   faces.reserve(n);
   for (std::size_t i = 0; i < n; ++i) {
     faces.emplace_back(vertices->data(), face_indices->data()->data(), neighbor_refs.data(), i);
@@ -239,7 +239,7 @@ std::vector<Polygon3D> merge(std::vector<Polygon3D> const& polygons) {
                        std::make_move_iterator(holes_2d.end()));
     auto pieces_2d = detail::package_result_rings(all_rings_2d);
 
-    detail::RingPiecesOf<detail::MeshFaceView3D> group_pieces3d;
+    detail::RingPiecesOf<detail::MeshTriangleFaceView3D> group_pieces3d;
     group_pieces3d.reserve(pieces_2d.size());
     for (auto& [outer2d, holes2d] : pieces_2d) {
       std::vector<Point3D> outer3d;

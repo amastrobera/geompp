@@ -2392,20 +2392,20 @@ TEST_F(CalcUtils2DTest, AssertAdjacency_NonManifoldViolation_Throws) {
 
 #pragma endregion
 
-#pragma region polygonization (MeshFaceView2D, partition_into_coplanar_clusters, cancel_reverse_pairs,
+#pragma region polygonization (MeshTriangleFaceView2D, partition_into_coplanar_clusters, cancel_reverse_pairs,
 // boundary_extraction_polygonization, polygonize_impl)
 
 namespace {
 
-// Bundles a MeshFaceView2D vector together with the shared_ptr buffers it points into, so the whole thing
-// can be kept alive as one RAII object in a test's local scope -- MeshFaceView2D is a non-owning raw-
+// Bundles a MeshTriangleFaceView2D vector together with the shared_ptr buffers it points into, so the whole thing
+// can be kept alive as one RAII object in a test's local scope -- MeshTriangleFaceView2D is a non-owning raw-
 // pointer view (same lifetime contract as ConnectedMesh2D::FaceView2D), so returning `.faces` alone from a
 // helper that let its own shared_ptr locals go out of scope would leave dangling pointers.
 struct FaceViewFixture2D {
   std::shared_ptr<std::vector<g::Point2D>> vertices;
   std::shared_ptr<std::vector<std::size_t>> tri_indices;
   std::shared_ptr<std::vector<std::array<gd::TriangleCompactNeighborRef, 3>>> neighbor_refs;
-  std::vector<gd::MeshFaceView2D> faces;
+  std::vector<gd::MeshTriangleFaceView2D> faces;
 
   static FaceViewFixture2D Build(std::vector<g::Triangle2D> const& triangles) {
     auto mesh_maker = gd::GridCellMapForConnectedMesh2D::Make(triangles);
@@ -2443,7 +2443,7 @@ std::vector<g::Triangle2D> BuildGridTriangles(int rows, int cols,
 
 }  // namespace
 
-TEST_F(CalcUtils2DTest, MeshFaceView2D_SharedEdgeSquare_NeighborsAcrossDiagonalOnly) {
+TEST_F(CalcUtils2DTest, MeshTriangleFaceView2D_SharedEdgeSquare_NeighborsAcrossDiagonalOnly) {
   auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
   ASSERT_EQ(fx.faces.size(), 2u);
 

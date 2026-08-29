@@ -32,8 +32,8 @@ geometry::Polygon2D transform(geometry::Polygon2D const& poly, maths::Matrix3 co
 
 inline namespace geometry {
 namespace detail {
-// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshFaceView2D> alias -- that
-// alias needs MeshFaceView2D's full definition to resolve, which would pull calc_utils/polygonization2d.hpp
+// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshTriangleFaceView2D> alias -- that
+// alias needs MeshTriangleFaceView2D's full definition to resolve, which would pull calc_utils/polygonization2d.hpp
 // in here and cycle straight back to this header) so Polygon2D can friend this exact overload below.
 // Packages polygonize()/merge()/Mesh2D::Polygonize()/ConnectedMesh2D::Polygonize()'s traced {outer, holes}
 // pieces into Polygon2D, WITHOUT running remove_collinear() on them first -- see this function's own doc

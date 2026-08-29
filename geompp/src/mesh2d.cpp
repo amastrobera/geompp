@@ -67,7 +67,7 @@ PolyMesh2D Mesh2D::Polygonize(PolygonizationParams const& params) const {
   std::size_t n = FACE_INDICES->size();
   auto neighbor_refs = detail::build_neighbor_refs(FACE_INDICES->data()->data(), n);
 
-  std::vector<detail::MeshFaceView2D> faces;
+  std::vector<detail::MeshTriangleFaceView2D> faces;
   faces.reserve(n);
   for (std::size_t i = 0; i < n; ++i) {
     faces.emplace_back(VERTICES->data(), FACE_INDICES->data()->data(), neighbor_refs.data(), i);

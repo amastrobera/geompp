@@ -28,7 +28,7 @@ concept PointContainer =
 /// @brief A non-owning, cheaply-copyable view over one facet of a welded triangle mesh, exposing its
 /// geometry and its precomputed edge-adjacency -- what calc_utils/polygonization2d.hpp's polygonize_impl
 /// and its strategy helpers (partition_into_coplanar_clusters, hertel_mehlhorn_polygonization, ...) are
-/// templated over. Modeled by detail::MeshFaceView2D/3D; ConnectedMesh2D/3D::Polygonize() and
+/// templated over. Modeled by detail::MeshTriangleFaceView2D/3D; ConnectedMesh2D/3D::Polygonize() and
 /// Mesh2D/3D::Polygonize() each build a vector of these directly over their own (already-welded, already
 /// index-adjacent) storage -- see calc_utils/polygonization2d.hpp's own docs for why no ConnectedMesh2D
 /// object needs to be constructed just to call Polygonize() on a Mesh2D.

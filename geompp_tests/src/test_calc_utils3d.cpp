@@ -695,17 +695,17 @@ TEST_F(CalcUtils3DTest, ToSegments_Square_ClosesRing) {
 
 #pragma endregion
 
-#pragma region polygonization (MeshFaceView3D, coplanarity gate, strategies, polygonize()/merge())
+#pragma region polygonization (MeshTriangleFaceView3D, coplanarity gate, strategies, polygonize()/merge())
 
 namespace {
 
-// Same bundling reasoning as test_calc_utils2d.cpp's FaceViewFixture2D: MeshFaceView3D is a non-owning
+// Same bundling reasoning as test_calc_utils2d.cpp's FaceViewFixture2D: MeshTriangleFaceView3D is a non-owning
 // raw-pointer view, so the backing shared_ptr buffers must be kept alive alongside it.
 struct FaceViewFixture3D {
   std::shared_ptr<std::vector<g::Point3D>> vertices;
   std::shared_ptr<std::vector<std::size_t>> tri_indices;
   std::shared_ptr<std::vector<std::array<gd::TriangleCompactNeighborRef, 3>>> neighbor_refs;
-  std::vector<gd::MeshFaceView3D> faces;
+  std::vector<gd::MeshTriangleFaceView3D> faces;
 
   static FaceViewFixture3D Build(std::vector<g::Triangle3D> const& triangles) {
     auto mesh_maker = gd::GridCellMapForConnectedMesh3D::Make(triangles);

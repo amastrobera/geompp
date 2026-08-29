@@ -75,7 +75,7 @@ PolyMesh2D ConnectedMesh2D::Polygonize(PolygonizationParams const& params) const
   // Wraps this mesh's own already-stored VERTICES/TRIANGLES/NEIGHBORS directly -- no adjacency-building
   // work of any kind, unlike Mesh2D::Polygonize() (which has to build a transient NEIGHBORS array first).
   std::size_t n = TRIANGLES->size() / 3;
-  std::vector<detail::MeshFaceView2D> faces;
+  std::vector<detail::MeshTriangleFaceView2D> faces;
   faces.reserve(n);
   for (std::size_t i = 0; i < n; ++i) {
     faces.emplace_back(VERTICES->data(), TRIANGLES->data(), NEIGHBORS->data(), i);

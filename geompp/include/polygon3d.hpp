@@ -33,7 +33,7 @@ geometry::Polygon3D transform(geometry::Polygon3D const& poly, maths::Matrix4 co
 
 inline namespace geometry {
 namespace detail {
-// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshFaceView3D> alias -- see
+// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshTriangleFaceView3D> alias -- see
 // polygon2d.hpp's identical forward declaration for why) so Polygon3D can friend this exact overload
 // below. 3D counterpart of Polygon2D's own polygons_from_pieces() -- see that one's doc comment.
 std::vector<Polygon3D> polygons_from_pieces(

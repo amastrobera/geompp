@@ -71,7 +71,7 @@ class Mesh3D {
   /// @note Deliberately does NOT go through Connect() -- see Mesh2D::Polygonize()'s own comment (same
   /// reasoning applies here verbatim). Builds only a transient per-facet NEIGHBORS array via
   /// detail::build_neighbor_refs() on FACE_INDICES directly, and wraps it together with the existing
-  /// VERTICES/FACE_INDICES buffers, unchanged, into the same detail::MeshFaceView3D view
+  /// VERTICES/FACE_INDICES buffers, unchanged, into the same detail::MeshTriangleFaceView3D view
   /// ConnectedMesh3D::Polygonize() uses.
   /// @param params Which polygonization strategy to run -- see PolygonizationParams::Strategy.
   /// @returns A PolyMesh3D of the merged polygon facets.

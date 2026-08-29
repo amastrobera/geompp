@@ -77,7 +77,7 @@ class Mesh2D {
   /// instead builds only the missing piece -- a transient per-facet NEIGHBORS array, via
   /// detail::build_neighbor_refs() on FACE_INDICES directly (already-welded indices in, pure index-hashmap
   /// math, O(n), no geometry) -- and wraps it together with the existing VERTICES/FACE_INDICES buffers,
-  /// unchanged, into the same detail::MeshFaceView2D view ConnectedMesh2D::Polygonize() uses.
+  /// unchanged, into the same detail::MeshTriangleFaceView2D view ConnectedMesh2D::Polygonize() uses.
   /// @param params Which polygonization strategy to run -- see PolygonizationParams::Strategy.
   /// @returns A PolyMesh2D of the merged polygon facets.
   /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.

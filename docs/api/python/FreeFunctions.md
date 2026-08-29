@@ -168,7 +168,7 @@ The free-function equivalent of [Mesh2D](Mesh2D.md)::FromTriangles(triangles).Po
 
 `polygonize(triangles: list[`[`Triangle3D`](Triangle3D.md)`], params: `[`PolygonizationParams`](PolygonizationParams.md)`) -> list[`[`Polygon3D`](Polygon3D.md)`]`
 
-3D counterpart of the [Triangle2D](Triangle2D.md) overload ( calc_utils/polygonization2d.hpp ) see its own docs for the shared machinery (welding, adjacency, detail::polygonize_impl<detail::MeshFaceView3D> , already extern-template-instantiated alongside the 2D version in polygonization2d.cpp/.hpp).
+3D counterpart of the [Triangle2D](Triangle2D.md) overload ( calc_utils/polygonization2d.hpp ) see its own docs for the shared machinery (welding, adjacency, detail::polygonize_impl<detail::MeshTriangleFaceView3D> , already extern-template-instantiated alongside the 2D version in polygonization2d.cpp/.hpp).
 
 **Parameters**
 

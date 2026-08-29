@@ -20,19 +20,19 @@ inline namespace geometry {
 
 namespace detail {
 
-Triangle2D MeshFaceView2D::Geometry() const {
+Triangle2D MeshTriangleFaceView2D::Geometry() const {
   return Triangle2D::Make(m_vertices[VertexIndex(0)], m_vertices[VertexIndex(1)], m_vertices[VertexIndex(2)]);
 }
 
-std::optional<MeshFaceView2D> MeshFaceView2D::Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const {
+std::optional<MeshTriangleFaceView2D> MeshTriangleFaceView2D::Neighbor(TriangleCompactNeighborRef::TriangleEdge edge) const {
   auto const& ref = m_neighbor_base[m_face_id][static_cast<std::uint32_t>(edge)];
   if (ref.is_boundary()) {
     return std::nullopt;
   }
-  return MeshFaceView2D(m_vertices, m_face_index_base, m_neighbor_base, ref.triangle_id());
+  return MeshTriangleFaceView2D(m_vertices, m_face_index_base, m_neighbor_base, ref.triangle_id());
 }
 
-TriangleCompactNeighborRef::TriangleEdge MeshFaceView2D::NeighborEntryEdge(
+TriangleCompactNeighborRef::TriangleEdge MeshTriangleFaceView2D::NeighborEntryEdge(
     TriangleCompactNeighborRef::TriangleEdge edge) const {
   auto const& ref = m_neighbor_base[m_face_id][static_cast<std::uint32_t>(edge)];
   if (ref.is_boundary()) {
@@ -312,8 +312,8 @@ std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vect
   return clusters;
 }
 
-template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<MeshFaceView2D> const&);
-template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<MeshFaceView3D> const&);
+template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<MeshTriangleFaceView2D> const&);
+template std::vector<std::vector<std::size_t>> partition_into_coplanar_clusters(std::vector<MeshTriangleFaceView3D> const&);
 
 std::vector<LineSegment2D> cancel_reverse_pairs(std::vector<LineSegment2D> const& edges) {
   // How many times each directed edge occurs.
@@ -381,10 +381,10 @@ RingPiecesOf<FaceViewT> boundary_extraction_polygonization(std::vector<FaceViewT
   return result;
 }
 
-template RingPiecesOf<MeshFaceView2D> boundary_extraction_polygonization(
-    std::vector<MeshFaceView2D> const&, std::vector<std::vector<std::size_t>> const&);
-template RingPiecesOf<MeshFaceView3D> boundary_extraction_polygonization(
-    std::vector<MeshFaceView3D> const&, std::vector<std::vector<std::size_t>> const&);
+template RingPiecesOf<MeshTriangleFaceView2D> boundary_extraction_polygonization(
+    std::vector<MeshTriangleFaceView2D> const&, std::vector<std::vector<std::size_t>> const&);
+template RingPiecesOf<MeshTriangleFaceView3D> boundary_extraction_polygonization(
+    std::vector<MeshTriangleFaceView3D> const&, std::vector<std::vector<std::size_t>> const&);
 
 template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> const& faces,
@@ -478,10 +478,10 @@ RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> co
   return result;
 }
 
-template RingPiecesOf<MeshFaceView2D> hertel_mehlhorn_polygonization(
-    std::vector<MeshFaceView2D> const&, std::vector<std::vector<std::size_t>> const&);
-template RingPiecesOf<MeshFaceView3D> hertel_mehlhorn_polygonization(
-    std::vector<MeshFaceView3D> const&, std::vector<std::vector<std::size_t>> const&);
+template RingPiecesOf<MeshTriangleFaceView2D> hertel_mehlhorn_polygonization(
+    std::vector<MeshTriangleFaceView2D> const&, std::vector<std::vector<std::size_t>> const&);
+template RingPiecesOf<MeshTriangleFaceView3D> hertel_mehlhorn_polygonization(
+    std::vector<MeshTriangleFaceView3D> const&, std::vector<std::vector<std::size_t>> const&);
 
 template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> quad_only_polygonization(std::vector<FaceViewT> const& faces,
@@ -551,9 +551,9 @@ RingPiecesOf<FaceViewT> quad_only_polygonization(std::vector<FaceViewT> const& f
   return result;
 }
 
-template RingPiecesOf<MeshFaceView2D> quad_only_polygonization(std::vector<MeshFaceView2D> const&,
+template RingPiecesOf<MeshTriangleFaceView2D> quad_only_polygonization(std::vector<MeshTriangleFaceView2D> const&,
                                                                 std::vector<std::vector<std::size_t>> const&);
-template RingPiecesOf<MeshFaceView3D> quad_only_polygonization(std::vector<MeshFaceView3D> const&,
+template RingPiecesOf<MeshTriangleFaceView3D> quad_only_polygonization(std::vector<MeshTriangleFaceView3D> const&,
                                                                 std::vector<std::vector<std::size_t>> const&);
 
 template <TriangleFaceView FaceViewT>
@@ -571,12 +571,12 @@ RingPiecesOf<FaceViewT> polygonize_impl(std::vector<FaceViewT> const& faces, Pol
   throw std::invalid_argument("polygonize: unknown PolygonizationParams::Strategy");
 }
 
-template RingPiecesOf<MeshFaceView2D> polygonize_impl(std::vector<MeshFaceView2D> const&,
+template RingPiecesOf<MeshTriangleFaceView2D> polygonize_impl(std::vector<MeshTriangleFaceView2D> const&,
                                                        PolygonizationParams const&);
-template RingPiecesOf<MeshFaceView3D> polygonize_impl(std::vector<MeshFaceView3D> const&,
+template RingPiecesOf<MeshTriangleFaceView3D> polygonize_impl(std::vector<MeshTriangleFaceView3D> const&,
                                                        PolygonizationParams const&);
 
-std::vector<Polygon2D> polygons_from_pieces(RingPiecesOf<MeshFaceView2D> pieces) {
+std::vector<Polygon2D> polygons_from_pieces(RingPiecesOf<MeshTriangleFaceView2D> pieces) {
   std::vector<Polygon2D> result;
   result.reserve(pieces.size());
   for (auto& [outer, holes] : pieces) {
@@ -603,7 +603,7 @@ std::vector<Polygon2D> polygonize(std::vector<Triangle2D> const& triangles, Poly
   std::size_t n = face_indices->size();
   auto neighbor_refs = detail::build_neighbor_refs(face_indices->data()->data(), n);
 
-  std::vector<detail::MeshFaceView2D> faces;
+  std::vector<detail::MeshTriangleFaceView2D> faces;
   faces.reserve(n);
   for (std::size_t i = 0; i < n; ++i) {
     faces.emplace_back(vertices->data(), face_indices->data()->data(), neighbor_refs.data(), i);
