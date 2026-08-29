@@ -83,7 +83,7 @@ PolyMesh2D ConnectedMesh2D::Polygonize(PolygonizationParams const& params) const
 
   auto pieces = detail::polygonize_impl(faces, params);
   auto polygons = detail::polygons_from_pieces(std::move(pieces));
-  return PolyMesh2D::FromPolygons(polygons);
+  return PolyMesh2D::FromPolygons(polygons, params.conformity);
 }
 
 Mesh2D ConnectedMesh2D::Disconnect() const {

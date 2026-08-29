@@ -84,7 +84,7 @@ PolyMesh3D ConnectedMesh3D::Polygonize(PolygonizationParams const& params) const
 
   auto pieces = detail::polygonize_impl(faces, params);
   auto polygons = detail::polygons_from_pieces(std::move(pieces));
-  return PolyMesh3D::FromPolygons(polygons);
+  return PolyMesh3D::FromPolygons(polygons, params.conformity);
 }
 
 Mesh3D ConnectedMesh3D::Disconnect() const {

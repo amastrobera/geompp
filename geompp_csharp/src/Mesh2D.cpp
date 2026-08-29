@@ -19,11 +19,16 @@ Mesh2D::!Mesh2D() {
 }
 
 Mesh2D^ Mesh2D::FromTriangles(array<Triangle2D^>^ triangles) {
+    return FromTriangles(triangles, AdjacencyConformity::Assert);
+}
+
+Mesh2D^ Mesh2D::FromTriangles(array<Triangle2D^>^ triangles, AdjacencyConformity conformity) {
     std::vector<geompp::Triangle2D> nativeTriangles;
     nativeTriangles.reserve(triangles->Length);
     for each (Triangle2D^ t in triangles)
         nativeTriangles.push_back(*t->_native);
-    return gcnew Mesh2D(new geompp::Mesh2D(geompp::Mesh2D::FromTriangles(nativeTriangles)));
+    auto nativeConformity = static_cast<geompp::AdjacencyConformity>(conformity);
+    return gcnew Mesh2D(new geompp::Mesh2D(geompp::Mesh2D::FromTriangles(nativeTriangles, nativeConformity)));
 }
 
 int Mesh2D::Size() {

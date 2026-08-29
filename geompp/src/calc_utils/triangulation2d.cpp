@@ -1001,7 +1001,7 @@ std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets) {
 
 std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, TriangulationParams const& settings) {
   switch (settings.conformity) {
-    case TriangulationParams::AdjacencyConformity::Guaranteed: {
+    case AdjacencyConformity::Guaranteed: {
       std::vector<Triangle2D> result;
       for (auto const& poly : polygons) {
         auto tris = triangulate(poly.Perimeter(), settings);
@@ -1009,7 +1009,7 @@ std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, Tria
       }
       return result;
     }
-    case TriangulationParams::AdjacencyConformity::Assert: {
+    case AdjacencyConformity::Assert: {
       auto violations = validate_adjacency(polygons);
       if (!violations.empty()) {
         auto const& v = violations.front();
@@ -1026,7 +1026,7 @@ std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, Tria
       }
       return result;
     }
-    case TriangulationParams::AdjacencyConformity::Enforce: {
+    case AdjacencyConformity::Enforce: {
       // fix_adjacency() now actually splits a coarse facet via a diagonal cut per T-junction vertex
       // (§10.5), rather than just splicing a flat vertex into its ring, so every returned ring is
       // already a simple polygon with no leftover collinear points -- no need to force

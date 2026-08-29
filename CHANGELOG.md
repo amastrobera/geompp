@@ -11,6 +11,39 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.20.0] - 2026-08-30
+
+> `AdjacencyConformity` is now a standalone enum shared by `PolygonizationParams` (new `conformity`
+> field) and `TriangulationParams` (unchanged behavior), and `Mesh2D/3D::FromTriangles()`/
+> `PolyMesh2D/3D::FromPolygons()` each gain their own `conformity` parameter — `Enforce` auto-repairs
+> a T-junction via `fix_adjacency()` instead of throwing, `Guaranteed` skips the check.
+
+### Added
+
+**C++ core**
+- `AdjacencyConformity` (`constants.hpp`) — standalone `enum class` (`Guaranteed`/`Assert`/`Enforce`),
+  promoted out of `TriangulationParams` so it can be shared by `PolygonizationParams::conformity` (new
+  field, default `Assert`) without a cross-struct nested-type reference.
+- `Mesh2D/3D::Polygonize()` / `ConnectedMesh2D/3D::Polygonize()` now thread `params.conformity` into
+  their final `PolyMesh2D/3D::FromPolygons()` call, instead of always hard-`Assert`ing.
+- `Mesh2D/3D::FromTriangles(triangles, conformity = AdjacencyConformity::Assert)` /
+  `PolyMesh2D/3D::FromPolygons(polygons, conformity = AdjacencyConformity::Assert)` — new trailing
+  parameter, independent of either settings struct. `Enforce` calls `fix_adjacency()` first, then
+  rebuilds via the collinear-preserving `FromUniquePoints()` (not the public `Make()`, which would
+  strip a load-bearing collinear vertex needed by an untouched neighboring facet); `PolyMesh2D/3D`'s
+  `Enforce` additionally throws on any holed input polygon, since `fix_adjacency()` only round-trips
+  through each facet's outer `Perimeter()`.
+
+**Python bindings**
+- `PolygonizationParams(strategy, conformity)` constructor arg + read-write `.conformity` property.
+- `conformity` parameter on `Mesh2D/3D.from_triangles()` / `PolyMesh2D/3D.from_polygons()`.
+
+**C# bindings**
+- `PolygonizationParams(strategy, conformity)` constructor overload + read-write `.Conformity` property.
+- `conformity` overload on `Mesh2D/3D.FromTriangles()` / `PolyMesh2D/3D.FromPolygons()`.
+
+---
+
 ## [0.19.0] - 2026-08-27
 
 > `TransformBuilder2D`/`TransformBuilder3D` gain `Apply(shape)` — a one-step shorthand for

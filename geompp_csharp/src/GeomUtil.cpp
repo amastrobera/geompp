@@ -399,17 +399,23 @@ geompp::TriangulationParams TriangulationParams::ToNative() {
     native.simplicity = static_cast<geompp::TriangulationParams::Simplicity>(_simplicity);
     native.ccw_winding = static_cast<geompp::TriangulationParams::Winding>(_ccwWinding);
     native.collinearity = static_cast<geompp::TriangulationParams::Collinearity>(_collinearity);
-    native.conformity = static_cast<geompp::TriangulationParams::AdjacencyConformity>(_conformity);
+    native.conformity = static_cast<geompp::AdjacencyConformity>(_conformity);
     return native;
 }
 
-PolygonizationParams::PolygonizationParams() : _strategy(PolygonizationStrategy::HertelMehlhorn) {}
+PolygonizationParams::PolygonizationParams()
+    : _strategy(PolygonizationStrategy::HertelMehlhorn), _conformity(AdjacencyConformity::Assert) {}
 
-PolygonizationParams::PolygonizationParams(PolygonizationStrategy strategy) : _strategy(strategy) {}
+PolygonizationParams::PolygonizationParams(PolygonizationStrategy strategy)
+    : _strategy(strategy), _conformity(AdjacencyConformity::Assert) {}
+
+PolygonizationParams::PolygonizationParams(PolygonizationStrategy strategy, AdjacencyConformity conformity)
+    : _strategy(strategy), _conformity(conformity) {}
 
 geompp::PolygonizationParams PolygonizationParams::ToNative() {
     geompp::PolygonizationParams native;
     native.strategy = static_cast<geompp::PolygonizationParams::Strategy>(_strategy);
+    native.conformity = static_cast<geompp::AdjacencyConformity>(_conformity);
     return native;
 }
 

@@ -34,6 +34,44 @@ public static class PolygonizeTests {
       IsTrue(new PolygonizationParams().Strategy == PolygonizationStrategy.HertelMehlhorn);
     });
 
+    Test("PolygonizationParams_DefaultConformityIsAssert", () => {
+      IsTrue(new PolygonizationParams().Conformity == AdjacencyConformity.Assert);
+    });
+
+    Test("PolygonizationParams_ConformityConstructorArgAndReadWriteProperty", () => {
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn, AdjacencyConformity.Enforce);
+      IsTrue(settings.Conformity == AdjacencyConformity.Enforce);
+      settings.Conformity = AdjacencyConformity.Guaranteed;
+      IsTrue(settings.Conformity == AdjacencyConformity.Guaranteed);
+    });
+
+    Test("Mesh2D_Polygonize_LShapePlusSpikes_HertelMehlhorn_AgreesAcrossEveryConformityMode", () => {
+      // polygonize_impl's own seam-collapse logic already keeps HertelMehlhorn's output provably
+      // conformant by construction here, so Assert/Guaranteed/Enforce must all produce the exact same
+      // 3-piece split -- Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
+      var p00 = new Point2D(0, 0); var p10 = new Point2D(1, 0); var p11 = new Point2D(1, 1); var p01 = new Point2D(0, 1);
+      var p20 = new Point2D(2, 0); var p21 = new Point2D(2, 1); var p22 = new Point2D(2, 2); var p12 = new Point2D(1, 2);
+      var p15 = new Point2D(1.5, -0.5); var pspike = new Point2D(2.5, 1.5);
+      var mesh = Mesh2D.FromTriangles(new[] {
+        Triangle2D.Make(p00, p10, p11), Triangle2D.Make(p00, p11, p01),
+        Triangle2D.Make(p10, p21, p11), Triangle2D.Make(p10, p20, p21),
+        Triangle2D.Make(p10, p15, p20),
+        Triangle2D.Make(p11, p21, p22), Triangle2D.Make(p11, p22, p12),
+        Triangle2D.Make(p21, pspike, p22),
+      });
+
+      string[]? first = null;
+      foreach (var conformity in new[] { AdjacencyConformity.Enforce, AdjacencyConformity.Guaranteed, AdjacencyConformity.Assert }) {
+        var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn, conformity);
+        var polyMesh = mesh.Polygonize(settings);
+        var wkts = new string[polyMesh.Size()];
+        for (int i = 0; i < polyMesh.Size(); i++) wkts[i] = polyMesh[i].ToWkt();
+        if (first == null) { first = wkts; }
+        else { for (int i = 0; i < first.Length; i++) IsTrue(first[i] == wkts[i], $"conformity {conformity} disagreed with Enforce at piece {i}"); }
+      }
+      IsTrue(first != null && first.Length == 3, "expected 3 HertelMehlhorn pieces");
+    });
+
     Test("GeomUtil_Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad", () => {
       var polys = GeomUtil.Polygonize(GridTriangles(1, 1).ToArray(), new PolygonizationParams());
       Eq(1, CountOf(polys), 0);

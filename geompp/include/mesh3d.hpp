@@ -27,6 +27,9 @@ class Mesh3D {
   /// @brief Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid
   /// cell (see @ref GridCell3D) into a single shared vertex.
   /// @param triangles The triangles to weld into a mesh. Order is not required to reflect adjacency.
+  /// @param conformity decides how to handle input that doesn't make a valid adjacency (default to
+  ///       Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via
+  ///       fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
   /// @return A mesh whose vertex count is ≤ 3 * triangles.size() (fewer once shared vertices are welded).
   /// @throws std::invalid_argument if @p triangles is empty.
   /// @note Vertex welding uses `DOUBLE_EPSILON` (which tracks the same thread-local `DECIMAL_PRECISION`
@@ -35,7 +38,8 @@ class Mesh3D {
   /// `sqrt(3) * epsilon` apart, and two points within `epsilon` of each other but on opposite sides of a
   /// cell boundary are kept distinct. This trades exactness for O(1) average welding per vertex instead
   /// of an O(n) `AlmostEquals` scan against every prior unique vertex.
-  static Mesh3D FromTriangles(std::vector<Triangle3D> const& triangles);
+  static Mesh3D FromTriangles(std::vector<Triangle3D> const& triangles,
+                              AdjacencyConformity conformity = AdjacencyConformity::Assert);
 
   Mesh3D(Mesh3D const&) = default;
   Mesh3D(Mesh3D&&) = default;

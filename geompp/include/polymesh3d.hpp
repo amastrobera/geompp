@@ -25,6 +25,9 @@ class PolyMesh3D {
   /// @brief Builds a mesh from a set of (hole-free) polygons, welding vertices that land in the same
   /// spatial grid cell (see @ref GridCell3D) into a single shared vertex.
   /// @param polygons The polygon faces to weld into a mesh. Order is not required to reflect adjacency.
+  /// @param conformity decides how to handle input that doesn't make a valid adjacency (default to
+  ///       Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via
+  ///       fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
   /// @return A mesh whose vertex count is ≤ the sum of every polygon's `Size()` (fewer once shared
   /// vertices are welded).
   /// @throws std::invalid_argument if @p polygons is empty, or if any polygon has one or more holes.
@@ -34,7 +37,8 @@ class PolyMesh3D {
   /// `sqrt(3) * epsilon` apart, and two points within `epsilon` of each other but on opposite sides of a
   /// cell boundary are kept distinct. This trades exactness for O(1) average welding per vertex instead
   /// of an O(n) `AlmostEquals` scan against every prior unique vertex.
-  static PolyMesh3D FromPolygons(std::vector<Polygon3D> const& polygons);
+  static PolyMesh3D FromPolygons(std::vector<Polygon3D> const& polygons,
+                                 AdjacencyConformity conformity = AdjacencyConformity::Assert);
 
   PolyMesh3D(PolyMesh3D const&) = default;
   PolyMesh3D(PolyMesh3D&&) = default;

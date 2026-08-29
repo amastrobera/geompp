@@ -48,6 +48,46 @@ TEST_F(PolyMesh2DTest, FromPolygons_PolygonWithHoles_Throws) {
   EXPECT_THROW(g::PolyMesh2D::FromPolygons({outer}), std::invalid_argument);
 }
 
+TEST_F(PolyMesh2DTest, FromPolygons_TJunction_Enforce_SplitsAndWeldsSuccessfully) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+  double area_before = p0.Area() + p1.Area() + roof.Area();
+
+  auto mesh = g::PolyMesh2D::FromPolygons({p0, p1, roof}, g::AdjacencyConformity::Enforce);
+
+  EXPECT_EQ(4u, mesh.Size());  // p0, p1 pass through unchanged, roof splits into 2
+  EXPECT_NEAR(area_before, mesh.Area(), 1e-9);
+}
+
+TEST_F(PolyMesh2DTest, FromPolygons_TJunction_Guaranteed_SkipsCheckAndSucceeds) {
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
+  EXPECT_NO_THROW(g::PolyMesh2D::FromPolygons({p0, p1, roof}, g::AdjacencyConformity::Guaranteed));
+}
+
+TEST_F(PolyMesh2DTest, FromPolygons_MultipleTJunctionsOnOneEdge_Enforce_SplitsIntoSeveralFacetsAndWelds) {
+  // 3 foreign vertices ((0,0),(1,0),(2,0)) land on the wide base's single top edge -- each cuts its own
+  // diagonal, carving the base into 4 pieces instead of leaving one facet with a bad edge.
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto base =
+      g::Polygon2D::Make({g::Point2D(-0.5, -1.2), g::Point2D(2.5, -1.2), g::Point2D(2.5, 0), g::Point2D(-0.5, 0)});
+  double area_before = p0.Area() + p1.Area() + base.Area();
+
+  auto mesh = g::PolyMesh2D::FromPolygons({base, p0, p1}, g::AdjacencyConformity::Enforce);
+
+  EXPECT_EQ(6u, mesh.Size());  // base -> 4 strips, p0/p1 pass through unchanged (2)
+  EXPECT_NEAR(area_before, mesh.Area(), 1e-9);
+}
+
+TEST_F(PolyMesh2DTest, FromPolygons_PolygonWithHoles_Enforce_Throws) {
+  auto outer = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 4), g::Point2D(0, 4)},
+                                   {{g::Point2D(1, 1), g::Point2D(1, 2), g::Point2D(2, 2), g::Point2D(2, 1)}});
+  EXPECT_THROW(g::PolyMesh2D::FromPolygons({outer}, g::AdjacencyConformity::Enforce), std::invalid_argument);
+}
+
 TEST_F(PolyMesh2DTest, FromPolygons_SingleQuad) {
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   auto mesh = g::PolyMesh2D::FromPolygons({p});

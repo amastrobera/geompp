@@ -6,15 +6,14 @@ Each facet has no holes.
 
 ## `FromPolygons`
 
-**static** `PolyMesh2D^ FromPolygons(std::vector< `[`Polygon2D`](Polygon2D.md)` > polygons)`
+**static** `PolyMesh2D^ FromPolygons(std::vector< `[`Polygon2D`](Polygon2D.md)` > polygons, AdjacencyConformity^ conformity)`
 
 Builds a mesh from a set of (hole-free) polygons, welding vertices that land in the same spatial grid cell (see [GridCell2D](GridCell2D.md) ) into a single shared vertex.
 
 **Parameters**
 
 - `polygons` (std::vector< [`Polygon2D`](Polygon2D.md) >) — The polygon faces to weld into a mesh. Order is not required to reflect adjacency.
-
-**Returns** — A mesh whose vertex count is ≤ the sum of every polygon's Size() (fewer once shared vertices are welded).
+- `conformity` (`AdjacencyConformity^`) — decides how to handle input that doesn't make a valid adjacency (default to Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
 
 ## `FromWkt`
 

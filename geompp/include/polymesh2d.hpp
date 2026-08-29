@@ -23,18 +23,20 @@ class Mesh2D;
 class PolyMesh2D {
  public:
   /// @brief Builds a mesh from a set of (hole-free) polygons, welding vertices that land in the same
-  /// spatial grid cell (see @ref GridCell2D) into a single shared vertex.
+  ///        spatial grid cell (see @ref GridCell2D) into a single shared vertex.
   /// @param polygons The polygon faces to weld into a mesh. Order is not required to reflect adjacency.
-  /// @return A mesh whose vertex count is ≤ the sum of every polygon's `Size()` (fewer once shared
-  /// vertices are welded).
+  /// @param conformity decides how to handle input that doesn't make a valid adjacency (default to
+  ///       Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via
+  ///       fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
   /// @throws std::invalid_argument if @p polygons is empty, or if any polygon has one or more holes.
   /// @note Vertex welding uses `DOUBLE_EPSILON` (which tracks the same thread-local `DECIMAL_PRECISION`
-  /// as `AlmostEquals`) but compares points via grid-cell floor-bucketing rather than a direct pairwise
-  /// distance check: two points that fall in the same cell are welded even if they're up to
-  /// `sqrt(2) * epsilon` apart, and two points within `epsilon` of each other but on opposite sides of a
-  /// cell boundary are kept distinct. This trades exactness for O(1) average welding per vertex instead
-  /// of an O(n) `AlmostEquals` scan against every prior unique vertex.
-  static PolyMesh2D FromPolygons(std::vector<Polygon2D> const& polygons);
+  ///       as `AlmostEquals`) but compares points via grid-cell floor-bucketing rather than a direct pairwise
+  ///       distance check: two points that fall in the same cell are welded even if they're up to
+  ///       `sqrt(2) * epsilon` apart, and two points within `epsilon` of each other but on opposite sides of a
+  ///       cell boundary are kept distinct. This trades exactness for O(1) average welding per vertex instead
+  ///       of an O(n) `AlmostEquals` scan against every prior unique vertex.
+  static PolyMesh2D FromPolygons(std::vector<Polygon2D> const& polygons,
+                                 AdjacencyConformity conformity = AdjacencyConformity::Assert);
 
   PolyMesh2D(PolyMesh2D const&) = default;
   PolyMesh2D(PolyMesh2D&&) = default;

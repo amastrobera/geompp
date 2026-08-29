@@ -1893,7 +1893,7 @@ TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_Assert_ThrowsOnTJunction) {
   auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
 
   g::TriangulationParams assert_conformity;
-  assert_conformity.conformity = g::TriangulationParams::AdjacencyConformity::Assert;
+  assert_conformity.conformity = g::AdjacencyConformity::Assert;
   EXPECT_THROW(g::triangulate(std::vector<g::Polygon2D>{p0, p1, roof}, assert_conformity), std::invalid_argument);
 }
 
@@ -1903,7 +1903,7 @@ TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_Guaranteed_SkipsCheckAndStil
   auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
 
   g::TriangulationParams guaranteed_conformity;
-  guaranteed_conformity.conformity = g::TriangulationParams::AdjacencyConformity::Guaranteed;
+  guaranteed_conformity.conformity = g::AdjacencyConformity::Guaranteed;
   auto triangles = g::triangulate(std::vector<g::Polygon2D>{p0, p1, roof}, guaranteed_conformity);
 
   double total_area = 0.0;

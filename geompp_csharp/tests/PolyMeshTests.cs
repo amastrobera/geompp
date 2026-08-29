@@ -45,6 +45,37 @@ public static class PolyMeshTests {
       IsTrue(threw, "expected a T-junction to throw");
     });
 
+    Test("PolyMesh2D_FromPolygons_TJunction_Enforce_SplitsAndWelds", () => {
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
+      double areaBefore = p0.Area() + p1.Area() + roof.Area();
+
+      var mesh = PolyMesh2D.FromPolygons(new[] { p0, p1, roof }, AdjacencyConformity.Enforce);
+
+      Eq(4, mesh.Size(), 0);  // p0, p1 pass through unchanged, roof splits into 2
+      Eq(areaBefore, mesh.Area());
+    });
+
+    Test("PolyMesh2D_FromPolygons_TJunction_Guaranteed_SkipsCheckAndSucceeds", () => {
+      var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var roof = Polygon2D.Make(new Point2D[] { new(0, 1), new(2, 1), new(1, 2) });
+      PolyMesh2D.FromPolygons(new[] { p0, p1, roof }, AdjacencyConformity.Guaranteed);  // must not throw
+    });
+
+    Test("PolyMesh2D_FromPolygons_WithHoles_Enforce_Throws", () => {
+      // FixAdjacency() only round-trips through each facet's outer perimeter -- a hole would
+      // otherwise be silently dropped rather than throwing, so Enforce rejects it outright instead.
+      var outer = Polygon2D.Make(
+        new Point2D[] { new(0, 0), new(4, 0), new(4, 4), new(0, 4) },
+        new Point2D[][] { new Point2D[] { new(1, 1), new(1, 2), new(2, 2), new(2, 1) } });
+      bool threw = false;
+      try { PolyMesh2D.FromPolygons(new[] { outer }, AdjacencyConformity.Enforce); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected polygon with holes under Enforce to throw");
+    });
+
     Test("PolyMesh2D_FromPolygons_SingleQuad", () => {
       var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
       var mesh = PolyMesh2D.FromPolygons(new[] { p });
@@ -97,6 +128,35 @@ public static class PolyMeshTests {
       try { PolyMesh3D.FromPolygons(new[] { p0, p1, roof }); }
       catch (Exception) { threw = true; }
       IsTrue(threw, "expected a T-junction to throw");
+    });
+
+    Test("PolyMesh3D_FromPolygons_TJunction_Enforce_SplitsAndWelds", () => {
+      var p0 = Polygon3D.Make(new Point3D[] { new(0, 0, 1), new(1, 0, 1), new(1, 0, 0), new(0, 0, 0) });
+      var p1 = Polygon3D.Make(new Point3D[] { new(1, 0, 1), new(2, 0, 1), new(2, 0, 0), new(1, 0, 0) });
+      var roof = Polygon3D.Make(new Point3D[] { new(1, 0, 2), new(2, 0, 1), new(0, 0, 1) });
+      double areaBefore = p0.Area() + p1.Area() + roof.Area();
+
+      var mesh = PolyMesh3D.FromPolygons(new[] { p0, p1, roof }, AdjacencyConformity.Enforce);
+
+      Eq(4, mesh.Size(), 0);
+      Eq(areaBefore, mesh.Area());
+    });
+
+    Test("PolyMesh3D_FromPolygons_TJunction_Guaranteed_SkipsCheckAndSucceeds", () => {
+      var p0 = Polygon3D.Make(new Point3D[] { new(0, 0, 1), new(1, 0, 1), new(1, 0, 0), new(0, 0, 0) });
+      var p1 = Polygon3D.Make(new Point3D[] { new(1, 0, 1), new(2, 0, 1), new(2, 0, 0), new(1, 0, 0) });
+      var roof = Polygon3D.Make(new Point3D[] { new(1, 0, 2), new(2, 0, 1), new(0, 0, 1) });
+      PolyMesh3D.FromPolygons(new[] { p0, p1, roof }, AdjacencyConformity.Guaranteed);  // must not throw
+    });
+
+    Test("PolyMesh3D_FromPolygons_WithHoles_Enforce_Throws", () => {
+      var outer = Polygon3D.Make(
+        new Point3D[] { new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0) },
+        new Point3D[][] { new Point3D[] { new(1, 1, 0), new(1, 2, 0), new(2, 2, 0), new(2, 1, 0) } });
+      bool threw = false;
+      try { PolyMesh3D.FromPolygons(new[] { outer }, AdjacencyConformity.Enforce); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected polygon with holes under Enforce to throw");
     });
 
     Test("PolyMesh3D_FromPolygons_SharedEdge_WeldsAndPreservesFaces", () => {

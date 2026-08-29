@@ -24,17 +24,51 @@ namespace geompp {
 
 inline namespace geometry {
 
-PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons) {
-  // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
-  // adjacency is treated as invalid caller input here, never silently repaired.
-  detail::assert_adjacency(validate_adjacency(polygons));
+PolyMesh3D PolyMesh3D::FromPolygons(std::vector<Polygon3D> const& polygons, AdjacencyConformity conformity) {
+  std::vector<Polygon3D> const* to_weld = &polygons;
+  std::vector<Polygon3D> fixed;
+  switch (conformity) {
+    case AdjacencyConformity::Guaranteed:
+      break;
+    case AdjacencyConformity::Assert:
+      // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
+      // adjacency is treated as invalid caller input here, never silently repaired.
+      detail::assert_adjacency(validate_adjacency(polygons));
+      break;
+    case AdjacencyConformity::Enforce: {
+      for (auto const& p : polygons) {
+        if (p.HasHoles()) {
+          throw std::invalid_argument(
+              "PolyMesh3D::FromPolygons: cannot auto-repair adjacency across a holed polygon -- "
+              "fix_adjacency() only round-trips through each facet's outer Perimeter()");
+        }
+      }
+      // A facet fix_adjacency() didn't need to touch passes straight through in its returned rings --
+      // including any facet that only exists to keep a currently-uninvolved neighbor conformant, via a
+      // vertex that's collinear on ITS OWN ring but is that neighbor's genuine corner (the same reason
+      // Mesh3D::Polygonize()'s own output preserves such vertices -- see polygons_from_pieces()). Public
+      // Make()'s remove_collinear() has no visibility into that neighbor's needs, so it would silently
+      // strip such a vertex back out and reintroduce the exact T-junction being fixed elsewhere in this
+      // same call. FromUniquePoints() (PolyMesh3D is already a friend, same grant operator[] uses) skips
+      // that strip while still recomputing planarity/convexity.
+      auto fixed_rings = fix_adjacency(polygons);
+      fixed.reserve(fixed_rings.size());
+      for (auto& ring : fixed_rings) {
+        fixed.push_back(Polygon3D::FromUniquePoints(std::move(ring)));
+      }
+      to_weld = &fixed;
+      break;
+    }
+    default:
+      throw std::invalid_argument("PolyMesh3D::FromPolygons: unknown adjacency conformity");
+  }
 
   // GridCellMapForPolyMesh3D::Make() throws std::invalid_argument if polygons is empty or holed.
-  auto mesh_maker = detail::GridCellMapForPolyMesh3D::Make(polygons);
+  auto mesh_maker = detail::GridCellMapForPolyMesh3D::Make(*to_weld);
 
   // compute and save area
   double area = 0;
-  for (auto const& p : polygons) {
+  for (auto const& p : *to_weld) {
     area += p.Area();
   }
 

@@ -17,11 +17,16 @@ PolyMesh2D::!PolyMesh2D() {
 }
 
 PolyMesh2D^ PolyMesh2D::FromPolygons(array<Polygon2D^>^ polygons) {
+    return FromPolygons(polygons, AdjacencyConformity::Assert);
+}
+
+PolyMesh2D^ PolyMesh2D::FromPolygons(array<Polygon2D^>^ polygons, AdjacencyConformity conformity) {
     std::vector<geompp::Polygon2D> nativePolygons;
     nativePolygons.reserve(polygons->Length);
     for each (Polygon2D^ p in polygons)
         nativePolygons.push_back(*p->_native);
-    return gcnew PolyMesh2D(new geompp::PolyMesh2D(geompp::PolyMesh2D::FromPolygons(nativePolygons)));
+    auto nativeConformity = static_cast<geompp::AdjacencyConformity>(conformity);
+    return gcnew PolyMesh2D(new geompp::PolyMesh2D(geompp::PolyMesh2D::FromPolygons(nativePolygons, nativeConformity)));
 }
 
 int PolyMesh2D::Size() {

@@ -5,10 +5,15 @@ void bind_mesh3d(py::module_& m) {
         "A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple. "
         "No adjacency structure is stored to find a face's neighbors.")
         .def_static("from_triangles",
-             [](const std::vector<geompp::Triangle3D>& triangles) { return geompp::Mesh3D::FromTriangles(triangles); },
-             "triangles"_a,
+             [](const std::vector<geompp::Triangle3D>& triangles, geompp::AdjacencyConformity conformity) {
+                 return geompp::Mesh3D::FromTriangles(triangles, conformity);
+             },
+             "triangles"_a, "conformity"_a = geompp::AdjacencyConformity::Assert,
              "Builds a mesh from a set of triangles, welding vertices that land in the same spatial "
-             "grid cell into a single shared vertex.")
+             "grid cell into a single shared vertex. conformity (see AdjacencyConformity) decides how "
+             "a mesh-conformity violation (a T-junction or non-manifold edge) is handled: Assert "
+             "(default) raises, Enforce auto-repairs every T-junction via fix_adjacency(), Guaranteed "
+             "skips the check.")
         .def(py::init<const geompp::Mesh3D&>())
         .def("size", &geompp::Mesh3D::Size, "The number of facets.")
         .def("area", &geompp::Mesh3D::Area, "Sum of each input triangle's own area, independent of welding.")

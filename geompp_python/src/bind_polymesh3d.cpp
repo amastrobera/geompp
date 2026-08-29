@@ -5,10 +5,16 @@ void bind_polymesh3d(py::module_& m) {
         "A mesh made of adjacent, arbitrary-sided polygonal faces, stored as a flat index buffer. "
         "No adjacency structure is stored to find a face's neighbors. Each facet has no holes.")
         .def_static("from_polygons",
-             [](const std::vector<geompp::Polygon3D>& polygons) { return geompp::PolyMesh3D::FromPolygons(polygons); },
-             "polygons"_a,
+             [](const std::vector<geompp::Polygon3D>& polygons, geompp::AdjacencyConformity conformity) {
+                 return geompp::PolyMesh3D::FromPolygons(polygons, conformity);
+             },
+             "polygons"_a, "conformity"_a = geompp::AdjacencyConformity::Assert,
              "Builds a mesh from a set of hole-free polygons, welding vertices that land in the same "
-             "spatial grid cell into a single shared vertex. Raises if any polygon has holes.")
+             "spatial grid cell into a single shared vertex. Raises if any polygon has holes. "
+             "conformity (see AdjacencyConformity) decides how a mesh-conformity violation (a "
+             "T-junction or non-manifold edge) is handled: Assert (default) raises, Enforce "
+             "auto-repairs every T-junction via fix_adjacency() (raising instead if any facet has "
+             "holes), Guaranteed skips the check.")
         .def(py::init<const geompp::PolyMesh3D&>())
         .def("size", &geompp::PolyMesh3D::Size, "The number of facets.")
         .def("area", &geompp::PolyMesh3D::Area, "Sum of each input polygon's own area, independent of welding.")

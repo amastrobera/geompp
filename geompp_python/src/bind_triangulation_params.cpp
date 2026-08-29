@@ -56,7 +56,7 @@ void bind_triangulation_params(py::module_& m) {
                "Removes collinear/duplicate points before triangulating.")
         .export_values();
 
-    py::enum_<geompp::TriangulationParams::AdjacencyConformity>(m, "AdjacencyConformity",
+    py::enum_<geompp::AdjacencyConformity>(m, "AdjacencyConformity",
         "How TriangulationParams.conformity handles a batch of facets that violate \"every edge has at "
         "most 1 neighbor\" -- no facet vertex may lie in the interior of another facet's edge, only "
         "exactly at that edge's own start/end vertex. Known elsewhere as: no \"hanging nodes\" (FEM), no "
@@ -64,11 +64,11 @@ void bind_triangulation_params(py::module_& m) {
         "fix_adjacency() (below) do the actual checking/repair; Mesh2D/3D.from_triangles, "
         "PolyMesh2D/3D.from_polygons, and ConnectedMesh2D/3D.from_triangles always Assert this at "
         "construction time.")
-        .value("Guaranteed", geompp::TriangulationParams::AdjacencyConformity::Guaranteed,
+        .value("Guaranteed", geompp::AdjacencyConformity::Guaranteed,
                "No check is carried out (runs at your own risk).")
-        .value("Assert", geompp::TriangulationParams::AdjacencyConformity::Assert,
+        .value("Assert", geompp::AdjacencyConformity::Assert,
                "Raises if any violation (T-junction or non-manifold edge) is found.")
-        .value("Enforce", geompp::TriangulationParams::AdjacencyConformity::Enforce,
+        .value("Enforce", geompp::AdjacencyConformity::Enforce,
                "Auto-repairs every T-junction via fix_adjacency(); still raises on a non-manifold edge "
                "(a full edge shared by 3+ facets) -- there's no principled automatic fix for that one.")
         .export_values();
@@ -83,7 +83,7 @@ void bind_triangulation_params(py::module_& m) {
                           geompp::TriangulationParams::Simplicity simplicity,
                           geompp::TriangulationParams::Winding ccw_winding,
                           geompp::TriangulationParams::Collinearity collinearity,
-                          geompp::TriangulationParams::AdjacencyConformity conformity) {
+                          geompp::AdjacencyConformity conformity) {
                  geompp::TriangulationParams p;
                  p.strategy = strategy;
                  p.simplicity = simplicity;
@@ -96,7 +96,7 @@ void bind_triangulation_params(py::module_& m) {
              "simplicity"_a = geompp::TriangulationParams::Simplicity::Enforce,
              "ccw_winding"_a = geompp::TriangulationParams::Winding::Enforce,
              "collinearity"_a = geompp::TriangulationParams::Collinearity::Enforce,
-             "conformity"_a = geompp::TriangulationParams::AdjacencyConformity::Enforce)
+             "conformity"_a = geompp::AdjacencyConformity::Enforce)
         .def_readwrite("strategy", &geompp::TriangulationParams::strategy)
         .def_readwrite("simplicity", &geompp::TriangulationParams::simplicity)
         .def_readwrite("ccw_winding", &geompp::TriangulationParams::ccw_winding)

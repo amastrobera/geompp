@@ -48,6 +48,32 @@ TEST_F(PolyMesh3DTest, FromPolygons_PolygonWithHoles_Throws) {
   EXPECT_THROW(g::PolyMesh3D::FromPolygons({outer}), std::invalid_argument);
 }
 
+TEST_F(PolyMesh3DTest, FromPolygons_TJunction_Enforce_SplitsAndWeldsSuccessfully) {
+  auto p0 = g::Polygon3D::Make({g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make({g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+  double area_before = p0.Area() + p1.Area() + roof.Area();
+
+  auto mesh = g::PolyMesh3D::FromPolygons({p0, p1, roof}, g::AdjacencyConformity::Enforce);
+
+  EXPECT_EQ(4u, mesh.Size());  // p0, p1 pass through unchanged, roof splits into 2
+  EXPECT_NEAR(area_before, mesh.Area(), 1e-9);
+}
+
+TEST_F(PolyMesh3DTest, FromPolygons_TJunction_Guaranteed_SkipsCheckAndSucceeds) {
+  auto p0 = g::Polygon3D::Make({g::Point3D(0, 0, 1), g::Point3D(1, 0, 1), g::Point3D(1, 0, 0), g::Point3D(0, 0, 0)});
+  auto p1 = g::Polygon3D::Make({g::Point3D(1, 0, 1), g::Point3D(2, 0, 1), g::Point3D(2, 0, 0), g::Point3D(1, 0, 0)});
+  auto roof = g::Polygon3D::Make({g::Point3D(1, 0, 2), g::Point3D(2, 0, 1), g::Point3D(0, 0, 1)});
+  EXPECT_NO_THROW(g::PolyMesh3D::FromPolygons({p0, p1, roof}, g::AdjacencyConformity::Guaranteed));
+}
+
+TEST_F(PolyMesh3DTest, FromPolygons_PolygonWithHoles_Enforce_Throws) {
+  auto outer = g::Polygon3D::Make(
+      {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 4, 0), g::Point3D(0, 4, 0)},
+      {{g::Point3D(1, 1, 0), g::Point3D(1, 2, 0), g::Point3D(2, 2, 0), g::Point3D(2, 1, 0)}});
+  EXPECT_THROW(g::PolyMesh3D::FromPolygons({outer}, g::AdjacencyConformity::Enforce), std::invalid_argument);
+}
+
 TEST_F(PolyMesh3DTest, FromPolygons_SingleQuad) {
   auto p = g::Polygon3D::Make(
       {g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(1, 1, 0), g::Point3D(0, 1, 0)});

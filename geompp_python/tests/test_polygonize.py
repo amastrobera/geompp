@@ -29,6 +29,43 @@ class TestPolygonize:
     def test_default_strategy_is_hertel_mehlhorn(self):
         assert geompp.PolygonizationParams().strategy == geompp.PolygonizationStrategy.HertelMehlhorn
 
+    def test_default_conformity_is_assert(self):
+        assert geompp.PolygonizationParams().conformity == geompp.AdjacencyConformity.Assert
+
+    def test_conformity_constructor_arg_and_readwrite_property(self):
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn,
+                                               geompp.AdjacencyConformity.Enforce)
+        assert settings.conformity == geompp.AdjacencyConformity.Enforce
+        settings.conformity = geompp.AdjacencyConformity.Guaranteed
+        assert settings.conformity == geompp.AdjacencyConformity.Guaranteed
+
+    def test_l_shape_plus_spikes_hertel_mehlhorn_agrees_across_every_conformity_mode(self):
+        # polygonize_impl's own seam-collapse logic already keeps HertelMehlhorn's output provably
+        # conformant by construction here, so Assert/Guaranteed/Enforce must all produce the exact same
+        # 3-piece split when threaded through Mesh2D.polygonize() into PolyMesh2D.from_polygons() --
+        # Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
+        p00, p10, p11, p01 = geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)
+        p20, p21, p22, p12 = geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(2, 2), geompp.Point2D(1, 2)
+        p15, pm05 = geompp.Point2D(1.5, -0.5), geompp.Point2D(2.5, 1.5)
+        mesh = geompp.Mesh2D.from_triangles([
+            geompp.Triangle2D.make(p00, p10, p11), geompp.Triangle2D.make(p00, p11, p01),
+            geompp.Triangle2D.make(p10, p21, p11), geompp.Triangle2D.make(p10, p20, p21),
+            geompp.Triangle2D.make(p10, p15, p20),
+            geompp.Triangle2D.make(p11, p21, geompp.Point2D(2, 2)),
+            geompp.Triangle2D.make(p11, geompp.Point2D(2, 2), p12),
+            geompp.Triangle2D.make(p21, pm05, geompp.Point2D(2, 2)),
+        ])
+
+        results = []
+        for conformity in (geompp.AdjacencyConformity.Enforce, geompp.AdjacencyConformity.Guaranteed,
+                          geompp.AdjacencyConformity.Assert):
+            settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn, conformity)
+            poly_mesh = mesh.polygonize(settings)
+            results.append([poly_mesh[i].to_wkt() for i in range(poly_mesh.size())])
+
+        assert results[0] == results[1] == results[2]
+        assert len(results[0]) == 3
+
     def test_unit_square_from_two_triangles_returns_single_quad(self):
         polys = geompp.polygonize(_grid_triangles(1, 1))
         assert len(polys) == 1

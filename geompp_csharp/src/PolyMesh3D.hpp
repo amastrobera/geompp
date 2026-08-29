@@ -22,6 +22,10 @@ public:
     // Builds a mesh from a set of hole-free polygons, welding vertices that land in the same spatial
     // grid cell into a single shared vertex. Throws if any polygon has holes.
     static PolyMesh3D^ FromPolygons(array<Polygon3D^>^ polygons);
+    // conformity (see AdjacencyConformity) decides how a mesh-conformity violation (a T-junction or
+    // non-manifold edge) is handled: Assert raises, Enforce auto-repairs every T-junction via
+    // FixAdjacency() (raising instead if any facet has holes), Guaranteed skips the check.
+    static PolyMesh3D^ FromPolygons(array<Polygon3D^>^ polygons, AdjacencyConformity conformity);
 
     int Size();
     double Area();

@@ -41,6 +41,36 @@ TEST_F(Mesh2DTest, FromTriangles_NonManifoldEdge_Throws) {
   EXPECT_THROW(g::Mesh2D::FromTriangles({a, b, c}), std::invalid_argument);
 }
 
+TEST_F(Mesh2DTest, FromTriangles_TJunction_DefaultAssert_Throws) {
+  // Big triangle A sitting on two small triangles B, C -- B and C's shared vertex (2,0) lies in the
+  // interior of A's base edge (0,0)-(4,0), a T-junction. Default conformity is Assert, unchanged from
+  // today's unconditional hard-throw behavior.
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, -1.5), g::Point2D(2, 0));
+  auto C = g::Triangle2D::Make(g::Point2D(2, 0), g::Point2D(3, -1.5), g::Point2D(4, 0));
+  EXPECT_THROW(g::Mesh2D::FromTriangles({A, B, C}), std::invalid_argument);
+}
+
+TEST_F(Mesh2DTest, FromTriangles_TJunction_Enforce_ReTriangulatesAndWeldsSuccessfully) {
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, -1.5), g::Point2D(2, 0));
+  auto C = g::Triangle2D::Make(g::Point2D(2, 0), g::Point2D(3, -1.5), g::Point2D(4, 0));
+  double area_before = A.Area() + B.Area() + C.Area();
+
+  auto mesh = g::Mesh2D::FromTriangles({A, B, C}, g::AdjacencyConformity::Enforce);
+
+  EXPECT_EQ(4u, mesh.Size());  // A re-triangulates into 2, B and C pass through unchanged
+  EXPECT_NEAR(area_before, mesh.Area(), 1e-9);
+}
+
+TEST_F(Mesh2DTest, FromTriangles_TJunction_Guaranteed_SkipsCheckAndSucceeds) {
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, -1.5), g::Point2D(2, 0));
+  auto C = g::Triangle2D::Make(g::Point2D(2, 0), g::Point2D(3, -1.5), g::Point2D(4, 0));
+
+  EXPECT_NO_THROW(g::Mesh2D::FromTriangles({A, B, C}, g::AdjacencyConformity::Guaranteed));
+}
+
 TEST_F(Mesh2DTest, FromTriangles_SingleTriangle) {
   auto t = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1));
   auto mesh = g::Mesh2D::FromTriangles({t});
@@ -246,6 +276,39 @@ TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_OperatorBracketPreservesShar
 
   // Round-trips clean: feeding operator[]'s own output back into a fresh PolyMesh2D shouldn't throw.
   EXPECT_NO_THROW(g::PolyMesh2D::FromPolygons(extracted));
+}
+
+TEST_F(Mesh2DTest, Polygonize_LShapePlusSpikes_HertelMehlhorn_AgreesAcrossEveryConformityMode) {
+  // Matches visual_doc_and_sample_code.md §13.1's own C++ sample verbatim (incl. the
+  // PolygonizationParams{strategy, conformity} aggregate-init form), pinning down that all three
+  // conformity modes produce byte-identical output on this already-conformant mesh.
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1.5, -0.5), g::Point2D(2, 0)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+      g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
+  });
+
+  g::PolygonizationParams enforce{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Enforce};
+  g::PolygonizationParams guaranteed{g::PolygonizationParams::Strategy::HertelMehlhorn,
+                                     g::AdjacencyConformity::Guaranteed};
+  g::PolygonizationParams assertMode{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Assert};
+
+  auto he = mesh.Polygonize(enforce);
+  auto hg = mesh.Polygonize(guaranteed);
+  auto ha = mesh.Polygonize(assertMode);
+
+  ASSERT_EQ(he.Size(), 3u);
+  ASSERT_EQ(hg.Size(), 3u);
+  ASSERT_EQ(ha.Size(), 3u);
+  for (std::size_t i = 0; i < he.Size(); ++i) {
+    EXPECT_EQ(he[i].ToWkt(), hg[i].ToWkt());
+    EXPECT_EQ(he[i].ToWkt(), ha[i].ToWkt());
+  }
 }
 
 TEST_F(Mesh2DTest, ToGeometryCollection_MatchesSizeAndArea) {

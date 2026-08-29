@@ -24,6 +24,32 @@ class TestMesh2D:
         with pytest.raises(ValueError):
             geompp.Mesh2D.from_triangles([a, b, c])
 
+    def test_from_triangles_t_junction_default_assert_raises(self):
+        # Big triangle A sitting on two small triangles B, C -- B and C's shared vertex (2,0) lies in
+        # the interior of A's base edge (0,0)-(4,0), a T-junction. Default conformity is Assert.
+        A = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(2, 3))
+        B = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, -1.5), geompp.Point2D(2, 0))
+        C = geompp.Triangle2D.make(geompp.Point2D(2, 0), geompp.Point2D(3, -1.5), geompp.Point2D(4, 0))
+        with pytest.raises(ValueError):
+            geompp.Mesh2D.from_triangles([A, B, C])
+
+    def test_from_triangles_t_junction_enforce_retriangulates_and_welds(self):
+        A = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(2, 3))
+        B = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, -1.5), geompp.Point2D(2, 0))
+        C = geompp.Triangle2D.make(geompp.Point2D(2, 0), geompp.Point2D(3, -1.5), geompp.Point2D(4, 0))
+        area_before = A.area() + B.area() + C.area()
+
+        mesh = geompp.Mesh2D.from_triangles([A, B, C], geompp.AdjacencyConformity.Enforce)
+
+        assert mesh.size() == 4  # A re-triangulates into 2, B and C pass through unchanged
+        assert approx(mesh.area(), area_before)
+
+    def test_from_triangles_t_junction_guaranteed_skips_check_and_succeeds(self):
+        A = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(4, 0), geompp.Point2D(2, 3))
+        B = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, -1.5), geompp.Point2D(2, 0))
+        C = geompp.Triangle2D.make(geompp.Point2D(2, 0), geompp.Point2D(3, -1.5), geompp.Point2D(4, 0))
+        geompp.Mesh2D.from_triangles([A, B, C], geompp.AdjacencyConformity.Guaranteed)  # must not raise
+
     def test_from_triangles_single(self):
         t = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1))
         mesh = geompp.Mesh2D.from_triangles([t])
@@ -124,6 +150,31 @@ class TestMesh3D:
         c = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0.5, -1, 0))
         with pytest.raises(ValueError):
             geompp.Mesh3D.from_triangles([a, b, c])
+
+    def test_from_triangles_t_junction_default_assert_raises(self):
+        # 3D counterpart of TestMesh2D's own version, folded into the y=0 plane (x -> x, y(2D) -> z).
+        A = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(2, 0, 3))
+        B = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, -1.5), geompp.Point3D(2, 0, 0))
+        C = geompp.Triangle3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(3, 0, -1.5), geompp.Point3D(4, 0, 0))
+        with pytest.raises(ValueError):
+            geompp.Mesh3D.from_triangles([A, B, C])
+
+    def test_from_triangles_t_junction_enforce_retriangulates_and_welds(self):
+        A = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(2, 0, 3))
+        B = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, -1.5), geompp.Point3D(2, 0, 0))
+        C = geompp.Triangle3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(3, 0, -1.5), geompp.Point3D(4, 0, 0))
+        area_before = A.area() + B.area() + C.area()
+
+        mesh = geompp.Mesh3D.from_triangles([A, B, C], geompp.AdjacencyConformity.Enforce)
+
+        assert mesh.size() == 4
+        assert approx(mesh.area(), area_before)
+
+    def test_from_triangles_t_junction_guaranteed_skips_check_and_succeeds(self):
+        A = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0), geompp.Point3D(2, 0, 3))
+        B = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, -1.5), geompp.Point3D(2, 0, 0))
+        C = geompp.Triangle3D.make(geompp.Point3D(2, 0, 0), geompp.Point3D(3, 0, -1.5), geompp.Point3D(4, 0, 0))
+        geompp.Mesh3D.from_triangles([A, B, C], geompp.AdjacencyConformity.Guaranteed)  # must not raise
 
     def test_from_triangles_single(self):
         t = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0, 1, 0))

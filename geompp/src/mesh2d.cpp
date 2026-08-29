@@ -24,17 +24,31 @@ namespace geompp {
 
 inline namespace geometry {
 
-Mesh2D Mesh2D::FromTriangles(std::vector<Triangle2D> const& triangles) {
-  // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
-  // adjacency is treated as invalid caller input here, never silently repaired.
-  detail::assert_adjacency(validate_adjacency(triangles));
+Mesh2D Mesh2D::FromTriangles(std::vector<Triangle2D> const& triangles, AdjacencyConformity conformity) {
+  std::vector<Triangle2D> const* to_weld = &triangles;
+  std::vector<Triangle2D> fixed;
+  switch (conformity) {
+    case AdjacencyConformity::Guaranteed:
+      break;
+    case AdjacencyConformity::Assert:
+      // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
+      // adjacency is treated as invalid caller input here, never silently repaired.
+      detail::assert_adjacency(validate_adjacency(triangles));
+      break;
+    case AdjacencyConformity::Enforce:
+      fixed = fix_adjacency(triangles);
+      to_weld = &fixed;
+      break;
+    default:
+      throw std::invalid_argument("Mesh2D::FromTriangles: unknown adjacency conformity");
+  }
 
   // GridCellMapForMesh2D::Make() throws std::invalid_argument if triangles is empty.
-  auto mesh_maker = detail::GridCellMapForMesh2D::Make(triangles);
+  auto mesh_maker = detail::GridCellMapForMesh2D::Make(*to_weld);
 
   // compute and save area
   double area = 0;
-  for (auto const& t : triangles) {
+  for (auto const& t : *to_weld) {
     area += t.Area();
   }
 
@@ -75,7 +89,7 @@ PolyMesh2D Mesh2D::Polygonize(PolygonizationParams const& params) const {
 
   auto pieces = detail::polygonize_impl(faces, params);
   auto polygons = detail::polygons_from_pieces(std::move(pieces));
-  return PolyMesh2D::FromPolygons(polygons);
+  return PolyMesh2D::FromPolygons(polygons, params.conformity);
 }
 
 GeometryCollection2D Mesh2D::ToGeometryCollection() const {

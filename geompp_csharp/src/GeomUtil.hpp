@@ -129,7 +129,7 @@ public enum class TriangulationCollinearity {
 // overload, via TriangulationParams.Conformity -- GeomUtil.ValidateAdjacency() / FixAdjacency() do the
 // actual checking/repair; Mesh2D/3D.FromTriangles, PolyMesh2D/3D.FromPolygons, and
 // ConnectedMesh2D/3D.FromTriangles always Assert this at construction time. Values must stay in the same
-// order as geompp::TriangulationParams::AdjacencyConformity (converted via a raw static_cast by ordinal,
+// order as geompp::AdjacencyConformity (converted via a raw static_cast by ordinal,
 // same reasoning as TriangulationStrategy above).
 public enum class AdjacencyConformity {
     // No check is carried out (runs at your own risk).
@@ -210,10 +210,19 @@ public ref class PolygonizationParams {
 public:
     PolygonizationParams();
     PolygonizationParams(PolygonizationStrategy strategy);
+    // conformity: how the final PolyMesh2D/3D.FromPolygons() call inside Mesh2D/3D.Polygonize() /
+    // ConnectedMesh2D/3D.Polygonize() should handle a mesh-conformity violation -- see AdjacencyConformity.
+    // Defaults to Assert, matching the native PolygonizationParams' own default.
+    PolygonizationParams(PolygonizationStrategy strategy, AdjacencyConformity conformity);
 
     property PolygonizationStrategy Strategy {
         PolygonizationStrategy get() { return _strategy; }
         void set(PolygonizationStrategy value) { _strategy = value; }
+    }
+
+    property AdjacencyConformity Conformity {
+        AdjacencyConformity get() { return _conformity; }
+        void set(AdjacencyConformity value) { _conformity = value; }
     }
 
 internal:
@@ -221,6 +230,7 @@ internal:
 
 private:
     PolygonizationStrategy _strategy;
+    AdjacencyConformity _conformity;
 };
 
 // One "more than 1 neighbor" violation found by GeomUtil.ValidateAdjacency() across a batch of 2D

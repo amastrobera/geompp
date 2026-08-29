@@ -24,17 +24,51 @@ namespace geompp {
 
 inline namespace geometry {
 
-PolyMesh2D PolyMesh2D::FromPolygons(std::vector<Polygon2D> const& polygons) {
-  // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
-  // adjacency is treated as invalid caller input here, never silently repaired.
-  detail::assert_adjacency(validate_adjacency(polygons));
+PolyMesh2D PolyMesh2D::FromPolygons(std::vector<Polygon2D> const& polygons, AdjacencyConformity conformity) {
+  std::vector<Polygon2D> const* to_weld = &polygons;
+  std::vector<Polygon2D> fixed;
+  switch (conformity) {
+    case AdjacencyConformity::Guaranteed:
+      break;
+    case AdjacencyConformity::Assert:
+      // Every edge must have at most 1 neighbor (no T-junction, no edge shared by 3+ facets) -- bad
+      // adjacency is treated as invalid caller input here, never silently repaired.
+      detail::assert_adjacency(validate_adjacency(polygons));
+      break;
+    case AdjacencyConformity::Enforce: {
+      for (auto const& p : polygons) {
+        if (p.HasHoles()) {
+          throw std::invalid_argument(
+              "PolyMesh2D::FromPolygons: cannot auto-repair adjacency across a holed polygon -- "
+              "fix_adjacency() only round-trips through each facet's outer Perimeter()");
+        }
+      }
+      // A facet fix_adjacency() didn't need to touch passes straight through in its returned rings --
+      // including any facet that only exists to keep a currently-uninvolved neighbor conformant, via a
+      // vertex that's collinear on ITS OWN ring but is that neighbor's genuine corner (the same reason
+      // Mesh2D::Polygonize()'s own output preserves such vertices -- see polygons_from_pieces()). Public
+      // Make()'s remove_collinear() has no visibility into that neighbor's needs, so it would silently
+      // strip such a vertex back out and reintroduce the exact T-junction being fixed elsewhere in this
+      // same call. FromUniquePoints() (PolyMesh2D is already a friend, same grant operator[] uses) skips
+      // that strip while still re-validating CCW winding and recomputing convexity.
+      auto fixed_rings = fix_adjacency(polygons);
+      fixed.reserve(fixed_rings.size());
+      for (auto& ring : fixed_rings) {
+        fixed.push_back(Polygon2D::FromUniquePoints(std::move(ring)));
+      }
+      to_weld = &fixed;
+      break;
+    }
+    default:
+      throw std::invalid_argument("PolyMesh2D::FromPolygons: unknown adjacency conformity");
+  }
 
   // GridCellMapForPolyMesh2D::Make() throws std::invalid_argument if polygons is empty or holed.
-  auto mesh_maker = detail::GridCellMapForPolyMesh2D::Make(polygons);
+  auto mesh_maker = detail::GridCellMapForPolyMesh2D::Make(*to_weld);
 
   // compute and save area
   double area = 0;
-  for (auto const& p : polygons) {
+  for (auto const& p : *to_weld) {
     area += p.Area();
   }
 

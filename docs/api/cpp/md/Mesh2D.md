@@ -6,13 +6,14 @@ No adjacency structure is stored to find a face's neighbors. Each facet has no h
 
 ## `FromTriangles`
 
-**static** `Mesh2D FromTriangles(std::vector< `[`Triangle2D`](Triangle2D.md)` > const & triangles)`
+**static** `Mesh2D FromTriangles(std::vector< `[`Triangle2D`](Triangle2D.md)` > const & triangles, AdjacencyConformity conformity)`
 
 Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell (see [GridCell2D](GridCell2D.md) ) into a single shared vertex.
 
 **Parameters**
 
 - `triangles` (std::vector< [`Triangle2D`](Triangle2D.md) > const &) — The triangles to weld into a mesh. Order is not required to reflect adjacency.
+- `conformity` (`AdjacencyConformity`) — decides how to handle input that doesn't make a valid adjacency (default to Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
 
 **Returns** — A mesh whose vertex count is ≤ 3 * triangles.size() (fewer once shared vertices are welded).
 

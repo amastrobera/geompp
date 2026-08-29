@@ -5,6 +5,8 @@
 #include <mesh3d.hpp>
 #pragma managed(pop)
 
+#include "GeomUtil.hpp"  // AdjacencyConformity
+
 namespace GeomPP {
 
 ref class Triangle3D;
@@ -22,6 +24,10 @@ public:
     // Builds a mesh from a set of triangles, welding vertices that land in the same spatial grid cell
     // into a single shared vertex.
     static Mesh3D^ FromTriangles(array<Triangle3D^>^ triangles);
+    // conformity (see AdjacencyConformity) decides how a mesh-conformity violation (a T-junction or
+    // non-manifold edge) is handled: Assert raises, Enforce auto-repairs every T-junction via
+    // FixAdjacency(), Guaranteed skips the check.
+    static Mesh3D^ FromTriangles(array<Triangle3D^>^ triangles, AdjacencyConformity conformity);
 
     int Size();
     double Area();

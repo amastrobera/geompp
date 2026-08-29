@@ -157,8 +157,8 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input,
                                     TriangulationParams const& settings = TriangulationParams{});
 
 /// @brief One "more than 1 neighbor" violation of the mesh-conformity rule found by validate_adjacency()
-/// across a batch of facets — see TriangulationParams::AdjacencyConformity's own docs for what the rule
-/// means and why a T-junction is fixable but a non-manifold edge isn't.
+/// across a batch of facets — see AdjacencyConformity's own docs for what the rule means and why a
+/// T-junction is fixable but a non-manifold edge isn't.
 /// @tparam PointT Point2D or Point3D. Not View2D-projected: unlike triangulation/convexity/winding,
 /// "does this vertex lie on this edge" is a well-defined, exact question in native space for either
 /// dimension. For a general 3D mesh (facets in many different planes -- a building's walls and roof,
@@ -223,13 +223,15 @@ std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets);
 
 /// @brief Batch-triangulates a set of polygon facets together. The free-function equivalent of
 /// `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
-/// constructing/keeping a full PolyMesh2D. Unlike PolyMesh2D::FromPolygons (which always Asserts, since
-/// bad input there is a straightforward construction error), this defaults to fixing what it can.
+/// constructing/keeping a full PolyMesh2D. Unlike PolyMesh2D::FromPolygons (whose own conformity
+/// parameter defaults to Assert, since bad input there is a straightforward construction error), this
+/// defaults to fixing what it can.
 /// @param polygons each facet's outer ring (no holes).
 /// @param settings per-facet TriangulationParams (Strategy/Simplicity/Winding/Collinearity), same as the
-/// single-ring triangulate() overload above, plus @ref TriangulationParams::conformity: how to handle
-/// cross-facet adjacency violations (T-junctions / non-manifold edges) before triangulating. Defaults to
-/// Enforce. Under Enforce, a facet that needed a conformity splice is always triangulated with
+/// single-ring triangulate() overload above, plus `TriangulationParams::conformity` (see the standalone
+/// @ref AdjacencyConformity): how to handle cross-facet adjacency violations (T-junctions /
+/// non-manifold edges) before triangulating. Defaults to Enforce. Under Enforce, a facet that needed a
+/// conformity splice is always triangulated with
 /// Collinearity::Guaranteed regardless of the rest of @p settings -- otherwise the caller's own
 /// Collinearity::Enforce (the TriangulationParams default) would strip the just-spliced vertex right back
 /// out, silently undoing the repair and reintroducing the T-junction in the triangulated output.

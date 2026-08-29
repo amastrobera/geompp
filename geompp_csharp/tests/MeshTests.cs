@@ -33,6 +33,37 @@ public static class MeshTests {
       IsTrue(threw, "expected a non-manifold edge (3 facets sharing it) to throw");
     });
 
+    Test("Mesh2D_FromTriangles_TJunction_DefaultAssert_Throws", () => {
+      // Big triangle A sitting on two small triangles B, C -- B and C's shared vertex (2,0) lies in
+      // the interior of A's base edge (0,0)-(4,0), a T-junction. Default conformity is Assert.
+      var A = Triangle2D.Make(new(0, 0), new(4, 0), new(2, 3));
+      var B = Triangle2D.Make(new(0, 0), new(1, -1.5), new(2, 0));
+      var C = Triangle2D.Make(new(2, 0), new(3, -1.5), new(4, 0));
+      bool threw = false;
+      try { Mesh2D.FromTriangles(new[] { A, B, C }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a T-junction to throw under the default (Assert) conformity");
+    });
+
+    Test("Mesh2D_FromTriangles_TJunction_Enforce_ReTriangulatesAndWelds", () => {
+      var A = Triangle2D.Make(new(0, 0), new(4, 0), new(2, 3));
+      var B = Triangle2D.Make(new(0, 0), new(1, -1.5), new(2, 0));
+      var C = Triangle2D.Make(new(2, 0), new(3, -1.5), new(4, 0));
+      double areaBefore = A.Area() + B.Area() + C.Area();
+
+      var mesh = Mesh2D.FromTriangles(new[] { A, B, C }, AdjacencyConformity.Enforce);
+
+      Eq(4, mesh.Size(), 0);  // A re-triangulates into 2, B and C pass through unchanged
+      Eq(areaBefore, mesh.Area());
+    });
+
+    Test("Mesh2D_FromTriangles_TJunction_Guaranteed_SkipsCheckAndSucceeds", () => {
+      var A = Triangle2D.Make(new(0, 0), new(4, 0), new(2, 3));
+      var B = Triangle2D.Make(new(0, 0), new(1, -1.5), new(2, 0));
+      var C = Triangle2D.Make(new(2, 0), new(3, -1.5), new(4, 0));
+      Mesh2D.FromTriangles(new[] { A, B, C }, AdjacencyConformity.Guaranteed);  // must not throw
+    });
+
     Test("Mesh2D_FromTriangles_Single", () => {
       var t = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1));
       var mesh = Mesh2D.FromTriangles(new[] { t });
@@ -142,6 +173,36 @@ public static class MeshTests {
       try { Mesh3D.FromTriangles(new[] { a, b, c }); }
       catch (Exception) { threw = true; }
       IsTrue(threw, "expected a non-manifold edge (3 facets sharing it) to throw");
+    });
+
+    Test("Mesh3D_FromTriangles_TJunction_DefaultAssert_Throws", () => {
+      // 3D counterpart of Mesh2D's own version, folded into the y=0 plane (x -> x, y(2D) -> z).
+      var A = Triangle3D.Make(new(0, 0, 0), new(4, 0, 0), new(2, 0, 3));
+      var B = Triangle3D.Make(new(0, 0, 0), new(1, 0, -1.5), new(2, 0, 0));
+      var C = Triangle3D.Make(new(2, 0, 0), new(3, 0, -1.5), new(4, 0, 0));
+      bool threw = false;
+      try { Mesh3D.FromTriangles(new[] { A, B, C }); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected a T-junction to throw under the default (Assert) conformity");
+    });
+
+    Test("Mesh3D_FromTriangles_TJunction_Enforce_ReTriangulatesAndWelds", () => {
+      var A = Triangle3D.Make(new(0, 0, 0), new(4, 0, 0), new(2, 0, 3));
+      var B = Triangle3D.Make(new(0, 0, 0), new(1, 0, -1.5), new(2, 0, 0));
+      var C = Triangle3D.Make(new(2, 0, 0), new(3, 0, -1.5), new(4, 0, 0));
+      double areaBefore = A.Area() + B.Area() + C.Area();
+
+      var mesh = Mesh3D.FromTriangles(new[] { A, B, C }, AdjacencyConformity.Enforce);
+
+      Eq(4, mesh.Size(), 0);
+      Eq(areaBefore, mesh.Area());
+    });
+
+    Test("Mesh3D_FromTriangles_TJunction_Guaranteed_SkipsCheckAndSucceeds", () => {
+      var A = Triangle3D.Make(new(0, 0, 0), new(4, 0, 0), new(2, 0, 3));
+      var B = Triangle3D.Make(new(0, 0, 0), new(1, 0, -1.5), new(2, 0, 0));
+      var C = Triangle3D.Make(new(2, 0, 0), new(3, 0, -1.5), new(4, 0, 0));
+      Mesh3D.FromTriangles(new[] { A, B, C }, AdjacencyConformity.Guaranteed);  // must not throw
     });
 
     Test("Mesh3D_FromTriangles_SharedEdge_WeldsAndPreservesFaces", () => {

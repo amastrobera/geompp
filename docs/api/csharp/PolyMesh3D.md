@@ -6,13 +6,14 @@ Each facet has no holes.
 
 ## `FromPolygons`
 
-**static** `PolyMesh3D^ FromPolygons(std::vector< `[`Polygon3D`](Polygon3D.md)` > polygons)`
+**static** `PolyMesh3D^ FromPolygons(std::vector< `[`Polygon3D`](Polygon3D.md)` > polygons, AdjacencyConformity^ conformity)`
 
 Builds a mesh from a set of (hole-free) polygons, welding vertices that land in the same spatial grid cell (see [GridCell3D](GridCell3D.md) ) into a single shared vertex.
 
 **Parameters**
 
 - `polygons` (std::vector< [`Polygon3D`](Polygon3D.md) >) — The polygon faces to weld into a mesh. Order is not required to reflect adjacency.
+- `conformity` (`AdjacencyConformity^`) — decides how to handle input that doesn't make a valid adjacency (default to Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
 
 **Returns** — A mesh whose vertex count is ≤ the sum of every polygon's Size() (fewer once shared vertices are welded).
 

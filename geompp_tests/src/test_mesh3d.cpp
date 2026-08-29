@@ -42,6 +42,36 @@ TEST_F(Mesh3DTest, FromTriangles_NonManifoldEdge_Throws) {
   EXPECT_THROW(g::Mesh3D::FromTriangles({a, b, c}), std::invalid_argument);
 }
 
+TEST_F(Mesh3DTest, FromTriangles_TJunction_DefaultAssert_Throws) {
+  // Same T-junction shape as Mesh2DTest's own version, folded into the y=0 plane (x -> x, y(2D) -> z):
+  // big triangle A sitting on two small triangles B, C whose shared vertex (2,0,0) lies in the interior
+  // of A's base edge (0,0,0)-(4,0,0).
+  auto A = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(2, 0, 3));
+  auto B = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, -1.5), g::Point3D(2, 0, 0));
+  auto C = g::Triangle3D::Make(g::Point3D(2, 0, 0), g::Point3D(3, 0, -1.5), g::Point3D(4, 0, 0));
+  EXPECT_THROW(g::Mesh3D::FromTriangles({A, B, C}), std::invalid_argument);
+}
+
+TEST_F(Mesh3DTest, FromTriangles_TJunction_Enforce_ReTriangulatesAndWeldsSuccessfully) {
+  auto A = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(2, 0, 3));
+  auto B = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, -1.5), g::Point3D(2, 0, 0));
+  auto C = g::Triangle3D::Make(g::Point3D(2, 0, 0), g::Point3D(3, 0, -1.5), g::Point3D(4, 0, 0));
+  double area_before = A.Area() + B.Area() + C.Area();
+
+  auto mesh = g::Mesh3D::FromTriangles({A, B, C}, g::AdjacencyConformity::Enforce);
+
+  EXPECT_EQ(4u, mesh.Size());  // A re-triangulates into 2, B and C pass through unchanged
+  EXPECT_NEAR(area_before, mesh.Area(), 1e-9);
+}
+
+TEST_F(Mesh3DTest, FromTriangles_TJunction_Guaranteed_SkipsCheckAndSucceeds) {
+  auto A = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(2, 0, 3));
+  auto B = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, -1.5), g::Point3D(2, 0, 0));
+  auto C = g::Triangle3D::Make(g::Point3D(2, 0, 0), g::Point3D(3, 0, -1.5), g::Point3D(4, 0, 0));
+
+  EXPECT_NO_THROW(g::Mesh3D::FromTriangles({A, B, C}, g::AdjacencyConformity::Guaranteed));
+}
+
 TEST_F(Mesh3DTest, FromTriangles_SingleTriangle) {
   auto t = g::Triangle3D::Make(g::Point3D(0, 0, 0), g::Point3D(1, 0, 0), g::Point3D(0, 1, 0));
   auto mesh = g::Mesh3D::FromTriangles({t});

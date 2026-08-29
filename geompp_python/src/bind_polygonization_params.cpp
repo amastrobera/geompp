@@ -20,13 +20,20 @@ void bind_polygonization_params(py::module_& m) {
 
     py::class_<geompp::PolygonizationParams>(m, "PolygonizationParams",
         "Bundles the polygonization strategy for polygonize() / Mesh2D.polygonize() / "
-        "Mesh3D.polygonize() / ConnectedMesh2D.polygonize() / ConnectedMesh3D.polygonize(). Defaults to "
-        "HertelMehlhorn.")
-        .def(py::init([](geompp::PolygonizationParams::Strategy strategy) {
+        "Mesh3D.polygonize() / ConnectedMesh2D.polygonize() / ConnectedMesh3D.polygonize(), plus how the "
+        "final PolyMesh2D/3D.from_polygons() call inside those should handle a mesh-conformity violation "
+        "(see AdjacencyConformity). Defaults to HertelMehlhorn and Assert -- polygonize_impl's own "
+        "seam-collapse logic already keeps every strategy's output provably conformant by construction, so "
+        "Assert is a safety net for unexpected input, not something normally expected to fire.")
+        .def(py::init([](geompp::PolygonizationParams::Strategy strategy,
+                          geompp::AdjacencyConformity conformity) {
                  geompp::PolygonizationParams p;
                  p.strategy = strategy;
+                 p.conformity = conformity;
                  return p;
              }),
-             "strategy"_a = geompp::PolygonizationParams::Strategy::HertelMehlhorn)
-        .def_readwrite("strategy", &geompp::PolygonizationParams::strategy);
+             "strategy"_a = geompp::PolygonizationParams::Strategy::HertelMehlhorn,
+             "conformity"_a = geompp::AdjacencyConformity::Assert)
+        .def_readwrite("strategy", &geompp::PolygonizationParams::strategy)
+        .def_readwrite("conformity", &geompp::PolygonizationParams::conformity);
 }
