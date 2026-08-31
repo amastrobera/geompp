@@ -6275,191 +6275,7 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
 
 
   <details closed>
-  <summary><b> &nbsp; &nbsp; 13.1 adjacency conformity</b></summary>
-
-  `PolygonizationParams` also carries a `conformity` field (`AdjacencyConformity` — `Assert`/`Enforce`/
-  `Guaranteed`, the same enum §11.5's `fix_adjacency()` uses, standalone rather than nested inside
-  `TriangulationParams`), threaded through `Mesh::Polygonize()`/`ConnectedMesh::Polygonize()` into their
-  final `PolyMesh::FromPolygons()` call. Default is `Assert`. On well-formed input, `polygonize_impl`'s
-  own seam-collapse logic already keeps every strategy's output provably conformant by construction, so
-  the 3 modes are indistinguishable here: `Assert` never fires, `Guaranteed` has nothing to skip, and
-  `Enforce` has nothing to fix. Same input, same `HertelMehlhorn` split, 3 conformity modes below.
-
-  <p align="center">
-    <img src="./images/polygonize_before.png" width="260" alt="8 triangles forming an L-shape with two triangular spikes hanging off the right column, teal fill with cyan edges -- the shared Mesh2D::Polygonize() input for all three conformity modes below">
-    &nbsp;&nbsp;
-    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Enforce: 3 convex polygons shaded differently -- identical to Assert/Guaranteed below, since polygonize_impl's own output is already provably conformant">
-  </p>
-  <p align="center">
-    <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before HertelMehlhorn with conformity=Guaranteed">
-    &nbsp;&nbsp;
-    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Guaranteed: the mesh-conformity check is skipped entirely, but the result is byte-identical to Enforce/Assert -- there was nothing to skip">
-  </p>
-  <p align="center">
-    <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before HertelMehlhorn with conformity=Assert">
-    &nbsp;&nbsp;
-    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Assert (the default): the conformity check runs but finds nothing to throw on -- identical result to Enforce/Guaranteed">
-  </p>
-
-  <details closed>
-  <summary><b> &nbsp; &nbsp; &nbsp; Samples </b></summary>
-
-   <details closed>
-   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
-
-  ```cpp
-  #include "mesh2d.hpp"
-  #include "polymesh2d.hpp"
-
-  namespace g = geompp;
-
-  // The L-shape-plus-2-spikes mesh from §13.4.
-  auto mesh = g::Mesh2D::FromTriangles({
-      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
-      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
-      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
-      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
-      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1.5, -0.5), g::Point2D(2, 0)),
-      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
-      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
-      g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
-  });
-
-  // polygonize_impl's own seam-collapse logic already keeps HertelMehlhorn's output provably
-  // conformant by construction here, so all three conformity modes produce the exact same 3-piece
-  // split -- Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
-  g::PolygonizationParams enforce{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Enforce};
-  auto he = mesh.Polygonize(enforce);
-  for (std::size_t i = 0; i < he.Size(); ++i)
-      GEOMPP_LOG(INFO) << "enforce:  " << he[i].ToWkt();
-
-  g::PolygonizationParams guaranteed{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Guaranteed};
-  auto hg = mesh.Polygonize(guaranteed);
-  for (std::size_t i = 0; i < hg.Size(); ++i)
-      GEOMPP_LOG(INFO) << "guaranteed:  " << hg[i].ToWkt();
-
-  g::PolygonizationParams assertMode{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Assert};
-  auto ha = mesh.Polygonize(assertMode);
-  for (std::size_t i = 0; i < ha.Size(); ++i)
-      GEOMPP_LOG(INFO) << "assert:  " << ha[i].ToWkt();
-  ```
-
-  ```bash
-  I20260830] enforce:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  I20260830] enforce:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  I20260830] enforce:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  I20260830] guaranteed:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  I20260830] guaranteed:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  I20260830] guaranteed:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  I20260830] assert:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  I20260830] assert:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  I20260830] assert:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  ```
-
-   </details>
-
-   <details closed>
-   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
-
-  ```python
-  import geompp as g
-
-  # The L-shape-plus-2-spikes mesh from §13.4.
-  mesh = g.Mesh2D.from_triangles([
-      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 1), g.Point2D(0, 1)),
-      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1)),
-      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(2, 1), g.Point2D(1, 1)),
-      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(2, 0), g.Point2D(2, 1)),
-      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(1.5, -0.5), g.Point2D(2, 0)),
-      g.Triangle2D.make(g.Point2D(1, 1), g.Point2D(2, 1), g.Point2D(2, 2)),
-      g.Triangle2D.make(g.Point2D(1, 1), g.Point2D(2, 2), g.Point2D(1, 2)),
-      g.Triangle2D.make(g.Point2D(2, 1), g.Point2D(2.5, 1.5), g.Point2D(2, 2)),
-  ])
-
-  hertel = g.PolygonizationParams(g.PolygonizationStrategy.HertelMehlhorn, g.AdjacencyConformity.Enforce)
-  he = mesh.polygonize(hertel)
-  for i in range(he.size()):
-      print(f"enforce:  {he[i].to_wkt()}")
-
-  guaranteed = g.PolygonizationParams(g.PolygonizationStrategy.HertelMehlhorn, g.AdjacencyConformity.Guaranteed)
-  hg = mesh.polygonize(guaranteed)
-  for i in range(hg.size()):
-      print(f"guaranteed:  {hg[i].to_wkt()}")
-
-  assert_mode = g.PolygonizationParams(g.PolygonizationStrategy.HertelMehlhorn, g.AdjacencyConformity.Assert)
-  ha = mesh.polygonize(assert_mode)
-  for i in range(ha.size()):
-      print(f"assert:  {ha[i].to_wkt()}")
-  ```
-
-  ```
-  enforce:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  enforce:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  enforce:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  guaranteed:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  guaranteed:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  guaranteed:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  assert:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  assert:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  assert:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  ```
-
-   </details>
-
-   <details closed>
-   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
-
-  ```csharp
-  using G = GeomPP;
-
-  // The L-shape-plus-2-spikes mesh from §13.4.
-  var mesh = G.Mesh2D.FromTriangles(new G.Triangle2D[] {
-      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 1), new G.Point2D(0, 1)),
-      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0), new G.Point2D(1, 1)),
-      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(2, 1), new G.Point2D(1, 1)),
-      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(2, 0), new G.Point2D(2, 1)),
-      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(1.5, -0.5), new G.Point2D(2, 0)),
-      G.Triangle2D.Make(new G.Point2D(1, 1), new G.Point2D(2, 1), new G.Point2D(2, 2)),
-      G.Triangle2D.Make(new G.Point2D(1, 1), new G.Point2D(2, 2), new G.Point2D(1, 2)),
-      G.Triangle2D.Make(new G.Point2D(2, 1), new G.Point2D(2.5, 1.5), new G.Point2D(2, 2)),
-  });
-
-  var enforce = new G.PolygonizationParams(G.PolygonizationStrategy.HertelMehlhorn, G.AdjacencyConformity.Enforce);
-  var he = mesh.Polygonize(enforce);
-  for (int i = 0; i < he.Size(); i++)
-      Console.WriteLine($"enforce:  {he[i].ToWkt()}");
-
-  var guaranteed = new G.PolygonizationParams(G.PolygonizationStrategy.HertelMehlhorn, G.AdjacencyConformity.Guaranteed);
-  var hg = mesh.Polygonize(guaranteed);
-  for (int i = 0; i < hg.Size(); i++)
-      Console.WriteLine($"guaranteed:  {hg[i].ToWkt()}");
-
-  var assertMode = new G.PolygonizationParams(G.PolygonizationStrategy.HertelMehlhorn, G.AdjacencyConformity.Assert);
-  var ha = mesh.Polygonize(assertMode);
-  for (int i = 0; i < ha.Size(); i++)
-      Console.WriteLine($"assert:  {ha[i].ToWkt()}");
-  ```
-
-  ```
-  enforce:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  enforce:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  enforce:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  guaranteed:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  guaranteed:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  guaranteed:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  assert:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  assert:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  assert:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
-  ```
-
-   </details>
-
-  </details>
-
-  </details>
-
-  <details closed>
-  <summary><b> &nbsp; &nbsp; 13.2 polygonize(triangles) - free function</b></summary>
+  <summary><b> &nbsp; &nbsp; 13.1 polygonize(triangles) - free function</b></summary>
 
   The free funciton `polygonize(triangles, settings)` takes in raw triangles, and welds together those with a common 
   edges - according to the strategy. It returns a set of polygons, not necessarily respecting *mesh rules*. 
@@ -6613,7 +6429,7 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   </details>
 
   <details closed>
-  <summary><b> &nbsp; &nbsp; 13.3 merge(polygons) - free function </b></summary>
+  <summary><b> &nbsp; &nbsp; 13.2 merge(polygons) - free function </b></summary>
 
   `merge(polygons)` is the same idea one level up: instead of triangles, it welds already-built polygons
   that share an outer-ring edge — "polygonize the polygons". 3D groups input by supporting plane first;
@@ -6718,7 +6534,7 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
 </details>
 
  <details closed>
- <summary><b> &nbsp; &nbsp; 13.4 Mesh::Polygonize </b></summary>
+ <summary><b> &nbsp; &nbsp; 13.3 Mesh::Polygonize </b></summary>
 
   The `polygonize()` free function is the engine of what mesh classes use, but they add a bit more logic to weld the 
   vertices and edges so that they respect the mesh rule (no face vertex should lie in the middle of another face's edge).
@@ -6895,6 +6711,190 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   planar-quads:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 1))
   planar-quads:  POLYGON ((1 1, 2 2, 1 2, 1 1))
   planar-quads:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  ```
+
+   </details>
+
+  </details>
+
+  </details>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; 13.4 adjacency conformity</b></summary>
+
+  `PolygonizationParams` also carries a `conformity` field (`AdjacencyConformity` — `Assert`/`Enforce`/
+  `Guaranteed`, the same enum §11.5's `fix_adjacency()` uses, standalone rather than nested inside
+  `TriangulationParams`), threaded through `Mesh::Polygonize()`/`ConnectedMesh::Polygonize()` into their
+  final `PolyMesh::FromPolygons()` call. Default is `Assert`. On well-formed input, `polygonize_impl`'s
+  own seam-collapse logic already keeps every strategy's output provably conformant by construction, so
+  the 3 modes are indistinguishable here: `Assert` never fires, `Guaranteed` has nothing to skip, and
+  `Enforce` has nothing to fix. Same input, same `HertelMehlhorn` split, 3 conformity modes below.
+
+  <p align="center">
+    <img src="./images/polygonize_before.png" width="260" alt="8 triangles forming an L-shape with two triangular spikes hanging off the right column, teal fill with cyan edges -- the shared Mesh2D::Polygonize() input for all three conformity modes below">
+    &nbsp;&nbsp;
+    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Enforce: 3 convex polygons shaded differently -- identical to Assert/Guaranteed below, since polygonize_impl's own output is already provably conformant">
+  </p>
+  <p align="center">
+    <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before HertelMehlhorn with conformity=Guaranteed">
+    &nbsp;&nbsp;
+    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Guaranteed: the mesh-conformity check is skipped entirely, but the result is byte-identical to Enforce/Assert -- there was nothing to skip">
+  </p>
+  <p align="center">
+    <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before HertelMehlhorn with conformity=Assert">
+    &nbsp;&nbsp;
+    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Assert (the default): the conformity check runs but finds nothing to throw on -- identical result to Enforce/Guaranteed">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples </b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "mesh2d.hpp"
+  #include "polymesh2d.hpp"
+
+  namespace g = geompp;
+
+  // The L-shape-plus-2-spikes mesh from §13.4.
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1.5, -0.5), g::Point2D(2, 0)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+      g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
+  });
+
+  // polygonize_impl's own seam-collapse logic already keeps HertelMehlhorn's output provably
+  // conformant by construction here, so all three conformity modes produce the exact same 3-piece
+  // split -- Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
+  g::PolygonizationParams enforce{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Enforce};
+  auto he = mesh.Polygonize(enforce);
+  for (std::size_t i = 0; i < he.Size(); ++i)
+      GEOMPP_LOG(INFO) << "enforce:  " << he[i].ToWkt();
+
+  g::PolygonizationParams guaranteed{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Guaranteed};
+  auto hg = mesh.Polygonize(guaranteed);
+  for (std::size_t i = 0; i < hg.Size(); ++i)
+      GEOMPP_LOG(INFO) << "guaranteed:  " << hg[i].ToWkt();
+
+  g::PolygonizationParams assertMode{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Assert};
+  auto ha = mesh.Polygonize(assertMode);
+  for (std::size_t i = 0; i < ha.Size(); ++i)
+      GEOMPP_LOG(INFO) << "assert:  " << ha[i].ToWkt();
+  ```
+
+  ```bash
+  I20260830] enforce:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  I20260830] enforce:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  I20260830] enforce:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  I20260830] guaranteed:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  I20260830] guaranteed:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  I20260830] guaranteed:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  I20260830] assert:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  I20260830] assert:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  I20260830] assert:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # The L-shape-plus-2-spikes mesh from §13.4.
+  mesh = g.Mesh2D.from_triangles([
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 1), g.Point2D(0, 1)),
+      g.Triangle2D.make(g.Point2D(0, 0), g.Point2D(1, 0), g.Point2D(1, 1)),
+      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(2, 1), g.Point2D(1, 1)),
+      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(2, 0), g.Point2D(2, 1)),
+      g.Triangle2D.make(g.Point2D(1, 0), g.Point2D(1.5, -0.5), g.Point2D(2, 0)),
+      g.Triangle2D.make(g.Point2D(1, 1), g.Point2D(2, 1), g.Point2D(2, 2)),
+      g.Triangle2D.make(g.Point2D(1, 1), g.Point2D(2, 2), g.Point2D(1, 2)),
+      g.Triangle2D.make(g.Point2D(2, 1), g.Point2D(2.5, 1.5), g.Point2D(2, 2)),
+  ])
+
+  hertel = g.PolygonizationParams(g.PolygonizationStrategy.HertelMehlhorn, g.AdjacencyConformity.Enforce)
+  he = mesh.polygonize(hertel)
+  for i in range(he.size()):
+      print(f"enforce:  {he[i].to_wkt()}")
+
+  guaranteed = g.PolygonizationParams(g.PolygonizationStrategy.HertelMehlhorn, g.AdjacencyConformity.Guaranteed)
+  hg = mesh.polygonize(guaranteed)
+  for i in range(hg.size()):
+      print(f"guaranteed:  {hg[i].to_wkt()}")
+
+  assert_mode = g.PolygonizationParams(g.PolygonizationStrategy.HertelMehlhorn, g.AdjacencyConformity.Assert)
+  ha = mesh.polygonize(assert_mode)
+  for i in range(ha.size()):
+      print(f"assert:  {ha[i].to_wkt()}")
+  ```
+
+  ```
+  enforce:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  enforce:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  enforce:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  guaranteed:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  guaranteed:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  guaranteed:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  assert:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  assert:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  assert:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // The L-shape-plus-2-spikes mesh from §13.4.
+  var mesh = G.Mesh2D.FromTriangles(new G.Triangle2D[] {
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 1), new G.Point2D(0, 1)),
+      G.Triangle2D.Make(new G.Point2D(0, 0), new G.Point2D(1, 0), new G.Point2D(1, 1)),
+      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(2, 1), new G.Point2D(1, 1)),
+      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(2, 0), new G.Point2D(2, 1)),
+      G.Triangle2D.Make(new G.Point2D(1, 0), new G.Point2D(1.5, -0.5), new G.Point2D(2, 0)),
+      G.Triangle2D.Make(new G.Point2D(1, 1), new G.Point2D(2, 1), new G.Point2D(2, 2)),
+      G.Triangle2D.Make(new G.Point2D(1, 1), new G.Point2D(2, 2), new G.Point2D(1, 2)),
+      G.Triangle2D.Make(new G.Point2D(2, 1), new G.Point2D(2.5, 1.5), new G.Point2D(2, 2)),
+  });
+
+  var enforce = new G.PolygonizationParams(G.PolygonizationStrategy.HertelMehlhorn, G.AdjacencyConformity.Enforce);
+  var he = mesh.Polygonize(enforce);
+  for (int i = 0; i < he.Size(); i++)
+      Console.WriteLine($"enforce:  {he[i].ToWkt()}");
+
+  var guaranteed = new G.PolygonizationParams(G.PolygonizationStrategy.HertelMehlhorn, G.AdjacencyConformity.Guaranteed);
+  var hg = mesh.Polygonize(guaranteed);
+  for (int i = 0; i < hg.Size(); i++)
+      Console.WriteLine($"guaranteed:  {hg[i].ToWkt()}");
+
+  var assertMode = new G.PolygonizationParams(G.PolygonizationStrategy.HertelMehlhorn, G.AdjacencyConformity.Assert);
+  var ha = mesh.Polygonize(assertMode);
+  for (int i = 0; i < ha.Size(); i++)
+      Console.WriteLine($"assert:  {ha[i].ToWkt()}");
+  ```
+
+  ```
+  enforce:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  enforce:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  enforce:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  guaranteed:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  guaranteed:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  guaranteed:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  assert:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  assert:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  assert:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
   ```
 
    </details>

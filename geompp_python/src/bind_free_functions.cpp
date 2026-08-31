@@ -416,10 +416,10 @@ void bind_free_functions(py::module_& m) {
         .def_readonly("facet_indices", &geompp::AdjacencyViolation<geompp::Point2D>::facet_indices,
                       "Every facet (index into the input) touching this edge. For a T-junction, "
                       "facet_indices[0] owns the coarse edge — the one fix_adjacency() splices on_vertex into.")
-        .def_readonly("is_non_manifold", &geompp::AdjacencyViolation<geompp::Point2D>::is_non_manifold,
-                      "True: a full edge shared by 3+ facets, not fixable. False: a T-junction, fixable.")
         .def_readonly("on_vertex", &geompp::AdjacencyViolation<geompp::Point2D>::on_vertex,
-                      "Meaningful only when not is_non_manifold: the foreign vertex lying on the edge.");
+                      "Meaningful only for a T-junction (facet_indices has exactly 1 entry): the foreign "
+                      "vertex lying on the edge. For a non-manifold edge (facet_indices has 3+ entries), "
+                      "this is not meaningful.");
 
     py::class_<geompp::AdjacencyViolation<geompp::Point3D>>(m, "AdjacencyViolation3D",
         "3D counterpart of AdjacencyViolation2D — same fields, operating on Point3D. Native 3D "
@@ -430,10 +430,10 @@ void bind_free_functions(py::module_& m) {
         .def_readonly("facet_indices", &geompp::AdjacencyViolation<geompp::Point3D>::facet_indices,
                       "Every facet (index into the input) touching this edge. For a T-junction, "
                       "facet_indices[0] owns the coarse edge — the one fix_adjacency() splices on_vertex into.")
-        .def_readonly("is_non_manifold", &geompp::AdjacencyViolation<geompp::Point3D>::is_non_manifold,
-                      "True: a full edge shared by 3+ facets, not fixable. False: a T-junction, fixable.")
         .def_readonly("on_vertex", &geompp::AdjacencyViolation<geompp::Point3D>::on_vertex,
-                      "Meaningful only when not is_non_manifold: the foreign vertex lying on the edge.");
+                      "Meaningful only for a T-junction (facet_indices has exactly 1 entry): the foreign "
+                      "vertex lying on the edge. For a non-manifold edge (facet_indices has 3+ entries), "
+                      "this is not meaningful.");
 
     m.def("validate_adjacency",
           [](const std::vector<geompp::Polygon2D>& facets) { return geompp::validate_adjacency(facets); },

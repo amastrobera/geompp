@@ -531,13 +531,13 @@ static System::Collections::Generic::List<int>^ ToManagedInts(std::vector<std::s
 static AdjacencyViolation2D^ ToManaged(geompp::AdjacencyViolation<geompp::Point2D> const& v) {
     return gcnew AdjacencyViolation2D(gcnew Point2D(new geompp::Point2D(v.edge_p0)),
                                       gcnew Point2D(new geompp::Point2D(v.edge_p1)), ToManagedInts(v.facet_indices),
-                                      v.is_non_manifold, gcnew Point2D(new geompp::Point2D(v.on_vertex)));
+                                      gcnew Point2D(new geompp::Point2D(v.on_vertex)));
 }
 
 static AdjacencyViolation3D^ ToManaged(geompp::AdjacencyViolation<geompp::Point3D> const& v) {
     return gcnew AdjacencyViolation3D(gcnew Point3D(new geompp::Point3D(v.edge_p0)),
                                       gcnew Point3D(new geompp::Point3D(v.edge_p1)), ToManagedInts(v.facet_indices),
-                                      v.is_non_manifold, gcnew Point3D(new geompp::Point3D(v.on_vertex)));
+                                      gcnew Point3D(new geompp::Point3D(v.on_vertex)));
 }
 
 System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ GeomUtil::ValidateAdjacency(array<Polygon2D^>^ facets) {

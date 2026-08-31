@@ -11,16 +11,18 @@ Each release covers all three packages at the same version:
 
 ---
 
-## [0.20.0] - 2026-08-30
+## [0.18.0] - 2026-08-30
 
-> `AdjacencyConformity` is now a standalone enum shared by `PolygonizationParams` (new `conformity`
-> field) and `TriangulationParams` (unchanged behavior), and `Mesh2D/3D::FromTriangles()`/
-> `PolyMesh2D/3D::FromPolygons()` each gain their own `conformity` parameter — `Enforce` auto-repairs
-> a T-junction via `fix_adjacency()` instead of throwing, `Guaranteed` skips the check.
+> New polygonization feature family: `polygonize(vector<Triangle2D/3D>, PolygonizationParams)` (triangles → polygons, the reverse of triangulation, 3 strategies: `PlanarBoundaryExtraction`, `PlanarQuads`, `HertelMehlhorn`) and `merge(vector<Polygon2D/3D>)` (coalesce touching/adjacent polygons, including their holes, into fewer polygons), plus `Mesh2D/3D::Polygonize()` and `ConnectedMesh2D/3D::Polygonize()` convenience methods, bound in Python and C#. Also: `AdjacencyConformity` is now a standalone enum shared by `PolygonizationParams` (new `conformity` field) and `TriangulationParams` (unchanged behavior), with `Mesh2D/3D::FromTriangles()`/`PolyMesh2D/3D::FromPolygons()` each gaining their own `conformity` parameter — `Enforce` auto-repairs a T-junction via `fix_adjacency()` instead of throwing, `Guaranteed` skips the check — and `TransformBuilder2D`/`TransformBuilder3D` gain `Apply(shape)`, a one-step shorthand for `transform(shape, builder.Get())`.
 
 ### Added
 
 **C++ core**
+- `polygonize(vector<Triangle2D/3D> const&, PolygonizationParams const& = {})` (`calc_utils/polygonization2d.hpp`/`3d.hpp`) — groups input triangles into coplanar clusters (union-find over shared-edge adjacency, gated by `Plane::AlmostEquals()` in 3D) and merges each cluster into one or more output polygons per the chosen strategy: `PlanarBoundaryExtraction` (cancel shared reverse-direction edges, trace the remaining directed edges into boundary loops — the fast O(n) path), `HertelMehlhorn` (iteratively merge adjacent triangle pairs across an edge whenever the merge stays convex), or `PlanarQuads` (greedily pair adjacent coplanar triangles into quads, leaving an unpaired odd triangle out as its own 3-point polygon).
+- `merge(vector<Polygon2D/3D> const&)` (same files) — the batch counterpart: groups input polygons by supporting plane (3D: two-phase hash-bucket-by-normal then `Plane::AlmostEquals()` verify, so near-identical normals on different-offset planes don't collide; 2D: single implicit group), cancels each group's shared outer-ring edges and traces the merged outer boundary, and separately detects touching holes (point-on-edge test) and folds each touching cluster into one merged hole via reverse-winding → `Polygon2D::Union` → reverse-winding back — a merged polygon inherits every hole from its inputs.
+- `Mesh2D/3D::Polygonize(PolygonizationParams const& = {})` / `ConnectedMesh2D/3D::Polygonize(PolygonizationParams const& = {})` — mesh-level convenience wrappers returning a `PolyMesh2D/3D`; both build adjacency directly off the mesh's own already-welded vertex/index buffers rather than rewelding (`Mesh2D/3D::Polygonize()` deliberately does not route through `Connect()`, avoiding a redundant grid-cell re-weld and O(n²) adjacency re-validation).
+- `detail::build_neighbor_refs(size_t const*, size_t)` (`utils.hpp`/`.cpp`) — extracted the edge-hashmap adjacency-building logic previously inlined in `GridCellMapForConnectedMesh2D/3D::Make`, generalized to take a raw welded-index pointer + count so it works over both `Mesh2D/3D`'s `array<size_t,3>`-per-face layout and `ConnectedMesh2D/3D`'s flat stride-3 layout.
+- `MeshTriangleFaceView2D`/`MeshTriangleFaceView3D` (`calc_utils/polygonization2d.hpp`/`3d.hpp`) — non-owning views over a shared vertex buffer plus per-face index/neighbor arrays, satisfying the new `MeshFaceView` concept (`generic_concepts.hpp`); the common type the 3 strategies and both mesh-class entry points are templated over.
 - `AdjacencyConformity` (`constants.hpp`) — standalone `enum class` (`Guaranteed`/`Assert`/`Enforce`),
   promoted out of `TriangulationParams` so it can be shared by `PolygonizationParams::conformity` (new
   field, default `Assert`) without a cross-struct nested-type reference.
@@ -33,26 +35,6 @@ Each release covers all three packages at the same version:
   strip a load-bearing collinear vertex needed by an untouched neighboring facet); `PolyMesh2D/3D`'s
   `Enforce` additionally throws on any holed input polygon, since `fix_adjacency()` only round-trips
   through each facet's outer `Perimeter()`.
-
-**Python bindings**
-- `PolygonizationParams(strategy, conformity)` constructor arg + read-write `.conformity` property.
-- `conformity` parameter on `Mesh2D/3D.from_triangles()` / `PolyMesh2D/3D.from_polygons()`.
-
-**C# bindings**
-- `PolygonizationParams(strategy, conformity)` constructor overload + read-write `.Conformity` property.
-- `conformity` overload on `Mesh2D/3D.FromTriangles()` / `PolyMesh2D/3D.FromPolygons()`.
-
----
-
-## [0.19.0] - 2026-08-27
-
-> `TransformBuilder2D`/`TransformBuilder3D` gain `Apply(shape)` — a one-step shorthand for
-> `transform(shape, builder.Get())` that applies the builder's composed matrix directly to a primitive
-> without the caller needing to fetch the matrix first.
-
-### Added
-
-**C++ core**
 - `TransformBuilder2D::Apply<T>(T const&)` / `TransformBuilder3D::Apply<T>(T const&)`
   (`transformations/transform_builder2d.hpp`/`3d.hpp`) — template method, shorthand for
   `transform(shape, builder.Get())`; works for any 2D/3D primitive `transform()` has an overload for.
@@ -60,36 +42,55 @@ Each release covers all three packages at the same version:
   can `Apply()` to several different shapes.
 
 **Python bindings**
+- `geompp.polygonize()` / `geompp.merge()` (both dimensions), `geompp.PolygonizationParams` / `geompp.PolygonizationStrategy`, and `Mesh2D/3D.polygonize()` / `ConnectedMesh2D/3D.polygonize()`.
+- `PolygonizationParams(strategy, conformity)` constructor arg + read-write `.conformity` property.
+- `conformity` parameter on `Mesh2D/3D.from_triangles()` / `PolyMesh2D/3D.from_polygons()`.
 - `TransformBuilder2D.apply()` / `TransformBuilder3D.apply()`, one overload per bound primitive
   (`Point`/`Vector`/`LineSegment`/`Polyline`/`Triangle`/`Polygon`/`Mesh`/`PolyMesh`, 2D+3D).
 
 **C# bindings**
+- `GeomUtil.Polygonize()` / `GeomUtil.Merge()` (both dimensions), `PolygonizationParams` / `PolygonizationStrategy`, and `Mesh2D/3D.Polygonize()` / `ConnectedMesh2D/3D.Polygonize()`.
+- `PolygonizationParams(strategy, conformity)` constructor overload + read-write `.Conformity` property.
+- `conformity` overload on `Mesh2D/3D.FromTriangles()` / `PolyMesh2D/3D.FromPolygons()`.
 - `TransformBuilder2D.Apply()` / `TransformBuilder3D.Apply()`, one overload per bound primitive
   (`Point`/`Vector`/`LineSegment`/`Polyline`/`Triangle`/`Polygon`/`Mesh`/`PolyMesh`, 2D+3D).
 
----
-
-## [0.18.0] - 2026-08-17
-
-> New polygonization feature family: `polygonize(vector<Triangle2D/3D>, PolygonizationParams)` (triangles → polygons, the reverse of triangulation, 3 strategies: `PlanarBoundaryExtraction`, `PlanarQuads`, `HertelMehlhorn`) and `merge(vector<Polygon2D/3D>)` (coalesce touching/adjacent polygons, including their holes, into fewer polygons), plus `Mesh2D/3D::Polygonize()` and `ConnectedMesh2D/3D::Polygonize()` convenience methods, bound in Python and C#.
-
-### Added
+### Changed
 
 **C++ core**
-- `polygonize(vector<Triangle2D/3D> const&, PolygonizationParams const& = {})` (`calc_utils/polygonization2d.hpp`/`3d.hpp`) — groups input triangles into coplanar clusters (union-find over shared-edge adjacency, gated by `Plane::AlmostEquals()` in 3D) and merges each cluster into one or more output polygons per the chosen strategy: `PlanarBoundaryExtraction` (cancel shared reverse-direction edges, trace the remaining directed edges into boundary loops — the fast O(n) path), `HertelMehlhorn` (iteratively merge adjacent triangle pairs across an edge whenever the merge stays convex), or `PlanarQuads` (greedily pair adjacent coplanar triangles into quads, leaving an unpaired odd triangle out as its own 3-point polygon).
-- `merge(vector<Polygon2D/3D> const&)` (same files) — the batch counterpart: groups input polygons by supporting plane (3D: two-phase hash-bucket-by-normal then `Plane::AlmostEquals()` verify, so near-identical normals on different-offset planes don't collide; 2D: single implicit group), cancels each group's shared outer-ring edges and traces the merged outer boundary, and separately detects touching holes (point-on-edge test) and folds each touching cluster into one merged hole via reverse-winding → `Polygon2D::Union` → reverse-winding back — a merged polygon inherits every hole from its inputs.
-- `Mesh2D/3D::Polygonize(PolygonizationParams const& = {})` / `ConnectedMesh2D/3D::Polygonize(PolygonizationParams const& = {})` — mesh-level convenience wrappers returning a `PolyMesh2D/3D`; both build adjacency directly off the mesh's own already-welded vertex/index buffers rather than rewelding (`Mesh2D/3D::Polygonize()` deliberately does not route through `Connect()`, avoiding a redundant grid-cell re-weld and O(n²) adjacency re-validation).
-- `detail::build_neighbor_refs(size_t const*, size_t)` (`utils.hpp`/`.cpp`) — extracted the edge-hashmap adjacency-building logic previously inlined in `GridCellMapForConnectedMesh2D/3D::Make`, generalized to take a raw welded-index pointer + count so it works over both `Mesh2D/3D`'s `array<size_t,3>`-per-face layout and `ConnectedMesh2D/3D`'s flat stride-3 layout.
-- `MeshTriangleFaceView2D`/`MeshTriangleFaceView3D` (`calc_utils/polygonization2d.hpp`/`3d.hpp`) — non-owning views over a shared vertex buffer plus per-face index/neighbor arrays, satisfying the new `MeshFaceView` concept (`generic_concepts.hpp`); the common type the 3 strategies and both mesh-class entry points are templated over.
+- `AdjacencyViolation<PointT>::facet_indices` for a T-junction now always has exactly 1 entry
+  (`facet_indices[0]`, the facet whose edge gets fixed) instead of 2 — the second entry (an arbitrary
+  facet sharing the foreign `on_vertex`, picked from `validate_adjacency_impl`'s grid-cell vertex dedup
+  whenever 3+ facets share that exact vertex) was never more than incidental diagnostic noise and is no
+  longer reported. A non-manifold edge's `facet_indices` is unaffected (still every facet sharing that
+  exact edge, exhaustively, 3+).
+- `fix_adjacency()` (both the raw-splice and facet-splitting flavors) and
+  `triangulate(..., AdjacencyConformity::Assert)` no longer refuse a non-manifold-edge input up front —
+  see Removed below. Callers that need to reject non-manifold input before attempting a fix should check
+  `facet_indices.size() > 1` themselves first.
+- `split_facets_at_junctions_impl`'s diagonal selection now throws rather than silently picking an
+  arbitrary winner when two candidate diagonals from a spliced T-junction vertex are exactly
+  equidistant, instead of relying on `std::sort`'s unspecified tie order for such cases.
+
+### Removed
+
+**C++ core**
+- `AdjacencyViolation<PointT>::is_non_manifold()` — a T-junction violation always has exactly 1
+  `facet_indices` entry and a non-manifold-edge violation always has 3+, so the two remain
+  distinguishable by `facet_indices.size()` directly, without a dedicated accessor.
 
 **Python bindings**
-- `geompp.polygonize()` / `geompp.merge()` (both dimensions), `geompp.PolygonizationParams` / `geompp.PolygonizationStrategy`, and `Mesh2D/3D.polygonize()` / `ConnectedMesh2D/3D.polygonize()`.
+- `AdjacencyViolation2D`/`AdjacencyViolation3D.is_non_manifold` property.
 
 **C# bindings**
-- `GeomUtil.Polygonize()` / `GeomUtil.Merge()` (both dimensions), `PolygonizationParams` / `PolygonizationStrategy`, and `Mesh2D/3D.Polygonize()` / `ConnectedMesh2D/3D.Polygonize()`.
+- `AdjacencyViolation2D`/`AdjacencyViolation3D.IsNonManifold` property (and its backing internal
+  constructor parameter).
 
 ### Fixed
 
+- **`detail::assert_adjacency()`'s T-junction message read `facet_indices[1]`, out of bounds** — left
+  over from the `facet_indices` simplification above; removed along with the rest of the
+  non-manifold/T-junction message branching it was part of.
 - **`Mesh2D/3D::Polygonize()`/`ConnectedMesh2D/3D::Polygonize()` could throw a T-junction error on a
   perfectly valid mesh** — every `polygonize()`/`merge()` output piece was packaged via
   `Polygon2D/3D::Make()`, which runs its usual `remove_collinear()` cleanup on each piece

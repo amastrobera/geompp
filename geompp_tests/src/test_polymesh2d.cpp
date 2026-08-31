@@ -72,8 +72,11 @@ TEST_F(PolyMesh2DTest, FromPolygons_MultipleTJunctionsOnOneEdge_Enforce_SplitsIn
   // diagonal, carving the base into 4 pieces instead of leaving one facet with a bad edge.
   auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  // Base is deliberately NOT centered on the middle spliced vertex (1,0) -- a symmetric base (e.g.
+  // -0.5..2.5, center x=1.0) makes that vertex exactly equidistant from both bottom corners, an
+  // undefined tie for split_facets_at_junctions_impl's nearest-valid-diagonal search.
   auto base =
-      g::Polygon2D::Make({g::Point2D(-0.5, -1.2), g::Point2D(2.5, -1.2), g::Point2D(2.5, 0), g::Point2D(-0.5, 0)});
+      g::Polygon2D::Make({g::Point2D(-0.7, -1.2), g::Point2D(2.5, -1.2), g::Point2D(2.5, 0), g::Point2D(-0.7, 0)});
   double area_before = p0.Area() + p1.Area() + base.Area();
 
   auto mesh = g::PolyMesh2D::FromPolygons({base, p0, p1}, g::AdjacencyConformity::Enforce);

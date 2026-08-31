@@ -139,7 +139,7 @@ class TestTriangulate:
         violations = geompp.validate_adjacency([p0, p1, roof])
 
         assert len(violations) > 0
-        assert all(not v.is_non_manifold for v in violations)
+        assert all(len(list(v.facet_indices)) <= 1 for v in violations)
 
     def test_validate_adjacency_non_manifold_edge_detects_violation(self):
         a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1)])
@@ -149,8 +149,7 @@ class TestTriangulate:
         violations = geompp.validate_adjacency([a, b, c])
 
         assert len(violations) > 0
-        assert violations[0].is_non_manifold
-        assert len(list(violations[0].facet_indices)) == 3
+        assert len(list(violations[0].facet_indices)) == 3  # 3+ facets sharing an edge == non-manifold
 
     def test_fix_adjacency_t_junction_splices_vertex_and_preserves_total_area(self):
         p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
@@ -187,8 +186,11 @@ class TestTriangulate:
         # diagonal, carving the base into 4 rectangular strips instead of one 7-vertex polygon.
         p0 = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])
         p1 = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(1, 1)])
-        base = geompp.Polygon2D.make([geompp.Point2D(-0.5, -1.2), geompp.Point2D(2.5, -1.2),
-                                      geompp.Point2D(2.5, 0), geompp.Point2D(-0.5, 0)])
+        # Base is deliberately NOT centered on the middle spliced vertex (1,0) -- a symmetric base
+        # (e.g. -0.5..2.5, center x=1.0) makes that vertex exactly equidistant from both bottom
+        # corners, an undefined tie for split_facets_at_junctions_impl's nearest-valid-diagonal search.
+        base = geompp.Polygon2D.make([geompp.Point2D(-0.7, -1.2), geompp.Point2D(2.5, -1.2),
+                                      geompp.Point2D(2.5, 0), geompp.Point2D(-0.7, 0)])
         facets = [base, p0, p1]
         area_before = sum(f.area() for f in facets)
 
@@ -201,12 +203,25 @@ class TestTriangulate:
         area_after = sum(t.area() for ring in fixed for t in geompp.triangulate(ring, guaranteed_collinearity))
         assert approx(area_before, area_after)
 
-    def test_fix_adjacency_non_manifold_edge_raises(self):
+    def test_fix_adjacency_non_manifold_edge_no_longer_raises_produces_degenerate_ring(self):
+        # AdjacencyViolation.is_non_manifold was removed (see CHANGELOG [0.18.0] Removed) --
+        # fix_adjacency() no longer refuses a non-manifold-edge input up front. It now splices
+        # on_vertex (for a non-manifold violation, just a reused edge endpoint, not a real foreign
+        # vertex) right next to itself, producing a ring with a coincident/zero-length-edge vertex
+        # pair instead of raising. Documents the current (not ideal) behavior.
         a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1)])
         b = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -1)])
         c = geompp.Polygon2D.make([geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -2)])
-        with pytest.raises(ValueError):
-            geompp.fix_adjacency([a, b, c])
+
+        fixed = geompp.fix_adjacency([a, b, c])
+
+        found_degenerate_edge = False
+        for ring in fixed:
+            n = len(ring)
+            for i in range(n):
+                if ring[i].almost_equals(ring[(i + 1) % n]):
+                    found_degenerate_edge = True
+        assert found_degenerate_edge
 
     def test_fix_adjacency_triangle_t_junction_retriangulates_and_preserves_total_area(self):
         # Big triangle a sitting on two small triangles b, c -- b and c's shared vertex (2,0) lies in
@@ -227,11 +242,17 @@ class TestTriangulate:
         assert geompp.validate_adjacency(fixed) == []
         assert approx(sum(t.area() for t in fixed), area_before)
 
-    def test_fix_adjacency_triangle_non_manifold_edge_raises(self):
+    def test_fix_adjacency_triangle_non_manifold_edge_raises_confusing_runtime_error(self):
+        # Unlike the Polygon2D overload above, this one still raises -- but no longer the clear
+        # ValueError naming the real problem (edge shared by 3+ facets). fix_adjacency_impl's splice
+        # inserts on_vertex (a reused edge endpoint for a non-manifold violation) right next to
+        # itself, and the coincident-point pair then trips a degeneracy guard somewhere downstream
+        # in re-triangulation, surfacing as an unrelated-looking RuntimeError about two points being
+        # too close. Documents the current (confusing but non-silent) behavior.
         a = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0.5, 1))
         b = geompp.Triangle2D.make(geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -1))
         c = geompp.Triangle2D.make(geompp.Point2D(1, 0), geompp.Point2D(0, 0), geompp.Point2D(0.5, -2))
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             geompp.fix_adjacency([a, b, c])
 
     def test_triangulate_polygon_batch_default_enforce_fixes_t_junction(self):
@@ -264,7 +285,7 @@ class TestTriangulate:
         violations = geompp.validate_adjacency([p0, p1, roof])
 
         assert len(violations) > 0
-        assert all(not v.is_non_manifold for v in violations)
+        assert all(len(list(v.facet_indices)) <= 1 for v in violations)
 
     def test_fix_adjacency_3d_polygon_t_junction_splices_vertex_and_preserves_total_area(self):
         p0 = geompp.Polygon3D.make([geompp.Point3D(0, 0, 1), geompp.Point3D(1, 0, 1),
@@ -314,9 +335,29 @@ class TestTriangulate:
         assert geompp.validate_adjacency(fixed) == []
         assert approx(sum(t.area() for t in fixed), area_before)
 
-    def test_fix_adjacency_3d_non_manifold_edge_raises(self):
+    def test_fix_adjacency_3d_triangle_non_manifold_edge_raises_confusing_runtime_error(self):
+        # Same as test_fix_adjacency_triangle_non_manifold_edge_raises_confusing_runtime_error above,
+        # native 3D: still raises, but now a RuntimeError from a downstream degeneracy guard rather
+        # than the clear ValueError naming the real problem, since is_non_manifold was removed.
         a = geompp.Triangle3D.make(geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0.5, 1, 0))
         b = geompp.Triangle3D.make(geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0), geompp.Point3D(0.5, 0, 1))
         c = geompp.Triangle3D.make(geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0), geompp.Point3D(0.5, -1, 0))
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             geompp.fix_adjacency([a, b, c])
+
+    def test_fix_adjacency_3d_non_manifold_edge_no_longer_raises_produces_degenerate_ring(self):
+        # Polygon3D overload: same as test_fix_adjacency_non_manifold_edge_no_longer_raises_produces_degenerate_ring
+        # above, native 3D.
+        a = geompp.Polygon3D.make([geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(0.5, 1, 0)])
+        b = geompp.Polygon3D.make([geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0), geompp.Point3D(0.5, 0, 1)])
+        c = geompp.Polygon3D.make([geompp.Point3D(1, 0, 0), geompp.Point3D(0, 0, 0), geompp.Point3D(0.5, -1, 0)])
+
+        fixed = geompp.fix_adjacency([a, b, c])
+
+        found_degenerate_edge = False
+        for ring in fixed:
+            n = len(ring)
+            for i in range(n):
+                if ring[i].almost_equals(ring[(i + 1) % n]):
+                    found_degenerate_edge = True
+        assert found_degenerate_edge

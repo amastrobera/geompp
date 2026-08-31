@@ -242,17 +242,15 @@ public:
     property Point2D^ EdgeP0 { Point2D^ get() { return _edgeP0; } }
     property Point2D^ EdgeP1 { Point2D^ get() { return _edgeP1; } }
     property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
-    property bool IsNonManifold { bool get() { return _isNonManifold; } }
     property Point2D^ OnVertex { Point2D^ get() { return _onVertex; } }
 internal:
     AdjacencyViolation2D(Point2D^ edgeP0, Point2D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
-                         bool isNonManifold, Point2D^ onVertex)
-        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+                         Point2D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _onVertex(onVertex) {}
 private:
     Point2D^ _edgeP0;
     Point2D^ _edgeP1;
     System::Collections::Generic::List<int>^ _facetIndices;
-    bool _isNonManifold;
     Point2D^ _onVertex;
 };
 
@@ -264,17 +262,15 @@ public:
     property Point3D^ EdgeP0 { Point3D^ get() { return _edgeP0; } }
     property Point3D^ EdgeP1 { Point3D^ get() { return _edgeP1; } }
     property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
-    property bool IsNonManifold { bool get() { return _isNonManifold; } }
     property Point3D^ OnVertex { Point3D^ get() { return _onVertex; } }
 internal:
     AdjacencyViolation3D(Point3D^ edgeP0, Point3D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
-                         bool isNonManifold, Point3D^ onVertex)
-        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+                         Point3D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _onVertex(onVertex) {}
 private:
     Point3D^ _edgeP0;
     Point3D^ _edgeP1;
     System::Collections::Generic::List<int>^ _facetIndices;
-    bool _isNonManifold;
     Point3D^ _onVertex;
 };
 

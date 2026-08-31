@@ -157,8 +157,11 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input,
                                     TriangulationParams const& settings = TriangulationParams{});
 
 /// @brief One "more than 1 neighbor" violation of the mesh-conformity rule found by validate_adjacency()
-/// across a batch of facets — see AdjacencyConformity's own docs for what the rule means and why a
-/// T-junction is fixable but a non-manifold edge isn't.
+/// across a batch of facets — see AdjacencyConformity's own docs for what the rule means. Covers two
+/// distinct cases, distinguishable by facet_indices.size() (1 vs. 3+, never 2) if a caller needs to:
+/// a T-junction (facet_indices has exactly 1 entry, on_vertex is the foreign vertex lying on the edge),
+/// or a non-manifold edge (facet_indices lists 3+ facets that all share this exact edge; on_vertex is
+/// not meaningful there -- just a reused edge endpoint, not a real foreign vertex).
 /// @tparam PointT Point2D or Point3D. Not View2D-projected: unlike triangulation/convexity/winding,
 /// "does this vertex lie on this edge" is a well-defined, exact question in native space for either
 /// dimension. For a general 3D mesh (facets in many different planes -- a building's walls and roof,
@@ -168,14 +171,17 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input,
 template <typename PointT>
 struct AdjacencyViolation {
   PointT edge_p0, edge_p1;                 ///< the shared/coarse edge the violation is on.
-  std::vector<std::size_t> facet_indices;  ///< every facet (index into the input) touching this edge.
-                                            ///< For a T-junction: facet_indices[0] owns the coarse edge
-                                            ///< (edge_p0, edge_p1) -- that's the one fix_adjacency()
-                                            ///< splices @ref on_vertex into.
-  bool is_non_manifold = false;            ///< true: a full edge shared by 3+ facets, not fixable.
-                                            ///< false: a T-junction, fixable -- see @ref on_vertex.
-  PointT on_vertex;                        ///< meaningful only when !is_non_manifold: the foreign vertex
-                                            ///< lying in the interior of (edge_p0, edge_p1).
+  std::vector<std::size_t> facet_indices;  ///< For a T-junction: always exactly 1 entry, facet_indices[0],
+                                           ///< the facet owning the coarse edge (edge_p0, edge_p1) -- the
+                                           ///< one fix_adjacency() splices @ref on_vertex into. The foreign
+                                           ///< facet @ref on_vertex itself belongs to is deliberately NOT
+                                           ///< reported: when 3+ facets share that exact vertex,
+                                           ///< validate_adjacency_impl's grid-cell dedup only keeps one
+                                           ///< arbitrary representative, so naming "the" owner would be
+                                           ///< misleading. For a non-manifold edge: every facet (3+, always)
+                                           ///< that shares this exact edge, exhaustively.
+  PointT on_vertex;                        ///< only meaningful for a T-junction (facet_indices.size() == 1):
+                                           ///< the foreign vertex lying in the interior of (edge_p0, edge_p1).
 };
 
 /// @brief Checks a batch of facets for the mesh-conformity rule "every edge has at most 1 neighbor" --
