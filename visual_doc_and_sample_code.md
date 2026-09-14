@@ -6053,7 +6053,11 @@ A quick list of code examples per topic is provided here.
   2. `EarClippingBestFit` (**the default**) — same idea, but scores every valid ear each pass and
      clips the best one instead. Same termination guarantee as `EarClipping`, just fatter triangles.
      Slower: unconditionally ~O(n²), not just worst case.
-  3. `MonotonePolygon`, `Delaunay` — declared, not implemented yet. Both `throw`.
+  3. `MonotonePolygon` — O(n log n) sweep-line algorithm (de Berg §3.3). Requires a y-monotone
+     polygon; check the precondition first with `is_axis_monotone` (see §12.2).
+  4. `Delaunay` — O(n log n) average; Bowyer-Watson incremental algorithm. Triangulates the
+     **convex hull** of the point set (triangles may extend beyond a concave polygon's boundary).
+     Maximizes the minimum angle across all triangles (see §12.3).
   - **`Simplicity` / `Winding` / `Collinearity`** — each `Guaranteed` (skip the check), `Assert`
     (throw if violated), or `Enforce` (fix it: decompose, reverse winding, strip bad points).
 
@@ -6228,12 +6232,74 @@ A quick list of code examples per topic is provided here.
   <details closed>
   <summary><b> &nbsp; &nbsp; 12.2 Monotone Polygon</b></summary>
 
-  TODO
+  O(n log n) sweep-line triangulation (de Berg §3.3). The input polygon must be **y-monotone** —
+  any horizontal sweep line intersects its boundary in at most two points. Check the precondition
+  with `is_axis_monotone(ring, direction)` before calling (see §14 for the free function). Throws
+  if the polygon is not monotone along the given direction.
 
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
 
-  TODO
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polygon2d.hpp"
+  #include "calc_utils2d.hpp"
+
+  namespace g = geompp;
+
+  std::vector<g::Point2D> pts = {
+      {0,0}, {4,0}, {4,3}, {2,5}, {0,3}
+  };
+  g::Vector2D y_dir{0, 1};
+
+  // Check the precondition before triangulating.
+  if (g::is_axis_monotone(pts, y_dir)) {
+      g::TriangulationParams p{g::TriangulationParams::Strategy::MonotonePolygon};
+      auto tris = g::triangulate(pts, p);
+      GEOMPP_LOG(INFO) << tris.size() << " triangles";
+  }
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  pts = [g.Point2D(0,0), g.Point2D(4,0), g.Point2D(4,3), g.Point2D(2,5), g.Point2D(0,3)]
+
+  # Check the precondition before triangulating.
+  if g.is_axis_monotone(pts, g.Vector2D(0, 1)):
+      p = g.TriangulationParams(strategy=g.TriangulationParams.Strategy.MonotonePolygon)
+      tris = g.triangulate(pts, p)
+      print(f"{len(tris)} triangles")
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  var pts = new G.Point2D[] {
+      new(0,0), new(4,0), new(4,3), new(2,5), new(0,3)
+  };
+
+  // Check the precondition before triangulating.
+  if (G.GeomUtil.IsAxisMonotone(pts, new G.Vector2D(0, 1))) {
+      var p = new G.TriangulationParams { Strategy = G.TriangulationParams.StrategyEnum.MonotonePolygon };
+      var tris = G.GeomUtil.Triangulate(pts, p);
+      Console.WriteLine($"{tris.Count()} triangles");
+  }
+  ```
+
+   </details>
 
   </details>
 
@@ -6242,12 +6308,90 @@ A quick list of code examples per topic is provided here.
   <details closed>
   <summary><b> &nbsp; &nbsp; 12.3 Delaunay</b></summary>
 
-  TODO
+  O(n log n) average Bowyer-Watson incremental Delaunay triangulation. Maximizes the minimum angle
+  across all triangles (no "sliver" triangles), which makes it the preferred choice for geometry
+  processing and finite-element meshing.
+
+  **Important:** `Delaunay` triangulates the **convex hull** of the point set, not the polygon
+  boundary. For a concave input polygon, triangles near the concavities may extend outside the
+  polygon's boundary. Use `EarClippingBestFit` or `MonotonePolygon` when the output must be
+  strictly interior.
+
+  The Delaunay condition guarantees no point lies inside any triangle's circumcircle — testable
+  via `in_circumcircle(a, b, c, p)` (see §14 for the free function).
 
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
 
-  TODO
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "polygon2d.hpp"
+  #include "calc_utils2d.hpp"
+
+  namespace g = geompp;
+
+  // Same pentagon as §12.2 — Delaunay works on any point set (no monotonicity precondition).
+  std::vector<g::Point2D> pts = {
+      {0,0}, {4,0}, {4,3}, {2,5}, {0,3}
+  };
+
+  g::TriangulationParams p{g::TriangulationParams::Strategy::Delaunay};
+  auto tris = g::triangulate(pts, p);
+  GEOMPP_LOG(INFO) << tris.size() << " triangles";
+
+  // Verify the Delaunay condition on the first triangle.
+  auto& t = tris[0];
+  bool inside = g::in_circumcircle(t.A(), t.B(), t.C(), pts[3]);
+  GEOMPP_LOG(INFO) << "point inside circumcircle: " << inside;
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # Same pentagon as §12.2 — no monotonicity precondition needed.
+  pts = [g.Point2D(0,0), g.Point2D(4,0), g.Point2D(4,3), g.Point2D(2,5), g.Point2D(0,3)]
+
+  p = g.TriangulationParams(strategy=g.TriangulationParams.Strategy.Delaunay)
+  tris = g.triangulate(pts, p)
+  print(f"{len(tris)} triangles")
+
+  # Verify the Delaunay condition on the first triangle.
+  t = tris[0]
+  inside = g.in_circumcircle(t.a, t.b, t.c, pts[3])
+  print("point inside circumcircle:", inside)
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // Same pentagon as §12.2 — no monotonicity precondition needed.
+  var pts = new G.Point2D[] {
+      new(0,0), new(4,0), new(4,3), new(2,5), new(0,3)
+  };
+
+  var p = new G.TriangulationParams { Strategy = G.TriangulationParams.StrategyEnum.Delaunay };
+  var tris = G.GeomUtil.Triangulate(pts, p).ToList();
+  Console.WriteLine($"{tris.Count} triangles");
+
+  // Verify the Delaunay condition on the first triangle.
+  var t = tris[0];
+  bool inside = G.GeomUtil.InCircumcircle(t.A, t.B, t.C, pts[3]);
+  Console.WriteLine($"point inside circumcircle: {inside}");
+  ```
+
+   </details>
 
   </details>
 
@@ -6903,5 +7047,63 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
 
   </details>
 
+</details>
+
+<details open>
+<summary><b> &nbsp; 14. Free Functions</b></summary>
+
+  Selected free functions that don't belong to a single geometry type. See also: `triangulate` (§12),
+  `polygonize` / `merge` (§13).
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; 14.1 is_axis_monotone</b></summary>
+
+  Returns `true` if a polygon or ring is **monotone** along the given direction vector — meaning any
+  line perpendicular to that direction intersects the boundary in at most two points.
+
+  Overloads: `(span<Point2D>, Vector2D)`, `(span<Point3D>, Vector3D)`, `(Polygon2D, Vector2D)`,
+  `(Polygon3D, Vector3D)`.
+
+  Use it to guard calls to `triangulate` with `Strategy::MonotonePolygon` (§12.2).
+
+  ```cpp
+  #include "calc_utils2d.hpp"
+  namespace g = geompp;
+
+  // true: square is monotone along y
+  g::is_axis_monotone({{0,0},{1,0},{1,1},{0,1}}, g::Vector2D{0,1});
+
+  // true: square is also monotone along x
+  g::is_axis_monotone({{0,0},{1,0},{1,1},{0,1}}, g::Vector2D{1,0});
+
+  // false: W-shape has two y-minima
+  g::is_axis_monotone({{0,0},{1,2},{2,0},{3,2},{4,0},{4,4},{0,4}}, g::Vector2D{0,1});
+  ```
+
+  </details>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; 14.2 in_circumcircle</b></summary>
+
+  Returns `true` if point `p` lies **strictly inside** the circumcircle of the CCW triangle
+  `{a, b, c}`. The Delaunay condition (§12.3) guarantees this is false for every point and every
+  triangle in a valid Delaunay triangulation.
+
+  Overloads: `(Point2D, Point2D, Point2D, Point2D)`, `(Point3D, Point3D, Point3D, Point3D)`.
+
+  ```cpp
+  #include "calc_utils2d.hpp"
+  namespace g = geompp;
+
+  // true: center of the right-triangle's circumcircle is near (0.5, 0.5)
+  g::in_circumcircle(g::Point2D{0,0}, g::Point2D{1,0}, g::Point2D{0,1}, g::Point2D{0.5,0.5});
+
+  // false: far outside
+  g::in_circumcircle(g::Point2D{0,0}, g::Point2D{1,0}, g::Point2D{0,1}, g::Point2D{5,5});
+  ```
+
+  </details>
+
+</details>
 
 </details>

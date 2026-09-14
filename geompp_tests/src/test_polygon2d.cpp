@@ -1808,14 +1808,22 @@ TEST_F(Polygon2DTest, Triangulate_DefaultParams_UsesGuaranteedNoRevalidation) {
   EXPECT_NO_THROW(p.Triangulate(g::TriangulationParams::Strategy::EarClipping));
 }
 
-TEST_F(Polygon2DTest, Triangulate_MonotonePolygonStrategy_Throws) {
+TEST_F(Polygon2DTest, Triangulate_MonotonePolygonStrategy_ReturnsTwoTriangles) {
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(0, 2)});
-  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::MonotonePolygon), std::runtime_error);
+  auto tris = p.Triangulate(g::TriangulationParams::Strategy::MonotonePolygon);
+  ASSERT_EQ(tris.size(), 2u);
+  double area = 0.0;
+  for (auto const& t : tris) { area += t.Area(); }
+  EXPECT_NEAR(area, 8.0, 1e-9);
 }
 
-TEST_F(Polygon2DTest, Triangulate_DelaunayStrategy_Throws) {
+TEST_F(Polygon2DTest, Triangulate_DelaunayStrategy_ReturnsTwoTriangles) {
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(0, 2)});
-  EXPECT_THROW(p.Triangulate(g::TriangulationParams::Strategy::Delaunay), std::runtime_error);
+  auto tris = p.Triangulate(g::TriangulationParams::Strategy::Delaunay);
+  ASSERT_EQ(tris.size(), 2u);
+  double area = 0.0;
+  for (auto const& t : tris) { area += t.Area(); }
+  EXPECT_NEAR(area, 8.0, 1e-9);
 }
 
 #pragma endregion

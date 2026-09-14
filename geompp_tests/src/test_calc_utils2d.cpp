@@ -2585,14 +2585,16 @@ TEST_F(CalcUtils2DTest, PolyPolyRLTangentTo_ConvexSquares_Direct) {
   EXPECT_EQ(square_b[i2], g::Point2D(10, 5));
 }
 
-TEST_F(CalcUtils2DTest, MonotonePolygonTriangulation_CalledDirectly_Throws) {
+TEST_F(CalcUtils2DTest, MonotonePolygonTriangulation_CalledDirectly_ReturnsTwoTriangles) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  EXPECT_THROW(gd::view::monotone_polygon_triangulation(square, g::View2D::XY()), std::runtime_error);
+  auto tris = gd::view::monotone_polygon_triangulation(square, g::View2D::XY());
+  ASSERT_EQ(tris.size(), 2u);
 }
 
-TEST_F(CalcUtils2DTest, DelaunayTriangulation_CalledDirectly_Throws) {
+TEST_F(CalcUtils2DTest, DelaunayTriangulation_CalledDirectly_ReturnsTwoTriangles) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  EXPECT_THROW(gd::view::delaunay_triangulation(square, g::View2D::XY()), std::runtime_error);
+  auto tris = gd::view::delaunay_triangulation(square, g::View2D::XY());
+  ASSERT_EQ(tris.size(), 2u);
 }
 
 TEST_F(CalcUtils2DTest, AssertAdjacency_EmptyViolations_DoesNotThrow) {
