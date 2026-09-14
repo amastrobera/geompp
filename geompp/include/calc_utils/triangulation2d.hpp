@@ -24,6 +24,29 @@ namespace view {
 
 // all triangulation functions
 
+/// @brief Whether @p input is y-monotone: at most one local y-maximum and one local y-minimum when
+/// projected through @p view. A polygon must be y-monotone before monotone_polygon_triangulation() can
+/// operate on it correctly. Local max: y_curr > y_prev && y_curr > y_next. Local min: the reverse.
+/// @param input ring vertices (Point2D or Point3D), implicitly closed.
+/// @param view projects each vertex to 2D x/y coordinates.
+template <typename PointT>
+bool is_y_monotone(std::vector<PointT> const& input, View2D const& view);
+
+extern template bool is_y_monotone(std::vector<Point2D> const& input, View2D const& view);
+extern template bool is_y_monotone(std::vector<Point3D> const& input, View2D const& view);
+
+/// @brief Whether @p p is strictly inside the circumcircle of CCW-wound triangle {a, b, c}, using the
+/// 3×3 determinant predicate. For a CCW triangle, det > 0 means @p p is strictly inside; det == 0
+/// means on the circle; det < 0 means outside. Building block for delaunay_triangulation().
+/// @param view projects each vertex to 2D x/y coordinates.
+template <typename PointT>
+bool in_circumcircle(PointT const& a, PointT const& b, PointT const& c, PointT const& p, View2D const& view);
+
+extern template bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p,
+                                     View2D const& view);
+extern template bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p,
+                                     View2D const& view);
+
 /// @brief O(n^2)-worst-case ear-clipping triangulation of a single simple, CCW-wound ring, projected
 /// through @p view. Repeatedly clips a convex "ear" vertex (one whose candidate triangle contains no
 /// other, currently-reflex vertex) until 3 vertices remain, then emits that last triangle. Robust for
@@ -119,6 +142,11 @@ extern template std::vector<std::array<Point3D, 3>> triangulate_impl(std::vector
 }  // namespace view
 
 }  // namespace detail
+
+/// @brief Whether @p p is strictly inside the circumcircle of CCW-wound triangle {a, b, c}.
+/// Uses the exact 3×3 determinant predicate. For a CW triangle the result is negated.
+bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p);
+bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p);
 
 /// @brief Breaks down a simple polygon into triangles
 /// @param input polygon's outer loop of points (assumed CCW) and no holes allowed

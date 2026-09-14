@@ -78,6 +78,51 @@ bool are_collinear(PointT const& a, PointT const& b, PointT const& c, View2D con
 
 }  // namespace helpers
 
+// helper predicates
+
+template <typename PointT>
+bool is_y_monotone(std::vector<PointT> const& input, View2D const& view) {
+  std::size_t n = input.size();
+  if (n < 3) {
+    return true;
+  }
+  int max_count = 0, min_count = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    double y_curr = view.y(input[i]);
+    double y_prev = view.y(input[(i + n - 1) % n]);
+    double y_next = view.y(input[(i + 1) % n]);
+    if (compare(y_curr, y_prev) > 0 && compare(y_curr, y_next) > 0) {
+      ++max_count;
+    }
+    if (compare(y_curr, y_prev) < 0 && compare(y_curr, y_next) < 0) {
+      ++min_count;
+    }
+  }
+  return max_count <= 1 && min_count <= 1;
+}
+
+template bool is_y_monotone(std::vector<Point2D> const& input, View2D const& view);
+template bool is_y_monotone(std::vector<Point3D> const& input, View2D const& view);
+
+template <typename PointT>
+bool in_circumcircle(PointT const& a, PointT const& b, PointT const& c, PointT const& p, View2D const& view) {
+  double ax = view.x(a) - view.x(p);
+  double ay = view.y(a) - view.y(p);
+  double bx = view.x(b) - view.x(p);
+  double by = view.y(b) - view.y(p);
+  double cx = view.x(c) - view.x(p);
+  double cy = view.y(c) - view.y(p);
+  double det = ax * (by * (cx * cx + cy * cy) - cy * (bx * bx + by * by)) -
+               ay * (bx * (cx * cx + cy * cy) - cx * (bx * bx + by * by)) +
+               (ax * ax + ay * ay) * (bx * cy - by * cx);
+  return compare(det, 0.0) > 0;
+}
+
+template bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p,
+                               View2D const& view);
+template bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p,
+                               View2D const& view);
+
 // triangulation functions
 
 // EarClipping: walks the ring and clips the first valid ear it finds, in traversal order. O(n^2)
@@ -356,7 +401,137 @@ template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangula
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
                                                                        View2D const& view) {
-  throw std::runtime_error("not yet implemented");
+  std::size_t n = input.size();
+
+  // Step 1: find top (max y, tie-break max x) and bottom (min y, tie-break min x) vertices.
+  std::size_t top_idx = 0, bot_idx = 0;
+  for (std::size_t i = 1; i < n; ++i) {
+    double yi = view.y(input[i]);
+    double yt = view.y(input[top_idx]);
+    double yb = view.y(input[bot_idx]);
+    if (compare(yi, yt) > 0 || (compare(yi, yt) == 0 && compare(view.x(input[i]), view.x(input[top_idx])) > 0)) {
+      top_idx = i;
+    }
+    if (compare(yi, yb) < 0 || (compare(yi, yb) == 0 && compare(view.x(input[i]), view.x(input[bot_idx])) < 0)) {
+      bot_idx = i;
+    }
+  }
+
+  // Step 2: build left and right chains (both start at top_idx, end at bot_idx).
+  // left_chain: walk CCW (forward, next = (i+1)%n)
+  // right_chain: walk CW (backward, prev = (i+n-1)%n)
+  std::vector<std::size_t> left_chain, right_chain;
+  {
+    std::size_t i = top_idx;
+    while (i != bot_idx) {
+      left_chain.push_back(i);
+      i = (i + 1) % n;
+    }
+    left_chain.push_back(bot_idx);
+  }
+  {
+    std::size_t i = top_idx;
+    while (i != bot_idx) {
+      right_chain.push_back(i);
+      i = (i + n - 1) % n;
+    }
+    right_chain.push_back(bot_idx);
+  }
+
+  // Step 3: merge left_chain[1:] and right_chain[1:] into merged, y-descending, tie-break x-ascending.
+  // Tag each entry with which chain it came from.
+  enum class Chain { Left, Right };
+  struct MergedEntry {
+    std::size_t idx;
+    Chain chain;
+  };
+
+  std::vector<MergedEntry> merged;
+  merged.reserve(n);
+  merged.push_back({top_idx, Chain::Left});
+
+  std::size_t li = 1, ri = 1;
+  while (li < left_chain.size() - 1 || ri < right_chain.size() - 1) {
+    bool take_left = false;
+    if (li >= left_chain.size() - 1) {
+      take_left = false;
+    } else if (ri >= right_chain.size() - 1) {
+      take_left = true;
+    } else {
+      double yl = view.y(input[left_chain[li]]);
+      double yr = view.y(input[right_chain[ri]]);
+      if (compare(yl, yr) > 0) {
+        take_left = true;
+      } else if (compare(yl, yr) < 0) {
+        take_left = false;
+      } else {
+        take_left = true;  // tie: left chain first
+      }
+    }
+    if (take_left) {
+      merged.push_back({left_chain[li], Chain::Left});
+      ++li;
+    } else {
+      merged.push_back({right_chain[ri], Chain::Right});
+      ++ri;
+    }
+  }
+  merged.push_back({bot_idx, Chain::Left});
+
+  // Step 4: stack-based triangulation.
+  std::vector<std::array<std::size_t, 3>> result;
+
+  auto emit = [&](std::size_t a, std::size_t b, std::size_t c) {
+    if (compare(helpers::area2(input[a], input[b], input[c], view), 0.0) >= 0) {
+      result.push_back({a, b, c});
+    } else {
+      result.push_back({a, c, b});
+    }
+  };
+
+  std::vector<MergedEntry> stk;
+  stk.push_back(merged[0]);
+  stk.push_back(merged[1]);
+
+  for (std::size_t j = 2; j < merged.size() - 1; ++j) {
+    MergedEntry curr = merged[j];
+    if (curr.chain != stk.back().chain) {
+      while (stk.size() > 1) {
+        MergedEntry top = stk.back();
+        stk.pop_back();
+        emit(curr.idx, top.idx, stk.back().idx);
+      }
+      stk.pop_back();
+      stk.push_back(merged[j - 1]);
+      stk.push_back(curr);
+    } else {
+      MergedEntry last_popped = stk.back();
+      stk.pop_back();
+      while (!stk.empty()) {
+        double a = helpers::area2(input[curr.idx], input[last_popped.idx], input[stk.back().idx], view);
+        bool valid = (curr.chain == Chain::Left) ? compare(a, 0.0) < 0 : compare(a, 0.0) > 0;
+        if (valid) {
+          emit(curr.idx, last_popped.idx, stk.back().idx);
+          last_popped = stk.back();
+          stk.pop_back();
+        } else {
+          break;
+        }
+      }
+      stk.push_back(last_popped);
+      stk.push_back(curr);
+    }
+  }
+
+  // Handle last vertex (bot_idx).
+  MergedEntry last_vert = merged.back();
+  while (stk.size() > 1) {
+    MergedEntry top = stk.back();
+    stk.pop_back();
+    emit(last_vert.idx, top.idx, stk.back().idx);
+  }
+
+  return result;
 }
 
 template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point2D> const& input,
@@ -366,7 +541,116 @@ template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(
 
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view) {
-  throw std::runtime_error("not yet implemented");
+  std::size_t n = input.size();
+
+  // Step 1: collect projected coords.
+  using Pt2 = std::pair<double, double>;
+  std::vector<Pt2> pts;
+  pts.reserve(n + 3);
+  for (std::size_t i = 0; i < n; ++i) {
+    pts.push_back({view.x(input[i]), view.y(input[i])});
+  }
+
+  // Step 2: super-triangle (CCW, indices n, n+1, n+2).
+  double min_x = pts[0].first, max_x = pts[0].first;
+  double min_y = pts[0].second, max_y = pts[0].second;
+  for (auto const& p : pts) {
+    if (p.first < min_x) { min_x = p.first; }
+    if (p.first > max_x) { max_x = p.first; }
+    if (p.second < min_y) { min_y = p.second; }
+    if (p.second > max_y) { max_y = p.second; }
+  }
+  double delta = std::max(max_x - min_x, max_y - min_y) * 3.0 + 1.0;
+  double mid_x = (min_x + max_x) / 2.0;
+  double mid_y = (min_y + max_y) / 2.0;
+  pts.push_back({mid_x - 2.0 * delta, mid_y - delta});       // index n
+  pts.push_back({mid_x,               mid_y + 2.0 * delta}); // index n+1
+  pts.push_back({mid_x + 2.0 * delta, mid_y - delta});       // index n+2
+
+  // Step 3: active triangles, start with super-triangle.
+  std::vector<std::array<std::size_t, 3>> triangles;
+  triangles.push_back({n, n + 2, n + 1});
+
+  // circumcircle test working entirely on projected coords (no View2D needed here).
+  auto in_circ = [&](std::size_t ai, std::size_t bi, std::size_t ci, std::size_t pi) -> bool {
+    double ax = pts[ai].first  - pts[pi].first;
+    double ay = pts[ai].second - pts[pi].second;
+    double bx = pts[bi].first  - pts[pi].first;
+    double by = pts[bi].second - pts[pi].second;
+    double cx = pts[ci].first  - pts[pi].first;
+    double cy = pts[ci].second - pts[pi].second;
+    double det = ax * (by * (cx * cx + cy * cy) - cy * (bx * bx + by * by)) -
+                 ay * (bx * (cx * cx + cy * cy) - cx * (bx * bx + by * by)) +
+                 (ax * ax + ay * ay) * (bx * cy - by * cx);
+    return compare(det, 0.0) > 0;
+  };
+
+  // Step 4: Bowyer-Watson insertion.
+  for (std::size_t p = 0; p < n; ++p) {
+    std::size_t nt = triangles.size();
+    std::vector<bool> bad_flag(nt, false);
+    for (std::size_t ti = 0; ti < nt; ++ti) {
+      if (in_circ(triangles[ti][0], triangles[ti][1], triangles[ti][2], p)) {
+        bad_flag[ti] = true;
+      }
+    }
+
+    // Collect boundary edges of bad triangles (edges shared by exactly one bad triangle).
+    std::vector<std::array<std::size_t, 2>> all_bad_edges;
+    for (std::size_t ti = 0; ti < nt; ++ti) {
+      if (!bad_flag[ti]) {
+        continue;
+      }
+      auto const& tri = triangles[ti];
+      all_bad_edges.push_back({tri[0], tri[1]});
+      all_bad_edges.push_back({tri[1], tri[2]});
+      all_bad_edges.push_back({tri[2], tri[0]});
+    }
+
+    std::vector<std::array<std::size_t, 2>> boundary;
+    for (std::size_t ei = 0; ei < all_bad_edges.size(); ++ei) {
+      std::size_t ea = all_bad_edges[ei][0], eb = all_bad_edges[ei][1];
+      int count = 0;
+      for (auto const& e2 : all_bad_edges) {
+        std::size_t fa = e2[0], fb = e2[1];
+        if ((ea == fa && eb == fb) || (ea == fb && eb == fa)) {
+          ++count;
+        }
+      }
+      if (count == 1) {
+        boundary.push_back({ea, eb});
+      }
+    }
+
+    // Build next_tris: keep good triangles, add new triangles from boundary.
+    std::vector<std::array<std::size_t, 3>> next_tris;
+    next_tris.reserve(triangles.size() - all_bad_edges.size() / 3 + boundary.size());
+    for (std::size_t ti = 0; ti < nt; ++ti) {
+      if (!bad_flag[ti]) {
+        next_tris.push_back(triangles[ti]);
+      }
+    }
+    for (auto const& edge : boundary) {
+      std::size_t ea = edge[0], eb = edge[1];
+      double cross = (pts[eb].first - pts[ea].first) * (pts[p].second - pts[eb].second) -
+                     (pts[eb].second - pts[ea].second) * (pts[p].first - pts[eb].first);
+      if (compare(cross, 0.0) > 0) {
+        next_tris.push_back({ea, eb, p});
+      } else {
+        next_tris.push_back({eb, ea, p});
+      }
+    }
+    triangles = std::move(next_tris);
+  }
+
+  // Step 5: filter out triangles touching super-triangle vertices.
+  std::vector<std::array<std::size_t, 3>> result;
+  for (auto const& tri : triangles) {
+    if (tri[0] < n && tri[1] < n && tri[2] < n) {
+      result.push_back(tri);
+    }
+  }
+  return result;
 }
 
 template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point2D> const& input,
@@ -530,6 +814,18 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input, Triangula
     result.push_back(Triangle2D::Make(t[0], t[1], t[2]));
   }
   return result;
+}
+
+bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p) {
+  return detail::view::in_circumcircle(a, b, c, p, View2D::XY());
+}
+
+bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p) {
+  std::vector<Point3D> tri_pts{a, b, c};
+  auto frame = principal_axes(tri_pts);
+  Axis dax = frame.Z.DominantAxis();
+  View2D v = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  return detail::view::in_circumcircle(a, b, c, p, v);
 }
 
 namespace {

@@ -4,6 +4,7 @@
 #include "calc_utils/convex_hull3d.hpp"
 #include "geompp_log.hpp"
 #include "line_segment3d.hpp"
+#include "polygon3d.hpp"
 #include "segment_iterator3d.hpp"
 #include "vector3d.hpp"
 #include "view2d.hpp"
@@ -154,6 +155,31 @@ bool is_simple(std::vector<Point3D> const& points, Vector3D const& normal) {
 }
 
 bool is_simple(std::vector<Point3D> const& points) { return is_simple(points, principal_normal(points)); }
+
+bool is_axis_monotone(std::vector<Point3D> const& ring, Vector3D const& direction) {
+  std::size_t n = ring.size();
+  if (n < 3) {
+    return true;
+  }
+  int max_count = 0, min_count = 0;
+  auto proj = [&](std::size_t i) { return ring[i].ToVector().Dot(direction); };
+  for (std::size_t i = 0; i < n; ++i) {
+    double p = proj(i);
+    double pp = proj((i + n - 1) % n);
+    double pn = proj((i + 1) % n);
+    if (compare(p, pp) > 0 && compare(p, pn) > 0) {
+      ++max_count;
+    }
+    if (compare(p, pp) < 0 && compare(p, pn) < 0) {
+      ++min_count;
+    }
+  }
+  return max_count <= 1 && min_count <= 1;
+}
+
+bool is_axis_monotone(Polygon3D const& polygon, Vector3D const& direction) {
+  return is_axis_monotone(polygon.Perimeter(), direction);
+}
 
 }  // namespace geometry
 

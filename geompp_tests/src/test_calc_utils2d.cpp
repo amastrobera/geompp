@@ -1696,16 +1696,112 @@ TEST_F(CalcUtils2DTest, Triangulate_EarClippingBestFitStrategy_IsTheDefaultAndSu
   EXPECT_NEAR(total_area, 1.0, 1e-9);
 }
 
-TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygonStrategy_Throws) {
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Square_ProducesTwoTrianglesCoveringFullArea) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
   g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
-  EXPECT_THROW(g::triangulate(square, settings), std::runtime_error);
+  auto triangles = g::triangulate(square, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 1.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
 }
 
-TEST_F(CalcUtils2DTest, Triangulate_DelaunayStrategy_Throws) {
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_ConvexPentagon_ProducesThreeTriangles) {
+  std::vector<g::Point2D> pentagon = {{0, 0}, {4, 0}, {4, 3}, {2, 5}, {0, 3}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  auto triangles = g::triangulate(pentagon, settings);
+
+  ASSERT_EQ(triangles.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Diamond_ProducesTwoTriangles) {
+  std::vector<g::Point2D> diamond = {{0, 0}, {1, -1}, {2, 0}, {1, 1}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  auto triangles = g::triangulate(diamond, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 2.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_LShape_ProducesFourTriangles) {
+  std::vector<g::Point2D> lshape = {{0, 0}, {2, 0}, {2, 2}, {1, 2}, {1, 1}, {0, 1}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  auto triangles = g::triangulate(lshape, settings);
+
+  ASSERT_EQ(triangles.size(), 4u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 3.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_Delaunay_Square_ProducesTwoTrianglesCoveringFullArea) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
   g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
-  EXPECT_THROW(g::triangulate(square, settings), std::runtime_error);
+  auto triangles = g::triangulate(square, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 1.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_Delaunay_Pentagon_ProducesThreeTriangles) {
+  std::vector<g::Point2D> pentagon = {{0, 0}, {4, 0}, {4, 3}, {2, 5}, {0, 3}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
+  auto triangles = g::triangulate(pentagon, settings);
+
+  ASSERT_EQ(triangles.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_Delaunay_AllTrianglesHavePositiveArea) {
+  std::vector<g::Point2D> octagon = {
+      {2, 0}, {4, 0}, {6, 2}, {6, 4}, {4, 6}, {2, 6}, {0, 4}, {0, 2}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
+  auto triangles = g::triangulate(octagon, settings);
+
+  ASSERT_EQ(triangles.size(), 6u);
+  for (auto const& t : triangles) {
+    EXPECT_GT(t.Area(), 0.0);
+  }
 }
 
 #pragma region validate_adjacency / fix_adjacency / triangulate(vector<Polygon2D>)
@@ -2348,6 +2444,59 @@ TEST_F(CalcUtils2DTest, IsSimple_FreeFunction_SquareTrue_BowtieFalse) {
   EXPECT_TRUE(g::is_simple(square));
   std::vector<g::Point2D> bowtie = {{0, 0}, {4, 0}, {1, 3}, {3, 3}};
   EXPECT_FALSE(g::is_simple(bowtie));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_ConvexPolygon_YDirection_ReturnsTrue) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(g::is_axis_monotone(square, g::Vector2D{0, 1}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_ConcaveButYMonotone_ReturnsTrue) {
+  std::vector<g::Point2D> pts = {{0, 0}, {4, 0}, {4, 4}, {0, 4}, {1, 2}};
+  EXPECT_TRUE(g::is_axis_monotone(pts, g::Vector2D{0, 1}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_NonMonotone_ReturnsFalse) {
+  std::vector<g::Point2D> w_shape = {{0, 0}, {1, 2}, {2, 0}, {3, 2}, {4, 0}, {4, 4}, {0, 4}};
+  EXPECT_FALSE(g::is_axis_monotone(w_shape, g::Vector2D{0, 1}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_XDirection_OnXMonotoneShape_ReturnsTrue) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(g::is_axis_monotone(square, g::Vector2D{1, 0}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_PolygonOverload_SameResultAsVectorOverload) {
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  auto polygon = g::Polygon2D::Make(pts);
+  g::Vector2D dir{0, 1};
+  EXPECT_EQ(g::is_axis_monotone(pts, dir), g::is_axis_monotone(polygon, dir));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_PointInsideCircumcircle_ReturnsTrue) {
+  g::Point2D a{0, 0}, b{2, 0}, c{1, 2};
+  g::Point2D p{1, 0.5};
+  EXPECT_TRUE(g::in_circumcircle(a, b, c, p));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_PointOutsideCircumcircle_ReturnsFalse) {
+  g::Point2D a{0, 0}, b{2, 0}, c{1, 2};
+  g::Point2D p{5, 5};
+  EXPECT_FALSE(g::in_circumcircle(a, b, c, p));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_PointOnCircumcircle_ReturnsFalse) {
+  g::Point2D a{0, 0}, b{1, 0}, c{0, 1};
+  g::Point2D on_circle{1, 1};
+  EXPECT_FALSE(g::in_circumcircle(a, b, c, on_circle));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_UnitRightTriangle_CenterIsInside_FarPointIsOutside) {
+  g::Point2D a{0, 0}, b{1, 0}, c{0, 1};
+  g::Point2D center{0.5, 0.5};
+  EXPECT_TRUE(g::in_circumcircle(a, b, c, center));
+  g::Point2D far{2, 2};
+  EXPECT_FALSE(g::in_circumcircle(a, b, c, far));
 }
 
 TEST_F(CalcUtils2DTest, DetailIsConvex_ConvexNoHoles_True) {
