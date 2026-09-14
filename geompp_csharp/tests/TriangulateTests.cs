@@ -330,6 +330,86 @@ public static class TriangulateTests {
       catch (Exception) { threw = true; }
       IsTrue(threw, "expected Assert to throw on a T-junction");
     });
+
+    // ── MonotonePolygon and Delaunay strategies (were stubs, now implemented) ────────────────────
+    Console.WriteLine("\nGeomUtil.Triangulate (MonotonePolygon / Delaunay strategies)");
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Square_ReturnsTwoTriangles", () => {
+      var pts = new System.Collections.Generic.List<Point2D> { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
+      var p = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Enforce,
+                                      TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+      var tris = GeomUtil.Triangulate(pts, p);
+      Eq(2, CountOf(tris), 0);
+      Eq(1.0, SumArea2D(tris));
+    });
+
+    Test("GeomUtil_Triangulate_Delaunay_Square_ReturnsTwoTriangles", () => {
+      var pts = new System.Collections.Generic.List<Point2D> { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
+      var p = new TriangulationParams(TriangulationStrategy.Delaunay, TriangulationSimplicity.Enforce,
+                                      TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+      var tris = GeomUtil.Triangulate(pts, p);
+      Eq(2, CountOf(tris), 0);
+      Eq(1.0, SumArea2D(tris));
+    });
+
+    // ── IsAxisMonotone ────────────────────────────────────────────────────────────────────────────
+    Console.WriteLine("\nGeomUtil.IsAxisMonotone");
+
+    Test("GeomUtil_IsAxisMonotone_CcwSquare_YDirection_ReturnsTrue", () => {
+      var ring = new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
+      IsTrue(GeomUtil.IsAxisMonotone(ring, new Vector2D(0, 1)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_WShape_YDirection_ReturnsFalse", () => {
+      var ring = new Point2D[] {
+          new(0, 0), new(1, 2), new(2, 0),
+          new(3, 2), new(4, 0), new(4, 4), new(0, 4) };
+      IsFalse(GeomUtil.IsAxisMonotone(ring, new Vector2D(0, 1)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_Polygon2D_CcwSquare_YDirection_ReturnsTrue", () => {
+      var polygon = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      IsTrue(GeomUtil.IsAxisMonotone(polygon, new Vector2D(0, 1)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_Ring3D_CcwSquare_ZDirection_ReturnsTrue", () => {
+      var ring = new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) };
+      IsTrue(GeomUtil.IsAxisMonotone(ring, new Vector3D(0, 1, 0)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_Polygon3D_CcwSquare_YDirection_ReturnsTrue", () => {
+      var polygon = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+      IsTrue(GeomUtil.IsAxisMonotone(polygon, new Vector3D(0, 1, 0)));
+    });
+
+    // ── InCircumcircle ────────────────────────────────────────────────────────────────────────────
+    Console.WriteLine("\nGeomUtil.InCircumcircle");
+
+    Test("GeomUtil_InCircumcircle_2D_PointInside_ReturnsTrue", () => {
+      IsTrue(GeomUtil.InCircumcircle(
+          new Point2D(0, 0), new Point2D(2, 0), new Point2D(1, 2), new Point2D(1, 0.5)));
+    });
+
+    Test("GeomUtil_InCircumcircle_2D_PointOutside_ReturnsFalse", () => {
+      IsFalse(GeomUtil.InCircumcircle(
+          new Point2D(0, 0), new Point2D(2, 0), new Point2D(1, 2), new Point2D(5, 5)));
+    });
+
+    Test("GeomUtil_InCircumcircle_2D_PointOnCircle_ReturnsFalse", () => {
+      // Right triangle (0,0),(1,0),(0,1): (1,1) lies exactly on the circumcircle.
+      IsFalse(GeomUtil.InCircumcircle(
+          new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1), new Point2D(1, 1)));
+    });
+
+    Test("GeomUtil_InCircumcircle_3D_PointInside_ReturnsTrue", () => {
+      IsTrue(GeomUtil.InCircumcircle(
+          new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(1, 2, 0), new Point3D(1, 0.5, 0)));
+    });
+
+    Test("GeomUtil_InCircumcircle_3D_PointOutside_ReturnsFalse", () => {
+      IsFalse(GeomUtil.InCircumcircle(
+          new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(1, 2, 0), new Point3D(5, 5, 0)));
+    });
   }
 }
 

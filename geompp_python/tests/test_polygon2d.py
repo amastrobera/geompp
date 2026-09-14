@@ -658,19 +658,21 @@ class TestPolygon2DTriangulate:
         assert_no_polygon_vertex_hangs_on_triangle_edge(p, triangles)
         assert_half_edges_are_manifold(triangles)
 
-    def test_monotone_polygon_strategy_raises(self):
+    def test_monotone_polygon_strategy_succeeds(self):
         p = geompp.Polygon2D.make([
             geompp.Point2D(0, 0), geompp.Point2D(4, 0),
             geompp.Point2D(4, 2), geompp.Point2D(0, 2)])
-        with pytest.raises(RuntimeError):
-            p.triangulate(geompp.TriangulationStrategy.MonotonePolygon)
+        triangles = p.triangulate(geompp.TriangulationStrategy.MonotonePolygon)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), p.area())
 
-    def test_delaunay_strategy_raises(self):
+    def test_delaunay_strategy_succeeds(self):
         p = geompp.Polygon2D.make([
             geompp.Point2D(0, 0), geompp.Point2D(4, 0),
             geompp.Point2D(4, 2), geompp.Point2D(0, 2)])
-        with pytest.raises(RuntimeError):
-            p.triangulate(geompp.TriangulationStrategy.Delaunay)
+        triangles = p.triangulate(geompp.TriangulationStrategy.Delaunay)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), p.area())
 
     def test_reflex_vertex_on_non_adjacent_diagonal_stays_inside_polygon(self):
         # Regression test: this L-shape's reflex vertex (2, 2) sits exactly on the diagonal between

@@ -53,6 +53,8 @@ Free functions
     vw_decimation(points, threshold)
     bezier_smoothing_2(p0, p1, p2, smoothness, min_distance_or_num_segments, min_segment_length=DOUBLE_EPSILON)
         (a float dispatches to the min_distance behavior, an int to the num_segments behavior)
+    is_axis_monotone(ring_or_polygon, direction) -> bool
+    in_circumcircle(a, b, c, p) -> bool
 
 Polyline decimation:
     PolylineDecimationStrategy (RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt)
@@ -65,7 +67,7 @@ Polyline expansion (corner rounding — the inverse of decimation):
     polyline_expansion(points, settings)
 
 Triangulation (2D or 3D, 3D input is assumed flat/planar):
-    TriangulationStrategy (EarClipping; MonotonePolygon and Delaunay not yet implemented)
+    TriangulationStrategy (EarClipping, EarClippingBestFit, MonotonePolygon, Delaunay)
     TriangulationSimplicity, TriangulationWinding, TriangulationCollinearity
         (each Guaranteed/Assert/Enforce — how to handle non-simple/non-CCW/collinear input)
     TriangulationParams(strategy=EarClipping, simplicity=Enforce, ccw_winding=Enforce,
@@ -240,6 +242,9 @@ from ._geompp import (  # noqa: F401
     AdjacencyViolation3D,
     validate_adjacency,
     fix_adjacency,
+    # axis monotonicity / circumcircle
+    is_axis_monotone,
+    in_circumcircle,
 )
 
 __version__ = "1.0.0"
@@ -271,5 +276,6 @@ __all__ = [
     "TriangulationParams", "triangulate",
     "PolygonizationStrategy", "PolygonizationParams", "polygonize", "merge",
     "AdjacencyConformity", "AdjacencyViolation2D", "AdjacencyViolation3D", "validate_adjacency", "fix_adjacency",
+    "is_axis_monotone", "in_circumcircle",
     "maths", "transformations",
 ]

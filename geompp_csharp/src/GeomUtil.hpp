@@ -13,6 +13,7 @@ ref class Plane;
 ref class LineSegment2D;
 ref class LineSegment3D;
 ref class CoordinateFrame;
+ref class Vector2D;
 ref class Vector3D;
 ref class Polygon2D;
 ref class Polygon3D;
@@ -453,6 +454,19 @@ public:
     // touching holes (any point of one on the other's perimeter) are unioned into one bigger hole.
     static System::Collections::Generic::IEnumerable<Polygon2D^>^ Merge(array<Polygon2D^>^ polygons);
     static System::Collections::Generic::IEnumerable<Polygon3D^>^ Merge(array<Polygon3D^>^ polygons);
+
+    // IsAxisMonotone — true if the ring (or polygon's outer ring) has at most one local maximum and
+    // one local minimum when projected onto direction. Required pre-condition for monotone-polygon
+    // triangulation; direction need not be normalized.
+    static bool IsAxisMonotone(array<Point2D^>^ ring, Vector2D^ direction);
+    static bool IsAxisMonotone(Polygon2D^ polygon, Vector2D^ direction);
+    static bool IsAxisMonotone(array<Point3D^>^ ring, Vector3D^ direction);
+    static bool IsAxisMonotone(Polygon3D^ polygon, Vector3D^ direction);
+
+    // InCircumcircle — true if p is strictly inside the circumcircle of CCW-wound triangle {a, b, c}.
+    // Uses the exact 3×3 determinant predicate; returns false when p is exactly on the circle.
+    static bool InCircumcircle(Point2D^ a, Point2D^ b, Point2D^ c, Point2D^ p);
+    static bool InCircumcircle(Point3D^ a, Point3D^ b, Point3D^ c, Point3D^ p);
 };
 
 }  // namespace GeomPP

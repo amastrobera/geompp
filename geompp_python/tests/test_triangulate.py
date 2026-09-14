@@ -361,3 +361,17 @@ class TestTriangulate:
                 if ring[i].almost_equals(ring[(i + 1) % n]):
                     found_degenerate_edge = True
         assert found_degenerate_edge
+
+    def test_triangulate_monotone_polygon_square(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        params = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.MonotonePolygon)
+        tris = geompp.triangulate(pts, params)
+        assert len(tris) == 2
+        assert abs(sum(t.area() for t in tris) - 1.0) < 1e-6
+
+    def test_triangulate_delaunay_square(self):
+        pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        params = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.Delaunay)
+        tris = geompp.triangulate(pts, params)
+        assert len(tris) == 2
+        assert abs(sum(t.area() for t in tris) - 1.0) < 1e-6

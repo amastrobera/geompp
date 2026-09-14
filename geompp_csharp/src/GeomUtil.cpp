@@ -1,10 +1,14 @@
 #pragma managed(push, off)
 #include <calc_utils3d.hpp>
+#include <calc_utils/self_intersections2d.hpp>
+#include <calc_utils/self_intersections3d.hpp>
+#include <calc_utils/triangulation2d.hpp>
 #pragma managed(pop)
 
 #include "GeomUtil.hpp"
 #include "Point2D.hpp"
 #include "Point3D.hpp"
+#include "Vector2D.hpp"
 #include "Plane.hpp"
 #include "LineSegment2D.hpp"
 #include "LineSegment3D.hpp"
@@ -619,6 +623,47 @@ System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
     for (auto const& t : native)
         list->Add(gcnew Triangle2D(new geompp::Triangle2D(t)));
     return list;
+}
+
+// File-local helpers: managed array<Point2D^>^ / array<Point3D^>^ → native std::vector
+static std::vector<geompp::Point2D> ArrayToVector2D(array<Point2D^>^ pts) {
+    std::vector<geompp::Point2D> native;
+    native.reserve(pts->Length);
+    for each (Point2D^ p in pts)
+        native.push_back(*p->_native);
+    return native;
+}
+
+static std::vector<geompp::Point3D> ArrayToVector3D(array<Point3D^>^ pts) {
+    std::vector<geompp::Point3D> native;
+    native.reserve(pts->Length);
+    for each (Point3D^ p in pts)
+        native.push_back(*p->_native);
+    return native;
+}
+
+bool GeomUtil::IsAxisMonotone(array<Point2D^>^ ring, Vector2D^ direction) {
+    return geompp::is_axis_monotone(ArrayToVector2D(ring), *direction->_native);
+}
+
+bool GeomUtil::IsAxisMonotone(Polygon2D^ polygon, Vector2D^ direction) {
+    return geompp::is_axis_monotone(*polygon->_native, *direction->_native);
+}
+
+bool GeomUtil::IsAxisMonotone(array<Point3D^>^ ring, Vector3D^ direction) {
+    return geompp::is_axis_monotone(ArrayToVector3D(ring), *direction->_native);
+}
+
+bool GeomUtil::IsAxisMonotone(Polygon3D^ polygon, Vector3D^ direction) {
+    return geompp::is_axis_monotone(*polygon->_native, *direction->_native);
+}
+
+bool GeomUtil::InCircumcircle(Point2D^ a, Point2D^ b, Point2D^ c, Point2D^ p) {
+    return geompp::in_circumcircle(*a->_native, *b->_native, *c->_native, *p->_native);
+}
+
+bool GeomUtil::InCircumcircle(Point3D^ a, Point3D^ b, Point3D^ c, Point3D^ p) {
+    return geompp::in_circumcircle(*a->_native, *b->_native, *c->_native, *p->_native);
 }
 
 }  // namespace GeomPP

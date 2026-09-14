@@ -580,20 +580,18 @@ public static class Polygon2DTests {
       ExpectHalfEdgesAreManifold(triangles);
     });
 
-    Test("Polygon2D_Triangulate_MonotonePolygonStrategy_Throws", () => {
+    Test("Polygon2D_Triangulate_MonotonePolygonStrategy_ReturnsTwoTriangles", () => {
       var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 2), new(0, 2) });
-      bool threw = false;
-      try { p.Triangulate(TriangulationStrategy.MonotonePolygon); }
-      catch (Exception) { threw = true; }
-      IsTrue(threw, "expected MonotonePolygon strategy to throw (not yet implemented)");
+      var triangles = p.Triangulate(TriangulationStrategy.MonotonePolygon);
+      Eq(2, CountOf(triangles), 0);
+      Eq(8.0, SumArea2D(triangles));
     });
 
-    Test("Polygon2D_Triangulate_DelaunayStrategy_Throws", () => {
+    Test("Polygon2D_Triangulate_DelaunayStrategy_ReturnsTwoTriangles", () => {
       var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 2), new(0, 2) });
-      bool threw = false;
-      try { p.Triangulate(TriangulationStrategy.Delaunay); }
-      catch (Exception) { threw = true; }
-      IsTrue(threw, "expected Delaunay strategy to throw (not yet implemented)");
+      var triangles = p.Triangulate(TriangulationStrategy.Delaunay);
+      Eq(2, CountOf(triangles), 0);
+      Eq(8.0, SumArea2D(triangles));
     });
 
     // Regression test: this L-shape's reflex vertex (2, 2) sits exactly on the diagonal between the

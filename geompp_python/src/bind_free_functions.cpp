@@ -4,6 +4,9 @@
 #include "point2d.hpp"         // convex_hull
 #include "calc_utils2d.hpp"    // ExtremePoints / find_extreme_points (2D)
 #include "calc_utils3d.hpp"    // principal_axes / principal_normal / principal_direction / find_extreme_points (3D)
+#include "calc_utils/self_intersections2d.hpp"
+#include "calc_utils/self_intersections3d.hpp"
+#include "calc_utils/triangulation2d.hpp"
 #include "line2d.hpp"
 #include "line3d.hpp"
 #include "polygon2d.hpp"
@@ -519,4 +522,36 @@ void bind_free_functions(py::module_& m) {
           "polygons"_a,
           "Same as the Polygon2D overload, for Polygon3D input -> list[Polygon3D]. Additionally groups "
           "the input by plane first (coplanar polygons only merge with each other).");
+
+    // ── axis monotonicity ──────────────────────────────────────────────────────────────────────
+    m.def("is_axis_monotone",
+          py::overload_cast<std::vector<geompp::Point2D> const&, geompp::Vector2D const&>(&geompp::is_axis_monotone),
+          py::arg("ring"), py::arg("direction"),
+          "Whether the ring is monotone with respect to direction (at most one local max/min projected onto it).");
+
+    m.def("is_axis_monotone",
+          py::overload_cast<geompp::Polygon2D const&, geompp::Vector2D const&>(&geompp::is_axis_monotone),
+          py::arg("polygon"), py::arg("direction"),
+          "Whether the polygon is monotone with respect to direction.");
+
+    m.def("is_axis_monotone",
+          py::overload_cast<std::vector<geompp::Point3D> const&, geompp::Vector3D const&>(&geompp::is_axis_monotone),
+          py::arg("ring"), py::arg("direction"),
+          "Whether the 3D ring is monotone with respect to direction.");
+
+    m.def("is_axis_monotone",
+          py::overload_cast<geompp::Polygon3D const&, geompp::Vector3D const&>(&geompp::is_axis_monotone),
+          py::arg("polygon"), py::arg("direction"),
+          "Whether the 3D polygon is monotone with respect to direction.");
+
+    // ── circumcircle predicate ─────────────────────────────────────────────────────────────────
+    m.def("in_circumcircle",
+          py::overload_cast<geompp::Point2D const&, geompp::Point2D const&, geompp::Point2D const&, geompp::Point2D const&>(&geompp::in_circumcircle),
+          py::arg("a"), py::arg("b"), py::arg("c"), py::arg("p"),
+          "Whether p is strictly inside the circumcircle of CCW triangle {a,b,c}.");
+
+    m.def("in_circumcircle",
+          py::overload_cast<geompp::Point3D const&, geompp::Point3D const&, geompp::Point3D const&, geompp::Point3D const&>(&geompp::in_circumcircle),
+          py::arg("a"), py::arg("b"), py::arg("c"), py::arg("p"),
+          "Whether p is strictly inside the circumcircle of CCW triangle {a,b,c} in 3D.");
 }

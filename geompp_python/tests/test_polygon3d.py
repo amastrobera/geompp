@@ -841,16 +841,18 @@ class TestPolygon3DTriangulate:
         assert len(triangles) == 2
         assert approx(sum(t.area() for t in triangles), p.area())
 
-    def test_monotone_polygon_strategy_raises(self):
+    def test_monotone_polygon_strategy_succeeds(self):
         p = geompp.Polygon3D.make([
             geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
             geompp.Point3D(4, 2, 0), geompp.Point3D(0, 2, 0)])
-        with pytest.raises(RuntimeError):
-            p.triangulate(geompp.TriangulationStrategy.MonotonePolygon)
+        triangles = p.triangulate(geompp.TriangulationStrategy.MonotonePolygon)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), p.area())
 
-    def test_delaunay_strategy_raises(self):
+    def test_delaunay_strategy_succeeds(self):
         p = geompp.Polygon3D.make([
             geompp.Point3D(0, 0, 0), geompp.Point3D(4, 0, 0),
             geompp.Point3D(4, 2, 0), geompp.Point3D(0, 2, 0)])
-        with pytest.raises(RuntimeError):
-            p.triangulate(geompp.TriangulationStrategy.Delaunay)
+        triangles = p.triangulate(geompp.TriangulationStrategy.Delaunay)
+        assert len(triangles) == 2
+        assert approx(sum(t.area() for t in triangles), p.area())
