@@ -11,6 +11,89 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.19.0] - 2026-09-14
+
+> Two new triangulation strategies — `MonotonePolygon` (de Berg §3.3 y-monotone sweep) and
+> `Delaunay` (Bowyer-Watson incremental) — replacing the two intentional stubs that have thrown
+> `"not yet implemented"` since 0.16.0. Two new free functions: `is_axis_monotone` (monotonicity
+> guard for `MonotonePolygon`) and `in_circumcircle` (Delaunay-condition predicate), both bound in
+> Python and C#.
+
+### Added
+
+**C++ core**
+- `TriangulationParams::Strategy::MonotonePolygon` — O(n log n) sweep-line triangulation (de Berg
+  §3.3). Splits the polygon boundary into a left chain and a right chain by the y-extreme vertices,
+  then processes vertices in y-order with a stack, emitting CCW triangles when the stack can be
+  flushed. All output triangles are strictly interior to the input polygon. Requires y-monotone
+  input; throws `std::invalid_argument` if the polygon is not monotone along the sweep direction.
+  Works on `Polygon2D` and `Polygon3D`.
+- `TriangulationParams::Strategy::Delaunay` — O(n log n) average, O(n²) worst-case Bowyer-Watson
+  incremental Delaunay triangulation. Inserts points one at a time; for each insertion, finds every
+  existing triangle whose circumcircle contains the new point, removes those triangles, and
+  re-triangulates the resulting star-shaped cavity. Maximizes the minimum angle across all triangles
+  (no sliver triangles). Triangulates the **convex hull** of the point set — triangles may extend
+  outside a concave polygon's boundary. Works on `Polygon2D` and `Polygon3D`.
+- `is_axis_monotone(span<Point2D>, Vector2D)` / `is_axis_monotone(span<Point3D>, Vector3D)` /
+  `is_axis_monotone(Polygon2D const&, Vector2D)` / `is_axis_monotone(Polygon3D const&, Vector3D)`
+  (`calc_utils/self_intersections2d.hpp` / `self_intersections3d.hpp`, namespace `geompp::geometry`)
+  — returns `true` if the ring has at most one local maximum and one local minimum when projected
+  onto `direction`. Use to guard `triangulate` calls with `Strategy::MonotonePolygon`. A zero-length
+  `direction` throws `std::invalid_argument`. A ring with fewer than 3 points returns `false`.
+- `in_circumcircle(Point2D a, b, c, Point2D p)` / `in_circumcircle(Point3D a, b, c, Point3D p)`
+  (`calc_utils/triangulation2d.hpp`, namespace `geompp::geometry`) — returns `true` if `p` lies
+  strictly inside the circumcircle of the CCW triangle `(a, b, c)`, using a 3×3 determinant
+  predicate. Returns `false` for a point exactly on the circumcircle boundary or for a degenerate
+  (zero-area) triangle. Input must be CCW; CW input flips the sign.
+
+**Python bindings**
+- `geompp.is_axis_monotone(ring, direction)` — 4 overloads: `list[Point2D]`/`Polygon2D` +
+  `Vector2D` and `list[Point3D]`/`Polygon3D` + `Vector3D` (`bind_free_functions.cpp`).
+- `geompp.in_circumcircle(a, b, c, p)` — 2 overloads: `Point2D` and `Point3D`
+  (`bind_free_functions.cpp`).
+- `TriangulationStrategy.MonotonePolygon` and `TriangulationStrategy.Delaunay` — previously
+  registered at correct ordinals but backed by `"not yet implemented"` throws. Now fully
+  implemented; the `_Throws` stub tests replaced by real correctness tests.
+
+**C# bindings**
+- `GeomUtil.IsAxisMonotone(Point2D[], Vector2D)` / `GeomUtil.IsAxisMonotone(Polygon2D^, Vector2D^)`
+  / `GeomUtil.IsAxisMonotone(Point3D[], Vector3D)` / `GeomUtil.IsAxisMonotone(Polygon3D^, Vector3D^)`
+  — 4 overloads in `GeomUtil.hpp/.cpp`.
+- `GeomUtil.InCircumcircle(Point2D^, Point2D^, Point2D^, Point2D^)` /
+  `GeomUtil.InCircumcircle(Point3D^, Point3D^, Point3D^, Point3D^)` — 2 overloads in
+  `GeomUtil.hpp/.cpp`.
+- `TriangulationStrategy.MonotonePolygon` and `TriangulationStrategy.Delaunay` — now fully
+  implemented at their existing ordinals (2 and 3).
+
+### Changed
+
+**C++ core**
+- `TriangulationParams::Strategy::MonotonePolygon` and `::Delaunay` no longer throw
+  `"not yet implemented"`. The two dedicated `_Throws` stub tests (C++, Python, C#) replaced by
+  correctness tests for both strategies.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_calc_utils2d.cpp`: `MonotonePolygon` pentagon (triangle count, WKT output, total area),
+  comb polygon (multiple chain transitions), `Delaunay` pentagon, `Delaunay` on the 5-pointed star
+  (convex-hull triangulation — verifies output extends beyond concavities), `is_axis_monotone`
+  (pentagon along y, square along x, W-shape, `Polygon2D` overload), `in_circumcircle` (strictly
+  inside, outside, on boundary, degenerate triangle).
+- `test_calc_utils3d.cpp`: `MonotonePolygon` and `Delaunay` on a coplanar 3D pentagon,
+  `is_axis_monotone` with `Vector3D`, `in_circumcircle` with `Point3D`.
+
+**Python (`geompp_python/tests`)**
+- New cases in `test_triangulate.py` mirroring the `MonotonePolygon`/`Delaunay` C++ suite.
+- New cases in `test_free_functions.py` (or equivalent) for `is_axis_monotone` and
+  `in_circumcircle`.
+
+**C# (`geompp_csharp/tests`)**
+- New cases in `TriangulateTests.cs` for both new strategies.
+- New cases in `FreeFunctionTests.cs` (or equivalent) for `IsAxisMonotone` and `InCircumcircle`.
+
+---
+
 ## [0.18.0] - 2026-08-30
 
 > New polygonization feature family: `polygonize(vector<Triangle2D/3D>, PolygonizationParams)` (triangles → polygons, the reverse of triangulation, 3 strategies: `PlanarBoundaryExtraction`, `PlanarQuads`, `HertelMehlhorn`) and `merge(vector<Polygon2D/3D>)` (coalesce touching/adjacent polygons, including their holes, into fewer polygons), plus `Mesh2D/3D::Polygonize()` and `ConnectedMesh2D/3D::Polygonize()` convenience methods, bound in Python and C#. Also: `AdjacencyConformity` is now a standalone enum shared by `PolygonizationParams` (new `conformity` field) and `TriangulationParams` (unchanged behavior), with `Mesh2D/3D::FromTriangles()`/`PolyMesh2D/3D::FromPolygons()` each gaining their own `conformity` parameter — `Enforce` auto-repairs a T-junction via `fix_adjacency()` instead of throwing, `Guaranteed` skips the check — and `TransformBuilder2D`/`TransformBuilder3D` gain `Apply(shape)`, a one-step shorthand for `transform(shape, builder.Get())`.

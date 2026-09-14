@@ -20,10 +20,10 @@ void bind_triangulation_params(py::module_& m) {
                "full rescan of the current ring on every single clip, not just worst case. Default.")
         .value("MonotonePolygon", geompp::TriangulationParams::Strategy::MonotonePolygon,
                "O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone "
-               "pieces). Not yet implemented.")
+               "pieces).")
         .value("Delaunay", geompp::TriangulationParams::Strategy::Delaunay,
                "O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny "
-               "slivers). Not yet implemented.")
+               "slivers).")
         .export_values();
 
     py::enum_<geompp::TriangulationParams::Simplicity>(m, "TriangulationSimplicity",

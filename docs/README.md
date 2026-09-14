@@ -39,6 +39,11 @@ prints a `WARNING` to stderr if a name in one of these sets isn't found in the D
 (renamed/undocumented/removed), but it can't detect the opposite case (a newly-bound function
 nobody added to the set).
 
+> **v0.19.0 update:** `is_axis_monotone` and `in_circumcircle` are newly bound in Python
+> (`geompp_python/src/bind_free_functions.cpp`) and C# (`GeomUtil.hpp`). Add both names to
+> `GEOMETRY_FREE_FUNCTIONS` in `gen_bindings_md.py` before regenerating — omitting them causes
+> their signatures to be silently absent from `docs/api/{python,csharp,cpp/md}/FreeFunctions.md`.
+
 **Cross-linking**: every occurrence of a known class/struct name in parameter types,
 return descriptions, and `@brief`/`@param`/`@return` prose becomes a Markdown
 link to that class's `.md` file in the same directory. Each class/struct page ends with a

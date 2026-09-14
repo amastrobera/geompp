@@ -6232,10 +6232,51 @@ A quick list of code examples per topic is provided here.
   <details closed>
   <summary><b> &nbsp; &nbsp; 12.2 Monotone Polygon</b></summary>
 
-  O(n log n) sweep-line triangulation (de Berg §3.3). The input polygon must be **y-monotone** —
-  any horizontal sweep line intersects its boundary in at most two points. Check the precondition
-  with `is_axis_monotone(ring, direction)` before calling (see §14 for the free function). Throws
-  if the polygon is not monotone along the given direction.
+  O(n log n) sweep-line triangulation (de Berg §3.3). Splits the boundary into a left chain and a
+  right chain by the extreme y vertices, then processes vertices in y-order with a stack, emitting
+  CCW triangles whenever the stack can be flushed. All triangles are strictly interior.
+
+  **Precondition:** the polygon must be **y-monotone** — any horizontal sweep line intersects its
+  boundary in at most two points. Check with `is_axis_monotone(ring, direction)` before calling
+  (see §14.1). The precondition is **not enforced internally** — `Triangulate()` doesn't call
+  `is_axis_monotone` for you, and passing a non-monotone ring doesn't throw. It silently walks the
+  same top/bottom-split, stack-flush algorithm anyway, on the assumption its own chain-order
+  invariant holds; whether that happens to still produce a correct result is unspecified per input.
+  Always guard the call yourself, as every sample below does.
+
+  Pentagon `(0,0),(4,0),(4,3),(2,5),(0,3)` — y-monotone, 3 triangles:
+
+  ```
+  y=5      D(2,5)
+          / \
+  y=3  E(0,3)  C(4,3)
+        |   /  |
+        | T1   |
+        |/    /|
+  y=0  A(0,0)---B(4,0)
+  ```
+
+  Left chain (top→bottom): D→E→A. Right chain (top→bottom): D→C→B.
+  Stack-flush produces:
+
+  ```
+  T1 = A, B, C        (base, right-leaning)
+  T2 = A, C, E        (mid band)
+  T3 = E, C, D        (apex)
+  ```
+
+  Same star and comb as §12.1, so all three strategies can be compared on identical input. The comb
+  is monotone along **both** axes despite being the adversarial case for ear clipping — its notches
+  never widen back out, so a horizontal (or vertical) sweep line always crosses its boundary at most
+  twice. The star fails `is_axis_monotone` on every axis — its 5 points and 5 reflex notches mean a
+  sweep line through the points crosses the boundary 4+ times — so it's never passed to `Triangulate()`
+  at all; the right panel below just marks it out of contract.
+
+  <p align="center">
+    <img src="./images/triangulation_monotone.png" width="420" alt="A 5-pointed star, and beside it the same star again with a red dashed outline and a red X: is_axis_monotone() is false on every axis, so MonotonePolygon is never invoked on it">
+    &nbsp;&nbsp;
+    <img src="./images/comb_triangulation_monotone.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate() with MonotonePolygon: 10 triangles, gold = every edge, all strictly interior -- the comb is y-monotone (and x-monotone) so the precondition holds cleanly">
+  </p>
 
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
@@ -6249,17 +6290,37 @@ A quick list of code examples per topic is provided here.
 
   namespace g = geompp;
 
-  std::vector<g::Point2D> pts = {
-      {0,0}, {4,0}, {4,3}, {2,5}, {0,3}
+  // Same 3-tooth comb as §12.1 -- y-monotone (and x-monotone) despite being the adversarial
+  // case for ear clipping: its notches never widen back out, so a sweep line still crosses
+  // its boundary at most twice.
+  std::vector<g::Point2D> comb = {
+      {5,0}, {5,10}, {4,10}, {4,9}, {3,9}, {3,10},
+      {2,10}, {2,9}, {1,9}, {1,10}, {0,10}, {0,0},
   };
   g::Vector2D y_dir{0, 1};
 
-  // Check the precondition before triangulating.
-  if (g::is_axis_monotone(pts, y_dir)) {
+  // Check the precondition before triangulating -- MonotonePolygon does not check it for you.
+  if (g::is_axis_monotone(comb, y_dir)) {
       g::TriangulationParams p{g::TriangulationParams::Strategy::MonotonePolygon};
-      auto tris = g::triangulate(pts, p);
+      auto tris = g::triangulate(comb, p);
+      for (auto const& t : tris)
+          GEOMPP_LOG(INFO) << t.ToWkt();
       GEOMPP_LOG(INFO) << tris.size() << " triangles";
   }
+  ```
+
+  ```bash
+  TRIANGLE (4 9, 5 10, 4 10)
+  TRIANGLE (2 10, 3 9, 3 10)
+  TRIANGLE (2 9, 3 9, 2 10)
+  TRIANGLE (0 10, 1 9, 1 10)
+  TRIANGLE (5 0, 1 9, 0 10)
+  TRIANGLE (5 0, 2 9, 1 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (0 0, 5 0, 0 10)
+  10 triangles
   ```
 
    </details>
@@ -6270,13 +6331,34 @@ A quick list of code examples per topic is provided here.
   ```python
   import geompp as g
 
-  pts = [g.Point2D(0,0), g.Point2D(4,0), g.Point2D(4,3), g.Point2D(2,5), g.Point2D(0,3)]
+  # Same 3-tooth comb as §12.1 -- y-monotone (and x-monotone) despite being the adversarial
+  # case for ear clipping.
+  comb = [
+      g.Point2D(5,0), g.Point2D(5,10), g.Point2D(4,10), g.Point2D(4,9), g.Point2D(3,9), g.Point2D(3,10),
+      g.Point2D(2,10), g.Point2D(2,9), g.Point2D(1,9), g.Point2D(1,10), g.Point2D(0,10), g.Point2D(0,0),
+  ]
 
-  # Check the precondition before triangulating.
-  if g.is_axis_monotone(pts, g.Vector2D(0, 1)):
-      p = g.TriangulationParams(strategy=g.TriangulationParams.Strategy.MonotonePolygon)
-      tris = g.triangulate(pts, p)
+  # Check the precondition before triangulating -- MonotonePolygon does not check it for you.
+  if g.is_axis_monotone(comb, g.Vector2D(0, 1)):
+      p = g.TriangulationParams(strategy=g.TriangulationStrategy.MonotonePolygon)
+      tris = g.triangulate(comb, p)
+      for t in tris:
+          print(t.to_wkt())
       print(f"{len(tris)} triangles")
+  ```
+
+  ```
+  TRIANGLE (4 9, 5 10, 4 10)
+  TRIANGLE (2 10, 3 9, 3 10)
+  TRIANGLE (2 9, 3 9, 2 10)
+  TRIANGLE (0 10, 1 9, 1 10)
+  TRIANGLE (5 0, 1 9, 0 10)
+  TRIANGLE (5 0, 2 9, 1 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (0 0, 5 0, 0 10)
+  10 triangles
   ```
 
    </details>
@@ -6286,17 +6368,37 @@ A quick list of code examples per topic is provided here.
 
   ```csharp
   using G = GeomPP;
+  using System.Linq;
 
-  var pts = new G.Point2D[] {
-      new(0,0), new(4,0), new(4,3), new(2,5), new(0,3)
+  // Same 3-tooth comb as §12.1 -- y-monotone (and x-monotone) despite being the adversarial
+  // case for ear clipping.
+  var comb = new G.Point2D[] {
+      new(5,0), new(5,10), new(4,10), new(4,9), new(3,9), new(3,10),
+      new(2,10), new(2,9), new(1,9), new(1,10), new(0,10), new(0,0),
   };
 
-  // Check the precondition before triangulating.
-  if (G.GeomUtil.IsAxisMonotone(pts, new G.Vector2D(0, 1))) {
-      var p = new G.TriangulationParams { Strategy = G.TriangulationParams.StrategyEnum.MonotonePolygon };
-      var tris = G.GeomUtil.Triangulate(pts, p);
-      Console.WriteLine($"{tris.Count()} triangles");
+  // Check the precondition before triangulating -- MonotonePolygon does not check it for you.
+  if (G.GeomUtil.IsAxisMonotone(comb, new G.Vector2D(0, 1))) {
+      var p = new G.TriangulationParams { Strategy = G.TriangulationStrategy.MonotonePolygon };
+      var tris = G.GeomUtil.Triangulate(comb, p).ToList();
+      foreach (var t in tris)
+          Console.WriteLine(t.ToWkt());
+      Console.WriteLine($"{tris.Count} triangles");
   }
+  ```
+
+  ```
+  TRIANGLE (4 9, 5 10, 4 10)
+  TRIANGLE (2 10, 3 9, 3 10)
+  TRIANGLE (2 9, 3 9, 2 10)
+  TRIANGLE (0 10, 1 9, 1 10)
+  TRIANGLE (5 0, 1 9, 0 10)
+  TRIANGLE (5 0, 2 9, 1 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (0 0, 5 0, 0 10)
+  10 triangles
   ```
 
    </details>
@@ -6308,17 +6410,49 @@ A quick list of code examples per topic is provided here.
   <details closed>
   <summary><b> &nbsp; &nbsp; 12.3 Delaunay</b></summary>
 
-  O(n log n) average Bowyer-Watson incremental Delaunay triangulation. Maximizes the minimum angle
-  across all triangles (no "sliver" triangles), which makes it the preferred choice for geometry
+  O(n log n) average, O(n²) worst-case Bowyer-Watson incremental Delaunay triangulation. Inserts
+  points one at a time; for each insertion, finds every triangle whose circumcircle contains the
+  new point, deletes those triangles, and re-triangulates the resulting star-shaped cavity.
+  Maximizes the minimum angle across all triangles — no sliver triangles — preferred for geometry
   processing and finite-element meshing.
 
   **Important:** `Delaunay` triangulates the **convex hull** of the point set, not the polygon
-  boundary. For a concave input polygon, triangles near the concavities may extend outside the
-  polygon's boundary. Use `EarClippingBestFit` or `MonotonePolygon` when the output must be
-  strictly interior.
+  boundary. For a concave input polygon, triangles near concavities may extend outside. Use
+  `EarClippingBestFit` or `MonotonePolygon` when output must be strictly interior.
 
-  The Delaunay condition guarantees no point lies inside any triangle's circumcircle — testable
-  via `in_circumcircle(a, b, c, p)` (see §14 for the free function).
+  The Delaunay condition — no point lies inside any triangle's circumcircle — is testable via
+  `in_circumcircle(a, b, c, p)` (see §14.2).
+
+  Same pentagon as §12.2, Delaunay triangulation (3 triangles, identical topology for a convex
+  pentagon since its convex hull equals its own boundary):
+
+  ```
+  y=5        D(2,5)
+            /|\
+           / | \
+  y=3  E(0,3)| C(4,3)
+        \   T3|  /
+         \ T2 | / T1
+          \   |/
+  y=0     A(0,0)---B(4,0)
+
+  T1 = A(0,0), B(4,0), C(4,3)   — circumcircle contains no other vertex
+  T2 = A(0,0), C(4,3), E(0,3)
+  T3 = E(0,3), C(4,3), D(2,5)
+  ```
+
+  Same star and comb as §12.1 and §12.2 — Delaunay has no monotonicity precondition, so it accepts
+  both without a guard. But it triangulates the **convex hull of the point set**, not the polygon
+  boundary, so on both of these concave shapes it produces extra triangles the other two strategies
+  never would: on the star, one bridge edge per notch, filling in the 5 gaps between its points; on
+  the comb, the hull is just the bounding rectangle, so *all four* teeth-notches disappear and the
+  triangulation covers a solid block, no longer resembling a comb at all.
+
+  <p align="center">
+    <img src="./images/triangulation_delaunay.png" width="420" alt="A 5-pointed star before and after Triangulate() with Delaunay: 13 triangles -- gold = edges inside the star, red = the 5 convex-hull bridge edges spanning each point-to-point notch, outside the star's own boundary">
+    &nbsp;&nbsp;
+    <img src="./images/comb_triangulation_delaunay.png" width="270" alt="A 3-tooth comb before and after Triangulate() with Delaunay: 14 triangles filling the full bounding rectangle -- gold = edges inside the comb, red = the 4 bridge edges spanning the two notches, so the notches vanish entirely">
+  </p>
 
   <details closed>
   <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
@@ -6332,19 +6466,42 @@ A quick list of code examples per topic is provided here.
 
   namespace g = geompp;
 
-  // Same pentagon as §12.2 — Delaunay works on any point set (no monotonicity precondition).
-  std::vector<g::Point2D> pts = {
-      {0,0}, {4,0}, {4,3}, {2,5}, {0,3}
+  // Same 5-pointed star as §12.1 — Delaunay works on any point set (no monotonicity precondition),
+  // but see the image above: it triangulates the star's convex hull, not the star itself.
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
   };
 
   g::TriangulationParams p{g::TriangulationParams::Strategy::Delaunay};
-  auto tris = g::triangulate(pts, p);
+  auto tris = g::triangulate(star, p);
+  for (auto const& t : tris)
+      GEOMPP_LOG(INFO) << t.ToWkt();
   GEOMPP_LOG(INFO) << tris.size() << " triangles";
 
-  // Verify the Delaunay condition on the first triangle.
-  auto& t = tris[0];
-  bool inside = g::in_circumcircle(t.A(), t.B(), t.C(), pts[3]);
-  GEOMPP_LOG(INFO) << "point inside circumcircle: " << inside;
+  // Verify the Delaunay condition: no other vertex of the input lies inside
+  // the first triangle's circumcircle.
+  auto [a, b, c] = tris[0].Vertices();
+  bool inside = g::in_circumcircle(a, b, c, star[5]);
+  GEOMPP_LOG(INFO) << "star[5] inside circumcircle of tris[0]: " << inside;
+  ```
+
+  ```bash
+  TRIANGLE (2.29 3.97, 3 6, 0.15 3.93)
+  TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 0.15 3.93, 1.24 0.57)
+  TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 1.24 0.57, 4.76 0.57)
+  TRIANGLE (2.29 3.97, 1.86 2.63, 4.14 2.63)
+  TRIANGLE (1.86 2.63, 3 1.8, 4.14 2.63)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 4.76 0.57, 5.85 3.93)
+  TRIANGLE (3 6, 2.29 3.97, 3.71 3.97)
+  TRIANGLE (2.29 3.97, 4.14 2.63, 3.71 3.97)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
+  13 triangles
+  star[5] inside circumcircle of tris[0]: 0
   ```
 
    </details>
@@ -6355,17 +6512,42 @@ A quick list of code examples per topic is provided here.
   ```python
   import geompp as g
 
-  # Same pentagon as §12.2 — no monotonicity precondition needed.
-  pts = [g.Point2D(0,0), g.Point2D(4,0), g.Point2D(4,3), g.Point2D(2,5), g.Point2D(0,3)]
+  # Same 5-pointed star as §12.1 — no monotonicity precondition needed, but it triangulates the
+  # star's convex hull, not the star itself (see the image above).
+  star = [
+      g.Point2D(3.0, 6.0), g.Point2D(2.29, 3.97), g.Point2D(0.15, 3.93), g.Point2D(1.86, 2.63),
+      g.Point2D(1.24, 0.57), g.Point2D(3.0, 1.8), g.Point2D(4.76, 0.57), g.Point2D(4.14, 2.63),
+      g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
+  ]
 
-  p = g.TriangulationParams(strategy=g.TriangulationParams.Strategy.Delaunay)
-  tris = g.triangulate(pts, p)
+  p = g.TriangulationParams(strategy=g.TriangulationStrategy.Delaunay)
+  tris = g.triangulate(star, p)
+  for t in tris:
+      print(t.to_wkt())
   print(f"{len(tris)} triangles")
 
   # Verify the Delaunay condition on the first triangle.
-  t = tris[0]
-  inside = g.in_circumcircle(t.a, t.b, t.c, pts[3])
-  print("point inside circumcircle:", inside)
+  a, b, c = tris[0].vertices
+  inside = g.in_circumcircle(a, b, c, star[5])
+  print("star[5] inside circumcircle of tris[0]:", inside)
+  ```
+
+  ```
+  TRIANGLE (2.29 3.97, 3 6, 0.15 3.93)
+  TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 0.15 3.93, 1.24 0.57)
+  TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 1.24 0.57, 4.76 0.57)
+  TRIANGLE (2.29 3.97, 1.86 2.63, 4.14 2.63)
+  TRIANGLE (1.86 2.63, 3 1.8, 4.14 2.63)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 4.76 0.57, 5.85 3.93)
+  TRIANGLE (3 6, 2.29 3.97, 3.71 3.97)
+  TRIANGLE (2.29 3.97, 4.14 2.63, 3.71 3.97)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
+  13 triangles
+  star[5] inside circumcircle of tris[0]: False
   ```
 
    </details>
@@ -6375,20 +6557,43 @@ A quick list of code examples per topic is provided here.
 
   ```csharp
   using G = GeomPP;
+  using System.Linq;
 
-  // Same pentagon as §12.2 — no monotonicity precondition needed.
-  var pts = new G.Point2D[] {
-      new(0,0), new(4,0), new(4,3), new(2,5), new(0,3)
+  // Same 5-pointed star as §12.1 — no monotonicity precondition needed, but it triangulates the
+  // star's convex hull, not the star itself (see the image above).
+  var star = new G.Point2D[] {
+      new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+      new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
   };
 
-  var p = new G.TriangulationParams { Strategy = G.TriangulationParams.StrategyEnum.Delaunay };
-  var tris = G.GeomUtil.Triangulate(pts, p).ToList();
+  var p = new G.TriangulationParams { Strategy = G.TriangulationStrategy.Delaunay };
+  var tris = G.GeomUtil.Triangulate(star, p).ToList();
+  foreach (var t in tris)
+      Console.WriteLine(t.ToWkt());
   Console.WriteLine($"{tris.Count} triangles");
 
   // Verify the Delaunay condition on the first triangle.
-  var t = tris[0];
-  bool inside = G.GeomUtil.InCircumcircle(t.A, t.B, t.C, pts[3]);
-  Console.WriteLine($"point inside circumcircle: {inside}");
+  var v = tris[0].Vertices();
+  bool inside = G.GeomUtil.InCircumcircle(v.Item1, v.Item2, v.Item3, star[5]);
+  Console.WriteLine($"star[5] inside circumcircle of tris[0]: {inside}");
+  ```
+
+  ```
+  TRIANGLE (2.29 3.97, 3 6, 0.15 3.93)
+  TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 0.15 3.93, 1.24 0.57)
+  TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 1.24 0.57, 4.76 0.57)
+  TRIANGLE (2.29 3.97, 1.86 2.63, 4.14 2.63)
+  TRIANGLE (1.86 2.63, 3 1.8, 4.14 2.63)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 4.76 0.57, 5.85 3.93)
+  TRIANGLE (3 6, 2.29 3.97, 3.71 3.97)
+  TRIANGLE (2.29 3.97, 4.14 2.63, 3.71 3.97)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
+  13 triangles
+  star[5] inside circumcircle of tris[0]: False
   ```
 
    </details>
@@ -7058,27 +7263,145 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   <details closed>
   <summary><b> &nbsp; &nbsp; 14.1 is_axis_monotone</b></summary>
 
-  Returns `true` if a polygon or ring is **monotone** along the given direction vector — meaning any
-  line perpendicular to that direction intersects the boundary in at most two points.
+  Returns `true` if a polygon or ring has **at most one local maximum and one local minimum** when
+  vertices are projected onto `direction`. Equivalently, any line perpendicular to `direction`
+  intersects the boundary in at most two points.
 
-  Overloads: `(span<Point2D>, Vector2D)`, `(span<Point3D>, Vector3D)`, `(Polygon2D, Vector2D)`,
-  `(Polygon3D, Vector3D)`.
+  - **Inputs:** `direction` — a `Vector2D` (2D overloads) or `Vector3D` (3D overloads). Need not
+    be unit-length; only direction matters.
+  - **Returns:** `bool`.
+  - **Edge cases:** a ring with fewer than 3 points returns `false`. A direction of length 0 throws
+    `std::invalid_argument`.
+
+  Overloads (namespace `geompp::geometry::`):
+  - `is_axis_monotone(span<Point2D>, Vector2D)` / `is_axis_monotone(span<Point3D>, Vector3D)`
+  - `is_axis_monotone(Polygon2D const&, Vector2D)` / `is_axis_monotone(Polygon3D const&, Vector3D)`
 
   Use it to guard calls to `triangulate` with `Strategy::MonotonePolygon` (§12.2).
+
+  ```
+  Monotone along Y (true):       Not monotone along Y (false — W-shape has 2 y-minima):
+
+        D(2,5)                    D(3,4)---E(4,4)
+       / \                       /           \
+   E(0,3)  C(4,3)           C(1,2)         F(5,0)
+     |       |              /     \
+   A(0,0)--B(4,0)       B(2,0)   A(0,0)
+
+  Any horizontal cut → 2 intersections.   Some horizontal cuts → 4 intersections.
+  ```
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
 
   ```cpp
   #include "calc_utils2d.hpp"
   namespace g = geompp;
 
-  // true: square is monotone along y
-  g::is_axis_monotone({{0,0},{1,0},{1,1},{0,1}}, g::Vector2D{0,1});
+  // true: pentagon is monotone along y
+  bool a = g::is_axis_monotone(
+      std::vector<g::Point2D>{{0,0},{4,0},{4,3},{2,5},{0,3}},
+      g::Vector2D{0,1});                  // true
 
   // true: square is also monotone along x
-  g::is_axis_monotone({{0,0},{1,0},{1,1},{0,1}}, g::Vector2D{1,0});
+  bool b = g::is_axis_monotone(
+      std::vector<g::Point2D>{{0,0},{1,0},{1,1},{0,1}},
+      g::Vector2D{1,0});                  // true
 
   // false: W-shape has two y-minima
-  g::is_axis_monotone({{0,0},{1,2},{2,0},{3,2},{4,0},{4,4},{0,4}}, g::Vector2D{0,1});
+  bool c = g::is_axis_monotone(
+      std::vector<g::Point2D>{{0,0},{1,2},{2,0},{3,2},{4,0},{4,4},{0,4}},
+      g::Vector2D{0,1});                  // false
+
+  // Polygon2D overload
+  auto poly = g::Polygon2D::Make({{0,0},{4,0},{4,3},{2,5},{0,3}});
+  bool d = g::is_axis_monotone(poly, g::Vector2D{0,1});  // true
+
+  GEOMPP_LOG(INFO) << a << " " << b << " " << c << " " << d;
   ```
+
+  ```bash
+  1 1 0 1
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # true: pentagon is monotone along y
+  a = g.is_axis_monotone(
+      [g.Point2D(0,0), g.Point2D(4,0), g.Point2D(4,3), g.Point2D(2,5), g.Point2D(0,3)],
+      g.Vector2D(0, 1))               # True
+
+  # true: square is also monotone along x
+  b = g.is_axis_monotone(
+      [g.Point2D(0,0), g.Point2D(1,0), g.Point2D(1,1), g.Point2D(0,1)],
+      g.Vector2D(1, 0))               # True
+
+  # false: W-shape has two y-minima
+  c = g.is_axis_monotone(
+      [g.Point2D(0,0), g.Point2D(1,2), g.Point2D(2,0), g.Point2D(3,2),
+       g.Point2D(4,0), g.Point2D(4,4), g.Point2D(0,4)],
+      g.Vector2D(0, 1))               # False
+
+  # Polygon2D overload
+  poly = g.Polygon2D.make([g.Point2D(0,0), g.Point2D(4,0), g.Point2D(4,3),
+                            g.Point2D(2,5), g.Point2D(0,3)])
+  d = g.is_axis_monotone(poly, g.Vector2D(0, 1))  # True
+
+  print(a, b, c, d)
+  ```
+
+  ```
+  True True False True
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // true: pentagon is monotone along y
+  bool a = G.GeomUtil.IsAxisMonotone(
+      new G.Point2D[] { new(0,0), new(4,0), new(4,3), new(2,5), new(0,3) },
+      new G.Vector2D(0, 1));               // true
+
+  // true: square is also monotone along x
+  bool b = G.GeomUtil.IsAxisMonotone(
+      new G.Point2D[] { new(0,0), new(1,0), new(1,1), new(0,1) },
+      new G.Vector2D(1, 0));               // true
+
+  // false: W-shape has two y-minima
+  bool c = G.GeomUtil.IsAxisMonotone(
+      new G.Point2D[] { new(0,0), new(1,2), new(2,0), new(3,2),
+                        new(4,0), new(4,4), new(0,4) },
+      new G.Vector2D(0, 1));               // false
+
+  // Polygon2D overload
+  var poly = G.Polygon2D.Make(new G.Point2D[] {
+      new(0,0), new(4,0), new(4,3), new(2,5), new(0,3) });
+  bool d = G.GeomUtil.IsAxisMonotone(poly, new G.Vector2D(0, 1));  // true
+
+  Console.WriteLine($"{a} {b} {c} {d}");
+  ```
+
+  ```
+  True True False True
+  ```
+
+   </details>
+
+  </details>
 
   </details>
 
@@ -7086,21 +7409,147 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   <summary><b> &nbsp; &nbsp; 14.2 in_circumcircle</b></summary>
 
   Returns `true` if point `p` lies **strictly inside** the circumcircle of the CCW triangle
-  `{a, b, c}`. The Delaunay condition (§12.3) guarantees this is false for every point and every
-  triangle in a valid Delaunay triangulation.
+  `(a, b, c)`. Uses a 3×3 determinant predicate (exact arithmetic on the input coordinates):
 
-  Overloads: `(Point2D, Point2D, Point2D, Point2D)`, `(Point3D, Point3D, Point3D, Point3D)`.
+  ```
+  | ax-px  ay-py  (ax-px)²+(ay-py)² |
+  | bx-px  by-py  (bx-px)²+(by-py)² |  > 0
+  | cx-px  cy-py  (cx-px)²+(cy-py)² |
+  ```
+
+  - **Inputs:** `a`, `b`, `c` — triangle vertices in CCW order; `p` — the query point. If `(a,b,c)`
+    are given CW, the sign flips and the predicate returns `true` for points outside.
+  - **Returns:** `bool`. Returns `false` for points exactly on the circumcircle boundary.
+  - **Edge cases:** degenerate triangle (zero area) returns `false`.
+
+  Overloads (namespace `geompp::geometry::`):
+  - `in_circumcircle(Point2D a, b, c, Point2D p)`
+  - `in_circumcircle(Point3D a, b, c, Point3D p)`
+
+  The Delaunay condition (§12.3) guarantees this is `false` for every non-triangle-vertex point
+  and every triangle in a valid Delaunay triangulation.
+
+  ```
+  Circumcircle of right-triangle (0,0)-(1,0)-(0,1):
+  center ≈ (0.5, 0.5), radius ≈ 0.707
+
+             (0,1)
+            / |
+           /  |      P=(0.5,0.5) → inside  (true)
+          /   |      Q=(5,5)     → outside (false)
+        (0,0)-(1,0)
+  ```
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
 
   ```cpp
   #include "calc_utils2d.hpp"
   namespace g = geompp;
 
-  // true: center of the right-triangle's circumcircle is near (0.5, 0.5)
-  g::in_circumcircle(g::Point2D{0,0}, g::Point2D{1,0}, g::Point2D{0,1}, g::Point2D{0.5,0.5});
+  // true: (0.5, 0.5) is near the center of the circumcircle
+  bool a = g::in_circumcircle(
+      g::Point2D{0,0}, g::Point2D{1,0}, g::Point2D{0,1},
+      g::Point2D{0.5, 0.5});              // true
 
   // false: far outside
-  g::in_circumcircle(g::Point2D{0,0}, g::Point2D{1,0}, g::Point2D{0,1}, g::Point2D{5,5});
+  bool b = g::in_circumcircle(
+      g::Point2D{0,0}, g::Point2D{1,0}, g::Point2D{0,1},
+      g::Point2D{5, 5});                  // false
+
+  // false: point on the circumcircle (not strictly inside)
+  bool c = g::in_circumcircle(
+      g::Point2D{0,0}, g::Point2D{1,0}, g::Point2D{0,1},
+      g::Point2D{1, 1});                  // false — on the circle
+
+  // 3D overload: coplanar triangle in the XY plane
+  bool d = g::in_circumcircle(
+      g::Point3D{0,0,0}, g::Point3D{1,0,0}, g::Point3D{0,1,0},
+      g::Point3D{0.5, 0.5, 0});           // true
+
+  GEOMPP_LOG(INFO) << a << " " << b << " " << c << " " << d;
   ```
+
+  ```bash
+  1 0 0 1
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # true: (0.5, 0.5) is near the center of the circumcircle
+  a = g.in_circumcircle(
+      g.Point2D(0,0), g.Point2D(1,0), g.Point2D(0,1),
+      g.Point2D(0.5, 0.5))               # True
+
+  # false: far outside
+  b = g.in_circumcircle(
+      g.Point2D(0,0), g.Point2D(1,0), g.Point2D(0,1),
+      g.Point2D(5, 5))                   # False
+
+  # false: point exactly on the circumcircle (not strictly inside)
+  c = g.in_circumcircle(
+      g.Point2D(0,0), g.Point2D(1,0), g.Point2D(0,1),
+      g.Point2D(1, 1))                   # False
+
+  # 3D overload: coplanar triangle in the XY plane
+  d = g.in_circumcircle(
+      g.Point3D(0,0,0), g.Point3D(1,0,0), g.Point3D(0,1,0),
+      g.Point3D(0.5, 0.5, 0))            # True
+
+  print(a, b, c, d)
+  ```
+
+  ```
+  True False False True
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // true: (0.5, 0.5) is near the center of the circumcircle
+  bool a = G.GeomUtil.InCircumcircle(
+      new G.Point2D(0,0), new G.Point2D(1,0), new G.Point2D(0,1),
+      new G.Point2D(0.5, 0.5));           // true
+
+  // false: far outside
+  bool b = G.GeomUtil.InCircumcircle(
+      new G.Point2D(0,0), new G.Point2D(1,0), new G.Point2D(0,1),
+      new G.Point2D(5, 5));               // false
+
+  // false: point exactly on the circumcircle (not strictly inside)
+  bool c = G.GeomUtil.InCircumcircle(
+      new G.Point2D(0,0), new G.Point2D(1,0), new G.Point2D(0,1),
+      new G.Point2D(1, 1));               // false
+
+  // 3D overload
+  bool d = G.GeomUtil.InCircumcircle(
+      new G.Point3D(0,0,0), new G.Point3D(1,0,0), new G.Point3D(0,1,0),
+      new G.Point3D(0.5, 0.5, 0));        // true
+
+  Console.WriteLine($"{a} {b} {c} {d}");
+  ```
+
+  ```
+  True False False True
+  ```
+
+   </details>
+
+  </details>
 
   </details>
 

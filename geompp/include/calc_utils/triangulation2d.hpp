@@ -92,7 +92,6 @@ extern template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_tr
 /// @param input ring vertices (Point2D or Point3D), simple, CCW, monotone with respect to some direction.
 /// @param view projects each vertex to 2D x/y coordinates.
 /// @returns one `{i, j, k}` index triplet per triangle, indices into @p input.
-/// @throws std::runtime_error not yet implemented.
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
                                                                        View2D const& view);
@@ -108,7 +107,6 @@ extern template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangu
 /// @param input point set (Point2D or Point3D).
 /// @param view projects each vertex to 2D x/y coordinates.
 /// @returns one `{i, j, k}` index triplet per triangle, indices into @p input.
-/// @throws std::runtime_error not yet implemented.
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view);
 

@@ -85,10 +85,8 @@ public enum class TriangulationStrategy {
     // current ring on every single clip, not just worst case. Default.
     EarClippingBestFit = 1,
     // O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone pieces).
-    // Not yet implemented.
     MonotonePolygon = 2,
     // O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny slivers).
-    // Not yet implemented.
     Delaunay = 3
 };
 
