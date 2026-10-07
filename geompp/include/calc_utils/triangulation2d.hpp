@@ -88,6 +88,37 @@ extern template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_tr
 extern template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(
     std::vector<Point3D> const& input, View2D const& view);
 
+/// @brief Partitions a simple, CCW-wound ring into one or more y-monotone pieces via the classical
+/// plane-sweep algorithm (de Berg et al., "Computational Geometry" §3.2): sweeps top-to-bottom,
+/// classifies each vertex (start/end/split/merge/regular), maintains a status structure of the
+/// polygon's currently active "descending" edges plus one helper vertex per edge, and inserts a
+/// diagonal whenever a split or merge vertex is encountered. Every inserted diagonal is a valid,
+/// non-crossing chord of @p ring, so splitting along all of them (in any order) always yields a
+/// well-defined set of simple, CCW, pairwise-non-overlapping pieces whose union recovers @p ring
+/// exactly (a shared diagonal becomes a shared edge between two adjacent pieces).
+/// @param ring simple, CCW-wound ring, no holes, at least 3 points.
+/// @param view projects each vertex to 2D x/y coordinates; the sweep always proceeds along -Y (see
+/// TriangulationParams::Monotonicity's own doc for why no other direction is attempted).
+/// @returns 1+ pieces, each a list of indices into @p ring (>= 3 entries, CCW order) such that
+/// realizing each piece's indices as points forms a simple, y-monotone polygon. Exactly 1 piece
+/// (containing every index 0..ring.size()-1 in order) when @p ring is already y-monotone -- the
+/// split/merge classification then never fires.
+/// @throws std::invalid_argument if @p ring has fewer than 3 points.
+/// @note Status-structure lookups ("find the edge directly left of vertex v") are a linear scan over
+/// the currently active edges here, rather than a balanced-BST keyed by a dynamic comparator -- the
+/// same O(n^2)-worst-case trade-off ear_clipping_triangulation makes over a theoretically faster but
+/// far more intricate data structure. A genuinely horizontal polygon edge queried by a third vertex
+/// exactly on its scanline, strictly nested inside its x-span, is a known-unhandled degenerate case
+/// (collapsed to the edge's own top-endpoint x rather than solved in general).
+template <typename PointT>
+std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<PointT> const& input,
+                                                                  View2D const& view);
+
+extern template std::vector<std::vector<std::size_t>> partition_monotone_polygon(
+    std::vector<Point2D> const& input, View2D const& view);
+extern template std::vector<std::vector<std::size_t>> partition_monotone_polygon(
+    std::vector<Point3D> const& input, View2D const& view);
+
 /// @brief O(n log n)-worst-case triangulation of a monotone ring, projected through @p view.
 /// @param input ring vertices (Point2D or Point3D), simple, CCW, monotone with respect to some direction.
 /// @param view projects each vertex to 2D x/y coordinates.

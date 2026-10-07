@@ -6109,23 +6109,35 @@ A quick list of code examples per topic is provided here.
   namespace g = geompp;
 
   // A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
-  auto poly = g::Polygon2D::Make({
+  auto start_poly = g::Polygon2D::Make({
       g::Point2D(3.0, 6.0), g::Point2D(2.29, 3.97), g::Point2D(0.15, 3.93), g::Point2D(1.86, 2.63),
       g::Point2D(1.24, 0.57), g::Point2D(3.0, 1.8), g::Point2D(4.76, 0.57), g::Point2D(4.14, 2.63),
       g::Point2D(5.85, 3.93), g::Point2D(3.71, 3.97),
+  });
+
+  // A 3-tooth comb -- the classic adversarial shape for ear clipping: several deep, narrow notches
+  // between tall teeth. Reused as-is across every triangulation strategy in this section
+  // (§12.1-§12.3) so all of them can be compared on identical input.
+  auto comb_poly = g::Polygon2D::Make({
+      g::Point2D(5, 0), g::Point2D(5, 10), g::Point2D(4, 10), g::Point2D(4, 9), g::Point2D(3, 9),
+      g::Point2D(3, 10), g::Point2D(2, 10), g::Point2D(2, 9), g::Point2D(1, 9), g::Point2D(1, 10),
+      g::Point2D(0, 10), g::Point2D(0, 0),
   });
 
   // As a method: Polygon2D/3D::Triangulate() takes strategy explicitly (no default at this layer --
   // EarClippingBestFit is only TriangulationParams' own default, see the free function below). All
   // TriangulationParams checks are Guaranteed -- Make() already validated
   // simplicity/winding/collinearity, so there's nothing left to check.
-  for (auto const& t : poly.Triangulate(g::TriangulationParams::Strategy::EarClippingBestFit))
+  for (auto const& t : start_poly.Triangulate(g::TriangulationParams::Strategy::EarClippingBestFit))
+      GEOMPP_LOG(INFO) << t.ToWkt();
+
+  for (auto const& t : comb_poly.Triangulate(g::TriangulationParams::Strategy::EarClippingBestFit))
       GEOMPP_LOG(INFO) << t.ToWkt();
 
   // Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
   // the same way on flat/planar 3D input. settings defaults to EarClippingBestFit + Enforce for all
   // three input-quality checks, so it can be omitted entirely.
-  auto triangles = g::triangulate(poly.Perimeter());
+  auto triangles = g::triangulate(start_poly.Perimeter());
   GEOMPP_LOG(INFO) << triangles.size() << " triangles";
   ```
 
@@ -6138,6 +6150,16 @@ A quick list of code examples per topic is provided here.
   I20260804] TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
   I20260804] TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
   I20260804] TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  I20260804] TRIANGLE (5 10, 4 10, 4 9)
+  I20260804] TRIANGLE (3 9, 3 10, 2 10)
+  I20260804] TRIANGLE (3 9, 2 10, 2 9)
+  I20260804] TRIANGLE (1 9, 1 10, 0 10)
+  I20260804] TRIANGLE (0 10, 0 0, 5 0)
+  I20260804] TRIANGLE (5 0, 5 10, 4 9)
+  I20260804] TRIANGLE (5 0, 4 9, 3 9)
+  I20260804] TRIANGLE (5 0, 3 9, 2 9)
+  I20260804] TRIANGLE (5 0, 2 9, 1 9)
+  I20260804] TRIANGLE (5 0, 1 9, 0 10)
   I20260804] 8 triangles
   ```
 
@@ -6150,22 +6172,34 @@ A quick list of code examples per topic is provided here.
   import geompp as g
 
   # A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
-  poly = g.Polygon2D.make([
+  start_poly = g.Polygon2D.make([
       g.Point2D(3.0, 6.0), g.Point2D(2.29, 3.97), g.Point2D(0.15, 3.93), g.Point2D(1.86, 2.63),
       g.Point2D(1.24, 0.57), g.Point2D(3.0, 1.8), g.Point2D(4.76, 0.57), g.Point2D(4.14, 2.63),
       g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
   ])
 
+  # A 3-tooth comb -- the classic adversarial shape for ear clipping. Reused as-is across every
+  # triangulation strategy in this section (§12.1-§12.3) so all of them can be compared on
+  # identical input.
+  comb_poly = g.Polygon2D.make([
+      g.Point2D(5, 0), g.Point2D(5, 10), g.Point2D(4, 10), g.Point2D(4, 9), g.Point2D(3, 9),
+      g.Point2D(3, 10), g.Point2D(2, 10), g.Point2D(2, 9), g.Point2D(1, 9), g.Point2D(1, 10),
+      g.Point2D(0, 10), g.Point2D(0, 0),
+  ])
+
   # As a method: strategy defaults to EarClippingBestFit. All TriangulationParams checks are
   # Guaranteed -- make() already validated simplicity/winding/collinearity, so there's nothing left
   # to check.
-  for t in poly.triangulate():
+  for t in start_poly.triangulate():
+      print(t.to_wkt())
+
+  for t in comb_poly.triangulate():
       print(t.to_wkt())
 
   # Same algorithm as a free function on a raw point list -- 2D here, but a Point3D overload works
   # the same way on flat/planar 3D input. settings defaults to EarClippingBestFit + Enforce for all
   # three input-quality checks, so it can be omitted entirely.
-  triangles = g.triangulate(poly.perimeter())
+  triangles = g.triangulate(start_poly.perimeter())
   print(f"{len(triangles)} triangles")
   ```
 
@@ -6178,6 +6212,16 @@ A quick list of code examples per topic is provided here.
   TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
   TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
   TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  TRIANGLE (5 10, 4 10, 4 9)
+  TRIANGLE (3 9, 3 10, 2 10)
+  TRIANGLE (3 9, 2 10, 2 9)
+  TRIANGLE (1 9, 1 10, 0 10)
+  TRIANGLE (0 10, 0 0, 5 0)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (5 0, 2 9, 1 9)
+  TRIANGLE (5 0, 1 9, 0 10)
   8 triangles
   ```
 
@@ -6192,21 +6236,32 @@ A quick list of code examples per topic is provided here.
   using System.Linq;
 
   // A 5-pointed star -- concave, with a reflex vertex at each of its 5 inner corners.
-  var poly = G.Polygon2D.Make(new G.Point2D[] {
+  var start_poly = G.Polygon2D.Make(new G.Point2D[] {
       new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
       new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
+  });
+
+  // A 3-tooth comb -- the classic adversarial shape for ear clipping. Reused as-is across every
+  // triangulation strategy in this section (§12.1-§12.3) so all of them can be compared on
+  // identical input.
+  var comb_poly = G.Polygon2D.Make(new G.Point2D[] {
+      new(5, 0), new(5, 10), new(4, 10), new(4, 9), new(3, 9), new(3, 10),
+      new(2, 10), new(2, 9), new(1, 9), new(1, 10), new(0, 10), new(0, 0),
   });
 
   // As a method: strategy defaults to EarClippingBestFit. All TriangulationParams checks are
   // Guaranteed -- Make() already validated simplicity/winding/collinearity, so there's nothing left
   // to check.
-  foreach (var t in poly.Triangulate())
+  foreach (var t in start_poly.Triangulate())
+      Console.WriteLine(t.ToWkt());
+
+  foreach (var t in comb_poly.Triangulate())
       Console.WriteLine(t.ToWkt());
 
   // Same algorithm via GeomUtil.Triangulate() on a raw point list -- 2D here, but 3D overloads work
   // the same way on flat/planar input. Unlike the method above, GeomUtil.Triangulate() takes an
   // explicit TriangulationParams (defaults to EarClippingBestFit + Enforce for all three checks).
-  var points = new List<G.Point2D>(poly.Perimeter());
+  var points = new List<G.Point2D>(start_poly.Perimeter());
   var triangles = G.GeomUtil.Triangulate(points, new G.TriangulationParams());
   Console.WriteLine($"{triangles.Count()} triangles");
   ```
@@ -6220,6 +6275,16 @@ A quick list of code examples per topic is provided here.
   TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
   TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
   TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  TRIANGLE (5 10, 4 10, 4 9)
+  TRIANGLE (3 9, 3 10, 2 10)
+  TRIANGLE (3 9, 2 10, 2 9)
+  TRIANGLE (1 9, 1 10, 0 10)
+  TRIANGLE (0 10, 0 0, 5 0)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (5 0, 2 9, 1 9)
+  TRIANGLE (5 0, 1 9, 0 10)
   8 triangles
   ```
 
@@ -6238,11 +6303,29 @@ A quick list of code examples per topic is provided here.
 
   **Precondition:** the polygon must be **y-monotone** — any horizontal sweep line intersects its
   boundary in at most two points. Check with `is_axis_monotone(ring, direction)` before calling
-  (see §14.1). The precondition is **not enforced internally** — `Triangulate()` doesn't call
-  `is_axis_monotone` for you, and passing a non-monotone ring doesn't throw. It silently walks the
-  same top/bottom-split, stack-flush algorithm anyway, on the assumption its own chain-order
-  invariant holds; whether that happens to still produce a correct result is unspecified per input.
-  Always guard the call yourself, as every sample below does.
+  (see §14.1). Whether/how that precondition is enforced is controlled by
+  `TriangulationParams::Monotonicity`, a 3-value enum alongside `Simplicity`/`Winding`/`Collinearity`:
+
+  - `Guaranteed` (**default**) — no check at all, same as every other input-quality field's own
+    `Guaranteed`. `Triangulate()` doesn't call `is_axis_monotone` for you, and passing a
+    non-monotone ring doesn't throw — it silently walks the same top/bottom-split, stack-flush
+    algorithm anyway, on the assumption its own chain-order invariant holds; whether that happens
+    to still produce a correct result is unspecified per input. Guard the call yourself when using
+    this mode, as the manual `is_axis_monotone` check on `comb_poly` below does.
+  - `Assert` — calls `is_axis_monotone` (sweeping along Y) first and throws `std::invalid_argument`
+    if the ring isn't y-monotone; a built-in version of the manual guard above.
+  - `Enforce` — if the ring isn't y-monotone, **partitions it into y-monotone pieces** first: a
+    top-to-bottom plane sweep (de Berg, "Computational Geometry" §3.2) that classifies every vertex
+    as start/end/split/merge/regular, maintains a status structure of the currently active edges
+    plus one helper vertex per edge, and inserts a diagonal at every split/merge vertex encountered.
+    Each resulting piece is then triangulated with this same §3.3 algorithm, and every piece's
+    triangles are concatenated — every partition diagonal is a valid, non-crossing chord of the
+    original polygon, so no extra stitching is needed. Only ever sweeps along **Y**: a polygon
+    that's monotone along some other axis but not Y still gets decomposed (correctly, just not
+    minimally) rather than triangulated directly in one pass — a known limitation, not a
+    correctness bug. The partition step uses a linear-scan status structure rather than a balanced
+    BST, so it's O(n²) worst case rather than the classical algorithm's O(n log n) — the same
+    trade-off `EarClipping` makes over a more intricate data structure.
 
   Pentagon `(0,0),(4,0),(4,3),(2,5),(0,3)` — y-monotone, 3 triangles:
 
@@ -6265,17 +6348,21 @@ A quick list of code examples per topic is provided here.
   T3 = E, C, D        (apex)
   ```
 
-  Same star and comb as §12.1, so all three strategies can be compared on identical input. The comb
-  is monotone along **both** axes despite being the adversarial case for ear clipping — its notches
-  never widen back out, so a horizontal (or vertical) sweep line always crosses its boundary at most
-  twice. The star fails `is_axis_monotone` on every axis — its 5 points and 5 reflex notches mean a
-  sweep line through the points crosses the boundary 4+ times — so it's never passed to `Triangulate()`
-  at all; the right panel below just marks it out of contract.
+  Same star and comb as §12.1, so all four `Monotonicity` outcomes can be compared on identical
+  input. The comb is monotone along **both** axes despite being the adversarial case for ear
+  clipping — its notches never widen back out, so a horizontal (or vertical) sweep line always
+  crosses its boundary at most twice; `Enforce` on the comb takes the exact same code path as
+  `Guaranteed` (the y-monotone check short-circuits before any partitioning is attempted), so the
+  two produce a byte-identical triangulation. The star fails `is_axis_monotone` on every axis — its
+  5 points and 5 reflex notches mean a sweep line through the points crosses the boundary 4+ times
+  — so under `Guaranteed`/`Assert` it's never (safely) triangulated with this strategy; under
+  `Enforce`, it now partitions into 2 y-monotone pieces (one diagonal, shown in violet below) and
+  triangulates cleanly into 8 triangles.
 
   <p align="center">
-    <img src="./images/triangulation_monotone.png" width="420" alt="A 5-pointed star, and beside it the same star again with a red dashed outline and a red X: is_axis_monotone() is false on every axis, so MonotonePolygon is never invoked on it">
+    <img src="./images/triangulation_monotone.png" width="420" alt="A 5-pointed star, and beside it the same star successfully triangulated via Monotonicity::Enforce: 8 triangles, gold = monotone-triangulation edges, violet = the one partition diagonal added to split the star into 2 y-monotone pieces">
     &nbsp;&nbsp;
-    <img src="./images/comb_triangulation_monotone.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate() with MonotonePolygon: 10 triangles, gold = every edge, all strictly interior -- the comb is y-monotone (and x-monotone) so the precondition holds cleanly">
+    <img src="./images/comb_triangulation_monotone.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate() with MonotonePolygon: 10 triangles, gold = every edge, all strictly interior -- the comb is already y-monotone, so Enforce and Guaranteed produce an identical result">
   </p>
 
   <details closed>
@@ -6290,37 +6377,67 @@ A quick list of code examples per topic is provided here.
 
   namespace g = geompp;
 
+  // Same 5-pointed star as §12.1 -- fails is_axis_monotone on every axis (5 reflex notches mean a
+  // sweep line crosses its boundary 4+ times).
+  std::vector<g::Point2D> start_poly = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+
   // Same 3-tooth comb as §12.1 -- y-monotone (and x-monotone) despite being the adversarial
   // case for ear clipping: its notches never widen back out, so a sweep line still crosses
   // its boundary at most twice.
-  std::vector<g::Point2D> comb = {
+  std::vector<g::Point2D> comb_poly = {
       {5,0}, {5,10}, {4,10}, {4,9}, {3,9}, {3,10},
       {2,10}, {2,9}, {1,9}, {1,10}, {0,10}, {0,0},
   };
   g::Vector2D y_dir{0, 1};
 
-  // Check the precondition before triangulating -- MonotonePolygon does not check it for you.
-  if (g::is_axis_monotone(comb, y_dir)) {
+  GEOMPP_LOG(INFO) << "start_poly is y-monotone: " << g::is_axis_monotone(start_poly, y_dir);
+  GEOMPP_LOG(INFO) << "comb_poly is y-monotone: " << g::is_axis_monotone(comb_poly, y_dir);
+
+  // Monotonicity::Guaranteed (default): no check -- guard the precondition yourself, as this
+  // manual is_axis_monotone check does for comb_poly.
+  if (g::is_axis_monotone(comb_poly, y_dir)) {
       g::TriangulationParams p{g::TriangulationParams::Strategy::MonotonePolygon};
-      auto tris = g::triangulate(comb, p);
-      for (auto const& t : tris)
-          GEOMPP_LOG(INFO) << t.ToWkt();
-      GEOMPP_LOG(INFO) << tris.size() << " triangles";
+      auto tris = g::triangulate(comb_poly, p);
+      GEOMPP_LOG(INFO) << tris.size() << " triangles (comb, Guaranteed)";
+  }
+
+  // Monotonicity::Enforce: start_poly fails the precondition above, but no longer needs to be
+  // rejected -- it's partitioned into y-monotone pieces and triangulated piece-by-piece.
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto star_tris = g::triangulate(start_poly, enforced);
+  for (auto const& t : star_tris)
+      GEOMPP_LOG(INFO) << t.ToWkt();
+  GEOMPP_LOG(INFO) << star_tris.size() << " triangles (star, Enforce)";
+
+  // Monotonicity::Assert: fails fast instead of silently mis-triangulating (Guaranteed) or paying
+  // for a decomposition (Enforce).
+  g::TriangulationParams asserted{g::TriangulationParams::Strategy::MonotonePolygon};
+  asserted.monotonicity = g::TriangulationParams::Monotonicity::Assert;
+  try {
+      g::triangulate(start_poly, asserted);
+  } catch (std::invalid_argument const& e) {
+      GEOMPP_LOG(INFO) << "Assert threw: " << e.what();
   }
   ```
 
   ```bash
-  TRIANGLE (4 9, 5 10, 4 10)
-  TRIANGLE (2 10, 3 9, 3 10)
-  TRIANGLE (2 9, 3 9, 2 10)
-  TRIANGLE (0 10, 1 9, 1 10)
-  TRIANGLE (5 0, 1 9, 0 10)
-  TRIANGLE (5 0, 2 9, 1 9)
-  TRIANGLE (5 0, 3 9, 2 9)
-  TRIANGLE (5 0, 4 9, 3 9)
-  TRIANGLE (5 0, 5 10, 4 9)
-  TRIANGLE (0 0, 5 0, 0 10)
-  10 triangles
+  I20260804] start_poly is y-monotone: 0
+  I20260804] comb_poly is y-monotone: 1
+  I20260804] 10 triangles (comb, Guaranteed)
+  I20260804] TRIANGLE (4.76 0.57, 4.14 2.63, 3 1.8)
+  I20260804] TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  I20260804] TRIANGLE (0.15 3.93, 3.71 3.97, 2.29 3.97)
+  I20260804] TRIANGLE (5.85 3.93, 3.71 3.97, 0.15 3.93)
+  I20260804] TRIANGLE (1.86 2.63, 5.85 3.93, 0.15 3.93)
+  I20260804] TRIANGLE (4.14 2.63, 5.85 3.93, 1.86 2.63)
+  I20260804] TRIANGLE (3 1.8, 4.14 2.63, 1.86 2.63)
+  I20260804] TRIANGLE (1.24 0.57, 3 1.8, 1.86 2.63)
+  I20260804] 8 triangles (star, Enforce)
+  I20260804] Assert threw: triangulate: input is not y-monotone
   ```
 
    </details>
@@ -6331,34 +6448,67 @@ A quick list of code examples per topic is provided here.
   ```python
   import geompp as g
 
+  # Same 5-pointed star as §12.1 -- fails is_axis_monotone on every axis.
+  start_poly = [
+      g.Point2D(3.0, 6.0), g.Point2D(2.29, 3.97), g.Point2D(0.15, 3.93), g.Point2D(1.86, 2.63),
+      g.Point2D(1.24, 0.57), g.Point2D(3.0, 1.8), g.Point2D(4.76, 0.57), g.Point2D(4.14, 2.63),
+      g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
+  ]
+
   # Same 3-tooth comb as §12.1 -- y-monotone (and x-monotone) despite being the adversarial
   # case for ear clipping.
-  comb = [
+  comb_poly = [
       g.Point2D(5,0), g.Point2D(5,10), g.Point2D(4,10), g.Point2D(4,9), g.Point2D(3,9), g.Point2D(3,10),
       g.Point2D(2,10), g.Point2D(2,9), g.Point2D(1,9), g.Point2D(1,10), g.Point2D(0,10), g.Point2D(0,0),
   ]
 
-  # Check the precondition before triangulating -- MonotonePolygon does not check it for you.
-  if g.is_axis_monotone(comb, g.Vector2D(0, 1)):
+  print("start_poly is y-monotone:", g.is_axis_monotone(start_poly, g.Vector2D(0, 1)))
+  print("comb_poly is y-monotone:", g.is_axis_monotone(comb_poly, g.Vector2D(0, 1)))
+
+  # monotonicity=Guaranteed (default): no check -- guard the precondition yourself, as this
+  # manual is_axis_monotone check does for comb_poly.
+  if g.is_axis_monotone(comb_poly, g.Vector2D(0, 1)):
       p = g.TriangulationParams(strategy=g.TriangulationStrategy.MonotonePolygon)
-      tris = g.triangulate(comb, p)
-      for t in tris:
-          print(t.to_wkt())
-      print(f"{len(tris)} triangles")
+      tris = g.triangulate(comb_poly, p)
+      print(f"{len(tris)} triangles (comb, Guaranteed)")
+
+  # monotonicity=Enforce: start_poly fails the precondition above, but no longer needs to be
+  # rejected -- it's partitioned into y-monotone pieces and triangulated piece-by-piece.
+  enforced = g.TriangulationParams(
+      strategy=g.TriangulationStrategy.MonotonePolygon,
+      monotonicity=g.TriangulationMonotonicity.Enforce,
+  )
+  star_tris = g.triangulate(start_poly, enforced)
+  for t in star_tris:
+      print(t.to_wkt())
+  print(f"{len(star_tris)} triangles (star, Enforce)")
+
+  # monotonicity=Assert: fails fast instead of silently mis-triangulating (Guaranteed) or paying
+  # for a decomposition (Enforce).
+  asserted = g.TriangulationParams(
+      strategy=g.TriangulationStrategy.MonotonePolygon,
+      monotonicity=g.TriangulationMonotonicity.Assert,
+  )
+  try:
+      g.triangulate(start_poly, asserted)
+  except ValueError as e:
+      print("Assert raised:", e)
   ```
 
   ```
-  TRIANGLE (4 9, 5 10, 4 10)
-  TRIANGLE (2 10, 3 9, 3 10)
-  TRIANGLE (2 9, 3 9, 2 10)
-  TRIANGLE (0 10, 1 9, 1 10)
-  TRIANGLE (5 0, 1 9, 0 10)
-  TRIANGLE (5 0, 2 9, 1 9)
-  TRIANGLE (5 0, 3 9, 2 9)
-  TRIANGLE (5 0, 4 9, 3 9)
-  TRIANGLE (5 0, 5 10, 4 9)
-  TRIANGLE (0 0, 5 0, 0 10)
-  10 triangles
+  start_poly is y-monotone: False
+  comb_poly is y-monotone: True
+  10 triangles (comb, Guaranteed)
+  TRIANGLE (4.76 0.57, 4.14 2.63, 3 1.8)
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  TRIANGLE (0.15 3.93, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (5.85 3.93, 3.71 3.97, 0.15 3.93)
+  TRIANGLE (1.86 2.63, 5.85 3.93, 0.15 3.93)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 1.86 2.63)
+  TRIANGLE (3 1.8, 4.14 2.63, 1.86 2.63)
+  TRIANGLE (1.24 0.57, 3 1.8, 1.86 2.63)
+  8 triangles (star, Enforce)
+  Assert raised: triangulate: input is not y-monotone
   ```
 
    </details>
@@ -6370,35 +6520,68 @@ A quick list of code examples per topic is provided here.
   using G = GeomPP;
   using System.Linq;
 
+  // Same 5-pointed star as §12.1 -- fails IsAxisMonotone on every axis.
+  var start_poly = new G.Point2D[] {
+      new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+      new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
+  };
+
   // Same 3-tooth comb as §12.1 -- y-monotone (and x-monotone) despite being the adversarial
   // case for ear clipping.
-  var comb = new G.Point2D[] {
+  var comb_poly = new G.Point2D[] {
       new(5,0), new(5,10), new(4,10), new(4,9), new(3,9), new(3,10),
       new(2,10), new(2,9), new(1,9), new(1,10), new(0,10), new(0,0),
   };
 
-  // Check the precondition before triangulating -- MonotonePolygon does not check it for you.
-  if (G.GeomUtil.IsAxisMonotone(comb, new G.Vector2D(0, 1))) {
+  Console.WriteLine($"start_poly is y-monotone: {G.GeomUtil.IsAxisMonotone(start_poly, new G.Vector2D(0, 1))}");
+  Console.WriteLine($"comb_poly is y-monotone: {G.GeomUtil.IsAxisMonotone(comb_poly, new G.Vector2D(0, 1))}");
+
+  // Monotonicity.Guaranteed (default): no check -- guard the precondition yourself, as this
+  // manual IsAxisMonotone check does for comb_poly.
+  if (G.GeomUtil.IsAxisMonotone(comb_poly, new G.Vector2D(0, 1))) {
       var p = new G.TriangulationParams { Strategy = G.TriangulationStrategy.MonotonePolygon };
-      var tris = G.GeomUtil.Triangulate(comb, p).ToList();
-      foreach (var t in tris)
-          Console.WriteLine(t.ToWkt());
-      Console.WriteLine($"{tris.Count} triangles");
+      var tris = G.GeomUtil.Triangulate(comb_poly, p).ToList();
+      Console.WriteLine($"{tris.Count} triangles (comb, Guaranteed)");
+  }
+
+  // Monotonicity.Enforce: start_poly fails the precondition above, but no longer needs to be
+  // rejected -- it's partitioned into y-monotone pieces and triangulated piece-by-piece.
+  var enforced = new G.TriangulationParams {
+      Strategy = G.TriangulationStrategy.MonotonePolygon,
+      Monotonicity = G.TriangulationMonotonicity.Enforce,
+  };
+  var starTris = G.GeomUtil.Triangulate(start_poly, enforced).ToList();
+  foreach (var t in starTris)
+      Console.WriteLine(t.ToWkt());
+  Console.WriteLine($"{starTris.Count} triangles (star, Enforce)");
+
+  // Monotonicity.Assert: fails fast instead of silently mis-triangulating (Guaranteed) or paying
+  // for a decomposition (Enforce).
+  var asserted = new G.TriangulationParams {
+      Strategy = G.TriangulationStrategy.MonotonePolygon,
+      Monotonicity = G.TriangulationMonotonicity.Assert,
+  };
+  try {
+      G.GeomUtil.Triangulate(start_poly, asserted);
+  } catch (Exception e) {
+      Console.WriteLine($"Assert threw: {e.Message}");
   }
   ```
 
   ```
-  TRIANGLE (4 9, 5 10, 4 10)
-  TRIANGLE (2 10, 3 9, 3 10)
-  TRIANGLE (2 9, 3 9, 2 10)
-  TRIANGLE (0 10, 1 9, 1 10)
-  TRIANGLE (5 0, 1 9, 0 10)
-  TRIANGLE (5 0, 2 9, 1 9)
-  TRIANGLE (5 0, 3 9, 2 9)
-  TRIANGLE (5 0, 4 9, 3 9)
-  TRIANGLE (5 0, 5 10, 4 9)
-  TRIANGLE (0 0, 5 0, 0 10)
-  10 triangles
+  start_poly is y-monotone: False
+  comb_poly is y-monotone: True
+  10 triangles (comb, Guaranteed)
+  TRIANGLE (4.76 0.57, 4.14 2.63, 3 1.8)
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  TRIANGLE (0.15 3.93, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (5.85 3.93, 3.71 3.97, 0.15 3.93)
+  TRIANGLE (1.86 2.63, 5.85 3.93, 0.15 3.93)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 1.86 2.63)
+  TRIANGLE (3 1.8, 4.14 2.63, 1.86 2.63)
+  TRIANGLE (1.24 0.57, 3 1.8, 1.86 2.63)
+  8 triangles (star, Enforce)
+  Assert threw: triangulate: input is not y-monotone
   ```
 
    </details>
@@ -6449,9 +6632,9 @@ A quick list of code examples per topic is provided here.
   triangulation covers a solid block, no longer resembling a comb at all.
 
   <p align="center">
-    <img src="./images/triangulation_delaunay.png" width="420" alt="A 5-pointed star before and after Triangulate() with Delaunay: 13 triangles -- gold = edges inside the star, red = the 5 convex-hull bridge edges spanning each point-to-point notch, outside the star's own boundary">
+    <img src="./images/triangulation_delaunay.png" width="420" alt="A 5-pointed star before and after Triangulate() with Delaunay: 13 gold-edged triangles, including the 5 convex-hull bridge triangles spanning each point-to-point notch, outside the star's own boundary">
     &nbsp;&nbsp;
-    <img src="./images/comb_triangulation_delaunay.png" width="270" alt="A 3-tooth comb before and after Triangulate() with Delaunay: 14 triangles filling the full bounding rectangle -- gold = edges inside the comb, red = the 4 bridge edges spanning the two notches, so the notches vanish entirely">
+    <img src="./images/comb_triangulation_delaunay.png" width="270" alt="A 3-tooth comb before and after Triangulate() with Delaunay: 14 gold-edged triangles filling the full bounding rectangle, including the 4 bridge triangles spanning the two notches, so the notches vanish entirely">
   </p>
 
   <details closed>
@@ -6468,13 +6651,21 @@ A quick list of code examples per topic is provided here.
 
   // Same 5-pointed star as §12.1 — Delaunay works on any point set (no monotonicity precondition),
   // but see the image above: it triangulates the star's convex hull, not the star itself.
-  std::vector<g::Point2D> star = {
+  std::vector<g::Point2D> start_poly = {
       {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
       {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
   };
 
+  // Same 3-tooth comb as §12.1/§12.2 — its convex hull is just the bounding rectangle, so all four
+  // notches disappear and the triangulation covers a solid block instead (see the image above).
+  std::vector<g::Point2D> comb_poly = {
+      {5,0}, {5,10}, {4,10}, {4,9}, {3,9}, {3,10},
+      {2,10}, {2,9}, {1,9}, {1,10}, {0,10}, {0,0},
+  };
+
   g::TriangulationParams p{g::TriangulationParams::Strategy::Delaunay};
-  auto tris = g::triangulate(star, p);
+
+  auto tris = g::triangulate(start_poly, p);
   for (auto const& t : tris)
       GEOMPP_LOG(INFO) << t.ToWkt();
   GEOMPP_LOG(INFO) << tris.size() << " triangles";
@@ -6482,8 +6673,13 @@ A quick list of code examples per topic is provided here.
   // Verify the Delaunay condition: no other vertex of the input lies inside
   // the first triangle's circumcircle.
   auto [a, b, c] = tris[0].Vertices();
-  bool inside = g::in_circumcircle(a, b, c, star[5]);
-  GEOMPP_LOG(INFO) << "star[5] inside circumcircle of tris[0]: " << inside;
+  bool inside = g::in_circumcircle(a, b, c, start_poly[5]);
+  GEOMPP_LOG(INFO) << "start_poly[5] inside circumcircle of tris[0]: " << inside;
+
+  auto comb_tris = g::triangulate(comb_poly, p);
+  for (auto const& t : comb_tris)
+      GEOMPP_LOG(INFO) << t.ToWkt();
+  GEOMPP_LOG(INFO) << comb_tris.size() << " triangles";
   ```
 
   ```bash
@@ -6501,7 +6697,22 @@ A quick list of code examples per topic is provided here.
   TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
   TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
   13 triangles
-  star[5] inside circumcircle of tris[0]: 0
+  start_poly[5] inside circumcircle of tris[0]: 0
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 10, 4 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (4 9, 4 10, 3 9)
+  TRIANGLE (3 9, 4 10, 3 10)
+  TRIANGLE (3 9, 3 10, 2 10)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (3 9, 2 10, 2 9)
+  TRIANGLE (2 9, 2 10, 1 9)
+  TRIANGLE (1 9, 2 10, 1 10)
+  TRIANGLE (1 9, 1 10, 0 10)
+  TRIANGLE (5 0, 2 9, 0 0)
+  TRIANGLE (2 9, 1 9, 0 0)
+  TRIANGLE (1 9, 0 10, 0 0)
+  14 triangles
   ```
 
    </details>
@@ -6514,22 +6725,35 @@ A quick list of code examples per topic is provided here.
 
   # Same 5-pointed star as §12.1 — no monotonicity precondition needed, but it triangulates the
   # star's convex hull, not the star itself (see the image above).
-  star = [
+  start_poly = [
       g.Point2D(3.0, 6.0), g.Point2D(2.29, 3.97), g.Point2D(0.15, 3.93), g.Point2D(1.86, 2.63),
       g.Point2D(1.24, 0.57), g.Point2D(3.0, 1.8), g.Point2D(4.76, 0.57), g.Point2D(4.14, 2.63),
       g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
   ]
 
+  # Same 3-tooth comb as §12.1/§12.2 — its convex hull is just the bounding rectangle, so all four
+  # notches disappear (see the image above).
+  comb_poly = [
+      g.Point2D(5,0), g.Point2D(5,10), g.Point2D(4,10), g.Point2D(4,9), g.Point2D(3,9), g.Point2D(3,10),
+      g.Point2D(2,10), g.Point2D(2,9), g.Point2D(1,9), g.Point2D(1,10), g.Point2D(0,10), g.Point2D(0,0),
+  ]
+
   p = g.TriangulationParams(strategy=g.TriangulationStrategy.Delaunay)
-  tris = g.triangulate(star, p)
+
+  tris = g.triangulate(start_poly, p)
   for t in tris:
       print(t.to_wkt())
   print(f"{len(tris)} triangles")
 
   # Verify the Delaunay condition on the first triangle.
   a, b, c = tris[0].vertices
-  inside = g.in_circumcircle(a, b, c, star[5])
-  print("star[5] inside circumcircle of tris[0]:", inside)
+  inside = g.in_circumcircle(a, b, c, start_poly[5])
+  print("start_poly[5] inside circumcircle of tris[0]:", inside)
+
+  comb_tris = g.triangulate(comb_poly, p)
+  for t in comb_tris:
+      print(t.to_wkt())
+  print(f"{len(comb_tris)} triangles")
   ```
 
   ```
@@ -6547,7 +6771,22 @@ A quick list of code examples per topic is provided here.
   TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
   TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
   13 triangles
-  star[5] inside circumcircle of tris[0]: False
+  start_poly[5] inside circumcircle of tris[0]: False
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 10, 4 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (4 9, 4 10, 3 9)
+  TRIANGLE (3 9, 4 10, 3 10)
+  TRIANGLE (3 9, 3 10, 2 10)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (3 9, 2 10, 2 9)
+  TRIANGLE (2 9, 2 10, 1 9)
+  TRIANGLE (1 9, 2 10, 1 10)
+  TRIANGLE (1 9, 1 10, 0 10)
+  TRIANGLE (5 0, 2 9, 0 0)
+  TRIANGLE (2 9, 1 9, 0 0)
+  TRIANGLE (1 9, 0 10, 0 0)
+  14 triangles
   ```
 
    </details>
@@ -6561,21 +6800,34 @@ A quick list of code examples per topic is provided here.
 
   // Same 5-pointed star as §12.1 — no monotonicity precondition needed, but it triangulates the
   // star's convex hull, not the star itself (see the image above).
-  var star = new G.Point2D[] {
+  var start_poly = new G.Point2D[] {
       new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
       new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
   };
 
+  // Same 3-tooth comb as §12.1/§12.2 — its convex hull is just the bounding rectangle, so all four
+  // notches disappear (see the image above).
+  var comb_poly = new G.Point2D[] {
+      new(5,0), new(5,10), new(4,10), new(4,9), new(3,9), new(3,10),
+      new(2,10), new(2,9), new(1,9), new(1,10), new(0,10), new(0,0),
+  };
+
   var p = new G.TriangulationParams { Strategy = G.TriangulationStrategy.Delaunay };
-  var tris = G.GeomUtil.Triangulate(star, p).ToList();
+
+  var tris = G.GeomUtil.Triangulate(start_poly, p).ToList();
   foreach (var t in tris)
       Console.WriteLine(t.ToWkt());
   Console.WriteLine($"{tris.Count} triangles");
 
   // Verify the Delaunay condition on the first triangle.
   var v = tris[0].Vertices();
-  bool inside = G.GeomUtil.InCircumcircle(v.Item1, v.Item2, v.Item3, star[5]);
-  Console.WriteLine($"star[5] inside circumcircle of tris[0]: {inside}");
+  bool inside = G.GeomUtil.InCircumcircle(v.Item1, v.Item2, v.Item3, start_poly[5]);
+  Console.WriteLine($"start_poly[5] inside circumcircle of tris[0]: {inside}");
+
+  var combTris = G.GeomUtil.Triangulate(comb_poly, p).ToList();
+  foreach (var t in combTris)
+      Console.WriteLine(t.ToWkt());
+  Console.WriteLine($"{combTris.Count} triangles");
   ```
 
   ```
@@ -6593,7 +6845,22 @@ A quick list of code examples per topic is provided here.
   TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
   TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
   13 triangles
-  star[5] inside circumcircle of tris[0]: False
+  start_poly[5] inside circumcircle of tris[0]: False
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 10, 4 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (4 9, 4 10, 3 9)
+  TRIANGLE (3 9, 4 10, 3 10)
+  TRIANGLE (3 9, 3 10, 2 10)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (3 9, 2 10, 2 9)
+  TRIANGLE (2 9, 2 10, 1 9)
+  TRIANGLE (1 9, 2 10, 1 10)
+  TRIANGLE (1 9, 1 10, 0 10)
+  TRIANGLE (5 0, 2 9, 0 0)
+  TRIANGLE (2 9, 1 9, 0 0)
+  TRIANGLE (1 9, 0 10, 0 0)
+  14 triangles
   ```
 
    </details>

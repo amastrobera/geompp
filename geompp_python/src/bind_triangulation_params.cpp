@@ -56,6 +56,22 @@ void bind_triangulation_params(py::module_& m) {
                "Removes collinear/duplicate points before triangulating.")
         .export_values();
 
+    py::enum_<geompp::TriangulationParams::Monotonicity>(m, "TriangulationMonotonicity",
+        "Only consulted by Strategy.MonotonePolygon. Whether/how to handle a ring that isn't "
+        "y-monotone before running the monotone-polygon sweep, which silently assumes y-monotonicity "
+        "and produces an unspecified (not necessarily correct) result otherwise.")
+        .value("Guaranteed", geompp::TriangulationParams::Monotonicity::Guaranteed,
+               "No check is carried out (today's behavior: silently assumes the ring is y-monotone; "
+               "matches every other input-quality field's own Guaranteed semantics). Default.")
+        .value("Assert", geompp::TriangulationParams::Monotonicity::Assert,
+               "Checks y-monotonicity first and raises if the ring isn't y-monotone.")
+        .value("Enforce", geompp::TriangulationParams::Monotonicity::Enforce,
+               "If the ring isn't y-monotone, partitions it into y-monotone pieces via a top-to-bottom "
+               "plane sweep (sweeping along Y only) that classifies vertices as start/end/split/merge/"
+               "regular and adds diagonals to remove split/merge vertices, then triangulates each "
+               "resulting monotone piece and concatenates the results.")
+        .export_values();
+
     py::enum_<geompp::AdjacencyConformity>(m, "AdjacencyConformity",
         "How TriangulationParams.conformity handles a batch of facets that violate \"every edge has at "
         "most 1 neighbor\" -- no facet vertex may lie in the interior of another facet's edge, only "
@@ -78,17 +94,21 @@ void bind_triangulation_params(py::module_& m) {
         "triangulate() / Polygon2D.triangulate() / Polygon3D.triangulate() / PolyMesh2D.triangulate() / "
         "PolyMesh3D.triangulate(), plus (for the batch triangulate(list[Polygon2D], settings) overload "
         "only) how to handle cross-facet adjacency violations. Defaults match triangulate()'s own "
-        "defaults: EarClippingBestFit, and Enforce for all four input-quality checks.")
+        "defaults: EarClippingBestFit, and Enforce for all four input-quality checks -- except "
+        "monotonicity, which defaults to Guaranteed (only consulted by Strategy.MonotonePolygon) "
+        "unlike the other three.")
         .def(py::init([](geompp::TriangulationParams::Strategy strategy,
                           geompp::TriangulationParams::Simplicity simplicity,
                           geompp::TriangulationParams::Winding ccw_winding,
                           geompp::TriangulationParams::Collinearity collinearity,
+                          geompp::TriangulationParams::Monotonicity monotonicity,
                           geompp::AdjacencyConformity conformity) {
                  geompp::TriangulationParams p;
                  p.strategy = strategy;
                  p.simplicity = simplicity;
                  p.ccw_winding = ccw_winding;
                  p.collinearity = collinearity;
+                 p.monotonicity = monotonicity;
                  p.conformity = conformity;
                  return p;
              }),
@@ -96,10 +116,12 @@ void bind_triangulation_params(py::module_& m) {
              "simplicity"_a = geompp::TriangulationParams::Simplicity::Enforce,
              "ccw_winding"_a = geompp::TriangulationParams::Winding::Enforce,
              "collinearity"_a = geompp::TriangulationParams::Collinearity::Enforce,
+             "monotonicity"_a = geompp::TriangulationParams::Monotonicity::Guaranteed,
              "conformity"_a = geompp::AdjacencyConformity::Enforce)
         .def_readwrite("strategy", &geompp::TriangulationParams::strategy)
         .def_readwrite("simplicity", &geompp::TriangulationParams::simplicity)
         .def_readwrite("ccw_winding", &geompp::TriangulationParams::ccw_winding)
         .def_readwrite("collinearity", &geompp::TriangulationParams::collinearity)
+        .def_readwrite("monotonicity", &geompp::TriangulationParams::monotonicity)
         .def_readwrite("conformity", &geompp::TriangulationParams::conformity);
 }

@@ -352,6 +352,73 @@ public static class TriangulateTests {
       Eq(1.0, SumArea2D(tris));
     });
 
+    // ── TriangulationParams.Monotonicity (MonotonePolygon y-monotone partition) ──────────────────
+    Console.WriteLine("\nTriangulationParams.Monotonicity");
+
+    Test("TriangulationParams_Monotonicity_DefaultsToGuaranteed", () => {
+      var settings = new TriangulationParams();
+      IsTrue(settings.Monotonicity == TriangulationMonotonicity.Guaranteed,
+             $"expected default monotonicity Guaranteed, got {settings.Monotonicity}");
+    });
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Assert_NonMonotoneStar_Throws", () => {
+      // Same 5-pointed star as visual_doc_and_sample_code.md §12.2 -- fails IsAxisMonotone on every axis.
+      var star = new System.Collections.Generic.List<Point2D> {
+          new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+          new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97) };
+      var settings = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                             TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                             TriangulationMonotonicity.Assert);
+      bool threw = false;
+      try { var _ = GeomUtil.Triangulate(star, settings); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected non-monotone star to throw under Monotonicity.Assert");
+    });
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Enforce_NonMonotoneStar_MatchesEarClippingArea", () => {
+      var star = new System.Collections.Generic.List<Point2D> {
+          new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+          new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97) };
+      IsFalse(GeomUtil.IsAxisMonotone(star.ToArray(), new Vector2D(0, 1)),
+              "expected the star not to be y-monotone");
+
+      var enforced = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                             TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                             TriangulationMonotonicity.Enforce);
+      var tris = GeomUtil.Triangulate(star, enforced);
+      Eq(star.Count - 2, CountOf(tris), 0);
+
+      var reference = new TriangulationParams(TriangulationStrategy.EarClippingBestFit, TriangulationSimplicity.Guaranteed,
+                                              TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed);
+      var refTris = GeomUtil.Triangulate(star, reference);
+      Eq(SumArea2D(refTris), SumArea2D(tris));
+    });
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Enforce_AlreadyMonotoneComb_MatchesGuaranteedExactly", () => {
+      // Same 3-tooth comb as visual_doc_and_sample_code.md §12.2 -- already y-monotone, so Enforce must
+      // take the exact same code path as Guaranteed and produce a byte-identical result.
+      var comb = new System.Collections.Generic.List<Point2D> {
+          new(5, 0), new(5, 10), new(4, 10), new(4, 9), new(3, 9), new(3, 10),
+          new(2, 10), new(2, 9), new(1, 9), new(1, 10), new(0, 10), new(0, 0) };
+      IsTrue(GeomUtil.IsAxisMonotone(comb.ToArray(), new Vector2D(0, 1)), "expected the comb to be y-monotone");
+
+      var guaranteed = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                               TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                               TriangulationMonotonicity.Guaranteed);
+      var guaranteedTris = new System.Collections.Generic.List<Triangle2D>(GeomUtil.Triangulate(comb, guaranteed));
+
+      var enforced = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                             TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                             TriangulationMonotonicity.Enforce);
+      var enforcedTris = new System.Collections.Generic.List<Triangle2D>(GeomUtil.Triangulate(comb, enforced));
+
+      Eq(guaranteedTris.Count, enforcedTris.Count, 0);
+      for (int i = 0; i < guaranteedTris.Count; i++) {
+        IsTrue(guaranteedTris[i].ToWkt() == enforcedTris[i].ToWkt(),
+               $"expected triangle {i} to match exactly between Guaranteed and Enforce");
+      }
+    });
+
     // ── IsAxisMonotone ────────────────────────────────────────────────────────────────────────────
     Console.WriteLine("\nGeomUtil.IsAxisMonotone");
 

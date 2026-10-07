@@ -1760,6 +1760,164 @@ TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_LShape_ProducesFourTriangles
   }
 }
 
+#pragma region TriangulationParams::Monotonicity (partition into y-monotone pieces)
+
+TEST_F(CalcUtils2DTest, TriangulationParams_Monotonicity_DefaultsToGuaranteed) {
+  g::TriangulationParams settings{};
+  EXPECT_EQ(settings.monotonicity, g::TriangulationParams::Monotonicity::Guaranteed);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Assert_NonMonotoneStar_Throws) {
+  // Same 5-pointed star as visual_doc_and_sample_code.md §12.2 -- fails is_axis_monotone on every axis.
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  settings.monotonicity = g::TriangulationParams::Monotonicity::Assert;
+  EXPECT_THROW(g::triangulate(star, settings), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_NonMonotoneStar_MatchesEarClippingArea) {
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+  ASSERT_FALSE(g::is_axis_monotone(star, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(star, enforced);
+  ASSERT_EQ(tris.size(), star.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  // Cross-check against a strategy that never required monotonicity at all -- both triangulate the
+  // exact same simple polygon, so the total covered area must match.
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(star, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_AlreadyMonotoneComb_MatchesGuaranteedExactly) {
+  // Same 3-tooth comb as §12.2 -- already y-monotone, so Enforce must take the exact same code path
+  // as Guaranteed (is_y_monotone short-circuits before any partitioning is attempted) and produce a
+  // byte-identical result.
+  std::vector<g::Point2D> comb = {
+      {5, 0}, {5, 10}, {4, 10}, {4, 9}, {3, 9}, {3, 10},
+      {2, 10}, {2, 9}, {1, 9}, {1, 10}, {0, 10}, {0, 0},
+  };
+  ASSERT_TRUE(g::is_axis_monotone(comb, g::Vector2D{0, 1}));
+
+  g::TriangulationParams guaranteed{g::TriangulationParams::Strategy::MonotonePolygon};
+  guaranteed.monotonicity = g::TriangulationParams::Monotonicity::Guaranteed;
+  auto guaranteed_tris = g::triangulate(comb, guaranteed);
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto enforced_tris = g::triangulate(comb, enforced);
+
+  ASSERT_EQ(guaranteed_tris.size(), enforced_tris.size());
+  for (std::size_t i = 0; i < guaranteed_tris.size(); ++i) {
+    EXPECT_EQ(guaranteed_tris[i].ToWkt(), enforced_tris[i].ToWkt());
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_MultipleSplitVertices_ProducesCorrectTriangulation) {
+  // Same "W" shape as IsAxisMonotone_NonMonotone_ReturnsFalse -- 2 reflex local maxima (split
+  // vertices) and 0 merge vertices, decomposing into 3 y-monotone pieces (a quad, a quad, a triangle).
+  std::vector<g::Point2D> w_shape = {{0, 0}, {1, 2}, {2, 0}, {3, 2}, {4, 0}, {4, 4}, {0, 4}};
+  ASSERT_FALSE(g::is_axis_monotone(w_shape, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(w_shape, enforced);
+  ASSERT_EQ(tris.size(), w_shape.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(w_shape, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_XMonotoneNotYMonotone_StillTriangulatesCorrectly) {
+  // A "known limitation" regression case (see TriangulationParams::Monotonicity's own doc): monotone
+  // along X, but not along Y (a zigzag "sawtooth" top chain, monotonically decreasing in X). Enforce
+  // only ever sweeps along Y, so it still decomposes this rather than recognizing the cheaper
+  // single-pass X-sweep a smarter direction choice could have used -- but the result must still be a
+  // correct, full-area, non-degenerate triangulation.
+  std::vector<g::Point2D> shape = {
+      {0, 0}, {10, 0}, {10, 10}, {8, 5}, {6, 10}, {4, 5}, {2, 10}, {0, 10},
+  };
+  ASSERT_TRUE(g::is_axis_monotone(shape, g::Vector2D{1, 0}));
+  ASSERT_FALSE(g::is_axis_monotone(shape, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(shape, enforced);
+  ASSERT_EQ(tris.size(), shape.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(shape, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_TwoVerticesAtSameY_HandledByTotalOrderTiebreak) {
+  // Two distinct local maxima sharing the exact same y (a "flat-topped W"): exercises the total-order
+  // event tiebreak (y descending, x ascending) that makes the sweep well-defined even when raw y alone
+  // can't distinguish two events.
+  std::vector<g::Point2D> shape = {{0, 0}, {1, 3}, {2, 0}, {3, 3}, {4, 0}, {4, 4}, {0, 4}};
+  ASSERT_FALSE(g::is_axis_monotone(shape, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(shape, enforced);
+  ASSERT_EQ(tris.size(), shape.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(shape, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+#pragma endregion
+
 TEST_F(CalcUtils2DTest, Triangulate_Delaunay_Square_ProducesTwoTrianglesCoveringFullArea) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
   g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
@@ -2596,6 +2754,82 @@ TEST_F(CalcUtils2DTest, DelaunayTriangulation_CalledDirectly_ReturnsTwoTriangles
   auto tris = gd::view::delaunay_triangulation(square, g::View2D::XY());
   ASSERT_EQ(tris.size(), 2u);
 }
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_AlreadyMonotoneSquare_ReturnsOnePieceWithAllIndices) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  auto pieces = gd::view::partition_monotone_polygon(square, g::View2D::XY());
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0], (std::vector<std::size_t>{0, 1, 2, 3}));
+}
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_Star_EveryPieceIsYMonotoneAndCoversFullArea) {
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+  auto pieces = gd::view::partition_monotone_polygon(star, g::View2D::XY());
+  ASSERT_GT(pieces.size(), 1u);
+
+  std::size_t total_vertices = 0;
+  for (auto const& piece : pieces) {
+    ASSERT_GE(piece.size(), 3u);
+    total_vertices += piece.size();
+    std::vector<g::Point2D> piece_pts;
+    for (auto idx : piece) {
+      piece_pts.push_back(star[idx]);
+    }
+    EXPECT_TRUE(gd::view::is_y_monotone(piece_pts, g::View2D::XY()));
+  }
+
+  // Every piece triangulates independently (n-2 triangles), and the sum over all pieces must equal
+  // the star's own EarClippingBestFit total area -- confirms the decomposition covers the polygon
+  // exactly once, with no gaps or overlaps introduced by the diagonals.
+  double pieces_area = 0.0;
+  for (auto const& piece : pieces) {
+    std::vector<g::Point2D> piece_pts;
+    for (auto idx : piece) {
+      piece_pts.push_back(star[idx]);
+    }
+    auto local_tris = gd::view::monotone_polygon_triangulation(piece_pts, g::View2D::XY());
+    ASSERT_EQ(local_tris.size(), piece.size() - 2);
+    for (auto const& lt : local_tris) {
+      auto tri = g::Triangle2D::Make(piece_pts[lt[0]], piece_pts[lt[1]], piece_pts[lt[2]]);
+      pieces_area += tri.Area();
+    }
+  }
+
+  auto ref_tris = g::triangulate(star, g::TriangulationParams{g::TriangulationParams::Strategy::EarClippingBestFit});
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(pieces_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_WShape_ReturnsThreePieces) {
+  // 2 split vertices, 0 merge vertices -- 2 diagonals cut the original ring into exactly 3 pieces.
+  std::vector<g::Point2D> w_shape = {{0, 0}, {1, 2}, {2, 0}, {3, 2}, {4, 0}, {4, 4}, {0, 4}};
+  auto pieces = gd::view::partition_monotone_polygon(w_shape, g::View2D::XY());
+  ASSERT_EQ(pieces.size(), 3u);
+
+  std::size_t total_vertices = 0;
+  for (auto const& piece : pieces) {
+    total_vertices += piece.size();
+    std::vector<g::Point2D> piece_pts;
+    for (auto idx : piece) {
+      piece_pts.push_back(w_shape[idx]);
+    }
+    EXPECT_TRUE(gd::view::is_y_monotone(piece_pts, g::View2D::XY()));
+  }
+  // Each of the 2 diagonals adds exactly 2 vertices' worth of duplication (shared by 2 pieces each).
+  EXPECT_EQ(total_vertices, w_shape.size() + 4);
+}
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_TooFewPoints_Throws) {
+  std::vector<g::Point2D> too_few = {{0, 0}, {1, 1}};
+  EXPECT_THROW(gd::view::partition_monotone_polygon(too_few, g::View2D::XY()), std::invalid_argument);
+}
+
 
 TEST_F(CalcUtils2DTest, AssertAdjacency_EmptyViolations_DoesNotThrow) {
   std::vector<g::AdjacencyViolation<g::Point2D>> none;

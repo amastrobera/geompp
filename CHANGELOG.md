@@ -11,6 +11,88 @@ Each release covers all three packages at the same version:
 
 ---
 
+## [0.20.0] - 2026-09-15
+
+> `TriangulationParams::Monotonicity` — a new 3-value field (`Guaranteed`/`Assert`/`Enforce`,
+> alongside `Simplicity`/`Winding`/`Collinearity`) controlling `Strategy::MonotonePolygon`'s
+> y-monotone precondition. `Enforce` adds a real fallback for non-monotone input: partition into
+> y-monotone pieces (de Berg §3.2 plane sweep), triangulate each piece with the existing §3.3
+> algorithm, concatenate. Defaults to `Guaranteed`, matching today's behavior exactly — fully
+> backward compatible, no existing call sites change behavior.
+
+### Added
+
+**C++ core**
+- `TriangulationParams::Monotonicity` (`constants.hpp`) — `Guaranteed` (default; no check, same as
+  today's silent-assume behavior), `Assert` (checks y-monotonicity first, throws
+  `std::invalid_argument` if it fails), `Enforce` (partitions a non-monotone ring into y-monotone
+  pieces and triangulates each piece, concatenating the results).
+- `detail::view::partition_monotone_polygon(vector<PointT>, View2D)` (`calc_utils/triangulation2d.hpp/.cpp`)
+  — the classical plane-sweep polygon decomposition (de Berg, "Computational Geometry" §3.2): sweeps
+  top-to-bottom (a total order on vertices — y descending, x ascending on ties — makes the sweep
+  well-defined even when two vertices share a y), classifies each vertex as
+  start/end/split/merge/regular, maintains a status structure of the currently active "descending"
+  edges plus one helper vertex per edge, and inserts a diagonal at every split/merge vertex. Returns
+  1+ pieces, each a list of indices into the input ring forming a simple, y-monotone sub-polygon.
+  Only ever sweeps along Y (a ring monotone along some other axis but not Y still gets decomposed
+  rather than triangulated directly — a known, documented limitation). O(n²) worst case: the status
+  structure is a linear-scanned `vector`, not a balanced BST keyed by a dynamic comparator — the same
+  trade-off `ear_clipping_triangulation` makes over a theoretically faster data structure. A
+  genuinely horizontal polygon edge queried by a third vertex exactly on its scanline, nested inside
+  its x-span, is a documented-unhandled degenerate case (collapsed to the edge's own top-endpoint x).
+  Applying the collected diagonals to build the final pieces is order-independent (every diagonal is
+  a non-crossing chord, so incrementally splitting whichever current piece holds both endpoints
+  always yields a correct result) and needs no DCEL/half-edge face-tracing.
+- `TriangulationParams::Strategy::MonotonePolygon` under `Monotonicity::Enforce` maps each
+  partitioned piece's local triangle indices back to the caller's own point array before
+  concatenating — every other `Strategy` branch already expects indices in that same space.
+
+**Python bindings**
+- `geompp.TriangulationMonotonicity` (`Guaranteed`/`Assert`/`Enforce`) and
+  `TriangulationParams.monotonicity` (constructor keyword + read-write property, default
+  `Guaranteed`), in `bind_triangulation_params.cpp`. Re-exported from `geompp/__init__.py`.
+
+**C# bindings**
+- `GeomPP.TriangulationMonotonicity` (`Guaranteed = 0`/`Assert = 1`/`Enforce = 2`, same ordinals as
+  the native enum) and `TriangulationParams.Monotonicity` property, in `GeomUtil.hpp/.cpp`. Two new
+  `TriangulationParams` constructor overloads add `monotonicity` (and, separately, `monotonicity` +
+  `conformity`) without changing any existing overload's signature — no existing call site needs to
+  change.
+
+### Tests
+
+**C++ (`geompp_tests`)**
+- `test_calc_utils2d.cpp`: `TriangulationParams::Monotonicity` region — default value, `Assert`
+  throwing on the 5-pointed star, `Enforce` on the star (area cross-checked against
+  `EarClippingBestFit`), `Enforce` on the already-y-monotone comb (byte-identical to `Guaranteed`
+  via `ToWkt()`), a "W" shape with 2 split vertices decomposing into 3 pieces, an x-monotone-not-
+  y-monotone regression case, and a two-vertices-at-the-same-y tiebreak case. Plus direct
+  `partition_monotone_polygon()` calls: already-monotone input returns 1 piece, the star's every
+  piece verified individually `is_y_monotone`, the "W" shape's exact 3-piece split, and a
+  fewer-than-3-points throw.
+
+**Python (`geompp_python/tests`)**
+- New cases in `test_triangulate.py`: default value, `Assert` raising `ValueError` on the star,
+  `Enforce` matching `EarClippingBestFit` area on the star, `Enforce` matching `Guaranteed` exactly
+  on the comb.
+
+**C# (`geompp_csharp/tests`)**
+- New cases in `TriangulateTests.cs`: default value, `Assert` throwing on the star, `Enforce`
+  matching `EarClippingBestFit` area on the star, `Enforce` matching `Guaranteed` exactly on the
+  comb.
+
+### Docs
+
+- `visual_doc_and_sample_code.md` §12.2 — documents all three `Monotonicity` values; C++/Python/C#
+  samples now demonstrate `Guaranteed` (manual guard, comb), `Enforce` (star, now triangulates
+  successfully instead of being rejected), and `Assert` (star, throws). Regenerated
+  `images/triangulation_monotone.png` (star: violet partition diagonal distinct from gold
+  monotone-triangulation edges, replacing the old red-dashed-X "out of contract" rejection) and
+  `images/comb_triangulation_monotone.png` (unchanged triangulation, caption now notes
+  `Enforce == Guaranteed`).
+
+---
+
 ## [0.19.0] - 2026-09-14
 
 > Two new triangulation strategies — `MonotonePolygon` (de Berg §3.3 y-monotone sweep) and

@@ -70,8 +70,11 @@ Triangulation (2D or 3D, 3D input is assumed flat/planar):
     TriangulationStrategy (EarClipping, EarClippingBestFit, MonotonePolygon, Delaunay)
     TriangulationSimplicity, TriangulationWinding, TriangulationCollinearity
         (each Guaranteed/Assert/Enforce — how to handle non-simple/non-CCW/collinear input)
+    TriangulationMonotonicity (Guaranteed/Assert/Enforce — only consulted by Strategy.MonotonePolygon;
+        whether/how to handle a ring that isn't y-monotone; defaults to Guaranteed, unlike the other
+        input-quality fields)
     TriangulationParams(strategy=EarClipping, simplicity=Enforce, ccw_winding=Enforce,
-                         collinearity=Enforce)
+                         collinearity=Enforce, monotonicity=Guaranteed)
     triangulate(points, settings) -> list[Triangle2D]
     triangulate(points, normal, settings) -> list[Triangle3D]
     triangulate(points, settings) -> list[Triangle3D]              # normal fitted via PCA
@@ -229,6 +232,7 @@ from ._geompp import (  # noqa: F401
     TriangulationSimplicity,
     TriangulationWinding,
     TriangulationCollinearity,
+    TriangulationMonotonicity,
     TriangulationParams,
     triangulate,
     # polygonization
@@ -273,6 +277,7 @@ __all__ = [
     "bezier_smoothing_2",
     "PolylineExpansionMode", "PolylineExpansionParams", "polyline_expansion",
     "TriangulationStrategy", "TriangulationSimplicity", "TriangulationWinding", "TriangulationCollinearity",
+    "TriangulationMonotonicity",
     "TriangulationParams", "triangulate",
     "PolygonizationStrategy", "PolygonizationParams", "polygonize", "merge",
     "AdjacencyConformity", "AdjacencyViolation2D", "AdjacencyViolation3D", "validate_adjacency", "fix_adjacency",

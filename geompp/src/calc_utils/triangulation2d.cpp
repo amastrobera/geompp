@@ -398,6 +398,235 @@ template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangula
 template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<Point3D> const& input,
                                                                                      View2D const& view);
 
+// Partition a simple, CCW-wound ring into y-monotone pieces (de Berg, "Computational Geometry" §3.2).
+// See this function's own header doc for the algorithm summary, complexity trade-off, and the known
+// horizontal-edge degenerate case.
+template <typename PointT>
+std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<PointT> const& input,
+                                                                  View2D const& view) {
+  std::size_t n = input.size();
+  if (n < 3) {
+    throw std::invalid_argument("partition_monotone_polygon: input must have at least 3 points");
+  }
+
+  // Total sweep order: a is "above" b iff y(a) > y(b), or (tie) x(a) < x(b), or (tie) a's own index <
+  // b's -- the index tiebreak only ever matters for exact-duplicate coordinates, which shouldn't reach
+  // here under any Collinearity setting other than Guaranteed.
+  auto above = [&](std::size_t a, std::size_t b) -> bool {
+    auto cy = compare(view.y(input[a]), view.y(input[b]));
+    if (cy != 0) {
+      return cy > 0;
+    }
+    auto cx = compare(view.x(input[a]), view.x(input[b]));
+    if (cx != 0) {
+      return cx < 0;
+    }
+    return a < b;
+  };
+
+  std::vector<std::size_t> next_id(n), prev_id(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    next_id[i] = (i + 1) % n;
+    prev_id[i] = (i + n - 1) % n;
+  }
+
+  enum class VType { Start, End, Split, Merge, Regular };
+  std::vector<VType> vtype(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    std::size_t p = prev_id[i], q = next_id[i];
+    bool prev_above = above(p, i);
+    bool next_above = above(q, i);
+    // A collinear (exactly 180-degree) split/merge vertex is treated as convex here, same as every
+    // other caller of helpers::is_reflex assumes non-degenerate input; Collinearity::Enforce/Assert
+    // strip these before this code ever runs, so this only matters under Collinearity::Guaranteed.
+    bool reflex = helpers::is_reflex(input[p], input[i], input[q], view);
+    if (!prev_above && !next_above) {
+      vtype[i] = reflex ? VType::Split : VType::Start;
+    } else if (prev_above && next_above) {
+      vtype[i] = reflex ? VType::Merge : VType::End;
+    } else {
+      vtype[i] = VType::Regular;
+    }
+  }
+
+  std::vector<std::size_t> order(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    order[i] = i;
+  }
+  std::sort(order.begin(), order.end(), above);
+
+  // Status structure T: currently active descending edges (edge k := (input[k], input[next_id[k]])),
+  // each with a helper vertex and whether that helper is a merge vertex. Linear-scan based -- see this
+  // function's header doc for the O(n^2)-worst-case trade-off this implies.
+  struct ActiveEdge {
+    std::size_t edge_start;
+    std::size_t helper;
+    bool helper_is_merge;
+  };
+  std::vector<ActiveEdge> status;
+
+  // x-coordinate of edge e at the y-height of vertex v -- used only to rank/search the status
+  // structure. A horizontal edge (top.y == bot.y, which by `above`'s own tiebreak always has
+  // top.x < bot.x) collapses to its top endpoint's x: see this function's header @note.
+  auto edge_x_at = [&](ActiveEdge const& e, std::size_t v) -> double {
+    std::size_t top = e.edge_start, bot = next_id[e.edge_start];
+    double y_top = view.y(input[top]), y_bot = view.y(input[bot]);
+    if (compare(y_top, y_bot) == 0) {
+      return view.x(input[top]);
+    }
+    double t = (view.y(input[v]) - y_bot) / (y_top - y_bot);
+    return view.x(input[bot]) + t * (view.x(input[top]) - view.x(input[bot]));
+  };
+
+  auto find_left_edge = [&](std::size_t v) -> std::size_t {
+    double vx = view.x(input[v]);
+    std::size_t best = status.size();
+    double best_x = -std::numeric_limits<double>::infinity();
+    for (std::size_t k = 0; k < status.size(); ++k) {
+      double ex = edge_x_at(status[k], v);
+      if (compare(ex, vx) < 0 && compare(ex, best_x) > 0) {
+        best_x = ex;
+        best = k;
+      }
+    }
+    if (best == status.size()) {
+      throw std::logic_error("partition_monotone_polygon: no active edge found to the left of a split/merge vertex");
+    }
+    return best;
+  };
+
+  auto find_status_index = [&](std::size_t edge_start) -> std::size_t {
+    for (std::size_t k = 0; k < status.size(); ++k) {
+      if (status[k].edge_start == edge_start) {
+        return k;
+      }
+    }
+    throw std::logic_error("partition_monotone_polygon: expected active edge not found in status structure");
+  };
+
+  std::vector<std::pair<std::size_t, std::size_t>> diagonals;
+
+  for (std::size_t v : order) {
+    switch (vtype[v]) {
+      case VType::Start: {
+        status.push_back({v, v, false});
+        break;
+      }
+      case VType::Split: {
+        std::size_t j = find_left_edge(v);
+        diagonals.push_back({v, status[j].helper});
+        status[j].helper = v;
+        status[j].helper_is_merge = false;
+        status.push_back({v, v, false});
+        break;
+      }
+      case VType::End: {
+        std::size_t idx = find_status_index(prev_id[v]);
+        if (status[idx].helper_is_merge) {
+          diagonals.push_back({v, status[idx].helper});
+        }
+        status.erase(status.begin() + static_cast<std::ptrdiff_t>(idx));
+        break;
+      }
+      case VType::Merge: {
+        std::size_t idx = find_status_index(prev_id[v]);
+        if (status[idx].helper_is_merge) {
+          diagonals.push_back({v, status[idx].helper});
+        }
+        status.erase(status.begin() + static_cast<std::ptrdiff_t>(idx));
+
+        std::size_t j = find_left_edge(v);
+        if (status[j].helper_is_merge) {
+          diagonals.push_back({v, status[j].helper});
+        }
+        status[j].helper = v;
+        status[j].helper_is_merge = true;
+        break;
+      }
+      case VType::Regular: {
+        bool interior_right = !above(next_id[v], v);  // next(v) is below v
+        if (interior_right) {
+          std::size_t idx = find_status_index(prev_id[v]);
+          if (status[idx].helper_is_merge) {
+            diagonals.push_back({v, status[idx].helper});
+          }
+          status.erase(status.begin() + static_cast<std::ptrdiff_t>(idx));
+          status.push_back({v, v, false});
+        } else {
+          std::size_t j = find_left_edge(v);
+          if (status[j].helper_is_merge) {
+            diagonals.push_back({v, status[j].helper});
+          }
+          status[j].helper = v;
+          status[j].helper_is_merge = false;
+        }
+        break;
+      }
+    }
+  }
+
+  // Apply every collected diagonal to a running list of pieces (each a list of ORIGINAL `input`
+  // indices, CCW order). Every diagonal is a non-crossing chord, so incrementally splitting whichever
+  // current piece holds both of its endpoints -- in any order -- always yields a correct result: two
+  // non-crossing chords of a simple polygon can never have their endpoints straddle two different
+  // pieces created by an earlier split (a straight segment connecting across two disjoint pieces would
+  // have to cross the very diagonal that separated them).
+  std::vector<std::vector<std::size_t>> pieces;
+  {
+    std::vector<std::size_t> full(n);
+    for (std::size_t i = 0; i < n; ++i) {
+      full[i] = i;
+    }
+    pieces.push_back(std::move(full));
+  }
+
+  for (auto const& [a, b] : diagonals) {
+    // Index-based loop, NOT range-based: the body below may pieces.push_back() a new piece, which can
+    // reallocate `pieces` and invalidate any reference/iterator taken into it beforehand.
+    for (std::size_t pi = 0; pi < pieces.size(); ++pi) {
+      auto& piece = pieces[pi];
+      auto it_a = std::find(piece.begin(), piece.end(), a);
+      auto it_b = std::find(piece.begin(), piece.end(), b);
+      if (it_a == piece.end() || it_b == piece.end()) {
+        continue;
+      }
+      std::size_t pos_a = static_cast<std::size_t>(std::distance(piece.begin(), it_a));
+      std::size_t pos_b = static_cast<std::size_t>(std::distance(piece.begin(), it_b));
+      std::size_t m = piece.size();
+      std::size_t fwd_diff = (pos_b + m - pos_a) % m;
+      if (fwd_diff == 1 || fwd_diff == m - 1) {
+        // Already adjacent in this piece (can happen when a merge vertex's two helper checks resolve
+        // to the same target vertex) -- a no-op split, nothing further to do for this diagonal.
+        break;
+      }
+
+      std::vector<std::size_t> piece_a, piece_b;
+      for (std::size_t k = pos_a;; k = (k + 1) % m) {
+        piece_a.push_back(piece[k]);
+        if (k == pos_b) {
+          break;
+        }
+      }
+      for (std::size_t k = pos_b;; k = (k + 1) % m) {
+        piece_b.push_back(piece[k]);
+        if (k == pos_a) {
+          break;
+        }
+      }
+      pieces[pi] = std::move(piece_a);
+      pieces.push_back(std::move(piece_b));
+      break;
+    }
+  }
+
+  return pieces;
+}
+
+template std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<Point2D> const& input,
+                                                                          View2D const& view);
+template std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<Point3D> const& input,
+                                                                          View2D const& view);
+
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
                                                                        View2D const& view) {
@@ -774,8 +1003,49 @@ std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& i
     }
     case TriangulationParams::Strategy::MonotonePolygon: {
       for (auto const& loop : simple_loops) {
-        auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
-        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+        switch (settings.monotonicity) {
+          case TriangulationParams::Monotonicity::Guaranteed: {
+            auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+            tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+            break;
+          }
+          case TriangulationParams::Monotonicity::Assert: {
+            if (!is_y_monotone(loop, view)) {
+              throw std::invalid_argument("triangulate: input is not y-monotone");
+            }
+            auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+            tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+            break;
+          }
+          case TriangulationParams::Monotonicity::Enforce: {
+            if (is_y_monotone(loop, view)) {
+              auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+              tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+            } else {
+              // Decompose into y-monotone pieces (each a list of indices into `loop`), triangulate
+              // each piece independently with the existing monotone-polygon algorithm, then map each
+              // piece-local triangle index back to a `loop`-relative index before concatenating --
+              // `loop`-relative indices are what every other Strategy branch (and the final
+              // `working[tri[k]]` lookup below) expects here.
+              auto pieces = partition_monotone_polygon(loop, view);
+              for (auto const& piece : pieces) {
+                std::vector<PointT> piece_pts;
+                piece_pts.reserve(piece.size());
+                for (auto idx : piece) {
+                  piece_pts.push_back(loop[idx]);
+                }
+                auto local_tris = monotone_polygon_triangulation(piece_pts, view);
+                for (auto const& lt : local_tris) {
+                  tri_indices.push_back({piece[lt[0]], piece[lt[1]], piece[lt[2]]});
+                }
+              }
+            }
+            break;
+          }
+          default: {
+            throw std::invalid_argument("triangulate: unknown monotonicity strategy");
+          }
+        }
       }
       break;
     }

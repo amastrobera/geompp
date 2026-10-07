@@ -140,10 +140,28 @@ public enum class AdjacencyConformity {
     Enforce = 2
 };
 
+// Only consulted by Strategy::MonotonePolygon. Whether/how to handle a ring that isn't y-monotone
+// before running the monotone-polygon sweep, which silently assumes y-monotonicity and produces an
+// unspecified (not necessarily correct) result otherwise. Values must stay in the same order as
+// geompp::TriangulationParams::Monotonicity: ToNative() converts via a raw static_cast by ordinal, not
+// by name, so inserting or reordering a value here without matching the C++ enum silently corrupts
+// every other value after it.
+public enum class TriangulationMonotonicity {
+    // No check is carried out (the algo runs at your own risk, on a possibly-incorrect result).
+    Guaranteed = 0,
+    // Throws if the ring isn't y-monotone.
+    Assert = 1,
+    // Partitions the ring into y-monotone pieces (a plane-sweep decomposition) and triangulates each
+    // piece, concatenating the results, before triangulating.
+    Enforce = 2
+};
+
 // Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for
 // GeomUtil.Triangulate(), plus (for the batch GeomUtil.Triangulate(array<Polygon2D^>^, ...) overload
 // only) how to handle cross-facet adjacency violations. Defaults to EarClipping, and Enforce for all
-// four input-quality checks — matching the native triangulate()'s own defaults. Polygon2D.Triangulate() /
+// four input-quality checks — matching the native triangulate()'s own defaults. Monotonicity (only
+// consulted by Strategy::MonotonePolygon) defaults to Guaranteed, also matching the native default.
+// Polygon2D.Triangulate() /
 // Polygon3D.Triangulate() / PolyMesh2D.Triangulate() / PolyMesh3D.Triangulate() take just a
 // TriangulationStrategy instead: their input is already guaranteed simple/CCW/collinear-free by
 // construction, so the other checks aren't exposed there.
@@ -155,6 +173,15 @@ public:
     TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
                         AdjacencyConformity conformity);
+    // Overloads accepting monotonicity explicitly -- default to TriangulationMonotonicity::Guaranteed
+    // (matching the native TriangulationParams' own default) via the 4-/5-arg overloads above, so
+    // existing call sites keep compiling unchanged.
+    TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                        TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                        TriangulationMonotonicity monotonicity);
+    TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                        TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                        TriangulationMonotonicity monotonicity, AdjacencyConformity conformity);
 
     property TriangulationStrategy Strategy {
         TriangulationStrategy get() { return _strategy; }
@@ -172,6 +199,11 @@ public:
         TriangulationCollinearity get() { return _collinearity; }
         void set(TriangulationCollinearity value) { _collinearity = value; }
     }
+    // Only consulted by Strategy::MonotonePolygon.
+    property TriangulationMonotonicity Monotonicity {
+        TriangulationMonotonicity get() { return _monotonicity; }
+        void set(TriangulationMonotonicity value) { _monotonicity = value; }
+    }
     // Only consulted by the batch GeomUtil.Triangulate(array<Polygon2D^>^, TriangulationParams^) overload.
     property AdjacencyConformity Conformity {
         AdjacencyConformity get() { return _conformity; }
@@ -186,6 +218,7 @@ private:
     TriangulationSimplicity _simplicity;
     TriangulationWinding _ccwWinding;
     TriangulationCollinearity _collinearity;
+    TriangulationMonotonicity _monotonicity;
     AdjacencyConformity _conformity;
 };
 

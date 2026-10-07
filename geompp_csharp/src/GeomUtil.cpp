@@ -384,18 +384,30 @@ PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Polygon3D^ other) {
 TriangulationParams::TriangulationParams()
     : _strategy(TriangulationStrategy::EarClippingBestFit), _simplicity(TriangulationSimplicity::Enforce),
       _ccwWinding(TriangulationWinding::Enforce), _collinearity(TriangulationCollinearity::Enforce),
-      _conformity(AdjacencyConformity::Enforce) {}
+      _monotonicity(TriangulationMonotonicity::Guaranteed), _conformity(AdjacencyConformity::Enforce) {}
 
 TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                                          TriangulationWinding ccwWinding, TriangulationCollinearity collinearity)
     : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
-      _conformity(AdjacencyConformity::Enforce) {}
+      _monotonicity(TriangulationMonotonicity::Guaranteed), _conformity(AdjacencyConformity::Enforce) {}
 
 TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                                          TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
                                          AdjacencyConformity conformity)
     : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
-      _conformity(conformity) {}
+      _monotonicity(TriangulationMonotonicity::Guaranteed), _conformity(conformity) {}
+
+TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                                         TriangulationMonotonicity monotonicity)
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
+      _monotonicity(monotonicity), _conformity(AdjacencyConformity::Enforce) {}
+
+TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                                         TriangulationMonotonicity monotonicity, AdjacencyConformity conformity)
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
+      _monotonicity(monotonicity), _conformity(conformity) {}
 
 geompp::TriangulationParams TriangulationParams::ToNative() {
     geompp::TriangulationParams native;
@@ -403,6 +415,7 @@ geompp::TriangulationParams TriangulationParams::ToNative() {
     native.simplicity = static_cast<geompp::TriangulationParams::Simplicity>(_simplicity);
     native.ccw_winding = static_cast<geompp::TriangulationParams::Winding>(_ccwWinding);
     native.collinearity = static_cast<geompp::TriangulationParams::Collinearity>(_collinearity);
+    native.monotonicity = static_cast<geompp::TriangulationParams::Monotonicity>(_monotonicity);
     native.conformity = static_cast<geompp::AdjacencyConformity>(_conformity);
     return native;
 }

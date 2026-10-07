@@ -375,3 +375,59 @@ class TestTriangulate:
         tris = geompp.triangulate(pts, params)
         assert len(tris) == 2
         assert abs(sum(t.area() for t in tris) - 1.0) < 1e-6
+
+    # ── TriangulationParams.monotonicity (partition into y-monotone pieces) ────────────────────────
+
+    def test_monotonicity_defaults_to_guaranteed(self):
+        assert geompp.TriangulationParams().monotonicity == geompp.TriangulationMonotonicity.Guaranteed
+
+    def test_monotonicity_assert_raises_on_non_monotone_star(self):
+        # Same 5-pointed star as visual_doc_and_sample_code.md §12.2 -- fails is_axis_monotone on
+        # every axis.
+        star = [
+            geompp.Point2D(3.0, 6.0), geompp.Point2D(2.29, 3.97), geompp.Point2D(0.15, 3.93),
+            geompp.Point2D(1.86, 2.63), geompp.Point2D(1.24, 0.57), geompp.Point2D(3.0, 1.8),
+            geompp.Point2D(4.76, 0.57), geompp.Point2D(4.14, 2.63), geompp.Point2D(5.85, 3.93),
+            geompp.Point2D(3.71, 3.97),
+        ]
+        settings = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.MonotonePolygon,
+                                               monotonicity=geompp.TriangulationMonotonicity.Assert)
+        with pytest.raises(ValueError):
+            geompp.triangulate(star, settings)
+
+    def test_monotonicity_enforce_on_non_monotone_star_matches_ear_clipping_area(self):
+        star = [
+            geompp.Point2D(3.0, 6.0), geompp.Point2D(2.29, 3.97), geompp.Point2D(0.15, 3.93),
+            geompp.Point2D(1.86, 2.63), geompp.Point2D(1.24, 0.57), geompp.Point2D(3.0, 1.8),
+            geompp.Point2D(4.76, 0.57), geompp.Point2D(4.14, 2.63), geompp.Point2D(5.85, 3.93),
+            geompp.Point2D(3.71, 3.97),
+        ]
+        enforced = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.MonotonePolygon,
+                                               monotonicity=geompp.TriangulationMonotonicity.Enforce)
+        tris = geompp.triangulate(star, enforced)
+        assert len(tris) == len(star) - 2
+        for t in tris:
+            assert t.area() > 0.0
+
+        reference = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.EarClippingBestFit)
+        ref_tris = geompp.triangulate(star, reference)
+        assert approx(sum(t.area() for t in tris), sum(t.area() for t in ref_tris))
+
+    def test_monotonicity_enforce_on_already_monotone_comb_matches_guaranteed_exactly(self):
+        # Same 3-tooth comb as §12.2 -- already y-monotone, so Enforce must take the exact same code
+        # path as Guaranteed and produce an identical triangulation.
+        comb = [
+            geompp.Point2D(5, 0), geompp.Point2D(5, 10), geompp.Point2D(4, 10), geompp.Point2D(4, 9),
+            geompp.Point2D(3, 9), geompp.Point2D(3, 10), geompp.Point2D(2, 10), geompp.Point2D(2, 9),
+            geompp.Point2D(1, 9), geompp.Point2D(1, 10), geompp.Point2D(0, 10), geompp.Point2D(0, 0),
+        ]
+        guaranteed = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.MonotonePolygon,
+                                                 monotonicity=geompp.TriangulationMonotonicity.Guaranteed)
+        guaranteed_tris = geompp.triangulate(comb, guaranteed)
+
+        enforced = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.MonotonePolygon,
+                                               monotonicity=geompp.TriangulationMonotonicity.Enforce)
+        enforced_tris = geompp.triangulate(comb, enforced)
+
+        assert len(guaranteed_tris) == len(enforced_tris)
+        assert [t.to_wkt() for t in guaranteed_tris] == [t.to_wkt() for t in enforced_tris]

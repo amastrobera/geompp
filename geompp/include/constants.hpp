@@ -175,6 +175,29 @@ struct TriangulationParams {
   ///        - Enforce attempts to fix it (using remove_collinear) before triangulating.
   Collinearity collinearity = Collinearity::Enforce;
 
+  enum class Monotonicity { Guaranteed, Assert, Enforce };
+  /// @brief Only consulted by Strategy::MonotonePolygon. Whether/how to handle a ring that isn't
+  /// y-monotone before running the monotone-polygon sweep, which silently assumes y-monotonicity and
+  /// produces an unspecified (not necessarily correct) result otherwise.
+  ///        - Guaranteed: no check is carried out (today's behavior: silently assumes the ring is
+  ///          y-monotone; matches every other input-quality field's own Guaranteed semantics).
+  ///        - Assert: checks y-monotonicity first and throws if the ring isn't y-monotone.
+  ///        - Enforce: if the ring isn't y-monotone, partitions it into y-monotone pieces (de Berg,
+  ///          "Computational Geometry" §3.2: a top-to-bottom plane sweep that classifies each vertex
+  ///          as start/end/split/merge/regular, maintains a status structure of the currently active
+  ///          edges plus one helper vertex per edge, and inserts a diagonal at every split/merge
+  ///          vertex), triangulates each piece with the existing monotone-polygon algorithm (§3.3),
+  ///          and concatenates every piece's triangles -- every partition diagonal is a valid,
+  ///          non-crossing chord of the original polygon, so no extra stitching is needed.
+  ///          Only ever sweeps along the Y axis, even if the ring happens to be monotone along some
+  ///          other axis -- a polygon that's x-monotone but not y-monotone still gets decomposed
+  ///          (correctly, just not minimally) rather than triangulated directly.
+  /// @note Guaranteed/Assert default to matching Strategy's own MonotonePolygon doc: "O(n log n) to
+  /// O(n^2) worst-case". Enforce's own partition step uses a linear-scan status structure (like
+  /// EarClipping's own O(n^2) trade-off over a theoretically faster balanced-tree structure), so it is
+  /// O(n^2) worst-case rather than the classical algorithm's O(n log n).
+  Monotonicity monotonicity = Monotonicity::Guaranteed;
+
   /// @brief How to handle a batch of facets that violate the mesh-conformity rule -- see the standalone
   /// @ref AdjacencyConformity's own docs. Only consulted by the batch triangulate(vector<Polygon2D>,
   /// settings) overload -- the single-ring triangulate() overload has no adjacent facets to check, so
