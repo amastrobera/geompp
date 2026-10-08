@@ -6075,26 +6075,43 @@ A quick list of code examples per topic is provided here.
   <details closed>
   <summary><b> &nbsp; &nbsp; 12.1 Ear Clipping</b></summary>
 
-  Below: a 5-pointed star (5 reflex inner vertices), triangulated with `EarClippingBestFit`. The first
-  lap clips off each point as its own ear; what's left is the inner pentagon, fanned on the second lap.
-  Alongside it, a 3-tooth comb — the classic adversarial shape for ear-clipping, needing several passes
-  before its deep notches fully clip.
+  **`EarClipping`.** An *ear* is three consecutive vertices `(prev, v, next)` where `v` is convex and no
+  other vertex lies inside the triangle they form. Cutting that triangle off leaves a smaller polygon
+  that is still simple. Every simple polygon with more than 3 vertices has at least two ears (Meisters'
+  two-ears theorem), so the algorithm walks the ring in scan order, clips the **first** valid ear it
+  finds, and repeats until 3 vertices remain. A polygon with n vertices always gives n − 2 triangles.
+  The cost is often close to O(n) in practice and O(n²) in the worst case. The algorithm never looks at
+  triangle shape, so which triangles you get depends only on where the scan happens to be.
+
+  Below: a 5-pointed star (5 reflex inner vertices) and a 3-tooth comb, the classic adversarial shape
+  for ear clipping, which needs several passes before its deep notches are fully clipped. Gold marks a
+  healthy edge and red marks a sliver triangle. In the star, scan order alone produces two slivers. In
+  the comb, the single sliver comes from the notch's own geometry.
+
+  <p align="center">
+    <img src="./images/triangulation_ear_clipping.png" width="420" alt="A 5-pointed star triangulated with plain EarClipping: 8 triangles, gold = healthy edge, red = two sliver triangles produced purely by scan order">
+    &nbsp;&nbsp;
+    <img src="./images/comb_triangulation_ear_clipping.png" width="270" alt="A 3-tooth comb triangulated with plain EarClipping: 10 triangles, red = the one sliver forced by the notch geometry itself">
+  </p>
+
+  **`EarClippingBestFit` (the default).** It uses the same ear test and gives the same n − 2 triangles
+  with the same termination guarantee. The difference is how it picks the ear: instead of clipping the
+  first valid one, it scores **every** valid ear on each step and clips the best-shaped one (the least
+  sliver-prone). That removes the dependence on scan order, so slivers caused by the starting vertex go
+  away. The cost is a full rescan of the remaining ring on every clip, which makes it about O(n²)
+  **always**, not just in the worst case. It improves triangle quality, but it does not optimize it
+  globally; for that, use `ConstrainedDelaunay` (§12.3). It also can't remove a sliver that the polygon's
+  own geometry forces.
+
+  Below: the same two shapes with `EarClippingBestFit`. The triangle counts and area are the same. The
+  star's two scan-order slivers are gone: the first lap clips each point as its own ear, and the inner
+  pentagon is fanned on the second lap. The comb's sliver remains under both strategies, because the
+  notch's geometry forces it, not the order in which ears were picked.
 
   <p align="center">
     <img src="./images/triangulation.png" width="420" alt="A 5-pointed star polygon before and after Triangulate() with EarClippingBestFit: 8 triangles (every edge in gold) -- the 5 point-ears clipped first, the remaining pentagon fanned from one of its vertices">
     &nbsp;&nbsp;
     <img src="./images/comb_triangulation.png" width="270" alt="A 3-tooth comb polygon before and after Triangulate() with EarClippingBestFit: 10 triangles fanning from the base, the classic adversarial case that needs multiple traversal laps to fully clip">
-  </p>
-
-  Same two shapes again, but with plain `EarClipping` instead. Same triangle counts and area — both are
-  valid triangulations — but scan order alone produces two sliver triangles in the star (flagged red)
-  that `EarClippingBestFit` avoids. The comb's sliver, also flagged red, shows up under *both*
-  strategies: that one's forced by the notch's own geometry, not by which ear got picked first.
-
-  <p align="center">
-    <img src="./images/triangulation_ear_clipping.png" width="420" alt="The same 5-pointed star triangulated with plain EarClipping: 8 triangles, gold = healthy edge, red = two sliver triangles produced purely by scan order">
-    &nbsp;&nbsp;
-    <img src="./images/comb_triangulation_ear_clipping.png" width="270" alt="The same 3-tooth comb triangulated with plain EarClipping: 10 triangles, red = the one sliver forced by the notch geometry itself, present under EarClippingBestFit too">
   </p>
 
   <details closed>
@@ -6304,7 +6321,7 @@ A quick list of code examples per topic is provided here.
 
   **Precondition:** the polygon must be **y-monotone** — any horizontal sweep line intersects its
   boundary in at most two points. Check with `is_axis_monotone(ring, direction)` before calling
-  (see §14.1). Whether/how that precondition is enforced is controlled by
+  (see §13.5). Whether/how that precondition is enforced is controlled by
   `TriangulationParams::Monotonicity`, a 3-value enum alongside `Simplicity`/`Winding`/`Collinearity`:
 
   - `Guaranteed` (**default**) — no check at all, same as every other input-quality field's own
@@ -6611,7 +6628,7 @@ A quick list of code examples per topic is provided here.
   covering its convex hull, use `delaunay(points)` instead (§12.4).
 
   The Delaunay condition — no point inside a triangle's circumcircle — is testable via
-  `in_circumcircle(a, b, c, p)` (see §14.2).
+  `in_circumcircle(a, b, c, p)` (see §13.6).
 
   Same pentagon as §12.2. It is convex, so the CDT is its plain Delaunay triangulation (3 triangles):
 
@@ -7621,16 +7638,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
 
   </details>
 
-</details>
-
-<details open>
-<summary><b> &nbsp; 14. Free Functions</b></summary>
-
-  Selected free functions that don't belong to a single geometry type. See also: `triangulate` (§12),
-  `polygonize` / `merge` (§13).
-
   <details closed>
-  <summary><b> &nbsp; &nbsp; 14.1 is_axis_monotone</b></summary>
+  <summary><b> &nbsp; &nbsp; 13.5 axis monotone check</b></summary>
 
   Returns `true` if a polygon or ring has **at most one local maximum and one local minimum** when
   vertices are projected onto `direction`. Equivalently, any line perpendicular to `direction`
@@ -7775,7 +7784,7 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   </details>
 
   <details closed>
-  <summary><b> &nbsp; &nbsp; 14.2 in_circumcircle</b></summary>
+  <summary><b> &nbsp; &nbsp; 13.6 circumcircle check</b></summary>
 
   Returns `true` if point `p` lies **strictly inside** the circumcircle of the CCW triangle
   `(a, b, c)`. Uses a 3×3 determinant predicate (exact arithmetic on the input coordinates):
@@ -7921,7 +7930,5 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   </details>
 
   </details>
-
-</details>
 
 </details>
