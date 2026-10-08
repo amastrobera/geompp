@@ -14,12 +14,14 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <iostream>
 #include <optional>
 #include <random>
 #include <set>
+#include <string>
 #include <vector>
 
 namespace g  = geompp;
@@ -1918,9 +1920,9 @@ TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_TwoVerticesAtSameY_H
 
 #pragma endregion
 
-TEST_F(CalcUtils2DTest, Triangulate_Delaunay_Square_ProducesTwoTrianglesCoveringFullArea) {
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Square_ProducesTwoTrianglesCoveringFullArea) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::ConstrainedDelaunay};
   auto triangles = g::triangulate(square, settings);
 
   ASSERT_EQ(triangles.size(), 2u);
@@ -1934,9 +1936,9 @@ TEST_F(CalcUtils2DTest, Triangulate_Delaunay_Square_ProducesTwoTrianglesCovering
   }
 }
 
-TEST_F(CalcUtils2DTest, Triangulate_Delaunay_Pentagon_ProducesThreeTriangles) {
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Pentagon_ProducesThreeTriangles) {
   std::vector<g::Point2D> pentagon = {{0, 0}, {4, 0}, {4, 3}, {2, 5}, {0, 3}};
-  g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::ConstrainedDelaunay};
   auto triangles = g::triangulate(pentagon, settings);
 
   ASSERT_EQ(triangles.size(), 3u);
@@ -1950,10 +1952,10 @@ TEST_F(CalcUtils2DTest, Triangulate_Delaunay_Pentagon_ProducesThreeTriangles) {
   }
 }
 
-TEST_F(CalcUtils2DTest, Triangulate_Delaunay_AllTrianglesHavePositiveArea) {
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_AllTrianglesHavePositiveArea) {
   std::vector<g::Point2D> octagon = {
       {2, 0}, {4, 0}, {6, 2}, {6, 4}, {4, 6}, {2, 6}, {0, 4}, {0, 2}};
-  g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::ConstrainedDelaunay};
   auto triangles = g::triangulate(octagon, settings);
 
   ASSERT_EQ(triangles.size(), 6u);
@@ -1961,6 +1963,311 @@ TEST_F(CalcUtils2DTest, Triangulate_Delaunay_AllTrianglesHavePositiveArea) {
     EXPECT_GT(t.Area(), 0.0);
   }
 }
+
+#pragma region ConstrainedDelaunay strategy / delaunay() point cloud
+
+namespace {
+
+// Each triangle's 3 vertices, CCW-ordered.
+std::array<g::Point2D, 3> ccw_vertices(g::Triangle2D const& t) {
+  auto [a, b, c] = t.Vertices();
+  if (t.IsCCW()) {
+    return {a, b, c};
+  }
+  return {a, c, b};
+}
+
+// Canonical string key per triangle (sorted vertex coordinates), for order-independent comparison.
+std::set<std::string> triangle_keys(std::vector<g::Triangle2D> const& tris) {
+  std::set<std::string> keys;
+  for (auto const& t : tris) {
+    std::vector<std::pair<double, double>> pts;
+    for (auto const& p : ccw_vertices(t)) {
+      pts.push_back({std::round(p.x() * 1000.0) / 1000.0, std::round(p.y() * 1000.0) / 1000.0});
+    }
+    std::sort(pts.begin(), pts.end());
+    std::string k;
+    for (auto const& [x, y] : pts) {
+      k += std::to_string(x) + "," + std::to_string(y) + ";";
+    }
+    keys.insert(k);
+  }
+  return keys;
+}
+
+// No point of @p points lies strictly inside any triangle's circumcircle (global Delaunay property).
+bool is_globally_delaunay(std::vector<g::Triangle2D> const& tris, std::vector<g::Point2D> const& points) {
+  for (auto const& t : tris) {
+    auto v = ccw_vertices(t);
+    for (auto const& p : points) {
+      if (g::in_circumcircle(v[0], v[1], v[2], p)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// For every pair of triangles sharing an edge, the opposite vertex of one does not lie strictly inside
+// the other's circumcircle (local Delaunay property -- what a CDT guarantees across internal edges).
+bool is_locally_delaunay(std::vector<g::Triangle2D> const& tris) {
+  for (std::size_t i = 0; i < tris.size(); ++i) {
+    auto vi = ccw_vertices(tris[i]);
+    for (std::size_t j = 0; j < tris.size(); ++j) {
+      if (i == j) {
+        continue;
+      }
+      int shared = 0;
+      std::optional<g::Point2D> opposite;
+      for (auto const& p : ccw_vertices(tris[j])) {
+        bool in_i = std::any_of(vi.begin(), vi.end(), [&](g::Point2D const& q) { return q.AlmostEquals(p); });
+        if (in_i) {
+          ++shared;
+        } else {
+          opposite = p;
+        }
+      }
+      if (shared == 2 && g::in_circumcircle(vi[0], vi[1], vi[2], *opposite)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+double total_area(std::vector<g::Triangle2D> const& tris) {
+  double area = 0.0;
+  for (auto const& t : tris) {
+    area += t.Area();
+  }
+  return area;
+}
+
+std::vector<g::Point2D> star_points() {
+  return {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+}
+
+std::vector<g::Point2D> comb_points() {
+  return {
+      {5, 0}, {5, 10}, {4, 10}, {4, 9}, {3, 9}, {3, 10},
+      {2, 10}, {2, 9}, {1, 9}, {1, 10}, {0, 10}, {0, 0},
+  };
+}
+
+g::TriangulationParams cdt_params() {
+  return g::TriangulationParams{g::TriangulationParams::Strategy::ConstrainedDelaunay};
+}
+
+}  // namespace
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Comb_StaysInsidePolygon) {
+  auto comb = comb_points();
+  auto poly = g::Polygon2D::Make(comb);
+  auto tris = g::triangulate(comb, cdt_params());
+
+  ASSERT_EQ(tris.size(), comb.size() - 2);  // 10, not unconstrained Delaunay's 14 hull triangles
+  EXPECT_NEAR(total_area(tris), poly.Area(), 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    EXPECT_TRUE(poly.Contains(t.Centroid())) << t.ToWkt();
+  }
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Star_StaysInsidePolygon) {
+  auto star = star_points();
+  auto poly = g::Polygon2D::Make(star);
+  auto tris = g::triangulate(star, cdt_params());
+
+  ASSERT_EQ(tris.size(), star.size() - 2);  // 8, not unconstrained Delaunay's 13
+  EXPECT_NEAR(total_area(tris), poly.Area(), 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    EXPECT_TRUE(poly.Contains(t.Centroid())) << t.ToWkt();
+  }
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ConvexPolygon_EqualsUnconstrainedDelaunay) {
+  // For a convex polygon the boundary constrains nothing, so the CDT must be exactly the point set's
+  // Delaunay triangulation. No 4 vertices are cocircular, so that triangulation is unique.
+  std::vector<g::Point2D> hexagon = {{0, 0}, {5, 0.3}, {7, 2.2}, {6.1, 5}, {2, 6.4}, {-1, 3.3}};
+  auto cdt = g::triangulate(hexagon, cdt_params());
+  auto dt  = g::delaunay(hexagon);
+
+  ASSERT_EQ(cdt.size(), 4u);
+  ASSERT_EQ(dt.size(), 4u);
+  EXPECT_EQ(triangle_keys(cdt), triangle_keys(dt));
+  EXPECT_TRUE(is_globally_delaunay(cdt, hexagon));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ShallowArc_GloballyDelaunay) {
+  // A shallow convex arc: fan-style triangulations produce long slivers here; the CDT of a convex
+  // polygon must be globally Delaunay.
+  std::vector<g::Point2D> arc = {{0, 0}, {10, 0}, {9, 1.5}, {7, 2.4}, {5, 2.7}, {3, 2.4}, {1, 1.5}};
+  auto tris = g::triangulate(arc, cdt_params());
+
+  ASSERT_EQ(tris.size(), arc.size() - 2);
+  EXPECT_TRUE(is_globally_delaunay(tris, arc));
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(arc).Area(), 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ClockwiseInput_EnforcedWinding) {
+  auto star = star_points();
+  std::reverse(star.begin(), star.end());
+  auto tris = g::triangulate(star, cdt_params());
+
+  ASSERT_EQ(tris.size(), star.size() - 2);
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(star_points()).Area(), 1e-6);
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ManyPointedStar_StressLocallyDelaunay) {
+  // 25-pointed star, 50 vertices, alternating radii with a wobble so no 4 points are cocircular.
+  constexpr int tips = 25;
+  constexpr double pi = 3.14159265358979323846;
+  std::vector<g::Point2D> star;
+  for (int i = 0; i < 2 * tips; ++i) {
+    double angle  = pi * i / tips;
+    double radius = (i % 2 == 0) ? 10.0 + 0.37 * (i % 5) : 4.0 + 0.21 * (i % 3);
+    star.push_back({radius * std::cos(angle), radius * std::sin(angle)});
+  }
+  auto poly = g::Polygon2D::Make(star);
+  auto tris = g::triangulate(star, cdt_params());
+
+  ASSERT_EQ(tris.size(), star.size() - 2);
+  EXPECT_NEAR(total_area(tris), poly.Area(), 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_TRUE(poly.Contains(t.Centroid())) << t.ToWkt();
+  }
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, ConstrainedDelaunayTriangulation_CalledDirectly_KeepsEveryRingEdge) {
+  auto comb = comb_points();
+  auto tris = gd::view::constrained_delaunay_triangulation(comb, g::View2D::XY());
+  ASSERT_EQ(tris.size(), comb.size() - 2);
+
+  // every ring edge (i, i+1) must appear in exactly one triangle
+  for (std::size_t i = 0; i < comb.size(); ++i) {
+    std::size_t a = i;
+    std::size_t b = (i + 1) % comb.size();
+    int owners = 0;
+    for (auto const& t : tris) {
+      bool has_a = std::find(t.begin(), t.end(), a) != t.end();
+      bool has_b = std::find(t.begin(), t.end(), b) != t.end();
+      if (has_a && has_b) {
+        ++owners;
+      }
+    }
+    EXPECT_EQ(owners, 1) << "ring edge " << a << "-" << b;
+  }
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_Square_TwoTrianglesCoveringFullArea) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  auto tris = g::delaunay(square);
+  ASSERT_EQ(tris.size(), 2u);
+  EXPECT_NEAR(total_area(tris), 1.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_StarPoints_CoversConvexHull) {
+  auto star = star_points();
+  auto tris = g::delaunay(star);
+
+  ASSERT_EQ(tris.size(), 13u);  // 2n - h - 2 = 20 - 5 - 2
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(g::convex_hull(star)).Area(), 1e-6);
+  EXPECT_TRUE(is_globally_delaunay(tris, star));
+  for (auto const& t : tris) {
+    EXPECT_TRUE(t.IsCCW());
+  }
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_SquareWithCenter_FourTriangles) {
+  std::vector<g::Point2D> pts = {{0, 0}, {2, 0}, {2, 2}, {0, 2}, {1, 1}};
+  auto tris = g::delaunay(pts);
+  ASSERT_EQ(tris.size(), 4u);
+  EXPECT_NEAR(total_area(tris), 4.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_InputOrderDoesNotChangeCoverage) {
+  auto star     = star_points();
+  auto shuffled = star;
+  std::mt19937 rng(42);
+  std::shuffle(shuffled.begin(), shuffled.end(), rng);
+
+  auto a = g::delaunay(star);
+  auto b = g::delaunay(shuffled);
+  ASSERT_EQ(a.size(), b.size());
+  EXPECT_NEAR(total_area(a), total_area(b), 1e-6);
+  EXPECT_TRUE(is_globally_delaunay(b, star));
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_DuplicatePoints_Ignored) {
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 0}, {1, 1}, {0, 1}, {1, 1}, {0, 0}, {0.0001, 0.0}};
+  auto tris = g::delaunay(pts);
+  ASSERT_EQ(tris.size(), 2u);
+  EXPECT_NEAR(total_area(tris), 1.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_AllCollinear_NoTriangles) {
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 1}, {2, 2}, {3, 3}};
+  EXPECT_TRUE(g::delaunay(pts).empty());
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_CollinearHullEdge_NoDegenerateTriangles) {
+  // 3 points on the bottom hull edge plus an apex: 2 triangles, none zero-area.
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 0}, {2, 0}, {1, 3}};
+  auto tris = g::delaunay(pts);
+  ASSERT_EQ(tris.size(), 2u);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+  }
+  EXPECT_NEAR(total_area(tris), 3.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_RandomCloud_GloballyDelaunayAndCoversHull) {
+  std::mt19937 rng(7);
+  std::uniform_real_distribution<double> dist(0.0, 100.0);
+  std::vector<g::Point2D> pts;
+  for (int i = 0; i < 200; ++i) {
+    pts.push_back({dist(rng), dist(rng)});
+  }
+  auto tris = g::delaunay(pts);
+  auto hull = g::convex_hull(pts);
+
+  EXPECT_EQ(tris.size(), 2 * pts.size() - hull.size() - 2);
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(hull).Area(), 1e-3);
+  EXPECT_TRUE(is_globally_delaunay(tris, pts));
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_Grid5x5_CollinearHullAndCocircularQuads) {
+  // Regression: the old finite-super-triangle Bowyer-Watson dropped near-collinear hull triangles.
+  // A grid stresses both degeneracies at once: 16 collinear boundary points, every cell cocircular.
+  std::vector<g::Point2D> pts;
+  for (int i = 0; i < 5; ++i) {
+    for (int j = 0; j < 5; ++j) {
+      pts.push_back({static_cast<double>(i), static_cast<double>(j)});
+    }
+  }
+  auto tris = g::delaunay(pts);
+
+  EXPECT_EQ(tris.size(), 32u);  // 2n - h - 2 = 50 - 16 - 2, h counting collinear boundary points
+  EXPECT_NEAR(total_area(tris), 16.0, 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+  }
+  EXPECT_TRUE(is_globally_delaunay(tris, pts));
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_FewerThanThreePoints_Throws) {
+  EXPECT_THROW(g::delaunay(std::vector<g::Point2D>{{0, 0}, {1, 0}}), std::invalid_argument);
+}
+
+#pragma endregion
 
 #pragma region validate_adjacency / fix_adjacency / triangulate(vector<Polygon2D>)
 

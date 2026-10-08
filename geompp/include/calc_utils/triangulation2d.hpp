@@ -132,12 +132,16 @@ extern template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangu
 extern template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(
     std::vector<Point3D> const& input, View2D const& view);
 
-/// @brief O(n log n)-worst-case Delaunay triangulation of a point set's convex hull, projected through
-/// @p view — maximizes the minimum angle across all triangles (avoids skinny slivers), unlike EarClipping
-/// or MonotonePolygon which triangulate the given polygon's own boundary.
-/// @param input point set (Point2D or Point3D).
+/// @brief Unconstrained Delaunay triangulation of a point set's convex hull (scan triangulation + Lawson flips),
+/// projected through @p view — maximizes the minimum angle across all triangles. Ignores any polygon
+/// boundary: backs the public point-cloud delaunay(), never a polygon triangulation. Points are inserted
+/// in lexicographic order, each joined to the hull edges it sees (orientation tests only, no
+/// super-triangle), then every non-hull edge is Lawson-flipped until locally Delaunay. O(n²) worst case.
+/// @param input point set (Point2D or Point3D), any order. A point coinciding (within DECIMAL_PRECISION)
+/// with an already-inserted one is skipped and appears in no triangle. All-collinear input yields no
+/// triangles.
 /// @param view projects each vertex to 2D x/y coordinates.
-/// @returns one `{i, j, k}` index triplet per triangle, indices into @p input.
+/// @returns one CCW `{i, j, k}` index triplet per triangle, indices into @p input.
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view);
 
@@ -145,6 +149,26 @@ extern template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(s
                                                                                View2D const& view);
 extern template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point3D> const& input,
                                                                                View2D const& view);
+
+/// @brief Constrained Delaunay triangulation (CDT) of a single simple, CCW-wound ring, projected through
+/// @p view. Starts from ear_clipping_best_fit_triangulation (all triangles interior, every ring edge
+/// present), then applies Lawson flips: an internal edge whose opposite vertex lies strictly inside the
+/// neighboring triangle's circumcircle is flipped, until no such edge remains. Ring edges belong to a
+/// single triangle and are therefore never flipped — they act as the constraints. The result is the
+/// unique (up to cocircular ties) triangulation of the ring that keeps its boundary and maximizes the
+/// minimum angle.
+/// @param input ring vertices (Point2D or Point3D), same preconditions as ear_clipping_triangulation.
+/// @param view projects each vertex to 2D x/y coordinates.
+/// @returns one CCW `{i, j, k}` index triplet per triangle, indices into @p input, n - 2 triangles total.
+/// @note O(n²) worst case: O(n²) ear clipping, then O(n²) flips in the worst case, each O(1).
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(std::vector<PointT> const& input,
+                                                                           View2D const& view);
+
+extern template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point2D> const& input, View2D const& view);
+extern template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point3D> const& input, View2D const& view);
 
 /// @brief Shared implementation behind every geompp::triangulate() overload: validates/fixes @p input
 /// per @p settings (Collinearity, then Winding, then Simplicity — in that order, since Simplicity's
@@ -177,6 +201,17 @@ extern template std::vector<std::array<Point3D, 3>> triangulate_impl(std::vector
 bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p);
 bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p);
 
+/// @brief Unconstrained Delaunay triangulation of a 2D point cloud (scan triangulation + Lawson flips). Covers
+/// the convex hull of @p points; no point lies strictly inside any output triangle's circumcircle, which
+/// maximizes the minimum angle over all triangulations of the set. For a polygon, use triangulate() with
+/// Strategy::ConstrainedDelaunay instead — this function knows nothing about boundaries.
+/// @param points point cloud, any order. Duplicates (within DECIMAL_PRECISION) are ignored.
+/// @returns CCW triangles; 2n - h - 2 of them for n distinct points with h on the hull, none if every
+/// point is collinear.
+/// @throws std::invalid_argument if @p points has fewer than 3 points.
+/// @note O(n²) worst case.
+std::vector<Triangle2D> delaunay(std::vector<Point2D> const& points);
+
 /// @brief Breaks down a simple polygon into triangles
 /// @param input polygon's outer loop of points (assumed CCW) and no holes allowed
 /// @param settings options for functions inner workings
@@ -192,8 +227,8 @@ bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point
 ///                                   [Default: prefers shape quality over raw speed.]
 ///                     - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
 ///                                        into monotone pieces)
-///                     - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle
-///                                 of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+///                     - ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation
+///                                 (boundary edges kept, all triangles interior, minimum angle maximized)
 ///                 (2) simplicity: the input for the algo should be a simple polygon (no self-intersections)
 ///                     - Guaranteed: the input is assumed to be a good at the users's own risk
 ///                     - Assert: will throw if the user's input is not good

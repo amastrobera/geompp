@@ -369,9 +369,9 @@ class TestTriangulate:
         assert len(tris) == 2
         assert abs(sum(t.area() for t in tris) - 1.0) < 1e-6
 
-    def test_triangulate_delaunay_square(self):
+    def test_triangulate_constrained_delaunay_square(self):
         pts = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
-        params = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.Delaunay)
+        params = geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.ConstrainedDelaunay)
         tris = geompp.triangulate(pts, params)
         assert len(tris) == 2
         assert abs(sum(t.area() for t in tris) - 1.0) < 1e-6
@@ -431,3 +431,151 @@ class TestTriangulate:
 
         assert len(guaranteed_tris) == len(enforced_tris)
         assert [t.to_wkt() for t in guaranteed_tris] == [t.to_wkt() for t in enforced_tris]
+
+
+# ── ConstrainedDelaunay strategy / delaunay() point cloud ───────────────────────────────────────────
+# Mirrors geompp_tests/src/test_calc_utils2d.cpp / test_calc_utils3d.cpp, region
+# "ConstrainedDelaunay strategy / delaunay() point cloud".
+
+def _p2(coords):
+    return [geompp.Point2D(x, y) for x, y in coords]
+
+
+def _p3(coords):
+    return [geompp.Point3D(x, y, z) for x, y, z in coords]
+
+
+def _ccw(t):
+    a, b, c = t.vertices
+    return (a, b, c) if t.is_ccw() else (a, c, b)
+
+
+def _total_area(tris):
+    return sum(t.area() for t in tris)
+
+
+def _is_globally_delaunay(tris, points):
+    for t in tris:
+        a, b, c = _ccw(t)
+        for p in points:
+            if geompp.in_circumcircle(a, b, c, p):
+                return False
+    return True
+
+
+_STAR = [(3.0, 6.0), (2.29, 3.97), (0.15, 3.93), (1.86, 2.63), (1.24, 0.57),
+         (3.0, 1.8), (4.76, 0.57), (4.14, 2.63), (5.85, 3.93), (3.71, 3.97)]
+
+_COMB = [(5, 0), (5, 10), (4, 10), (4, 9), (3, 9), (3, 10),
+         (2, 10), (2, 9), (1, 9), (1, 10), (0, 10), (0, 0)]
+
+
+def _cdt_params():
+    return geompp.TriangulationParams(strategy=geompp.TriangulationStrategy.ConstrainedDelaunay)
+
+
+class TestConstrainedDelaunayAndDelaunay:
+    def test_strategy_enum_ordinal_and_rename(self):
+        assert int(geompp.TriangulationStrategy.ConstrainedDelaunay) == 3
+        assert not hasattr(geompp.TriangulationStrategy, "Delaunay")
+
+    def test_cdt_comb_stays_inside_polygon(self):
+        comb = _p2(_COMB)
+        poly = geompp.Polygon2D.make(comb)
+        tris = geompp.triangulate(comb, _cdt_params())
+        assert len(tris) == 10  # n - 2, not unconstrained Delaunay's 14 hull triangles
+        assert approx(_total_area(tris), 48.0)
+        assert approx(_total_area(tris), poly.area())
+        for t in tris:
+            assert t.area() > 0.0
+            assert poly.contains(t.centroid()), t.to_wkt()
+
+    def test_cdt_star_stays_inside_polygon(self):
+        star = _p2(_STAR)
+        poly = geompp.Polygon2D.make(star)
+        tris = geompp.triangulate(star, _cdt_params())
+        assert len(tris) == 8  # n - 2, not unconstrained Delaunay's 13
+        assert abs(_total_area(tris) - poly.area()) < 1e-6
+        for t in tris:
+            assert t.area() > 0.0
+            assert poly.contains(t.centroid()), t.to_wkt()
+
+    def test_cdt_tilted_comb_3d(self):
+        comb = _p3([(0, 0, 0), (5, 0, 0), (5, 0, 10), (4, 0, 10), (4, 0, 9), (3, 0, 9), (3, 0, 10),
+                    (2, 0, 10), (2, 0, 9), (1, 0, 9), (1, 0, 10), (0, 0, 10)])
+        tris = geompp.triangulate(comb, _cdt_params())
+        assert len(tris) == 10
+        assert abs(_total_area(tris) - 48.0) < 1e-6
+
+    def test_delaunay_square_two_triangles(self):
+        tris = geompp.delaunay(_p2([(0, 0), (1, 0), (1, 1), (0, 1)]))
+        assert len(tris) == 2
+        assert all(isinstance(t, geompp.Triangle2D) for t in tris)
+        assert abs(_total_area(tris) - 1.0) < 1e-6
+
+    def test_delaunay_star_points_cover_convex_hull(self):
+        star = _p2(_STAR)
+        tris = geompp.delaunay(star)
+        assert len(tris) == 13  # 2n - h - 2 = 20 - 5 - 2
+        hull = geompp.Polygon2D.make(geompp.convex_hull(star))
+        assert abs(_total_area(tris) - hull.area()) < 1e-6
+        assert _is_globally_delaunay(tris, star)
+        for t in tris:
+            assert t.is_ccw()
+
+    def test_delaunay_square_with_center_four_triangles(self):
+        tris = geompp.delaunay(_p2([(0, 0), (2, 0), (2, 2), (0, 2), (1, 1)]))
+        assert len(tris) == 4
+        assert abs(_total_area(tris) - 4.0) < 1e-6
+
+    def test_delaunay_duplicates_ignored(self):
+        pts = _p2([(0, 0), (1, 0), (1, 1), (0, 1), (1, 1), (0, 0), (0.0001, 0.0)])
+        tris = geompp.delaunay(pts)
+        assert len(tris) == 2
+        assert abs(_total_area(tris) - 1.0) < 1e-6
+
+    def test_delaunay_all_collinear_returns_empty(self):
+        assert geompp.delaunay(_p2([(0, 0), (1, 1), (2, 2), (3, 3)])) == []
+
+    def test_delaunay_fewer_than_three_points_raises(self):
+        with pytest.raises(ValueError):
+            geompp.delaunay(_p2([(0, 0), (1, 0)]))
+        with pytest.raises(ValueError):
+            geompp.delaunay(_p3([(0, 0, 0), (1, 0, 0)]))
+        with pytest.raises(ValueError):
+            geompp.delaunay(_p3([(0, 0, 0), (1, 0, 0)]), geompp.Vector3D(0, 0, 1))
+
+    def test_delaunay_grid_5x5(self):
+        pts = _p2([(i, j) for i in range(5) for j in range(5)])
+        tris = geompp.delaunay(pts)
+        assert len(tris) == 32  # 2n - h - 2 = 50 - 16 - 2
+        assert abs(_total_area(tris) - 16.0) < 1e-6
+        for t in tris:
+            assert t.area() > 0.0
+
+    def test_delaunay_no_input_point_inside_any_circumcircle(self):
+        pts = _p2([(0, 0), (4, 0.3), (6.2, 2.1), (5.1, 5.4), (1.7, 6.2), (-1.2, 3.1),
+                   (2.3, 2.2), (3.6, 3.9), (1.1, 1.4)])
+        tris = geompp.delaunay(pts)
+        assert len(tris) > 0
+        for t in tris:
+            a, b, c = _ccw(t)
+            for p in pts:
+                assert geompp.in_circumcircle(a, b, c, p) is False
+
+    def test_delaunay_3d_terrain_with_normal(self):
+        pts = _p3([(0, 0, 1.0), (4, 0, 2.0), (4, 4, 0.5), (0, 4, 3.0),
+                   (1, 1, 1.7), (3, 1.2, 0.2), (2, 3, 2.4), (1.1, 2.6, 0.9)])
+        tris = geompp.delaunay(pts, geompp.Vector3D(0, 0, 1))
+        assert len(tris) == 10  # 2n - h - 2 = 16 - 4 - 2
+        for t in tris:
+            assert isinstance(t, geompp.Triangle3D)
+            for v in t.vertices:
+                assert any(p.almost_equals(v) for p in pts), "vertex not lifted back to an input point"
+
+    def test_delaunay_3d_pca_overload_tilted_square_with_center(self):
+        pts = _p3([(0, 0, 0), (0, 2, 0), (2, 0, -2), (2, 2, -2), (1, 1, -1)])
+        tris = geompp.delaunay(pts)
+        assert len(tris) == 4
+        assert all(isinstance(t, geompp.Triangle3D) for t in tris)
+        assert abs(_total_area(tris) - 4.0 * math.sqrt(2.0)) < 1e-6

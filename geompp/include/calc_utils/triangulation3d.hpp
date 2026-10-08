@@ -29,8 +29,8 @@ class Triangle3D;
 ///                                   [Default: prefers shape quality over raw speed.]
 ///                     - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
 ///                                        into monotone pieces)
-///                     - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle
-///                                 of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+///                     - ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation
+///                                 (boundary edges kept, all triangles interior, minimum angle maximized)
 ///                 (2) simplicity: the input for the algo should be a simple polygon (no self-intersections)
 ///                     - Guaranteed: the input is assumed to be a good at the users's own risk
 ///                     - Assert: will throw if the user's input is not good
@@ -67,8 +67,8 @@ std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input, Vector3D 
 ///                                   [Default: prefers shape quality over raw speed.]
 ///                     - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
 ///                                        into monotone pieces)
-///                     - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle
-///                                 of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+///                     - ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation
+///                                 (boundary edges kept, all triangles interior, minimum angle maximized)
 ///                 (2) simplicity: the input for the algo should be a simple polygon (no self-intersections)
 ///                     - Guaranteed: the input is assumed to be a good at the users's own risk
 ///                     - Assert: will throw if the user's input is not good
@@ -87,6 +87,21 @@ std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input, Vector3D 
 /// named by @p settings is violated.
 std::vector<Triangle3D> triangulate(std::vector<Point3D> const& input,
                                     TriangulationParams const& settings = TriangulationParams{});
+
+/// @brief Unconstrained Delaunay triangulation of a 3D point cloud, 2.5D-style: every point is projected
+/// through the dominant-axis view of @p normal (XY for a terrain-like cloud with normal ≈ Z), triangulated
+/// in that plane, and the triangles are lifted back to the original 3D points. Covers the projected
+/// convex hull. For a polygon, use triangulate() with Strategy::ConstrainedDelaunay instead.
+/// @param points point cloud, any order. Points whose projections coincide are triangulated once.
+/// @param normal direction to project along; only its dominant axis is used.
+/// @returns triangles over the original 3D points; none if every projected point is collinear.
+/// @throws std::invalid_argument if @p points has fewer than 3 points.
+/// @note O(n²) worst case.
+std::vector<Triangle3D> delaunay(std::vector<Point3D> const& points, Vector3D normal);
+
+/// @brief Same as delaunay(points, normal), with the normal fitted via PCA (principal_axes) — suitable
+/// for a roughly planar cloud whose plane isn't known up front.
+std::vector<Triangle3D> delaunay(std::vector<Point3D> const& points);
 
 }  // namespace geometry
 

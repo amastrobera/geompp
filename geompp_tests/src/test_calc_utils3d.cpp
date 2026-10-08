@@ -13,6 +13,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <memory>
@@ -891,6 +892,65 @@ TEST_F(CalcUtils3DTest, Merge_TwoParallelSameNormalDifferentOffsetSquares_StayUn
 
   auto result = g::merge({a, b});
   ASSERT_EQ(result.size(), 2u);
+}
+
+#pragma endregion
+
+#pragma region ConstrainedDelaunay strategy / delaunay() point cloud (3D)
+
+TEST_F(CalcUtils3DTest, Triangulate_ConstrainedDelaunay_TiltedComb_StaysInsidePolygon) {
+  // 3-tooth comb lying in the XZ plane (normal along Y): 10 interior triangles, not 14 hull ones.
+  std::vector<g::Point3D> comb = {
+      {0, 0, 0}, {5, 0, 0}, {5, 0, 10}, {4, 0, 10}, {4, 0, 9}, {3, 0, 9}, {3, 0, 10},
+      {2, 0, 10}, {2, 0, 9}, {1, 0, 9}, {1, 0, 10}, {0, 0, 10},
+  };
+  auto tris = g::triangulate(comb, g::TriangulationParams{g::TriangulationParams::Strategy::ConstrainedDelaunay});
+  ASSERT_EQ(tris.size(), comb.size() - 2);
+
+  double area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    area += t.Area();
+  }
+  EXPECT_NEAR(area, 48.0, 1e-6);
+}
+
+TEST_F(CalcUtils3DTest, Delaunay_TerrainCloud_KeepsHeightsAndCoversProjectedHull) {
+  // 4 hull corners + 4 interior points, arbitrary heights, projected along Z.
+  std::vector<g::Point3D> pts = {
+      {0, 0, 1.0}, {4, 0, 2.0}, {4, 4, 0.5}, {0, 4, 3.0},
+      {1, 1, 1.7}, {3, 1.2, 0.2}, {2, 3, 2.4}, {1.1, 2.6, 0.9},
+  };
+  auto tris = g::delaunay(pts, g::Vector3D{0, 0, 1});
+
+  // 2n - h - 2 = 16 - 4 - 2
+  ASSERT_EQ(tris.size(), 10u);
+  for (auto const& t : tris) {
+    auto [a, b, c] = t.Vertices();
+    for (auto const& v : {a, b, c}) {
+      bool is_input = std::any_of(pts.begin(), pts.end(), [&](g::Point3D const& p) { return p.AlmostEquals(v); });
+      EXPECT_TRUE(is_input) << "triangle vertex not lifted back to an input point";
+    }
+  }
+}
+
+TEST_F(CalcUtils3DTest, Delaunay_TiltedPlanarSquareWithCenter_PcaOverload) {
+  // Square with center point on the plane x + z = 0 (normal along (1, 0, 1)).
+  std::vector<g::Point3D> pts = {{0, 0, 0}, {0, 2, 0}, {2, 0, -2}, {2, 2, -2}, {1, 1, -1}};
+  auto tris = g::delaunay(pts);
+  ASSERT_EQ(tris.size(), 4u);
+
+  double area = 0.0;
+  for (auto const& t : tris) {
+    area += t.Area();
+  }
+  EXPECT_NEAR(area, 2.0 * 2.0 * std::sqrt(2.0), 1e-6);
+}
+
+TEST_F(CalcUtils3DTest, Delaunay_FewerThanThreePoints_Throws) {
+  std::vector<g::Point3D> pts = {{0, 0, 0}, {1, 0, 0}};
+  EXPECT_THROW(g::delaunay(pts), std::invalid_argument);
+  EXPECT_THROW(g::delaunay(pts, g::Vector3D{0, 0, 1}), std::invalid_argument);
 }
 
 #pragma endregion

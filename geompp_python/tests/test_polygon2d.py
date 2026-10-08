@@ -666,11 +666,11 @@ class TestPolygon2DTriangulate:
         assert len(triangles) == 2
         assert approx(sum(t.area() for t in triangles), p.area())
 
-    def test_delaunay_strategy_succeeds(self):
+    def test_constrained_delaunay_strategy_succeeds(self):
         p = geompp.Polygon2D.make([
             geompp.Point2D(0, 0), geompp.Point2D(4, 0),
             geompp.Point2D(4, 2), geompp.Point2D(0, 2)])
-        triangles = p.triangulate(geompp.TriangulationStrategy.Delaunay)
+        triangles = p.triangulate(geompp.TriangulationStrategy.ConstrainedDelaunay)
         assert len(triangles) == 2
         assert approx(sum(t.area() for t in triangles), p.area())
 

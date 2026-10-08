@@ -137,7 +137,7 @@ enum class AdjacencyConformity {
 };
 
 struct TriangulationParams {
-  enum class Strategy { EarClipping, EarClippingBestFit, MonotonePolygon, Delaunay };
+  enum class Strategy { EarClipping, EarClippingBestFit, MonotonePolygon, ConstrainedDelaunay };
   /// @brief Triangulation algorithm.
   ///        - EarClipping clips the first valid ear it finds in scan order. Most robust and
   ///          general-purpose, and often close to O(n) in practice, but O(n²) worst-case -- and doesn't
@@ -148,8 +148,11 @@ struct TriangulationParams {
   ///          ~O(n²) -- a full rescan of the current ring on every single clip, not just worst-case.
   ///          Default: prefers shape quality over raw speed.
   ///        - MonotonePolygon (which requires a monotone polygon). O(n log n) to O(n²) worst-case
-  ///        - Delaunay (which requires a point set and produces a triangulation of the convex hull, not a polygon).
-  ///          O(n log n) to O(n²) worst-case.
+  ///        - ConstrainedDelaunay: the polygon's constrained Delaunay triangulation (CDT) -- every boundary
+  ///          edge is kept, every triangle is strictly interior, and among all such triangulations it
+  ///          maximizes the minimum angle. Built as EarClippingBestFit followed by Lawson edge flips on
+  ///          internal edges only. O(n²) worst-case. For an unconstrained Delaunay triangulation of a
+  ///          point cloud (covering its convex hull), use the free function delaunay() instead.
   Strategy strategy = Strategy::EarClippingBestFit;
 
   enum class Simplicity { Guaranteed, Assert, Enforce };

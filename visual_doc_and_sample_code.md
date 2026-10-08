@@ -6055,9 +6055,10 @@ A quick list of code examples per topic is provided here.
      Slower: unconditionally ~O(n²), not just worst case.
   3. `MonotonePolygon` — O(n log n) sweep-line algorithm (de Berg §3.3). Requires a y-monotone
      polygon; check the precondition first with `is_axis_monotone` (see §12.2).
-  4. `Delaunay` — O(n log n) average; Bowyer-Watson incremental algorithm. Triangulates the
-     **convex hull** of the point set (triangles may extend beyond a concave polygon's boundary).
-     Maximizes the minimum angle across all triangles (see §12.3).
+  4. `ConstrainedDelaunay` — O(n²) worst case; ear clipping followed by Lawson edge flips. The
+     polygon's constrained Delaunay triangulation: boundary kept, every triangle inside, minimum
+     angle maximized (see §12.3). For a **point cloud** use the free function `delaunay(points)`
+     instead, which covers the cloud's convex hull (§12.4).
   - **`Simplicity` / `Winding` / `Collinearity`** — each `Guaranteed` (skip the check), `Assert`
     (throw if violated), or `Enforce` (fix it: decompose, reverse winding, strip bad points).
 
@@ -6591,23 +6592,28 @@ A quick list of code examples per topic is provided here.
   </details>
 
   <details closed>
-  <summary><b> &nbsp; &nbsp; 12.3 Delaunay</b></summary>
+  <summary><b> &nbsp; &nbsp; 12.3 ConstrainedDelaunay</b></summary>
 
-  O(n log n) average, O(n²) worst-case Bowyer-Watson incremental Delaunay triangulation. Inserts
-  points one at a time; for each insertion, finds every triangle whose circumcircle contains the
-  new point, deletes those triangles, and re-triangulates the resulting star-shaped cavity.
-  Maximizes the minimum angle across all triangles — no sliver triangles — preferred for geometry
-  processing and finite-element meshing.
+  The polygon's **constrained Delaunay triangulation** (CDT). O(n²) worst case.
 
-  **Important:** `Delaunay` triangulates the **convex hull** of the point set, not the polygon
-  boundary. For a concave input polygon, triangles near concavities may extend outside. Use
-  `EarClippingBestFit` or `MonotonePolygon` when output must be strictly interior.
+  1. Triangulate with `EarClippingBestFit`. Every triangle is inside the polygon and every boundary
+     edge is present.
+  2. **Lawson flips:** an internal edge whose opposite vertex lies strictly inside the neighbouring
+     triangle's circumcircle is flipped to the other diagonal of its quad. Repeat until no edge flips.
+     Boundary edges belong to a single triangle, so they are never flipped: they are the constraints.
 
-  The Delaunay condition — no point lies inside any triangle's circumcircle — is testable via
+  Result: n − 2 triangles, all inside the polygon, boundary kept, and among all such triangulations the
+  one that maximizes the minimum angle (fewest slivers). Every internal edge is *locally* Delaunay. On a
+  convex polygon the boundary constrains nothing, so the CDT equals the unconstrained Delaunay
+  triangulation of its vertices. Ties (4 cocircular vertices, e.g. a rectangle) can resolve either way.
+
+  Unlike unconstrained Delaunay, it never adds triangles outside a concave polygon. For a point cloud
+  covering its convex hull, use `delaunay(points)` instead (§12.4).
+
+  The Delaunay condition — no point inside a triangle's circumcircle — is testable via
   `in_circumcircle(a, b, c, p)` (see §14.2).
 
-  Same pentagon as §12.2, Delaunay triangulation (3 triangles, identical topology for a convex
-  pentagon since its convex hull equals its own boundary):
+  Same pentagon as §12.2. It is convex, so the CDT is its plain Delaunay triangulation (3 triangles):
 
   ```
   y=5        D(2,5)
@@ -6624,17 +6630,13 @@ A quick list of code examples per topic is provided here.
   T3 = E(0,3), C(4,3), D(2,5)
   ```
 
-  Same star and comb as §12.1 and §12.2 — Delaunay has no monotonicity precondition, so it accepts
-  both without a guard. But it triangulates the **convex hull of the point set**, not the polygon
-  boundary, so on both of these concave shapes it produces extra triangles the other two strategies
-  never would: on the star, one bridge edge per notch, filling in the 5 gaps between its points; on
-  the comb, the hull is just the bounding rectangle, so *all four* teeth-notches disappear and the
-  triangulation covers a solid block, no longer resembling a comb at all.
+  Same star and comb as §12.1 and §12.2. No monotonicity precondition, so both are accepted without a
+  guard, and both stay strictly inside their boundaries: 8 triangles for the star, 10 for the comb.
 
   <p align="center">
-    <img src="./images/triangulation_delaunay.png" width="420" alt="A 5-pointed star before and after Triangulate() with Delaunay: 13 gold-edged triangles, including the 5 convex-hull bridge triangles spanning each point-to-point notch, outside the star's own boundary">
+    <img src="./images/triangulation_delaunay.png" width="420" alt="A 5-pointed star before and after Triangulate() with ConstrainedDelaunay: 8 gold-edged triangles, all inside the star, every boundary edge kept">
     &nbsp;&nbsp;
-    <img src="./images/comb_triangulation_delaunay.png" width="270" alt="A 3-tooth comb before and after Triangulate() with Delaunay: 14 gold-edged triangles filling the full bounding rectangle, including the 4 bridge triangles spanning the two notches, so the notches vanish entirely">
+    <img src="./images/comb_triangulation_delaunay.png" width="270" alt="A 3-tooth comb before and after Triangulate() with ConstrainedDelaunay: 10 gold-edged triangles, all inside the comb; both notches stay empty">
   </p>
 
   <details closed>
@@ -6649,21 +6651,19 @@ A quick list of code examples per topic is provided here.
 
   namespace g = geompp;
 
-  // Same 5-pointed star as §12.1 — Delaunay works on any point set (no monotonicity precondition),
-  // but see the image above: it triangulates the star's convex hull, not the star itself.
+  // Same 5-pointed star as §12.1 — no monotonicity precondition, and the result stays inside the star.
   std::vector<g::Point2D> start_poly = {
       {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
       {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
   };
 
-  // Same 3-tooth comb as §12.1/§12.2 — its convex hull is just the bounding rectangle, so all four
-  // notches disappear and the triangulation covers a solid block instead (see the image above).
+  // Same 3-tooth comb as §12.1/§12.2 — both notches stay empty.
   std::vector<g::Point2D> comb_poly = {
       {5,0}, {5,10}, {4,10}, {4,9}, {3,9}, {3,10},
       {2,10}, {2,9}, {1,9}, {1,10}, {0,10}, {0,0},
   };
 
-  g::TriangulationParams p{g::TriangulationParams::Strategy::Delaunay};
+  g::TriangulationParams p{g::TriangulationParams::Strategy::ConstrainedDelaunay};
 
   auto tris = g::triangulate(start_poly, p);
   for (auto const& t : tris)
@@ -6683,36 +6683,27 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```bash
-  TRIANGLE (2.29 3.97, 3 6, 0.15 3.93)
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
   TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
-  TRIANGLE (1.86 2.63, 0.15 3.93, 1.24 0.57)
   TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
-  TRIANGLE (3 1.8, 1.24 0.57, 4.76 0.57)
-  TRIANGLE (2.29 3.97, 1.86 2.63, 4.14 2.63)
-  TRIANGLE (1.86 2.63, 3 1.8, 4.14 2.63)
   TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
-  TRIANGLE (4.14 2.63, 4.76 0.57, 5.85 3.93)
-  TRIANGLE (3 6, 2.29 3.97, 3.71 3.97)
-  TRIANGLE (2.29 3.97, 4.14 2.63, 3.71 3.97)
   TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
-  TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
-  13 triangles
+  TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  8 triangles
   start_poly[5] inside circumcircle of tris[0]: 0
-  TRIANGLE (5 0, 5 10, 4 9)
   TRIANGLE (5 10, 4 10, 4 9)
-  TRIANGLE (5 0, 4 9, 3 9)
-  TRIANGLE (4 9, 4 10, 3 9)
-  TRIANGLE (3 9, 4 10, 3 10)
   TRIANGLE (3 9, 3 10, 2 10)
-  TRIANGLE (5 0, 3 9, 2 9)
   TRIANGLE (3 9, 2 10, 2 9)
-  TRIANGLE (2 9, 2 10, 1 9)
-  TRIANGLE (1 9, 2 10, 1 10)
   TRIANGLE (1 9, 1 10, 0 10)
-  TRIANGLE (5 0, 2 9, 0 0)
-  TRIANGLE (2 9, 1 9, 0 0)
+  TRIANGLE (0 0, 5 0, 2 9)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (1 9, 0 0, 2 9)
   TRIANGLE (1 9, 0 10, 0 0)
-  14 triangles
+  10 triangles
   ```
 
    </details>
@@ -6723,22 +6714,20 @@ A quick list of code examples per topic is provided here.
   ```python
   import geompp as g
 
-  # Same 5-pointed star as §12.1 — no monotonicity precondition needed, but it triangulates the
-  # star's convex hull, not the star itself (see the image above).
+  # Same 5-pointed star as §12.1 — no monotonicity precondition, and the result stays inside the star.
   start_poly = [
       g.Point2D(3.0, 6.0), g.Point2D(2.29, 3.97), g.Point2D(0.15, 3.93), g.Point2D(1.86, 2.63),
       g.Point2D(1.24, 0.57), g.Point2D(3.0, 1.8), g.Point2D(4.76, 0.57), g.Point2D(4.14, 2.63),
       g.Point2D(5.85, 3.93), g.Point2D(3.71, 3.97),
   ]
 
-  # Same 3-tooth comb as §12.1/§12.2 — its convex hull is just the bounding rectangle, so all four
-  # notches disappear (see the image above).
+  # Same 3-tooth comb as §12.1/§12.2 — both notches stay empty.
   comb_poly = [
       g.Point2D(5,0), g.Point2D(5,10), g.Point2D(4,10), g.Point2D(4,9), g.Point2D(3,9), g.Point2D(3,10),
       g.Point2D(2,10), g.Point2D(2,9), g.Point2D(1,9), g.Point2D(1,10), g.Point2D(0,10), g.Point2D(0,0),
   ]
 
-  p = g.TriangulationParams(strategy=g.TriangulationStrategy.Delaunay)
+  p = g.TriangulationParams(strategy=g.TriangulationStrategy.ConstrainedDelaunay)
 
   tris = g.triangulate(start_poly, p)
   for t in tris:
@@ -6757,36 +6746,27 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```
-  TRIANGLE (2.29 3.97, 3 6, 0.15 3.93)
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
   TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
-  TRIANGLE (1.86 2.63, 0.15 3.93, 1.24 0.57)
   TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
-  TRIANGLE (3 1.8, 1.24 0.57, 4.76 0.57)
-  TRIANGLE (2.29 3.97, 1.86 2.63, 4.14 2.63)
-  TRIANGLE (1.86 2.63, 3 1.8, 4.14 2.63)
   TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
-  TRIANGLE (4.14 2.63, 4.76 0.57, 5.85 3.93)
-  TRIANGLE (3 6, 2.29 3.97, 3.71 3.97)
-  TRIANGLE (2.29 3.97, 4.14 2.63, 3.71 3.97)
   TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
-  TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
-  13 triangles
+  TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  8 triangles
   start_poly[5] inside circumcircle of tris[0]: False
-  TRIANGLE (5 0, 5 10, 4 9)
   TRIANGLE (5 10, 4 10, 4 9)
-  TRIANGLE (5 0, 4 9, 3 9)
-  TRIANGLE (4 9, 4 10, 3 9)
-  TRIANGLE (3 9, 4 10, 3 10)
   TRIANGLE (3 9, 3 10, 2 10)
-  TRIANGLE (5 0, 3 9, 2 9)
   TRIANGLE (3 9, 2 10, 2 9)
-  TRIANGLE (2 9, 2 10, 1 9)
-  TRIANGLE (1 9, 2 10, 1 10)
   TRIANGLE (1 9, 1 10, 0 10)
-  TRIANGLE (5 0, 2 9, 0 0)
-  TRIANGLE (2 9, 1 9, 0 0)
+  TRIANGLE (0 0, 5 0, 2 9)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (1 9, 0 0, 2 9)
   TRIANGLE (1 9, 0 10, 0 0)
-  14 triangles
+  10 triangles
   ```
 
    </details>
@@ -6798,21 +6778,19 @@ A quick list of code examples per topic is provided here.
   using G = GeomPP;
   using System.Linq;
 
-  // Same 5-pointed star as §12.1 — no monotonicity precondition needed, but it triangulates the
-  // star's convex hull, not the star itself (see the image above).
+  // Same 5-pointed star as §12.1 — no monotonicity precondition, and the result stays inside the star.
   var start_poly = new G.Point2D[] {
       new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
       new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97),
   };
 
-  // Same 3-tooth comb as §12.1/§12.2 — its convex hull is just the bounding rectangle, so all four
-  // notches disappear (see the image above).
+  // Same 3-tooth comb as §12.1/§12.2 — both notches stay empty.
   var comb_poly = new G.Point2D[] {
       new(5,0), new(5,10), new(4,10), new(4,9), new(3,9), new(3,10),
       new(2,10), new(2,9), new(1,9), new(1,10), new(0,10), new(0,0),
   };
 
-  var p = new G.TriangulationParams { Strategy = G.TriangulationStrategy.Delaunay };
+  var p = new G.TriangulationParams { Strategy = G.TriangulationStrategy.ConstrainedDelaunay };
 
   var tris = G.GeomUtil.Triangulate(start_poly, p).ToList();
   foreach (var t in tris)
@@ -6831,36 +6809,160 @@ A quick list of code examples per topic is provided here.
   ```
 
   ```
-  TRIANGLE (2.29 3.97, 3 6, 0.15 3.93)
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
   TRIANGLE (2.29 3.97, 0.15 3.93, 1.86 2.63)
-  TRIANGLE (1.86 2.63, 0.15 3.93, 1.24 0.57)
   TRIANGLE (1.86 2.63, 1.24 0.57, 3 1.8)
-  TRIANGLE (3 1.8, 1.24 0.57, 4.76 0.57)
-  TRIANGLE (2.29 3.97, 1.86 2.63, 4.14 2.63)
-  TRIANGLE (1.86 2.63, 3 1.8, 4.14 2.63)
   TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
-  TRIANGLE (4.14 2.63, 4.76 0.57, 5.85 3.93)
-  TRIANGLE (3 6, 2.29 3.97, 3.71 3.97)
-  TRIANGLE (2.29 3.97, 4.14 2.63, 3.71 3.97)
   TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
-  TRIANGLE (5.85 3.93, 3 6, 3.71 3.97)
-  13 triangles
+  TRIANGLE (4.14 2.63, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (4.14 2.63, 1.86 2.63, 3 1.8)
+  8 triangles
   start_poly[5] inside circumcircle of tris[0]: False
-  TRIANGLE (5 0, 5 10, 4 9)
   TRIANGLE (5 10, 4 10, 4 9)
-  TRIANGLE (5 0, 4 9, 3 9)
-  TRIANGLE (4 9, 4 10, 3 9)
-  TRIANGLE (3 9, 4 10, 3 10)
   TRIANGLE (3 9, 3 10, 2 10)
-  TRIANGLE (5 0, 3 9, 2 9)
   TRIANGLE (3 9, 2 10, 2 9)
-  TRIANGLE (2 9, 2 10, 1 9)
-  TRIANGLE (1 9, 2 10, 1 10)
   TRIANGLE (1 9, 1 10, 0 10)
-  TRIANGLE (5 0, 2 9, 0 0)
-  TRIANGLE (2 9, 1 9, 0 0)
+  TRIANGLE (0 0, 5 0, 2 9)
+  TRIANGLE (5 0, 5 10, 4 9)
+  TRIANGLE (5 0, 4 9, 3 9)
+  TRIANGLE (5 0, 3 9, 2 9)
+  TRIANGLE (1 9, 0 0, 2 9)
   TRIANGLE (1 9, 0 10, 0 0)
-  14 triangles
+  10 triangles
+  ```
+
+   </details>
+
+  </details>
+
+  </details>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; 12.4 Delaunay of a point cloud — delaunay()</b></summary>
+
+  Unconstrained Delaunay triangulation of a **point cloud**, as a free function rather than a
+  `TriangulationParams` strategy: none of the ring checks (winding, simplicity, collinearity) mean
+  anything for a cloud. O(n²) worst case.
+
+  1. **Scan triangulation:** points are inserted in lexicographic (x, then y) order. Each new point lies
+     outside the current hull and is joined to every hull edge it sees. Orientation tests only — no
+     super-triangle.
+  2. **Lawson flips** on every non-hull edge, until no point lies inside any triangle's circumcircle.
+
+  | Input | Output |
+  |---|---|
+  | `delaunay(vector<Point2D>)` | CCW `Triangle2D`s covering the cloud's **convex hull**: 2n − h − 2 triangles (h = points on the hull boundary) |
+  | `delaunay(vector<Point3D>, Vector3D normal)` | 2.5D: points projected along the normal's dominant axis (XY for terrain), triangles lifted back to the original 3D points |
+  | `delaunay(vector<Point3D>)` | Same, normal fitted via PCA |
+
+  Edge cases: duplicates (within `DECIMAL_PRECISION`) are ignored; all-collinear input returns no
+  triangles; fewer than 3 points throws `std::invalid_argument` (`ValueError` in Python,
+  `ArgumentException` in C#). Input order doesn't matter.
+
+  Passing the points of a polygon gives triangles **outside** a concave polygon (its notches get
+  filled). For a polygon use `ConstrainedDelaunay` (§12.3).
+
+  <p align="center">
+    <img src="./images/delaunay_point_cloud.png" width="420" alt="The star's 10 points plus a centre point, before and after delaunay(): 15 gold-edged triangles filling the pentagon-shaped convex hull">
+  </p>
+
+  <details closed>
+  <summary><b> &nbsp; &nbsp; &nbsp; Samples</b></summary>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C++</b></summary>
+
+  ```cpp
+  #include "calc_utils2d.hpp"
+
+  namespace g = geompp;
+
+  // The star's 10 points plus a centre point, as a plain cloud: no ring, no order.
+  std::vector<g::Point2D> cloud = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97}, {3.0, 3.3},
+  };
+
+  auto tris = g::delaunay(cloud);
+  for (auto const& t : tris)
+      GEOMPP_LOG(INFO) << t.ToWkt();
+  GEOMPP_LOG(INFO) << tris.size() << " triangles";
+  ```
+
+  ```bash
+  TRIANGLE (0.15 3.93, 1.24 0.57, 1.86 2.63)
+  TRIANGLE (1.24 0.57, 3 1.8, 1.86 2.63)
+  TRIANGLE (1.86 2.63, 2.29 3.97, 0.15 3.93)
+  TRIANGLE (3 1.8, 3 3.3, 1.86 2.63)
+  TRIANGLE (3 3.3, 2.29 3.97, 1.86 2.63)
+  TRIANGLE (3 3.3, 3.71 3.97, 2.29 3.97)
+  TRIANGLE (2.29 3.97, 3 6, 0.15 3.93)
+  TRIANGLE (3 1.8, 4.14 2.63, 3 3.3)
+  TRIANGLE (3.71 3.97, 3 6, 2.29 3.97)
+  TRIANGLE (4.14 2.63, 3.71 3.97, 3 3.3)
+  TRIANGLE (1.24 0.57, 4.76 0.57, 3 1.8)
+  TRIANGLE (3 1.8, 4.76 0.57, 4.14 2.63)
+  TRIANGLE (4.76 0.57, 5.85 3.93, 4.14 2.63)
+  TRIANGLE (4.14 2.63, 5.85 3.93, 3.71 3.97)
+  TRIANGLE (3.71 3.97, 5.85 3.93, 3 6)
+  15 triangles
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; Python</b></summary>
+
+  ```python
+  import geompp as g
+
+  # The star's 10 points plus a centre point, as a plain cloud: no ring, no order.
+  cloud = [g.Point2D(x, y) for x, y in [
+      (3.0, 6.0), (2.29, 3.97), (0.15, 3.93), (1.86, 2.63), (1.24, 0.57),
+      (3.0, 1.8), (4.76, 0.57), (4.14, 2.63), (5.85, 3.93), (3.71, 3.97), (3.0, 3.3),
+  ]]
+
+  tris = g.delaunay(cloud)
+  for t in tris:
+      print(t.to_wkt())
+  print(f"{len(tris)} triangles")
+
+  # 2.5D terrain: projected along Z, heights kept.
+  terrain = [g.Point3D(0, 0, 1.0), g.Point3D(4, 0, 2.0), g.Point3D(4, 4, 0.5), g.Point3D(0, 4, 3.0),
+             g.Point3D(2, 2, 1.7)]
+  print(len(g.delaunay(terrain, g.Vector3D(0, 0, 1))), "terrain triangles")
+  ```
+
+  ```
+  (same 15 triangles as the C++ sample)
+  15 triangles
+  4 terrain triangles
+  ```
+
+   </details>
+
+   <details closed>
+   <summary><b> &nbsp; &nbsp; &nbsp; C#</b></summary>
+
+  ```csharp
+  using G = GeomPP;
+
+  // The star's 10 points plus a centre point, as a plain cloud: no ring, no order.
+  var cloud = new G.Point2D[] {
+      new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+      new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97), new(3.0, 3.3),
+  };
+
+  var tris = G.GeomUtil.Delaunay(cloud);
+  foreach (var t in tris)
+      Console.WriteLine(t.ToWkt());
+  Console.WriteLine($"{tris.Length} triangles");
+  ```
+
+  ```
+  (same 15 triangles as the C++ sample)
+  15 triangles
   ```
 
    </details>

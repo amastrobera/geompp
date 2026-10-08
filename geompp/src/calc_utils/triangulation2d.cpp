@@ -768,124 +768,246 @@ template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(
 template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point3D> const& input,
                                                                                 View2D const& view);
 
+namespace helpers {
+
+// Lawson edge flipping, in place: every edge shared by exactly 2 triangles whose opposite vertex lies
+// strictly inside the neighboring triangle's circumcircle is flipped, until none remains. An edge owned
+// by a single triangle (a polygon ring edge, or a point set's hull edge) is never flipped -- for a CDT
+// that is exactly what keeps the boundary as a constraint. Each flip strictly increases the sorted
+// angle vector, so the loop terminates; O(n²) flips worst case, each O(1).
+// @param tris CCW index triplets into @p input, a valid triangulation (no overlaps, no zero-area).
 template <typename PointT>
-std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view) {
-  std::size_t n = input.size();
-
-  // Step 1: collect projected coords.
-  using Pt2 = std::pair<double, double>;
-  std::vector<Pt2> pts;
-  pts.reserve(n + 3);
-  for (std::size_t i = 0; i < n; ++i) {
-    pts.push_back({view.x(input[i]), view.y(input[i])});
+void lawson_flip(std::vector<PointT> const& input, View2D const& view, std::vector<std::array<std::size_t, 3>>& tris) {
+  // undirected edge -> the (at most 2) triangles sharing it.
+  constexpr std::size_t none = std::numeric_limits<std::size_t>::max();
+  auto key = [](std::size_t a, std::size_t b) -> std::uint64_t {
+    if (a > b) {
+      std::swap(a, b);
+    }
+    return (static_cast<std::uint64_t>(a) << 32) | static_cast<std::uint64_t>(b);
+  };
+  std::unordered_map<std::uint64_t, std::array<std::size_t, 2>> owners;
+  owners.reserve(tris.size() * 3);
+  auto add_owner = [&](std::size_t a, std::size_t b, std::size_t t) {
+    auto [it, inserted] = owners.try_emplace(key(a, b), std::array<std::size_t, 2>{t, none});
+    if (!inserted) {
+      it->second[1] = t;
+    }
+  };
+  auto replace_owner = [&](std::size_t a, std::size_t b, std::size_t old_t, std::size_t new_t) {
+    auto& o = owners.at(key(a, b));
+    if (o[0] == old_t) {
+      o[0] = new_t;
+    } else if (o[1] == old_t) {
+      o[1] = new_t;
+    }
+  };
+  for (std::size_t t = 0; t < tris.size(); ++t) {
+    add_owner(tris[t][0], tris[t][1], t);
+    add_owner(tris[t][1], tris[t][2], t);
+    add_owner(tris[t][2], tris[t][0], t);
   }
 
-  // Step 2: super-triangle (CCW, indices n, n+1, n+2).
-  double min_x = pts[0].first, max_x = pts[0].first;
-  double min_y = pts[0].second, max_y = pts[0].second;
-  for (auto const& p : pts) {
-    if (p.first < min_x) { min_x = p.first; }
-    if (p.first > max_x) { max_x = p.first; }
-    if (p.second < min_y) { min_y = p.second; }
-    if (p.second > max_y) { max_y = p.second; }
+  // stack of edges to (re)check, seeded with every shared edge.
+  std::vector<std::array<std::size_t, 2>> stack;
+  stack.reserve(owners.size());
+  for (auto const& [k, o] : owners) {
+    if (o[1] != none) {
+      stack.push_back({static_cast<std::size_t>(k >> 32), static_cast<std::size_t>(k & 0xFFFFFFFFu)});
+    }
   }
-  double delta = std::max(max_x - min_x, max_y - min_y) * 3.0 + 1.0;
-  double mid_x = (min_x + max_x) / 2.0;
-  double mid_y = (min_y + max_y) / 2.0;
-  pts.push_back({mid_x - 2.0 * delta, mid_y - delta});       // index n
-  pts.push_back({mid_x,               mid_y + 2.0 * delta}); // index n+1
-  pts.push_back({mid_x + 2.0 * delta, mid_y - delta});       // index n+2
 
-  // Step 3: active triangles, start with super-triangle.
-  std::vector<std::array<std::size_t, 3>> triangles;
-  triangles.push_back({n, n + 2, n + 1});
+  while (!stack.empty()) {
+    auto [u, v] = stack.back();
+    stack.pop_back();
 
-  // circumcircle test working entirely on projected coords (no View2D needed here).
-  auto in_circ = [&](std::size_t ai, std::size_t bi, std::size_t ci, std::size_t pi) -> bool {
-    double ax = pts[ai].first  - pts[pi].first;
-    double ay = pts[ai].second - pts[pi].second;
-    double bx = pts[bi].first  - pts[pi].first;
-    double by = pts[bi].second - pts[pi].second;
-    double cx = pts[ci].first  - pts[pi].first;
-    double cy = pts[ci].second - pts[pi].second;
-    double det = ax * (by * (cx * cx + cy * cy) - cy * (bx * bx + by * by)) -
-                 ay * (bx * (cx * cx + cy * cy) - cx * (bx * bx + by * by)) +
-                 (ax * ax + ay * ay) * (bx * cy - by * cx);
-    return compare(det, 0.0) > 0;
+    auto it = owners.find(key(u, v));
+    if (it == owners.end() || it->second[1] == none) {
+      continue;  // already flipped away, or a single-owner (constraint / hull) edge
+    }
+    std::size_t t1 = it->second[0];
+    std::size_t t2 = it->second[1];
+
+    // Rotate t1 to (a, b, c) so that a->b is the shared edge in t1's own CCW order; t2 then holds b->a,
+    // and d is t2's vertex opposite the shared edge.
+    auto r1 = tris[t1];
+    while (!((r1[0] == u && r1[1] == v) || (r1[0] == v && r1[1] == u))) {
+      std::rotate(r1.begin(), r1.begin() + 1, r1.end());
+    }
+    std::size_t a = r1[0], b = r1[1], c = r1[2];
+    std::size_t d = none;
+    for (auto idx : tris[t2]) {
+      if (idx != a && idx != b) {
+        d = idx;
+      }
+    }
+
+    if (!in_circumcircle(input[a], input[b], input[c], input[d], view)) {
+      continue;  // locally Delaunay
+    }
+    // Only flip when the quad a-d-b-c is strictly convex, i.e. both new triangles are strictly CCW.
+    // Always true for a genuinely illegal edge; guards against tolerance-level near-degenerate cases.
+    if (compare(area2(input[a], input[d], input[c], view), 0.0) <= 0 ||
+        compare(area2(input[d], input[b], input[c], view), 0.0) <= 0) {
+      continue;
+    }
+
+    // Flip a-b into c-d: t1 = (a, b, c) -> (a, d, c), t2 = (b, a, d) -> (d, b, c).
+    tris[t1] = {a, d, c};
+    tris[t2] = {d, b, c};
+    owners.erase(it);
+    owners[key(c, d)] = {t1, t2};
+    replace_owner(a, d, t2, t1);
+    replace_owner(b, c, t1, t2);
+
+    // The 4 outer edges of the quad may have become illegal.
+    stack.push_back({a, d});
+    stack.push_back({d, b});
+    stack.push_back({b, c});
+    stack.push_back({c, a});
+  }
+}
+
+// Scan triangulation of a point set: points are inserted in lexicographic (x, then y) order, so each
+// new point lies outside the current convex hull, and is joined to every hull edge it strictly sees.
+// Only orientation tests -- no super-triangle, so no far-away vertices to bias the result. Points
+// coinciding (within DECIMAL_PRECISION) with an earlier one, or lying on the current hull boundary
+// within tolerance, are skipped. O(n²) worst case (linear hull scan per insertion).
+// @returns CCW index triplets into @p input covering its convex hull; empty if every point is collinear.
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> scan_triangulation(std::vector<PointT> const& input, View2D const& view) {
+  std::vector<std::array<std::size_t, 3>> tris;
+
+  // Lexicographic order on the projected coordinates (exact comparisons: a strict weak ordering).
+  std::vector<std::size_t> order(input.size());
+  for (std::size_t i = 0; i < order.size(); ++i) {
+    order[i] = i;
+  }
+  std::sort(order.begin(), order.end(), [&](std::size_t i, std::size_t j) {
+    auto [xi, yi] = view.xy(input[i]);
+    auto [xj, yj] = view.xy(input[j]);
+    return xi < xj || (xi == xj && yi < yj);
+  });
+
+  // Drop near-duplicates: an earlier point within tolerance always has an x within tolerance too.
+  std::vector<std::size_t> q;
+  q.reserve(order.size());
+  for (auto i : order) {
+    auto [xi, yi] = view.xy(input[i]);
+    bool duplicate = false;
+    for (auto k = q.rbegin(); k != q.rend(); ++k) {
+      auto [xk, yk] = view.xy(input[*k]);
+      if (compare(xk, xi) != 0) {
+        break;
+      }
+      if (compare(yk, yi) == 0) {
+        duplicate = true;
+        break;
+      }
+    }
+    if (!duplicate) {
+      q.push_back(i);
+    }
+  }
+  if (q.size() < 3) {
+    return tris;
+  }
+
+  auto orient = [&](std::size_t a, std::size_t b, std::size_t c) {
+    return compare(area2(input[a], input[b], input[c], view), 0.0);
   };
 
-  // Step 4: Bowyer-Watson insertion.
-  for (std::size_t p = 0; p < n; ++p) {
-    std::size_t nt = triangles.size();
-    std::vector<bool> bad_flag(nt, false);
-    for (std::size_t ti = 0; ti < nt; ++ti) {
-      if (in_circ(triangles[ti][0], triangles[ti][1], triangles[ti][2], p)) {
-        bad_flag[ti] = true;
-      }
-    }
-
-    // Collect boundary edges of bad triangles (edges shared by exactly one bad triangle).
-    std::vector<std::array<std::size_t, 2>> all_bad_edges;
-    for (std::size_t ti = 0; ti < nt; ++ti) {
-      if (!bad_flag[ti]) {
-        continue;
-      }
-      auto const& tri = triangles[ti];
-      all_bad_edges.push_back({tri[0], tri[1]});
-      all_bad_edges.push_back({tri[1], tri[2]});
-      all_bad_edges.push_back({tri[2], tri[0]});
-    }
-
-    std::vector<std::array<std::size_t, 2>> boundary;
-    for (std::size_t ei = 0; ei < all_bad_edges.size(); ++ei) {
-      std::size_t ea = all_bad_edges[ei][0], eb = all_bad_edges[ei][1];
-      int count = 0;
-      for (auto const& e2 : all_bad_edges) {
-        std::size_t fa = e2[0], fb = e2[1];
-        if ((ea == fa && eb == fb) || (ea == fb && eb == fa)) {
-          ++count;
-        }
-      }
-      if (count == 1) {
-        boundary.push_back({ea, eb});
-      }
-    }
-
-    // Build next_tris: keep good triangles, add new triangles from boundary.
-    std::vector<std::array<std::size_t, 3>> next_tris;
-    next_tris.reserve(triangles.size() - all_bad_edges.size() / 3 + boundary.size());
-    for (std::size_t ti = 0; ti < nt; ++ti) {
-      if (!bad_flag[ti]) {
-        next_tris.push_back(triangles[ti]);
-      }
-    }
-    for (auto const& edge : boundary) {
-      std::size_t ea = edge[0], eb = edge[1];
-      double cross = (pts[eb].first - pts[ea].first) * (pts[p].second - pts[eb].second) -
-                     (pts[eb].second - pts[ea].second) * (pts[p].first - pts[eb].first);
-      if (compare(cross, 0.0) > 0) {
-        next_tris.push_back({ea, eb, p});
-      } else {
-        next_tris.push_back({eb, ea, p});
-      }
-    }
-    triangles = std::move(next_tris);
+  // Seed: q[0..k-1] collinear (and sorted along their line), q[k] the first point off that line.
+  std::size_t k = 2;
+  while (k < q.size() && orient(q[0], q[1], q[k]) == 0) {
+    ++k;
   }
-
-  // Step 5: filter out triangles touching super-triangle vertices.
-  std::vector<std::array<std::size_t, 3>> result;
-  for (auto const& tri : triangles) {
-    if (tri[0] < n && tri[1] < n && tri[2] < n) {
-      result.push_back(tri);
+  if (k == q.size()) {
+    return tris;  // all collinear
+  }
+  bool left = orient(q[0], q[1], q[k]) > 0;
+  std::vector<std::size_t> hull;  // CCW
+  for (std::size_t j = 0; j + 1 < k; ++j) {
+    if (left) {
+      tris.push_back({q[j], q[j + 1], q[k]});
+    } else {
+      tris.push_back({q[j + 1], q[j], q[k]});
     }
   }
-  return result;
+  if (left) {
+    hull.assign(q.begin(), q.begin() + static_cast<std::ptrdiff_t>(k));
+  } else {
+    hull.assign(q.rbegin() + static_cast<std::ptrdiff_t>(q.size() - k), q.rend());
+  }
+  hull.push_back(q[k]);
+
+  std::vector<bool> visible;
+  for (std::size_t s = k + 1; s < q.size(); ++s) {
+    std::size_t p = q[s];
+    std::size_t m = hull.size();
+    visible.assign(m, false);
+    for (std::size_t e = 0; e < m; ++e) {
+      visible[e] = orient(hull[e], hull[(e + 1) % m], p) < 0;
+    }
+    // the visible edges form one contiguous run around the hull: find where it starts.
+    std::size_t start = m;
+    for (std::size_t e = 0; e < m; ++e) {
+      if (visible[e] && !visible[(e + m - 1) % m]) {
+        start = e;
+        break;
+      }
+    }
+    if (start == m) {
+      continue;  // nothing strictly visible: p lies on the hull boundary within tolerance
+    }
+    std::size_t run = 0;
+    while (run < m && visible[(start + run) % m]) {
+      std::size_t u = hull[(start + run) % m];
+      std::size_t w = hull[(start + run + 1) % m];
+      tris.push_back({u, p, w});  // (u, w, p) is CW, so (u, p, w) is CCW
+      ++run;
+    }
+    // hull: ..., hull[start], p, hull[start + run], ... (the run's interior vertices are now inside).
+    std::vector<std::size_t> next;
+    next.reserve(m + 1);
+    next.push_back(hull[start]);
+    next.push_back(p);
+    for (std::size_t j = run; j < m; ++j) {
+      next.push_back(hull[(start + j) % m]);
+    }
+    hull = std::move(next);
+  }
+  return tris;
+}
+
+}  // namespace helpers
+
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view) {
+  auto tris = helpers::scan_triangulation(input, view);
+  helpers::lawson_flip(input, view, tris);
+  return tris;
 }
 
 template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point2D> const& input,
                                                                         View2D const& view);
 template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point3D> const& input,
                                                                         View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(std::vector<PointT> const& input,
+                                                                           View2D const& view) {
+  // Any valid triangulation of the ring keeps every ring edge and is strictly interior; ring edges then
+  // have a single owning triangle, so lawson_flip never touches them -- they are the constraints.
+  auto tris = ear_clipping_best_fit_triangulation(input, view);
+  helpers::lawson_flip(input, view, tris);
+  return tris;
+}
+
+template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point2D> const& input, View2D const& view);
+template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point3D> const& input, View2D const& view);
 
 template <typename PointT>
 std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& input, View2D const& view,
@@ -1049,9 +1171,9 @@ std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& i
       }
       break;
     }
-    case TriangulationParams::Strategy::Delaunay: {
+    case TriangulationParams::Strategy::ConstrainedDelaunay: {
       for (auto const& loop : simple_loops) {
-        auto loop_tri_indices = delaunay_triangulation(loop, view);
+        auto loop_tri_indices = constrained_delaunay_triangulation(loop, view);
         tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
       }
       break;
@@ -1082,6 +1204,19 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input, Triangula
   result.reserve(tris.size());
   for (auto const& t : tris) {
     result.push_back(Triangle2D::Make(t[0], t[1], t[2]));
+  }
+  return result;
+}
+
+std::vector<Triangle2D> delaunay(std::vector<Point2D> const& points) {
+  if (points.size() < 3) {
+    throw std::invalid_argument("delaunay: less than 3 points");
+  }
+  auto tri_indices = detail::view::delaunay_triangulation(points, View2D::XY());
+  std::vector<Triangle2D> result;
+  result.reserve(tri_indices.size());
+  for (auto const& t : tri_indices) {
+    result.push_back(Triangle2D::Make(points[t[0]], points[t[1]], points[t[2]]));
   }
   return result;
 }

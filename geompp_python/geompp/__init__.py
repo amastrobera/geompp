@@ -55,6 +55,7 @@ Free functions
         (a float dispatches to the min_distance behavior, an int to the num_segments behavior)
     is_axis_monotone(ring_or_polygon, direction) -> bool
     in_circumcircle(a, b, c, p) -> bool
+    delaunay(points[, normal]) -> list[Triangle2D|Triangle3D]   # unconstrained point-cloud Delaunay
 
 Polyline decimation:
     PolylineDecimationStrategy (RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt)
@@ -67,7 +68,8 @@ Polyline expansion (corner rounding — the inverse of decimation):
     polyline_expansion(points, settings)
 
 Triangulation (2D or 3D, 3D input is assumed flat/planar):
-    TriangulationStrategy (EarClipping, EarClippingBestFit, MonotonePolygon, Delaunay)
+    TriangulationStrategy (EarClipping, EarClippingBestFit, MonotonePolygon, ConstrainedDelaunay)
+        (ConstrainedDelaunay stays inside the polygon; for a point cloud use delaunay())
     TriangulationSimplicity, TriangulationWinding, TriangulationCollinearity
         (each Guaranteed/Assert/Enforce — how to handle non-simple/non-CCW/collinear input)
     TriangulationMonotonicity (Guaranteed/Assert/Enforce — only consulted by Strategy.MonotonePolygon;
@@ -249,6 +251,8 @@ from ._geompp import (  # noqa: F401
     # axis monotonicity / circumcircle
     is_axis_monotone,
     in_circumcircle,
+    # point-cloud Delaunay
+    delaunay,
 )
 
 __version__ = "1.0.0"
@@ -281,6 +285,6 @@ __all__ = [
     "TriangulationParams", "triangulate",
     "PolygonizationStrategy", "PolygonizationParams", "polygonize", "merge",
     "AdjacencyConformity", "AdjacencyViolation2D", "AdjacencyViolation3D", "validate_adjacency", "fix_adjacency",
-    "is_axis_monotone", "in_circumcircle",
+    "is_axis_monotone", "in_circumcircle", "delaunay",
     "maths", "transformations",
 ]

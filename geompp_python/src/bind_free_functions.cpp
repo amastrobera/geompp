@@ -7,6 +7,7 @@
 #include "calc_utils/self_intersections2d.hpp"
 #include "calc_utils/self_intersections3d.hpp"
 #include "calc_utils/triangulation2d.hpp"
+#include "calc_utils/triangulation3d.hpp"
 #include "line2d.hpp"
 #include "line3d.hpp"
 #include "polygon2d.hpp"
@@ -554,4 +555,32 @@ void bind_free_functions(py::module_& m) {
           py::overload_cast<geompp::Point3D const&, geompp::Point3D const&, geompp::Point3D const&, geompp::Point3D const&>(&geompp::in_circumcircle),
           py::arg("a"), py::arg("b"), py::arg("c"), py::arg("p"),
           "Whether p is strictly inside the circumcircle of CCW triangle {a,b,c} in 3D.");
+
+    // ── point-cloud Delaunay (unconstrained) ───────────────────────────────────────────────────
+    // Overload order: pybind11 tries overloads in registration order; list[Point2D] vs list[Point3D]
+    // disambiguates by element type (no implicit Point2D <-> Point3D conversion is registered).
+    m.def("delaunay",
+          py::overload_cast<std::vector<geompp::Point2D> const&>(&geompp::delaunay),
+          "points"_a,
+          "Unconstrained Delaunay triangulation of a 2D point cloud (scan triangulation + Lawson flips). "
+          "Covers the convex hull of points; no input point lies strictly inside any output triangle's "
+          "circumcircle (maximizes the minimum angle). Duplicates (within decimal precision) are ignored. "
+          "Returns list[Triangle2D], CCW, 2n - h - 2 of them (n distinct points, h on the hull); empty if "
+          "every point is collinear. Raises ValueError for fewer than 3 points. O(n^2) worst case. For a "
+          "polygon, use triangulate() with TriangulationStrategy.ConstrainedDelaunay instead.");
+
+    m.def("delaunay",
+          py::overload_cast<std::vector<geompp::Point3D> const&, geompp::Vector3D>(&geompp::delaunay),
+          "points"_a, "normal"_a,
+          "Unconstrained Delaunay triangulation of a 3D point cloud, 2.5D-style: points are projected along "
+          "the dominant axis of normal (XY for a terrain with normal ~ Z), triangulated in that plane, and "
+          "lifted back to the original 3D points. Covers the projected convex hull. Returns "
+          "list[Triangle3D]; empty if every projected point is collinear. Raises ValueError for fewer "
+          "than 3 points. O(n^2) worst case.");
+
+    m.def("delaunay",
+          py::overload_cast<std::vector<geompp::Point3D> const&>(&geompp::delaunay),
+          "points"_a,
+          "Same as delaunay(points, normal), with the normal fitted via PCA (principal_axes) -- for a "
+          "roughly planar 3D cloud whose plane isn't known up front. Returns list[Triangle3D].");
 }

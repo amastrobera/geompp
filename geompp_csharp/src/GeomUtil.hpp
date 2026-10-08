@@ -86,8 +86,11 @@ public enum class TriangulationStrategy {
     EarClippingBestFit = 1,
     // O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone pieces).
     MonotonePolygon = 2,
-    // O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny slivers).
-    Delaunay = 3
+    // Constrained Delaunay triangulation (CDT) of the polygon: EarClippingBestFit, then Lawson edge
+    // flips on internal edges only. Output stays inside the polygon (n-2 triangles, every boundary edge
+    // kept) and is locally Delaunay across every internal edge. O(n^2) worst case. For an unconstrained
+    // Delaunay triangulation of a point cloud (covering its convex hull) use GeomUtil.Delaunay().
+    ConstrainedDelaunay = 3
 };
 
 // How GeomUtil.Triangulate() handles a possibly self-intersecting input ring.
@@ -498,6 +501,15 @@ public:
     // Uses the exact 3×3 determinant predicate; returns false when p is exactly on the circle.
     static bool InCircumcircle(Point2D^ a, Point2D^ b, Point2D^ c, Point2D^ p);
     static bool InCircumcircle(Point3D^ a, Point3D^ b, Point3D^ c, Point3D^ p);
+
+    // Delaunay — unconstrained Delaunay triangulation of a point cloud (scan triangulation + Lawson
+    // flips, O(n^2) worst case). Covers the convex hull; triangles are CCW. Duplicates (within the
+    // decimal precision) are ignored; all-collinear input returns an empty array. Throws
+    // ArgumentException for fewer than 3 points. The 3D overloads are 2.5D: points are projected along
+    // the dominant axis of normal (or a PCA-fitted normal when omitted) and lifted back unchanged.
+    static array<Triangle2D^>^ Delaunay(array<Point2D^>^ points);
+    static array<Triangle3D^>^ Delaunay(array<Point3D^>^ points, Vector3D^ normal);
+    static array<Triangle3D^>^ Delaunay(array<Point3D^>^ points);
 };
 
 }  // namespace GeomPP

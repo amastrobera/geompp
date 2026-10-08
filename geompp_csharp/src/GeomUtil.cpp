@@ -3,6 +3,8 @@
 #include <calc_utils/self_intersections2d.hpp>
 #include <calc_utils/self_intersections3d.hpp>
 #include <calc_utils/triangulation2d.hpp>
+#include <calc_utils/triangulation3d.hpp>
+#include <stdexcept>
 #pragma managed(pop)
 
 #include "GeomUtil.hpp"
@@ -677,6 +679,49 @@ bool GeomUtil::InCircumcircle(Point2D^ a, Point2D^ b, Point2D^ c, Point2D^ p) {
 
 bool GeomUtil::InCircumcircle(Point3D^ a, Point3D^ b, Point3D^ c, Point3D^ p) {
     return geompp::in_circumcircle(*a->_native, *b->_native, *c->_native, *p->_native);
+}
+
+// std::invalid_argument would otherwise surface in managed code as an opaque SEHException.
+array<Triangle2D^>^ GeomUtil::Delaunay(array<Point2D^>^ points) {
+    std::vector<geompp::Triangle2D> native;
+    try {
+        native = geompp::delaunay(ArrayToVector2D(points));
+    } catch (std::invalid_argument const& e) {
+        throw gcnew System::ArgumentException(gcnew System::String(e.what()));
+    }
+    auto result = gcnew array<Triangle2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < result->Length; ++i) {
+        result[i] = gcnew Triangle2D(new geompp::Triangle2D(native[i]));
+    }
+    return result;
+}
+
+array<Triangle3D^>^ GeomUtil::Delaunay(array<Point3D^>^ points, Vector3D^ normal) {
+    std::vector<geompp::Triangle3D> native;
+    try {
+        native = geompp::delaunay(ArrayToVector3D(points), *normal->_native);
+    } catch (std::invalid_argument const& e) {
+        throw gcnew System::ArgumentException(gcnew System::String(e.what()));
+    }
+    auto result = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < result->Length; ++i) {
+        result[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
+    }
+    return result;
+}
+
+array<Triangle3D^>^ GeomUtil::Delaunay(array<Point3D^>^ points) {
+    std::vector<geompp::Triangle3D> native;
+    try {
+        native = geompp::delaunay(ArrayToVector3D(points));
+    } catch (std::invalid_argument const& e) {
+        throw gcnew System::ArgumentException(gcnew System::String(e.what()));
+    }
+    auto result = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < result->Length; ++i) {
+        result[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
+    }
+    return result;
 }
 
 }  // namespace GeomPP

@@ -587,9 +587,9 @@ public static class Polygon2DTests {
       Eq(8.0, SumArea2D(triangles));
     });
 
-    Test("Polygon2D_Triangulate_DelaunayStrategy_ReturnsTwoTriangles", () => {
+    Test("Polygon2D_Triangulate_ConstrainedDelaunayStrategy_ReturnsTwoTriangles", () => {
       var p = Polygon2D.Make(new Point2D[] { new(0, 0), new(4, 0), new(4, 2), new(0, 2) });
-      var triangles = p.Triangulate(TriangulationStrategy.Delaunay);
+      var triangles = p.Triangulate(TriangulationStrategy.ConstrainedDelaunay);
       Eq(2, CountOf(triangles), 0);
       Eq(8.0, SumArea2D(triangles));
     });

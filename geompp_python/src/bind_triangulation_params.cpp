@@ -21,9 +21,12 @@ void bind_triangulation_params(py::module_& m) {
         .value("MonotonePolygon", geompp::TriangulationParams::Strategy::MonotonePolygon,
                "O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone "
                "pieces).")
-        .value("Delaunay", geompp::TriangulationParams::Strategy::Delaunay,
-               "O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny "
-               "slivers).")
+        .value("ConstrainedDelaunay", geompp::TriangulationParams::Strategy::ConstrainedDelaunay,
+               "Constrained Delaunay triangulation (CDT) of the polygon: EarClippingBestFit, then Lawson "
+               "edge flips on internal edges only. Output always stays inside the polygon (n-2 triangles, "
+               "every boundary edge kept) and is locally Delaunay across every internal edge, which "
+               "avoids skinny slivers where the boundary allows. O(n^2) worst case. For an unconstrained "
+               "point cloud (covering the convex hull), use geompp.delaunay() instead.")
         .export_values();
 
     py::enum_<geompp::TriangulationParams::Simplicity>(m, "TriangulationSimplicity",

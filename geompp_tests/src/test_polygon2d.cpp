@@ -1817,9 +1817,9 @@ TEST_F(Polygon2DTest, Triangulate_MonotonePolygonStrategy_ReturnsTwoTriangles) {
   EXPECT_NEAR(area, 8.0, 1e-9);
 }
 
-TEST_F(Polygon2DTest, Triangulate_DelaunayStrategy_ReturnsTwoTriangles) {
+TEST_F(Polygon2DTest, Triangulate_ConstrainedDelaunayStrategy_ReturnsTwoTriangles) {
   auto p = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(0, 2)});
-  auto tris = p.Triangulate(g::TriangulationParams::Strategy::Delaunay);
+  auto tris = p.Triangulate(g::TriangulationParams::Strategy::ConstrainedDelaunay);
   ASSERT_EQ(tris.size(), 2u);
   double area = 0.0;
   for (auto const& t : tris) { area += t.Area(); }

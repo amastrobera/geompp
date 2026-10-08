@@ -1350,10 +1350,10 @@ TEST_F(Polygon3DTest, Triangulate_MonotonePolygonStrategy_ReturnsTwoTriangles) {
   EXPECT_NEAR(area, 8.0, 1e-9);
 }
 
-TEST_F(Polygon3DTest, Triangulate_DelaunayStrategy_ReturnsTwoTriangles) {
+TEST_F(Polygon3DTest, Triangulate_ConstrainedDelaunayStrategy_ReturnsTwoTriangles) {
   auto p = g::Polygon3D::Make(
       {g::Point3D(0, 0, 0), g::Point3D(4, 0, 0), g::Point3D(4, 2, 0), g::Point3D(0, 2, 0)});
-  auto tris = p.Triangulate(g::TriangulationParams::Strategy::Delaunay);
+  auto tris = p.Triangulate(g::TriangulationParams::Strategy::ConstrainedDelaunay);
   ASSERT_EQ(tris.size(), 2u);
   double area = 0.0;
   for (auto const& t : tris) { area += t.Area(); }
