@@ -63,7 +63,7 @@ Returns a mesh of triangles instead of n-gons — every facet is triangulated in
 
 **Parameters**
 
-- `strategy` ([`TriangulationParams`](TriangulationParams.md)::Strategy^) — The triangulation strategy to use. Options: EarClipping: O(n^2) worst case, but simple and robust for small polygons MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+- `strategy` ([`TriangulationParams`](TriangulationParams.md)::Strategy^) — The triangulation strategy to use. Options: EarClipping: O(n^2) worst case, but simple and robust for small polygons MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation (boundary edges kept, all triangles interior, minimum angle maximized)
 
 **Returns** — A [Mesh2D](Mesh2D.md) with sum(facet_vertex_count - 2) triangles across every facet.
 
