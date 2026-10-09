@@ -42,7 +42,7 @@ class TestPolygonize:
     def test_l_shape_plus_spikes_hertel_mehlhorn_agrees_across_every_conformity_mode(self):
         # polygonize_impl's own seam-collapse logic already keeps HertelMehlhorn's output provably
         # conformant by construction here, so Assert/Guaranteed/Enforce must all produce the exact same
-        # 3-piece split when threaded through Mesh2D.polygonize() into PolyMesh2D.from_polygons() --
+        # split when threaded through Mesh2D.polygonize() into PolyMesh2D.from_polygons() --
         # Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
         p00, p10, p11, p01 = geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)
         p20, p21, p22, p12 = geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(2, 2), geompp.Point2D(1, 2)
@@ -64,7 +64,21 @@ class TestPolygonize:
             results.append([poly_mesh[i].to_wkt() for i in range(poly_mesh.size())])
 
         assert results[0] == results[1] == results[2]
-        assert len(results[0]) == 3
+        # Plain HertelMehlhorn's 2x1 bottom rectangle carries two load-bearing 180-degree vertices ((1, 0)
+        # for the bottom spike, (1, 1) for the top piece), so it's split. How many pieces that gives
+        # depends on triangle order (greedy merging), so check the invariants rather than a count.
+        poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
+        assert poly_mesh.size() >= 4
+        assert approx(poly_mesh.area(), 3.5)
+        for i in range(poly_mesh.size()):
+            p = poly_mesh[i]
+            assert p.is_convex()
+            ring = p.perimeter()
+            n = len(ring)
+            for k in range(n):
+                a, b, c = ring[k - 1], ring[k], ring[(k + 1) % n]
+                cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+                assert abs(cross) > 1e-9, f"{p.to_wkt()} has a 180-degree vertex at {b.to_wkt()}"
 
     def test_unit_square_from_two_triangles_returns_single_quad(self):
         polys = geompp.polygonize(_grid_triangles(1, 1))
@@ -90,22 +104,23 @@ class TestPolygonize:
         assert len(polys) == 1
         assert approx(polys[0].area(), 4.0)
 
-    def test_l_shape_hertel_mehlhorn_preserves_shared_t_junction_vertex(self):
-        # 2x2 grid, top-left cell skipped -- an L-shape with a reflex vertex at (1, 1). HertelMehlhorn
-        # returns 2 convex pieces (a 2x1 rectangle and a 1x1 square) whose shared corner sits exactly at
-        # the midpoint of the rectangle's top edge. Regression test: polygonize() must not silently drop
-        # that vertex as collinear-on-its-own-ring, or Mesh2D.polygonize()/PolyMesh2D would reject the
-        # result as a T-junction once welded together (see test_mesh.py's mirror of this same case). The
-        # OTHER seam, at (1, 0) (between the rectangle's own 2 source sub-quads), faces nothing but the
-        # mesh's own outer boundary on both sides, so the seam-collapse pass in polygonization2d.cpp
-        # safely drops it -- 5 vertices (4 real corners + (1, 1)), not the older, more conservative 6.
+    def test_l_shape_hertel_mehlhorn_no_straight_vertices_nor_t_junctions(self):
+        # 2x2 grid, top-left cell skipped -- an L-shape with a reflex vertex at (1, 1). Plain HertelMehlhorn
+        # would merge the bottom row into a 2x1 rectangle with the top square's corner (1, 1) mid-way along
+        # its top edge: dropping it is a T-junction, keeping it is a 180-degree vertex. polygonize()
+        # dissolves that rectangle and re-merges it with the vertex forbidden -- 3 convex pieces, every
+        # shared vertex a real corner on both sides.
         polys = geompp.polygonize(_grid_triangles(2, 2, skip={(1, 0)}))
-        assert len(polys) == 2
-
-        rectangle = next(p for p in polys if approx(p.area(), 2.0))
-        assert rectangle.size() == 5  # 4 real corners + (1, 1) -- (1, 0) collapses away, see comment above
-        assert any(v.almost_equals(geompp.Point2D(1, 1)) for v in rectangle.perimeter())
-        assert not any(v.almost_equals(geompp.Point2D(1, 0)) for v in rectangle.perimeter())
+        assert len(polys) == 3
+        assert approx(sum(p.area() for p in polys), 3.0)
+        for p in polys:
+            assert p.is_convex()
+            ring = p.perimeter()
+            n = len(ring)
+            for i in range(n):
+                a, b, c = ring[i - 1], ring[i], ring[(i + 1) % n]
+                cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+                assert abs(cross) > 1e-9, f"{p.to_wkt()} has a 180-degree vertex at {b.to_wkt()}"
 
     def test_empty_input_raises(self):
         with pytest.raises(ValueError):
@@ -151,7 +166,7 @@ class TestMerge:
     def test_three_squares_preserves_shared_t_junction_vertex(self):
         # a and b share a full edge (x=1, y:0-1) and merge into a 2x1 rectangle; c only touches the
         # merged piece at the single point (1, 1) (no full shared edge with a or b). Regression test for
-        # the same class of bug as test_l_shape_hertel_mehlhorn_preserves_shared_t_junction_vertex above,
+        # the same class of bug as test_l_shape_hertel_mehlhorn_no_straight_vertices_nor_t_junctions above,
         # but via merge()'s own packaging: the merged rectangle must still carry (1, 1) as an explicit
         # vertex, or c's own corner would land mid-edge on a T-junction once both pieces shared a mesh.
         a = geompp.Polygon2D.make([geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)])

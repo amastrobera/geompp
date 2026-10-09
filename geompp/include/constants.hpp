@@ -214,7 +214,8 @@ struct PolygonizationParams {
   ///                            returning 1+ planar polygon (not guaranted convex)
   ///       - Coplanar Quads: returns only quadrilaterals in O(N), planar yet not necessarily convex
   ///       - Hertel Mehlhorn: merges as many triangles as possible into polygons in O(N), polygons are planar and
-  ///                          convex
+  ///                          convex, and every vertex two polygons share is a real corner of both (no
+  ///                          T-junctions, no 180° vertices)
   enum class Strategy {
     PlanarBoundaryExtraction,  // 1D feature / crease loops
     PlanarQuads,               // Pair 2 adjacent coplanar tris -> 1 planar quad

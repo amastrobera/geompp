@@ -243,8 +243,12 @@ extern template RingPiecesOf<MeshTriangleFaceView3D> boundary_extraction_polygon
 /// merge is tested by re-tracing the union of both groups' CURRENT members (trace_face_group_boundary) and
 /// checking the result is a single, hole-free, convex ring (detail::is_convex) -- only then is the union
 /// committed; otherwise the two groups stay separate and this diagonal remains un-dissolved. Once every
-/// internal edge has been considered, each surviving union-find group is traced one final time into its
-/// output piece.
+/// internal edge has been considered, any group left with a load-bearing 180° vertex (straight-through on
+/// its own ring, but a neighbor's genuine corner -- e.g. an L-shape's bottom 2x1 rectangle under the top
+/// square's corner) is dissolved back into its facets and re-merged with that vertex forbidden, repeated
+/// until none is left (at most N rounds). Each surviving union-find group is then traced one final time
+/// into its output piece, so every vertex two pieces share is a real corner of both: no T-junctions and
+/// no 180° vertices.
 /// @note Re-tracing a growing group on every candidate merge (rather than maintaining an O(1)-splice
 /// half-edge boundary structure per group) means this is correct but not strictly O(N) worst-case --
 /// O(N * average group size) -- same complexity tradeoff this codebase already accepts elsewhere for a
@@ -252,6 +256,8 @@ extern template RingPiecesOf<MeshTriangleFaceView3D> boundary_extraction_polygon
 /// @param faces Every facet of the mesh (see partition_into_coplanar_clusters).
 /// @param clusters partition_into_coplanar_clusters(faces)'s own output.
 /// @returns One convex output piece per final union-find group (never has holes -- a convex region can't).
+/// Can have more pieces than plain HertelMehlhorn would, since the 180° re-merge splits pieces further;
+/// like plain HertelMehlhorn, the exact split depends on facet order.
 template <TriangleFaceView FaceViewT>
 RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> const& faces,
                                                        std::vector<std::vector<std::size_t>> const& clusters);
@@ -303,9 +309,9 @@ extern template RingPiecesOf<MeshTriangleFaceView3D> polygonize_impl(std::vector
 /// guess -- Polygon2D::FromUniqueCCWPoints() trusts it instead of re-deriving it. Skipping
 /// remove_collinear() specifically (not just the winding re-check) is a correctness requirement, not an
 /// optimization: two independently-produced pieces can share a boundary vertex that's collinear on ONE
-/// piece's ring but a genuine corner on its NEIGHBOR's ring (e.g. HertelMehlhorn merging an L-shaped
-/// 6-triangle region into a 2x1 rectangle plus a 1x1 square -- the square's corner sits exactly at the
-/// rectangle's top edge's midpoint). Running Polygon2D::Make()'s usual remove_collinear() pass on each
+/// piece's ring but a genuine corner on its NEIGHBOR's ring (e.g. merge() fusing two unit squares into a
+/// 2x1 rectangle while a third square's corner sits exactly at the rectangle's top edge's midpoint;
+/// HertelMehlhorn itself now splits such pieces instead, see hertel_mehlhorn_polygonization()). Running Polygon2D::Make()'s usual remove_collinear() pass on each
 /// piece independently (with no awareness of what's on the other side of a given edge) would silently
 /// drop that shared vertex from the rectangle's ring alone, leaving the square's corner touching the
 /// middle of the rectangle's edge -- a T-junction that PolyMesh2D::FromPolygons()'s own adjacency

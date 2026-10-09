@@ -198,7 +198,10 @@ TEST_F(ConnectedMesh3DTest, Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJuncti
   std::optional<g::PolyMesh3D> poly_mesh;
   EXPECT_NO_THROW(poly_mesh = mesh.Polygonize(params));
   ASSERT_TRUE(poly_mesh.has_value());
-  EXPECT_EQ(poly_mesh->Size(), 2u);
+  // HertelMehlhorn now returns 3 pieces: the 2x1 bottom rectangle it would otherwise build is dissolved
+  // and re-merged, because the top square's corner (1,1) sits mid-way along its top edge (see
+  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions).
+  EXPECT_EQ(poly_mesh->Size(), 3u);
   EXPECT_NEAR(poly_mesh->Area(), 3.0, 1e-9);
 }
 

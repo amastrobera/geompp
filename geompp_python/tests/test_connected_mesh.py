@@ -168,7 +168,9 @@ class TestConnectedMesh2D:
 
         poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
 
-        assert poly_mesh.size() == 2
+        # 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1, 1)
+        # as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+        assert poly_mesh.size() == 3
         assert approx(poly_mesh.area(), 3.0)
 
 class TestConnectedMesh3D:
@@ -312,5 +314,7 @@ class TestConnectedMesh3D:
 
         poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
 
-        assert poly_mesh.size() == 2
+        # 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1, 1)
+        # as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+        assert poly_mesh.size() == 3
         assert approx(poly_mesh.area(), 3.0)

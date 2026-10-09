@@ -183,9 +183,9 @@ TEST_F(Mesh2DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad) {
 }
 
 TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction) {
-  // 2x2 grid, top-left cell skipped: an L-shape. HertelMehlhorn returns 2 convex pieces -- a 2x1
+  // 2x2 grid, top-left cell skipped: an L-shape. Plain HertelMehlhorn returns 2 convex pieces -- a 2x1
   // rectangle and a 1x1 square -- whose shared corner sits exactly at the midpoint of the rectangle's
-  // top edge. Regression test: this used to throw here (though not from the free polygonize() function,
+  // top edge (now split further, see below). Regression test: this used to throw here (though not from the free polygonize() function,
   // which has no mesh-conformity requirement to violate) because Polygonize() packaged each piece via
   // Polygon2D::Make(), which silently drops that midpoint as collinear on the rectangle's own ring alone
   // -- leaving the square's corner touching the middle of a neighbor's edge once PolyMesh2D::FromPolygons()
@@ -206,7 +206,10 @@ TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction) {
   std::optional<g::PolyMesh2D> poly_mesh;
   EXPECT_NO_THROW(poly_mesh = mesh.Polygonize(params));
   ASSERT_TRUE(poly_mesh.has_value());
-  EXPECT_EQ(poly_mesh->Size(), 2u);
+  // HertelMehlhorn now returns 3 pieces: the 2x1 bottom rectangle it would otherwise build is dissolved
+  // and re-merged, because the top square's corner (1,1) sits mid-way along its top edge (see
+  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions).
+  EXPECT_EQ(poly_mesh->Size(), 3u);
   EXPECT_NEAR(poly_mesh->Area(), 3.0, 1e-9);
 }
 
@@ -254,25 +257,18 @@ TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_OperatorBracketPreservesShar
   g::PolygonizationParams params;
   params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
   auto poly_mesh = mesh.Polygonize(params);
-  ASSERT_EQ(poly_mesh.Size(), 2u);
+  // 3 pieces now (see Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction), with (1,1) a real corner
+  // of every piece touching it; operator[] must still hand each one back unchanged.
+  ASSERT_EQ(poly_mesh.Size(), 3u);
 
   std::vector<g::Polygon2D> extracted;
-  bool found_rectangle_with_midpoint = false;
+  double total_area = 0.0;
   for (std::size_t i = 0; i < poly_mesh.Size(); ++i) {
     g::Polygon2D piece = poly_mesh[i];
     extracted.push_back(piece);
-    if (std::abs(piece.Area() - 2.0) < 1e-9) {
-      bool has_midpoint = false;
-      for (auto const& v : piece.Perimeter()) {
-        if (v.AlmostEquals(g::Point2D(1, 1))) {
-          has_midpoint = true;
-        }
-      }
-      EXPECT_TRUE(has_midpoint) << "rectangle piece lost the square's shared T-junction corner (1,1)";
-      found_rectangle_with_midpoint = true;
-    }
+    total_area += piece.Area();
   }
-  EXPECT_TRUE(found_rectangle_with_midpoint);
+  EXPECT_NEAR(total_area, 3.0, 1e-9);
 
   // Round-trips clean: feeding operator[]'s own output back into a fresh PolyMesh2D shouldn't throw.
   EXPECT_NO_THROW(g::PolyMesh2D::FromPolygons(extracted));
@@ -302,9 +298,11 @@ TEST_F(Mesh2DTest, Polygonize_LShapePlusSpikes_HertelMehlhorn_AgreesAcrossEveryC
   auto hg = mesh.Polygonize(guaranteed);
   auto ha = mesh.Polygonize(assertMode);
 
-  ASSERT_EQ(he.Size(), 3u);
-  ASSERT_EQ(hg.Size(), 3u);
-  ASSERT_EQ(ha.Size(), 3u);
+  // 4 pieces: the bottom 2x1 rectangle plain HertelMehlhorn would build carries two load-bearing
+  // 180-degree vertices ((1,0) for the bottom spike, (1,1) for the top piece), so it's split.
+  ASSERT_EQ(he.Size(), 4u);
+  ASSERT_EQ(hg.Size(), 4u);
+  ASSERT_EQ(ha.Size(), 4u);
   for (std::size_t i = 0; i < he.Size(); ++i) {
     EXPECT_EQ(he[i].ToWkt(), hg[i].ToWkt());
     EXPECT_EQ(he[i].ToWkt(), ha[i].ToWkt());

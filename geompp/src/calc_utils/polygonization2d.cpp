@@ -82,18 +82,19 @@ View2D cluster_view(std::vector<FaceViewT> const& faces, std::vector<std::size_t
 
 // For every one of @p face_ids' raw triangle edges (projected through @p view), the OUTPUT-GROUP identity
 // of whatever lies immediately across it: kNoNeighborGroup for a true mesh-boundary edge (Neighbor()
-// returns nullopt), or @p face_group_id[neighbor face id] otherwise. @p face_group_id must already hold
-// each face's FINAL output-group id (uf_find(parent, f) once HertelMehlhorn's merging is fully settled;
-// the owning cluster/pair index for the other two strategies, which don't grow groups incrementally) --
-// see collapse_redundant_seams()'s own doc for why this can't be a candidate/in-progress id.
+// returns nullopt), or @p group_of(neighbor face id) otherwise. For the final collapse pass, @p group_of
+// must return each face's FINAL output-group id (uf_find(parent, f) once HertelMehlhorn's merging is fully
+// settled; the owning cluster/pair index for the other two strategies, which don't grow groups
+// incrementally). HertelMehlhorn's merge test also calls this mid-merge with the CURRENT union-find root --
+// see is_valid_hertel_mehlhorn_merge() for why that's safe there.
 //
 // An edge shared with a SAME-group neighbor (the kind cancel_reverse_pairs() cancels outright) never needs
 // a tag, since it never survives into the traced boundary -- this only needs to be exact for edges that
 // DO survive, so a stale/irrelevant entry for a cancelled edge's key is harmless.
-template <TriangleFaceView FaceViewT>
+template <TriangleFaceView FaceViewT, typename GroupOfFn>
 std::map<EdgeKey, std::size_t> far_side_group_of_boundary(std::vector<FaceViewT> const& faces, View2D const& view,
                                                            std::vector<std::size_t> const& face_ids,
-                                                           std::vector<std::size_t> const& face_group_id) {
+                                                           GroupOfFn&& group_of) {
   std::map<EdgeKey, std::size_t> far_side;
   for (std::size_t face_id : face_ids) {
     auto const& [p0, p1, p2] = faces[face_id].Geometry().Vertices();
@@ -103,11 +104,31 @@ std::map<EdgeKey, std::size_t> far_side_group_of_boundary(std::vector<FaceViewT>
     std::array<std::pair<Point2D, Point2D>, 3> local_edges = {{{a, b}, {b, c}, {c, a}}};
     for (std::size_t i = 0; i < 3; ++i) {
       auto neighbor = faces[face_id].Neighbor(kLocalEdges[i]);
-      std::size_t far = neighbor ? face_group_id[neighbor->ID()] : kNoNeighborGroup;
+      std::size_t far = neighbor ? group_of(neighbor->ID()) : kNoNeighborGroup;
       far_side[edge_key(local_edges[i].first, local_edges[i].second)] = far;
     }
   }
   return far_side;
+}
+
+// Whether @p ring's vertex @p i is a straight-through (180°) vertex whose two flanking edges face DIFFERENT
+// things (two different neighboring groups, or a neighboring group on one side and the mesh boundary on the
+// other). Such a vertex is load-bearing -- a neighbor's genuine corner sits there -- so it can't be dropped
+// without leaving that corner mid-edge (a T-junction), yet keeping it leaves a 180° vertex on this ring.
+bool is_load_bearing_collinear(std::vector<Point2D> const& ring, std::size_t i,
+                               std::map<EdgeKey, std::size_t> const& far_side) {
+  std::size_t n = ring.size();
+  Point2D const& prev = ring[(i + n - 1) % n];
+  Point2D const& cur = ring[i];
+  Point2D const& next = ring[(i + 1) % n];
+  if (!are_collinear(prev, cur, next)) {
+    return false;
+  }
+  auto far_side_of = [&](Point2D const& a, Point2D const& b) -> std::size_t {
+    auto it = far_side.find(edge_key(a, b));
+    return it != far_side.end() ? it->second : kNoNeighborGroup;
+  };
+  return far_side_of(prev, cur) != far_side_of(cur, next);
 }
 
 // Drops a boundary vertex between two collinear, SAME-far-side-identity survivor edges (both facing the
@@ -126,18 +147,13 @@ void collapse_redundant_seams(std::vector<Point2D>& ring, std::map<EdgeKey, std:
     return;  // a triangle has no redundant vertex to drop
   }
 
-  auto far_side_of = [&](Point2D const& a, Point2D const& b) -> std::size_t {
-    auto it = far_side.find(edge_key(a, b));
-    return it != far_side.end() ? it->second : kNoNeighborGroup;
-  };
-
   std::vector<Point2D> kept;
   kept.reserve(n);
   for (std::size_t i = 0; i < n; ++i) {
     Point2D const& prev = ring[(i + n - 1) % n];
     Point2D const& cur = ring[i];
     Point2D const& next = ring[(i + 1) % n];
-    if (are_collinear(prev, cur, next) && far_side_of(prev, cur) == far_side_of(cur, next)) {
+    if (are_collinear(prev, cur, next) && !is_load_bearing_collinear(ring, i, far_side)) {
       continue;  // redundant: nothing on either side needs a corner here
     }
     kept.push_back(cur);
@@ -196,7 +212,8 @@ RingPiecesOf<FaceViewT> trace_face_group_boundary(std::vector<FaceViewT> const& 
   auto pieces_2d = trace_face_group_boundary_2d(faces, view, face_ids);
 
   if (face_group_id) {
-    auto far_side = far_side_group_of_boundary(faces, view, face_ids, *face_group_id);
+    auto far_side = far_side_group_of_boundary(faces, view, face_ids,
+                                               [&](std::size_t id) { return (*face_group_id)[id]; });
     for (auto& [outer2d, holes2d] : pieces_2d) {
       collapse_redundant_seams(outer2d, far_side);
       for (auto& hole2d : holes2d) {
@@ -238,17 +255,41 @@ RingPiecesOf<FaceViewT> trace_face_group_boundary(std::vector<FaceViewT> const& 
   return result;
 }
 
-// Whether trace_face_group_boundary_2d(faces, view, face_ids) is a single, hole-free, convex region.
-// Reuses detail::is_convex (calc_utils/convex_hull2d.hpp) rather than reimplementing the turn-direction
-// sweep.
-template <TriangleFaceView FaceViewT>
-bool is_group_boundary_convex(std::vector<FaceViewT> const& faces, View2D const& view,
-                              std::vector<std::size_t> const& face_ids) {
+// HertelMehlhorn's merge test: whether trace_face_group_boundary_2d(faces, view, face_ids) is a single,
+// hole-free, convex region -- and, when @p strict, one with no load-bearing 180° vertex
+// (is_load_bearing_collinear). Reuses detail::is_convex (calc_utils/convex_hull2d.hpp) rather than
+// reimplementing the turn-direction sweep.
+//
+// @p strict is only set by hertel_mehlhorn_polygonization()'s phase 1b re-merge, where it keeps the
+// re-merged pieces free of T-junctions WITHOUT any of them carrying a straight-through vertex: e.g. on an
+// L-shape, merging the bottom two squares into a 2x1 rectangle would leave the top square's corner (1,1)
+// mid-way along the rectangle's top edge, so that merge is refused. @p group_of returns each neighbor
+// face's CURRENT union-find root, not its final one. That's safe: groups only ever merge during a re-merge,
+// so two edges facing the same group now still face the same group at the end of it (an accepted collinear
+// vertex stays redundant and collapse_redundant_seams() drops it), while two edges facing different groups
+// now can at worst end up facing one -- a merge refused that could have been allowed, never a T-junction
+// let through.
+template <TriangleFaceView FaceViewT, typename GroupOfFn>
+bool is_valid_hertel_mehlhorn_merge(std::vector<FaceViewT> const& faces, View2D const& view,
+                                    std::vector<std::size_t> const& face_ids, bool strict, GroupOfFn&& group_of) {
   auto pieces_2d = trace_face_group_boundary_2d(faces, view, face_ids);
   if (pieces_2d.size() != 1 || !pieces_2d[0].second.empty()) {
     return false;  // not a single, hole-free region -- can't be convex
   }
-  return is_convex(pieces_2d[0].first, {});
+  auto const& ring = pieces_2d[0].first;
+  if (!is_convex(ring, {})) {
+    return false;
+  }
+  if (!strict) {
+    return true;
+  }
+  auto far_side = far_side_group_of_boundary(faces, view, face_ids, group_of);
+  for (std::size_t i = 0; i < ring.size(); ++i) {
+    if (is_load_bearing_collinear(ring, i, far_side)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace
@@ -401,20 +442,16 @@ RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> co
   std::vector<std::size_t> parent(n);
   std::iota(parent.begin(), parent.end(), std::size_t{0});
 
-  // Phase 1: greedily dissolve every internal edge that keeps the merged region convex, one cluster at a
-  // time. Merges never cross a cluster boundary (guarded below), so every cluster's final union-find state
-  // is independent of every other's -- settling ALL of them here, before any tracing starts, is what lets
-  // face_group_id below hold each face's TRUE final group even when the face sits in a cluster this loop
-  // hasn't reached yet. Interleaving merge-then-trace per cluster (as this used to) would instead have to
-  // tag a not-yet-merged neighbor cluster's faces with their premature, still-unmerged ids, which is still
-  // SAFE for collapse_redundant_seams() below (a stale tag can only miss a valid collapse, never cause a
-  // wrong one -- see that function's own doc) but needlessly conservative.
-  for (auto const& cluster : clusters) {
-    if (cluster.empty()) {
-      continue;
-    }
+  // Greedily dissolves every internal edge of @p cluster that keeps the merged region convex. With
+  // @p region null this is plain HertelMehlhorn (phase 1); otherwise only edges with BOTH sides in
+  // @p region are considered, and a merge that would leave a load-bearing 180° vertex is refused too
+  // (phase 1b's strict re-merge -- see is_valid_hertel_mehlhorn_merge()).
+  auto merge_cluster = [&](std::vector<std::size_t> const& cluster, std::vector<bool> const* region) {
     auto view = cluster_view(faces, cluster);
     for (std::size_t face_id : cluster) {
+      if (region && !(*region)[face_id]) {
+        continue;
+      }
       for (auto edge : kLocalEdges) {
         auto neighbor = faces[face_id].Neighbor(edge);
         if (!neighbor) {
@@ -426,6 +463,9 @@ RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> co
         }
         if (cluster_id[nb_id] != cluster_id[face_id]) {
           continue;  // different (or no) coplanar cluster -- not a candidate for this strategy
+        }
+        if (region && !(*region)[nb_id]) {
+          continue;  // strict re-merge stays inside the dissolved region
         }
 
         std::size_t ra = uf_find(parent, face_id);
@@ -443,18 +483,87 @@ RingPiecesOf<FaceViewT> hertel_mehlhorn_polygonization(std::vector<FaceViewT> co
           }
         }
 
-        if (is_group_boundary_convex(faces, view, candidate)) {
+        if (is_valid_hertel_mehlhorn_merge(faces, view, candidate, region != nullptr,
+                                           [&](std::size_t id) { return uf_find(parent, id); })) {
           parent[ra] = rb;
         }
       }
     }
+  };
+
+  // Phase 1: plain HertelMehlhorn, one cluster at a time. Merges never cross a cluster boundary (guarded
+  // above), so every cluster's final union-find state is independent of every other's -- settling ALL of
+  // them here, before any tracing starts, is what lets face_group_id below hold each face's TRUE final
+  // group even when the face sits in a cluster this loop hasn't reached yet.
+  for (auto const& cluster : clusters) {
+    if (!cluster.empty()) {
+      merge_cluster(cluster, nullptr);
+    }
   }
 
-  // Every face's FINAL output-group id, now that every cluster's merges are settled -- feeds
-  // collapse_redundant_seams() via trace_face_group_boundary() below.
+  // Phase 1b: plain HertelMehlhorn can leave a piece with a load-bearing 180° vertex -- a straight-through
+  // vertex on its ring that's still a neighbor's genuine corner (the L-shape's 2x1 rectangle, whose top
+  // edge runs straight through the top square's corner). Dropping it would leave a T-junction, keeping it
+  // leaves a 180° vertex, so neither piece is legal: dissolve every such piece back into its triangles and
+  // re-merge them with that vertex forbidden. Checking final groups AFTER phase 1, rather than refusing
+  // these merges during it, is what keeps an already-clean mesh (a 2x2 grid of squares, whose bottom
+  // half-merge temporarily faces two not-yet-merged top cells) exactly as plain HertelMehlhorn leaves it.
+  // Splitting a piece can expose a load-bearing vertex on a neighbor that used to face it whole, which
+  // the next round catches. The dissolved region only ever grows, and is re-merged from scratch every
+  // round: the strict check leaves every piece inside it clean (see is_valid_hertel_mehlhorn_merge()), and
+  // pieces outside it never change, so a round can only flag pieces with at least one face still outside
+  // the region -- at most n rounds.
   std::vector<std::size_t> face_group_id(n);
-  for (std::size_t f = 0; f < n; ++f) {
-    face_group_id[f] = uf_find(parent, f);
+  std::vector<bool> dissolved(n, false);
+  while (true) {
+    for (std::size_t f = 0; f < n; ++f) {
+      face_group_id[f] = uf_find(parent, f);
+    }
+
+    bool any_dissolved = false;
+    for (auto const& cluster : clusters) {
+      if (cluster.empty()) {
+        continue;
+      }
+      auto view = cluster_view(faces, cluster);
+      std::map<std::size_t, std::vector<std::size_t>> groups;
+      for (std::size_t fid : cluster) {
+        groups[face_group_id[fid]].push_back(fid);
+      }
+      for (auto const& [root, members] : groups) {
+        if (members.size() < 2) {
+          continue;  // a lone triangle has no 180° vertex
+        }
+        auto far_side = far_side_group_of_boundary(faces, view, members,
+                                                   [&](std::size_t id) { return face_group_id[id]; });
+        bool load_bearing = false;
+        for (auto const& [outer2d, holes2d] : trace_face_group_boundary_2d(faces, view, members)) {
+          for (std::size_t i = 0; i < outer2d.size() && !load_bearing; ++i) {
+            load_bearing = is_load_bearing_collinear(outer2d, i, far_side);
+          }
+        }
+        if (load_bearing) {
+          any_dissolved = true;
+          for (std::size_t fid : members) {
+            dissolved[fid] = true;
+          }
+        }
+      }
+    }
+    if (!any_dissolved) {
+      break;  // face_group_id already holds every face's FINAL output-group id
+    }
+
+    for (std::size_t f = 0; f < n; ++f) {
+      if (dissolved[f]) {
+        parent[f] = f;
+      }
+    }
+    for (auto const& cluster : clusters) {
+      if (!cluster.empty()) {
+        merge_cluster(cluster, &dissolved);
+      }
+    }
   }
 
   // Phase 2: package final groups -- one output piece per surviving union-find root per cluster.

@@ -132,7 +132,7 @@ public static class MeshTests {
     });
 
     Test("Mesh2D_Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction", () => {
-      // 2x2 grid, top-left cell skipped: an L-shape. HertelMehlhorn returns 2 convex pieces -- a 2x1
+      // 2x2 grid, top-left cell skipped: an L-shape. Plain HertelMehlhorn returns 2 convex pieces -- a 2x1
       // rectangle and a 1x1 square -- whose shared corner sits exactly at the midpoint of the
       // rectangle's top edge. Regression test: this used to throw here (though not from the free
       // GeomUtil.Polygonize(), which has no mesh-conformity requirement to violate) because Polygonize()
@@ -154,7 +154,9 @@ public static class MeshTests {
       catch (Exception) { threw = true; }
       IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
       NotNull(polyMesh);
-      Eq(2, polyMesh!.Size(), 0);
+      // 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1,1)
+      // as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+      Eq(3, polyMesh!.Size(), 0);
       Eq(3.0, polyMesh.Area());
     });
 
@@ -270,7 +272,9 @@ public static class MeshTests {
       catch (Exception) { threw = true; }
       IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
       NotNull(polyMesh);
-      Eq(2, polyMesh!.Size(), 0);
+      // 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1,1)
+      // as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+      Eq(3, polyMesh!.Size(), 0);
       Eq(3.0, polyMesh.Area());
     });
   }

@@ -194,7 +194,9 @@ public static class ConnectedMeshTests {
       catch (Exception) { threw = true; }
       IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
       NotNull(polyMesh);
-      Eq(2, polyMesh!.Size(), 0);
+      // 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1,1)
+      // as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+      Eq(3, polyMesh!.Size(), 0);
       Eq(3.0, polyMesh.Area());
     });
 
@@ -362,7 +364,9 @@ public static class ConnectedMeshTests {
       catch (Exception) { threw = true; }
       IsFalse(threw, "expected the L-shape's HertelMehlhorn result not to throw a T-junction error");
       NotNull(polyMesh);
-      Eq(2, polyMesh!.Size(), 0);
+      // 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1,1)
+      // as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+      Eq(3, polyMesh!.Size(), 0);
       Eq(3.0, polyMesh.Area());
     });
   }

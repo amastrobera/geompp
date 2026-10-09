@@ -48,7 +48,7 @@ public static class PolygonizeTests {
     Test("Mesh2D_Polygonize_LShapePlusSpikes_HertelMehlhorn_AgreesAcrossEveryConformityMode", () => {
       // polygonize_impl's own seam-collapse logic already keeps HertelMehlhorn's output provably
       // conformant by construction here, so Assert/Guaranteed/Enforce must all produce the exact same
-      // 3-piece split -- Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
+      // split -- Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
       var p00 = new Point2D(0, 0); var p10 = new Point2D(1, 0); var p11 = new Point2D(1, 1); var p01 = new Point2D(0, 1);
       var p20 = new Point2D(2, 0); var p21 = new Point2D(2, 1); var p22 = new Point2D(2, 2); var p12 = new Point2D(1, 2);
       var p15 = new Point2D(1.5, -0.5); var pspike = new Point2D(2.5, 1.5);
@@ -69,7 +69,23 @@ public static class PolygonizeTests {
         if (first == null) { first = wkts; }
         else { for (int i = 0; i < first.Length; i++) IsTrue(first[i] == wkts[i], $"conformity {conformity} disagreed with Enforce at piece {i}"); }
       }
-      IsTrue(first != null && first.Length == 3, "expected 3 HertelMehlhorn pieces");
+      // Plain HertelMehlhorn's 2x1 bottom rectangle carries two load-bearing 180-degree vertices ((1,0) for
+      // the bottom spike, (1,1) for the top piece), so it's split. How many pieces that gives depends on
+      // triangle order (greedy merging), so check the invariants rather than a count.
+      IsTrue(first != null && first.Length >= 4, "expected at least 4 HertelMehlhorn pieces");
+      var check = mesh.Polygonize(new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn));
+      Eq(3.5, check.Area());
+      for (int i = 0; i < check.Size(); i++) {
+        var p = check[i];
+        IsTrue(p.IsConvex(), $"expected {p.ToWkt()} to be convex");
+        var ring = p.Perimeter();
+        int n = ring.Length;
+        for (int k = 0; k < n; k++) {
+          var a = ring[(k + n - 1) % n]; var b = ring[k]; var c = ring[(k + 1) % n];
+          double cross = (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+          IsTrue(System.Math.Abs(cross) > 1e-9, $"{p.ToWkt()} has a 180-degree vertex at {b.ToWkt()}");
+        }
+      }
     });
 
     Test("GeomUtil_Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad", () => {
@@ -105,33 +121,29 @@ public static class PolygonizeTests {
       Eq(4.0, poly.Area());
     });
 
-    Test("GeomUtil_Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctionVertex", () => {
-      // 2x2 grid, top-left cell skipped -- an L-shape with a reflex vertex at (1, 1). HertelMehlhorn
-      // returns 2 convex pieces (a 2x1 rectangle and a 1x1 square) whose shared corner sits exactly at
-      // the midpoint of the rectangle's top edge. Regression test: Polygonize() must not silently drop
-      // that vertex as collinear-on-its-own-ring, or Mesh2D.Polygonize()/PolyMesh2D would reject the
-      // result as a T-junction once welded together (see MeshTests.cs's mirror of this same case). The
-      // OTHER seam, at (1,0) (between the rectangle's own 2 source sub-quads), faces nothing but the
-      // mesh's own outer boundary on both sides, so the seam-collapse pass in polygonization2d.cpp
-      // safely drops it -- 5 vertices (4 real corners + (1,1)), not the older, more conservative 6.
+    Test("GeomUtil_Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions", () => {
+      // 2x2 grid, top-left cell skipped -- an L-shape with a reflex vertex at (1, 1). Plain HertelMehlhorn
+      // would merge the bottom row into a 2x1 rectangle with the top square's corner (1,1) mid-way along
+      // its top edge: dropping it is a T-junction, keeping it is a 180-degree vertex. Polygonize()
+      // dissolves that rectangle and re-merges it with the vertex forbidden -- 3 convex pieces, every
+      // shared vertex a real corner on both sides.
       var triangles = GridTriangles(2, 2, new HashSet<(int, int)> { (1, 0) });
       var polys = GeomUtil.Polygonize(triangles.ToArray(), new PolygonizationParams());
-      Eq(2, CountOf(polys), 0);
+      Eq(3, CountOf(polys), 0);
 
-      Polygon2D? rectangle = null;
+      double totalArea = 0.0;
       foreach (var p in polys) {
-        if (System.Math.Abs(p.Area() - 2.0) < 1e-9) rectangle = p;
+        totalArea += p.Area();
+        IsTrue(p.IsConvex(), $"expected {p.ToWkt()} to be convex");
+        var ring = p.Perimeter();
+        int n = ring.Length;
+        for (int i = 0; i < n; i++) {
+          var a = ring[(i + n - 1) % n]; var b = ring[i]; var c = ring[(i + 1) % n];
+          double cross = (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+          IsTrue(System.Math.Abs(cross) > 1e-9, $"{p.ToWkt()} has a 180-degree vertex at {b.ToWkt()}");
+        }
       }
-      IsTrue(rectangle != null, "expected a piece with area 2.0");
-      Eq(5, rectangle!.Size(), 0);  // 4 real corners + (1,1) -- (1,0) collapses away, see comment above
-      bool hasMidpoint = false;
-      bool hasDroppedSeam = false;
-      foreach (var v in rectangle.Perimeter()) {
-        if (v.AlmostEquals(new Point2D(1, 1))) hasMidpoint = true;
-        if (v.AlmostEquals(new Point2D(1, 0))) hasDroppedSeam = true;
-      }
-      IsTrue(hasMidpoint, "expected the rectangle to keep (1,1) as an explicit vertex");
-      IsTrue(!hasDroppedSeam, "expected the rectangle to have collapsed the redundant (1,0) seam vertex");
+      Eq(3.0, totalArea);
     });
 
     Test("GeomUtil_Polygonize_EmptyInput_Throws", () => {

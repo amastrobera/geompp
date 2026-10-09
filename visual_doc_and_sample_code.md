@@ -6999,6 +6999,8 @@ into coplanar clusters (3D only; 2D has one implicit plane), then merged per
 `PolygonizationParams::Strategy`:
 
 1. `HertelMehlhorn` (**the default**) — fuses edge-adjacent triangles while the merge stays convex.
+    A piece whose edge would run straight through a neighbor's corner (a 180° vertex on one side, a
+    T-junction if dropped) is split again, so every shared vertex is a real corner on both pieces.
     Fewest, most convex pieces of the three.
 2. `PlanarBoundaryExtraction` — ignores convexity: cancels shared internal edges and traces what's
     left, O(n). Cheap and safe on concave or multi-piece input.
@@ -7020,7 +7022,7 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   <p align="center">
     <img src="./images/polygonize_free_before.png" width="260" alt="6 unit triangles forming an L-shaped region, teal fill with cyan edges -- the shared polygonize() input for all three strategies below">
     &nbsp;&nbsp;
-    <img src="./images/polygonize_free_hertel_mehlhorn.png" width="260" alt="polygonize() with HertelMehlhorn on the L-shape: 2 convex polygons shaded differently (gold rectangle, rust-orange square) so the split at the reflex corner reads at a glance -- despite the rectangle's own top edge running unbroken through their shared corner">
+    <img src="./images/polygonize_free_hertel_mehlhorn.png" width="260" alt="polygonize() with HertelMehlhorn on the L-shape: 3 convex polygons shaded differently (a triangle, a trapezoid and the top square) -- every shared vertex is a real corner of each piece touching it, no edge runs straight through a neighbor's corner">
   </p>
   <p align="center">
     <img src="./images/polygonize_free_before.png" width="260" alt="The same 6 triangles forming an L-shaped region, before PlanarBoundaryExtraction">
@@ -7054,7 +7056,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
       g::Triangle2D::Make(p11, p21, p22), g::Triangle2D::Make(p11, p22, p12),
   };
 
-  // HertelMehlhorn (the default): 2 convex pieces, split at the reflex corner.
+  // HertelMehlhorn (the default): 3 convex pieces. A 2x1 bottom rectangle would have the top
+  // square's corner (1,1) mid-way along its top edge, so it's split differently.
   for (auto const& poly : g::polygonize(triangles))
       GEOMPP_LOG(INFO) << "hertel-mehlhorn:  " << poly.ToWkt();
 
@@ -7068,8 +7071,9 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   ```
 
   ```bash
-  I20260827] hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 1 1, 0 1, 0 0))
-  I20260827] hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2 2, 1 2, 1 1))
+  I20261008] hertel-mehlhorn:  POLYGON ((0 0, 1 1, 0 1, 0 0))
+  I20261008] hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 1 1, 0 0))
+  I20261008] hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2 2, 1 2, 1 1))
   I20260827] boundary-extraction:  POLYGON ((0 0, 2 0, 2 2, 1 2, 1 1, 0 1, 0 0))
   I20260827] planar-quads:  POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
   I20260827] planar-quads:  POLYGON ((0 0, 1 1, 0 1, 0 0))
@@ -7094,7 +7098,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
       g.Triangle2D.make(p11, p21, p22), g.Triangle2D.make(p11, p22, p12),
   ]
 
-  # HertelMehlhorn (the default): 2 convex pieces, split at the reflex corner.
+  # HertelMehlhorn (the default): 3 convex pieces. A 2x1 bottom rectangle would have the top
+  # square's corner (1,1) mid-way along its top edge, so it's split differently.
   for poly in g.polygonize(triangles):
       print(f"hertel-mehlhorn:  {poly.to_wkt()}")
 
@@ -7108,7 +7113,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 1 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 1 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 1 1, 0 0))
   hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2 2, 1 2, 1 1))
   boundary-extraction:  POLYGON ((0 0, 2 0, 2 2, 1 2, 1 1, 0 1, 0 0))
   planar-quads:  POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
@@ -7134,7 +7140,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
       G.Triangle2D.Make(p11, p21, p22), G.Triangle2D.Make(p11, p22, p12),
   };
 
-  // HertelMehlhorn (the default): 2 convex pieces, split at the reflex corner.
+  // HertelMehlhorn (the default): 3 convex pieces. A 2x1 bottom rectangle would have the top
+  // square's corner (1,1) mid-way along its top edge, so it's split differently.
   foreach (var poly in G.GeomUtil.Polygonize(triangles, new G.PolygonizationParams()))
       Console.WriteLine($"hertel-mehlhorn:  {poly.ToWkt()}");
 
@@ -7148,7 +7155,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 1 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 1 1, 0 1, 0 0))
+  hertel-mehlhorn:  POLYGON ((0 0, 2 0, 2 1, 1 1, 0 0))
   hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2 2, 1 2, 1 1))
   boundary-extraction:  POLYGON ((0 0, 2 0, 2 2, 1 2, 1 1, 0 1, 0 0))
   planar-quads:  POLYGON ((0 0, 1 0, 2 1, 1 1, 0 0))
@@ -7281,7 +7289,7 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
 <p align="center">
     <img src="./images/polygonize_before.png" width="260" alt="8 triangles forming an L-shape with two triangular spikes hanging off the right column, teal fill with cyan edges -- the shared Mesh2D::Polygonize() input for all three strategies below">
     &nbsp;&nbsp;
-    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="polygonize() with HertelMehlhorn: 3 convex polygons shaded differently (gold rectangle, rust-orange bottom spike, steel-blue top wedge) -- the rectangle's own edges run unbroken through both dots where its neighbors' corners touch">
+    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="polygonize() with HertelMehlhorn: 4 convex polygons shaded differently (left square, right square, bottom spike, top wedge) -- the bottom row stays split at x=1 because both spike and wedge have a corner there">
 </p>
 <p align="center">
     <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before PlanarBoundaryExtraction">
@@ -7318,9 +7326,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
       g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
   });
 
-  // HertelMehlhorn (the default): 3 convex pieces. Both (1,0) and (1,1) survive on the rectangle
-  // piece's own ring -- each is a genuine corner of a different neighboring spike/wedge piece, even
-  // though both are perfectly collinear on the rectangle's own two straight edges.
+  // HertelMehlhorn (the default): 4 convex pieces. The bottom row stays 2 squares: as one 2x1
+  // rectangle, its edges would run straight through the spike's corner (1,0) and the wedge's (1,1).
   auto hertel = mesh.Polygonize({});
   for (std::size_t i = 0; i < hertel.Size(); ++i)
       GEOMPP_LOG(INFO) << "hertel-mehlhorn:  " << hertel[i].ToWkt();
@@ -7337,9 +7344,10 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   ```
 
   ```bash
-  I20260826] hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
-  I20260826] hertel-mehlhorn:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
-  I20260826] hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
+  I20261008] hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1 1))
+  I20261008] hertel-mehlhorn:  POLYGON ((2 1, 1 1, 1 0, 2 0, 2 1))
+  I20261008] hertel-mehlhorn:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
+  I20261008] hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
   I20260826] boundary-extraction:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1.5 -0.5, 2 0, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
   I20260826] planar-quads:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1 1))
   I20260826] planar-quads:  POLYGON ((2 1, 1 1, 1 0, 2 0, 2 1))
@@ -7368,9 +7376,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
       g.Triangle2D.make(g.Point2D(2, 1), g.Point2D(2.5, 1.5), g.Point2D(2, 2)),
   ])
 
-  # HertelMehlhorn (the default): 3 convex pieces. Both (1,0) and (1,1) survive on the rectangle
-  # piece's own ring -- each is a genuine corner of a different neighboring spike/wedge piece, even
-  # though both are perfectly collinear on the rectangle's own two straight edges.
+  # HertelMehlhorn (the default): 4 convex pieces. The bottom row stays 2 squares: as one 2x1
+  # rectangle, its edges would run straight through the spike's corner (1,0) and the wedge's (1,1).
   hertel = mesh.polygonize(g.PolygonizationParams())
   for i in range(hertel.size()):
       print(f"hertel-mehlhorn:  {hertel[i].to_wkt()}")
@@ -7387,7 +7394,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1 1))
+  hertel-mehlhorn:  POLYGON ((2 1, 1 1, 1 0, 2 0, 2 1))
   hertel-mehlhorn:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
   hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
   boundary-extraction:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1.5 -0.5, 2 0, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
@@ -7418,9 +7426,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
       G.Triangle2D.Make(new G.Point2D(2, 1), new G.Point2D(2.5, 1.5), new G.Point2D(2, 2)),
   });
 
-  // HertelMehlhorn (the default): 3 convex pieces. Both (1,0) and (1,1) survive on the rectangle
-  // piece's own ring -- each is a genuine corner of a different neighboring spike/wedge piece, even
-  // though both are perfectly collinear on the rectangle's own two straight edges.
+  // HertelMehlhorn (the default): 4 convex pieces. The bottom row stays 2 squares: as one 2x1
+  // rectangle, its edges would run straight through the spike's corner (1,0) and the wedge's (1,1).
   var hertel = mesh.Polygonize(new G.PolygonizationParams());
   for (int i = 0; i < hertel.Size(); i++)
       Console.WriteLine($"hertel-mehlhorn:  {hertel[i].ToWkt()}");
@@ -7437,7 +7444,8 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   ```
 
   ```
-  hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 2 0, 2 1, 1 1))
+  hertel-mehlhorn:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1 1))
+  hertel-mehlhorn:  POLYGON ((2 1, 1 1, 1 0, 2 0, 2 1))
   hertel-mehlhorn:  POLYGON ((1 0, 1.5 -0.5, 2 0, 1 0))
   hertel-mehlhorn:  POLYGON ((1 1, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
   boundary-extraction:  POLYGON ((1 1, 0 1, 0 0, 1 0, 1.5 -0.5, 2 0, 2 1, 2.5 1.5, 2 2, 1 2, 1 1))
@@ -7468,7 +7476,7 @@ polygons (`merge()`), and as a member function of a mesh `Mesh::Polygonize()`.
   <p align="center">
     <img src="./images/polygonize_before.png" width="260" alt="8 triangles forming an L-shape with two triangular spikes hanging off the right column, teal fill with cyan edges -- the shared Mesh2D::Polygonize() input for all three conformity modes below">
     &nbsp;&nbsp;
-    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Enforce: 3 convex polygons shaded differently -- identical to Assert/Guaranteed below, since polygonize_impl's own output is already provably conformant">
+    <img src="./images/polygonize_hertel_mehlhorn.png" width="260" alt="Mesh2D::Polygonize() with HertelMehlhorn and conformity=Enforce: 4 convex polygons shaded differently -- identical to Assert/Guaranteed below, since polygonize_impl's own output is already provably conformant">
   </p>
   <p align="center">
     <img src="./images/polygonize_before.png" width="260" alt="The same 8 triangles, before HertelMehlhorn with conformity=Guaranteed">

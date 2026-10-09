@@ -119,7 +119,7 @@ class TestMesh2D:
         assert approx(direct.area(), via_connect.area())
 
     def test_polygonize_l_shape_hertel_mehlhorn_does_not_throw_t_junction(self):
-        # 2x2 grid, top-left cell skipped: an L-shape. HertelMehlhorn returns 2 convex pieces (a 2x1
+        # 2x2 grid, top-left cell skipped: an L-shape. Plain HertelMehlhorn returns 2 convex pieces (a 2x1
         # rectangle and a 1x1 square) whose shared corner sits exactly at the midpoint of the rectangle's
         # top edge. Regression test: this used to raise here because polygonize() packaged each piece
         # via Polygon2D.make(), which silently drops that midpoint as collinear on the rectangle's ring
@@ -135,7 +135,9 @@ class TestMesh2D:
 
         poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
 
-        assert poly_mesh.size() == 2
+        # 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1, 1)
+        # as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+        assert poly_mesh.size() == 3
         assert approx(poly_mesh.area(), 3.0)
 
 class TestMesh3D:
@@ -194,7 +196,9 @@ class TestMesh3D:
 
         poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
 
-        assert poly_mesh.size() == 2
+        # 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1, 1)
+        # as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+        assert poly_mesh.size() == 3
         assert approx(poly_mesh.area(), 3.0)
 
     def test_shared_edge_welds_and_preserves_faces(self):

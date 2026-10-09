@@ -3214,6 +3214,41 @@ std::vector<g::Triangle2D> BuildGridTriangles(int rows, int cols,
   return tris;
 }
 
+// Asserts @p polys form a clean polygon mesh: no piece has a straight-through (180°) vertex, and no
+// piece's vertex lies strictly inside another piece's edge (a T-junction).
+void ExpectNoStraightVerticesNorTJunctions(std::vector<g::Polygon2D> const& polys) {
+  constexpr double kEps = 1e-9;
+  auto cross = [](g::Point2D const& a, g::Point2D const& b, g::Point2D const& c) {
+    return (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());
+  };
+  for (std::size_t pi = 0; pi < polys.size(); ++pi) {
+    auto const& ring = polys[pi].Perimeter();
+    std::size_t n = ring.size();
+    for (std::size_t i = 0; i < n; ++i) {
+      EXPECT_GT(std::abs(cross(ring[(i + n - 1) % n], ring[i], ring[(i + 1) % n])), kEps)
+          << "piece " << polys[pi].ToWkt() << " has a 180-degree vertex at " << ring[i].ToWkt();
+    }
+    for (std::size_t qi = 0; qi < polys.size(); ++qi) {
+      if (qi == pi) {
+        continue;
+      }
+      auto const& other = polys[qi].Perimeter();
+      std::size_t m = other.size();
+      for (auto const& v : ring) {
+        for (std::size_t j = 0; j < m; ++j) {
+          g::Point2D const& a = other[j];
+          g::Point2D const& b = other[(j + 1) % m];
+          double len2 = (b.x() - a.x()) * (b.x() - a.x()) + (b.y() - a.y()) * (b.y() - a.y());
+          double t = ((v.x() - a.x()) * (b.x() - a.x()) + (v.y() - a.y()) * (b.y() - a.y())) / len2;
+          bool strictly_inside = std::abs(cross(a, b, v)) < kEps && t > kEps && t < 1.0 - kEps;
+          EXPECT_FALSE(strictly_inside) << "T-junction: " << v.ToWkt() << " of " << polys[pi].ToWkt()
+                                        << " lies mid-edge on " << polys[qi].ToWkt();
+        }
+      }
+    }
+  }
+}
+
 }  // namespace
 
 TEST_F(CalcUtils2DTest, MeshTriangleFaceView2D_SharedEdgeSquare_NeighborsAcrossDiagonalOnly) {
@@ -3472,53 +3507,71 @@ TEST_F(CalcUtils2DTest, Polygonize_GridWithCenterHole_ReturnsOuterWithOneHole) {
   EXPECT_NEAR(polys[0].Area(), 8.0, 1e-9);  // 9 (outer) - 1 (hole)
 }
 
-TEST_F(CalcUtils2DTest, Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctionVertex) {
-  // 2x2 grid with the top-left cell skipped -- an L-shape with a reflex vertex at (1,1). HertelMehlhorn
-  // can't merge across the reflex corner, so it returns 2 convex pieces: a 2x1 rectangle (area 2, cells
-  // (0,0)+(0,1)) and a 1x1 square on top of it (area 1, cell (1,1)). The rectangle piece itself comes
-  // from merging 2 sub-quads (cell (0,0) and cell (0,1)), each already merged from a triangle pair, and
-  // the seam between those two sub-quads at (1,0) is genuinely redundant -- no other traced piece is
-  // adjacent to the rectangle's bottom edge, so trace_face_group_boundary()'s seam-collapse pass drops it,
-  // leaving 5 vertices (the geometric minimum 4, plus (1,1)). (1,1) is the one vertex that CANNOT collapse
-  // away even though it's just as collinear on the rectangle's own ring as (1,0) was: it's the exact
-  // midpoint of the rectangle's top edge (0,1)-(2,1) and ALSO the square piece's bottom-left corner --
-  // collapse_redundant_seams() (polygonization2d.cpp) tags each survivor edge with whatever output group
-  // lies immediately across it, and only merges two collinear edges when that tag matches on both sides.
-  // At (1,0) both flanking edges face the mesh's own outer boundary (same tag) -- collapses. At (1,1) one
-  // flanking edge faces the square's group and the other faces the outer boundary (different tags) --
-  // survives. Silently dropping it (e.g. a blind Polygon2D::Make()-style remove_collinear() pass run per
-  // piece) would leave the square's corner touching the middle of the rectangle's edge -- a T-junction
-  // PolyMesh2D::FromPolygons() would reject (see Mesh2DTest.Polygonize_LShape_HertelMehlhorn_
-  // DoesNotThrowTJunction).
+TEST_F(CalcUtils2DTest, Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions) {
+  // 2x2 grid with the top-left cell skipped -- an L-shape with a reflex vertex at (1,1). Plain
+  // HertelMehlhorn would merge the bottom row into a 2x1 rectangle, but the top square's corner (1,1)
+  // then sits mid-way along the rectangle's top edge: dropping it from the rectangle's ring is a
+  // T-junction, keeping it is a 180-degree vertex. Phase 1b of hertel_mehlhorn_polygonization()
+  // dissolves that rectangle and re-merges it with the vertex forbidden: 3 convex pieces (the left
+  // square, a triangle, and the top square fused with the other half of the bottom-right square into a
+  // parallelogram), every shared vertex a real corner on both sides.
   auto polys = g::polygonize(BuildGridTriangles(2, 2, {{1, 0}}));
-  ASSERT_EQ(polys.size(), 2u);
+  ASSERT_EQ(polys.size(), 3u);
 
   double total_area = 0.0;
-  bool found_rectangle_with_midpoint = false;
   for (auto const& p : polys) {
     total_area += p.Area();
-    if (std::abs(p.Area() - 2.0) < 1e-9) {
-      ASSERT_EQ(p.Size(), 5u);  // 4 real corners + (1,1) -- (1,0) collapses away, see comment above
-      bool has_midpoint = false;
-      bool has_dropped_seam = false;
-      for (auto const& v : p.Perimeter()) {
-        if (v.AlmostEquals(g::Point2D(1, 1))) {
-          has_midpoint = true;
-        }
-        if (v.AlmostEquals(g::Point2D(1, 0))) {
-          has_dropped_seam = true;
-        }
-      }
-      EXPECT_TRUE(has_midpoint);
-      EXPECT_FALSE(has_dropped_seam);
-      found_rectangle_with_midpoint = true;
-    } else {
-      EXPECT_NEAR(p.Area(), 1.0, 1e-9);
-      EXPECT_EQ(p.Size(), 4u);
-    }
+    EXPECT_TRUE(p.IsConvex());
   }
-  EXPECT_TRUE(found_rectangle_with_midpoint);
   EXPECT_NEAR(total_area, 3.0, 1e-9);
+  ExpectNoStraightVerticesNorTJunctions(polys);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_LShapePlusSpikes_HertelMehlhorn_NoStraightVerticesNorTJunctions) {
+  // The visual docs' §13.3 mesh: the L-shape plus a triangular spike below the bottom-right square and
+  // one right of the top square. Plain HertelMehlhorn leaves the bottom 2x1 rectangle with two
+  // load-bearing 180-degree vertices ((1,0) for the spike, (1,1) for the top piece).
+  std::vector<g::Triangle2D> tris = {
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1.5, -0.5), g::Point2D(2, 0)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+      g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
+  };
+  auto polys = g::polygonize(tris);
+
+  double total_area = 0.0;
+  for (auto const& p : polys) {
+    total_area += p.Area();
+    EXPECT_TRUE(p.IsConvex());
+  }
+  EXPECT_NEAR(total_area, 3.5, 1e-9);
+  ExpectNoStraightVerticesNorTJunctions(polys);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_Grid_HertelMehlhorn_StillMergesIntoOnePiece) {
+  // Guard against phase 1b over-splitting: a full 3x3 grid is one convex square, and the half-merged
+  // pieces HertelMehlhorn builds along the way temporarily face several not-yet-merged neighbors.
+  auto polys = g::polygonize(BuildGridTriangles(3, 3));
+  ASSERT_EQ(polys.size(), 1u);
+  EXPECT_EQ(polys[0].Size(), 4u);
+  EXPECT_NEAR(polys[0].Area(), 9.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_GridWithHoles_HertelMehlhorn_NoStraightVerticesNorTJunctions) {
+  // A 4x4 grid with two cells removed: several reflex corners, so plain HertelMehlhorn leaves multiple
+  // rectangles whose edges run straight through neighbors' corners.
+  auto polys = g::polygonize(BuildGridTriangles(4, 4, {{1, 1}, {2, 3}}));
+  double total_area = 0.0;
+  for (auto const& p : polys) {
+    total_area += p.Area();
+    EXPECT_TRUE(p.IsConvex());
+  }
+  EXPECT_NEAR(total_area, 14.0, 1e-9);
+  ExpectNoStraightVerticesNorTJunctions(polys);
 }
 
 TEST_F(CalcUtils2DTest, Polygonize_EmptyInput_Throws) {
@@ -3550,7 +3603,7 @@ TEST_F(CalcUtils2DTest, Merge_ThreeSquares_PreservesSharedTJunctionVertex) {
   // A and B share a full edge (x=1, y:0-1) and merge into a 2x1 rectangle; C only touches the merged
   // piece at the single point (1,1) (no full shared edge with A or B, so it never merges with either).
   // Regression test for the same class of bug as
-  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_PreservesSharedTJunctionVertex, but via merge()'s
+  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions, but via merge()'s
   // own packaging instead of polygonize_impl()'s: the merged AB rectangle's traced boundary must still
   // carry (1,1) as an explicit vertex (it's collinear on the AB pair alone, but load-bearing for C),
   // or C's own corner would land mid-edge on a T-junction once both pieces sat in the same PolyMesh2D.
