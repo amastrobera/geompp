@@ -1,0 +1,251 @@
+using GeomPP;
+using System.Collections.Generic;
+
+namespace GeomPPTests {
+
+public static class PolygonizeTests {
+  public static void Run(TestHarness h) {
+    void Test(string name, Action body) => h.Test(name, body);
+    void Eq(double expected, double actual, int decimals = 3) => h.Eq(expected, actual, decimals);
+    void IsTrue(bool value, string msg = "expected true") => h.IsTrue(value, msg);
+    int CountOf<T>(IEnumerable<T> items) => TestHelpers.CountOf(items);
+
+    List<Triangle2D> GridTriangles(int rows, int cols, HashSet<(int, int)>? skip = null) {
+      skip ??= new HashSet<(int, int)>();
+      var triangles = new List<Triangle2D>();
+      for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+          if (skip.Contains((r, c))) continue;
+          var p00 = new Point2D(c, r);
+          var p10 = new Point2D(c + 1, r);
+          var p11 = new Point2D(c + 1, r + 1);
+          var p01 = new Point2D(c, r + 1);
+          triangles.Add(Triangle2D.Make(p00, p10, p11));
+          triangles.Add(Triangle2D.Make(p00, p11, p01));
+        }
+      }
+      return triangles;
+    }
+
+    // ── GeomUtil.Polygonize (free function) ───────────────────────────────────────
+    Console.WriteLine("\nPolygonize (free function)");
+
+    Test("GeomUtil_Polygonize_DefaultStrategyIsHertelMehlhorn", () => {
+      IsTrue(new PolygonizationParams().Strategy == PolygonizationStrategy.HertelMehlhorn);
+    });
+
+    Test("PolygonizationParams_DefaultConformityIsAssert", () => {
+      IsTrue(new PolygonizationParams().Conformity == AdjacencyConformity.Assert);
+    });
+
+    Test("PolygonizationParams_ConformityConstructorArgAndReadWriteProperty", () => {
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn, AdjacencyConformity.Enforce);
+      IsTrue(settings.Conformity == AdjacencyConformity.Enforce);
+      settings.Conformity = AdjacencyConformity.Guaranteed;
+      IsTrue(settings.Conformity == AdjacencyConformity.Guaranteed);
+    });
+
+    Test("Mesh2D_Polygonize_LShapePlusSpikes_HertelMehlhorn_AgreesAcrossEveryConformityMode", () => {
+      // polygonize_impl's own seam-collapse logic already keeps HertelMehlhorn's output provably
+      // conformant by construction here, so Assert/Guaranteed/Enforce must all produce the exact same
+      // split -- Assert never fires, Guaranteed has nothing to skip, Enforce has nothing to fix.
+      var p00 = new Point2D(0, 0); var p10 = new Point2D(1, 0); var p11 = new Point2D(1, 1); var p01 = new Point2D(0, 1);
+      var p20 = new Point2D(2, 0); var p21 = new Point2D(2, 1); var p22 = new Point2D(2, 2); var p12 = new Point2D(1, 2);
+      var p15 = new Point2D(1.5, -0.5); var pspike = new Point2D(2.5, 1.5);
+      var mesh = Mesh2D.FromTriangles(new[] {
+        Triangle2D.Make(p00, p10, p11), Triangle2D.Make(p00, p11, p01),
+        Triangle2D.Make(p10, p21, p11), Triangle2D.Make(p10, p20, p21),
+        Triangle2D.Make(p10, p15, p20),
+        Triangle2D.Make(p11, p21, p22), Triangle2D.Make(p11, p22, p12),
+        Triangle2D.Make(p21, pspike, p22),
+      });
+
+      string[]? first = null;
+      foreach (var conformity in new[] { AdjacencyConformity.Enforce, AdjacencyConformity.Guaranteed, AdjacencyConformity.Assert }) {
+        var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn, conformity);
+        var polyMesh = mesh.Polygonize(settings);
+        var wkts = new string[polyMesh.Size()];
+        for (int i = 0; i < polyMesh.Size(); i++) wkts[i] = polyMesh[i].ToWkt();
+        if (first == null) { first = wkts; }
+        else { for (int i = 0; i < first.Length; i++) IsTrue(first[i] == wkts[i], $"conformity {conformity} disagreed with Enforce at piece {i}"); }
+      }
+      // Plain HertelMehlhorn's 2x1 bottom rectangle carries two load-bearing 180-degree vertices ((1,0) for
+      // the bottom spike, (1,1) for the top piece), so it's split. How many pieces that gives depends on
+      // triangle order (greedy merging), so check the invariants rather than a count.
+      IsTrue(first != null && first.Length >= 4, "expected at least 4 HertelMehlhorn pieces");
+      var check = mesh.Polygonize(new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn));
+      Eq(3.5, check.Area());
+      for (int i = 0; i < check.Size(); i++) {
+        var p = check[i];
+        IsTrue(p.IsConvex(), $"expected {p.ToWkt()} to be convex");
+        var ring = p.Perimeter();
+        int n = ring.Length;
+        for (int k = 0; k < n; k++) {
+          var a = ring[(k + n - 1) % n]; var b = ring[k]; var c = ring[(k + 1) % n];
+          double cross = (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+          IsTrue(System.Math.Abs(cross) > 1e-9, $"{p.ToWkt()} has a 180-degree vertex at {b.ToWkt()}");
+        }
+      }
+    });
+
+    Test("GeomUtil_Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad", () => {
+      var polys = GeomUtil.Polygonize(GridTriangles(1, 1).ToArray(), new PolygonizationParams());
+      Eq(1, CountOf(polys), 0);
+      var poly = System.Linq.Enumerable.First(polys);
+      Eq(4, poly.Size(), 0);
+      Eq(1.0, poly.Area());
+    });
+
+    Test("GeomUtil_Polygonize_PlanarBoundaryExtraction_GridWithCenterHole", () => {
+      var settings = new PolygonizationParams(PolygonizationStrategy.PlanarBoundaryExtraction);
+      var triangles = GridTriangles(3, 3, new HashSet<(int, int)> { (1, 1) });
+      var polys = GeomUtil.Polygonize(triangles.ToArray(), settings);
+      Eq(1, CountOf(polys), 0);
+      var poly = System.Linq.Enumerable.First(polys);
+      Eq(8.0, poly.Area());  // 9 (outer) - 1 (hole)
+    });
+
+    Test("GeomUtil_Polygonize_PlanarQuads_TwoTriangles_ReturnsSingleQuad", () => {
+      var settings = new PolygonizationParams(PolygonizationStrategy.PlanarQuads);
+      var polys = GeomUtil.Polygonize(GridTriangles(1, 1).ToArray(), settings);
+      Eq(1, CountOf(polys), 0);
+      var poly = System.Linq.Enumerable.First(polys);
+      Eq(4, poly.Size(), 0);
+    });
+
+    Test("GeomUtil_Polygonize_HertelMehlhorn_2x2Grid_MergesIntoOneConvexPiece", () => {
+      var settings = new PolygonizationParams(PolygonizationStrategy.HertelMehlhorn);
+      var polys = GeomUtil.Polygonize(GridTriangles(2, 2).ToArray(), settings);
+      Eq(1, CountOf(polys), 0);
+      var poly = System.Linq.Enumerable.First(polys);
+      Eq(4.0, poly.Area());
+    });
+
+    Test("GeomUtil_Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions", () => {
+      // 2x2 grid, top-left cell skipped -- an L-shape with a reflex vertex at (1, 1). Plain HertelMehlhorn
+      // would merge the bottom row into a 2x1 rectangle with the top square's corner (1,1) mid-way along
+      // its top edge: dropping it is a T-junction, keeping it is a 180-degree vertex. Polygonize()
+      // dissolves that rectangle and re-merges it with the vertex forbidden -- 3 convex pieces, every
+      // shared vertex a real corner on both sides.
+      var triangles = GridTriangles(2, 2, new HashSet<(int, int)> { (1, 0) });
+      var polys = GeomUtil.Polygonize(triangles.ToArray(), new PolygonizationParams());
+      Eq(3, CountOf(polys), 0);
+
+      double totalArea = 0.0;
+      foreach (var p in polys) {
+        totalArea += p.Area();
+        IsTrue(p.IsConvex(), $"expected {p.ToWkt()} to be convex");
+        var ring = p.Perimeter();
+        int n = ring.Length;
+        for (int i = 0; i < n; i++) {
+          var a = ring[(i + n - 1) % n]; var b = ring[i]; var c = ring[(i + 1) % n];
+          double cross = (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+          IsTrue(System.Math.Abs(cross) > 1e-9, $"{p.ToWkt()} has a 180-degree vertex at {b.ToWkt()}");
+        }
+      }
+      Eq(3.0, totalArea);
+    });
+
+    Test("GeomUtil_Polygonize_EmptyInput_Throws", () => {
+      bool threw = false;
+      try { GeomUtil.Polygonize(new Triangle2D[] { }, new PolygonizationParams()); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected empty triangle list to throw");
+    });
+
+    Test("GeomUtil_Polygonize_NonManifoldInput_Throws", () => {
+      var a = Triangle2D.Make(new Point2D(0, 0), new Point2D(1, 0), new Point2D(0.5, 1));
+      var b = Triangle2D.Make(new Point2D(1, 0), new Point2D(0, 0), new Point2D(0.5, -1));
+      var c = Triangle2D.Make(new Point2D(1, 0), new Point2D(0, 0), new Point2D(0.5, -2));
+      bool threw = false;
+      try { GeomUtil.Polygonize(new[] { a, b, c }, new PolygonizationParams()); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected non-manifold input to throw");
+    });
+
+    Test("GeomUtil_Polygonize_3D_TiltedSquareFromTwoTriangles", () => {
+      var p00 = new Point3D(0, 0, 0);
+      var p10 = new Point3D(1, 0, 1);
+      var p11 = new Point3D(1, 1, 1);
+      var p01 = new Point3D(0, 1, 0);
+      var triangles = new[] { Triangle3D.Make(p00, p10, p11), Triangle3D.Make(p00, p11, p01) };
+      var polys = GeomUtil.Polygonize(triangles, new PolygonizationParams());
+      Eq(1, CountOf(polys), 0);
+      var poly = System.Linq.Enumerable.First(polys);
+      Eq(4, poly.Size(), 0);
+      Eq(System.Math.Sqrt(2.0), poly.Area());
+    });
+
+    // ── GeomUtil.Merge (free function) ────────────────────────────────────────────
+    Console.WriteLine("\nMerge (free function)");
+
+    Test("GeomUtil_Merge_EmptyInput_ReturnsEmpty", () => {
+      var result = GeomUtil.Merge(new Polygon2D[] { });
+      Eq(0, CountOf(result), 0);
+    });
+
+    Test("GeomUtil_Merge_TwoTouchingSquares_ReturnsSingleMergedOuter", () => {
+      var a = Polygon2D.Make(new Point2D[] { new(0, 0), new(2, 0), new(2, 2), new(0, 2) });
+      var b = Polygon2D.Make(new Point2D[] { new(2, 0), new(4, 0), new(4, 2), new(2, 2) });
+      var result = GeomUtil.Merge(new[] { a, b });
+      Eq(1, CountOf(result), 0);
+      var poly = System.Linq.Enumerable.First(result);
+      Eq(8.0, poly.Area());
+    });
+
+    Test("GeomUtil_Merge_ThreeSquares_PreservesSharedTJunctionVertex", () => {
+      // a and b share a full edge (x=1, y:0-1) and merge into a 2x1 rectangle; c only touches the
+      // merged piece at the single point (1, 1) (no full shared edge with a or b). Regression test for
+      // the same class of bug as the Polygonize() version above, but via Merge()'s own packaging.
+      var a = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var b = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
+      var c = Polygon2D.Make(new Point2D[] { new(1, 1), new(1.5, 1), new(1.5, 1.5), new(1, 1.5) });
+      var result = GeomUtil.Merge(new[] { a, b, c });
+
+      Polygon2D? rectangle = null;
+      double totalArea = 0.0;
+      foreach (var p in result) {
+        totalArea += p.Area();
+        if (System.Math.Abs(p.Area() - 2.0) < 1e-9) rectangle = p;
+      }
+      IsTrue(rectangle != null, "expected a piece with area 2.0");
+      bool hasMidpoint = false;
+      foreach (var v in rectangle!.Perimeter()) {
+        if (v.AlmostEquals(new Point2D(1, 1))) hasMidpoint = true;
+      }
+      IsTrue(hasMidpoint, "expected the rectangle to keep (1,1) as an explicit vertex");
+      Eq(2.25, totalArea);  // 2.0 (rectangle) + 0.25 (c)
+    });
+
+    Test("GeomUtil_Merge_TwoDisjointSquares_ReturnsBothUnchanged", () => {
+      var a = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      var b = Polygon2D.Make(new Point2D[] { new(10, 0), new(11, 0), new(11, 1), new(10, 1) });
+      var result = GeomUtil.Merge(new[] { a, b });
+      Eq(2, CountOf(result), 0);
+    });
+
+    Test("GeomUtil_Merge_TwoPolygonsWithTouchingHoles_MergesIntoOneBiggerHole", () => {
+      // Holes must be given in CW order -- Polygon2D.Make rejects a CCW hole outright.
+      var a = Polygon2D.Make(
+          new Point2D[] { new(0, 0), new(2, 0), new(2, 2), new(0, 2) },
+          new Point2D[][] { new Point2D[] { new(1, 0.5), new(1, 1.5), new(2, 1.5), new(2, 0.5) } });
+      var b = Polygon2D.Make(
+          new Point2D[] { new(2, 0), new(4, 0), new(4, 2), new(2, 2) },
+          new Point2D[][] { new Point2D[] { new(2, 0.5), new(2, 1.5), new(3, 1.5), new(3, 0.5) } });
+      var result = GeomUtil.Merge(new[] { a, b });
+      Eq(1, CountOf(result), 0);
+      var poly = System.Linq.Enumerable.First(result);
+      IsTrue(poly.HasHoles(), "expected the merged polygon to have a hole");
+      Eq(6.0, poly.Area());  // 8 (outer) - 2 (merged 1x2 hole)
+    });
+
+    Test("GeomUtil_Merge_3D_TwoParallelSameNormalDifferentOffsetSquares_StayUnmerged", () => {
+      var a = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+      var b = Polygon3D.Make(new Point3D[] { new(0, 0, 5), new(1, 0, 5), new(1, 1, 5), new(0, 1, 5) });
+      var result = GeomUtil.Merge(new[] { a, b });
+      Eq(2, CountOf(result), 0);
+    });
+  }
+}
+
+}  // namespace GeomPPTests

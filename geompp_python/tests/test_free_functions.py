@@ -232,3 +232,34 @@ class TestFreeFunctions:
         pts = [geompp.Point3D(0, 0, 0), geompp.Point3D(2, 0, 0),
                geompp.Point3D(2, 2, 0), geompp.Point3D(0, 2, 0)]
         assert (geompp.signed_area(pts) > 0) == geompp.are_ccw(pts, None)
+
+    def test_is_axis_monotone_ccw_square_y_direction_returns_true(self):
+        ring = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        assert geompp.is_axis_monotone(ring, geompp.Vector2D(0, 1)) == True
+
+    def test_is_axis_monotone_w_shape_y_direction_returns_false(self):
+        # W-shape: two local y-minima
+        ring = [geompp.Point2D(0, 0), geompp.Point2D(1, 2), geompp.Point2D(2, 0), geompp.Point2D(3, 2),
+                geompp.Point2D(4, 0), geompp.Point2D(4, 4), geompp.Point2D(0, 4)]
+        assert geompp.is_axis_monotone(ring, geompp.Vector2D(0, 1)) == False
+
+    def test_is_axis_monotone_polygon_overload_matches_ring(self):
+        ring = [geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)]
+        poly = geompp.Polygon2D.make(ring)
+        assert geompp.is_axis_monotone(poly, geompp.Vector2D(0, 1)) == geompp.is_axis_monotone(ring, geompp.Vector2D(0, 1))
+
+    def test_in_circumcircle_point_inside_returns_true(self):
+        a, b, c = geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(1, 2)
+        p = geompp.Point2D(1, 0.5)
+        assert geompp.in_circumcircle(a, b, c, p) == True
+
+    def test_in_circumcircle_point_outside_returns_false(self):
+        a, b, c = geompp.Point2D(0, 0), geompp.Point2D(2, 0), geompp.Point2D(1, 2)
+        p = geompp.Point2D(5, 5)
+        assert geompp.in_circumcircle(a, b, c, p) == False
+
+    def test_in_circumcircle_point_on_circle_returns_false(self):
+        # Right triangle — (1,1) lies on the circumcircle
+        a, b, c = geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(0, 1)
+        p = geompp.Point2D(1, 1)
+        assert geompp.in_circumcircle(a, b, c, p) == False

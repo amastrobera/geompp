@@ -89,3 +89,20 @@ The composed matrix so far.
 `Matrix4^ Build()`
 
 Copy of the composed matrix so far same value as Get() , but by value for a caller who wants to keep it independent of this builder's further chaining.
+
+## `Apply`
+
+`T^ Apply(T^ shape)`
+
+Applies the composed matrix to shape and returns the transformed copy shorthand for transform(shape, builder.Get()), for any 3D primitive transform() has an overload for ( [Point3D](Point3D.md) , [Polygon3D](Polygon3D.md) , [Mesh3D](Mesh3D.md) , ...).
+
+Doesn't consume or store shape the builder keeps composing normally afterward, so the same chain can Apply() to several different shapes.
+
+**Parameters**
+
+- `shape` (`T^`)
+
+
+---
+
+**See also:** [Mesh3D](Mesh3D.md), [Point3D](Point3D.md), [Polygon3D](Polygon3D.md)

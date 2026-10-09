@@ -312,13 +312,14 @@ def parse_class_xml(xml_path: Path):
 GEOMETRY_FREE_FUNCTIONS = {
     "are_ccw", "are_collinear", "are_coplanar", "are_cw", "average",
     "bezier_smoothing_2", "centroid", "clip", "closest_world_plane_to",
-    "convex_hull", "dist_decimation", "distance_to", "find_extreme_points",
-    "find_intersections", "fix_adjacency", "has_intersections", "lerp",
-    "linear_combination", "polyline_expansion", "principal_axes",
-    "principal_direction", "principal_normal", "rdp_decimation",
-    "remove_collinear", "remove_consecutive_duplicates", "remove_duplicates",
-    "signed_area", "tangents_to", "triangulate", "validate_adjacency",
-    "vw_decimation",
+    "convex_hull", "delaunay", "dist_decimation", "distance_to", "find_extreme_points",
+    "find_intersections", "fix_adjacency", "has_intersections", "in_circumcircle",
+    "is_axis_monotone", "lerp",
+    "linear_combination", "merge", "polygonize", "polyline_expansion",
+    "principal_axes", "principal_direction", "principal_normal",
+    "rdp_decimation", "remove_collinear", "remove_consecutive_duplicates",
+    "remove_duplicates", "signed_area", "tangents_to", "triangulate",
+    "validate_adjacency", "vw_decimation",
 }
 MATHS_FREE_FUNCTIONS = {"solve_gauss", "solve_cramer"}
 TRANSFORMATIONS_FREE_FUNCTIONS = {"translate", "rotate", "scale", "shear", "reflect", "transform"}

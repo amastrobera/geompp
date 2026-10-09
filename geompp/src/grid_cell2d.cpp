@@ -168,67 +168,9 @@ GridCellMapForConnectedMesh2D GridCellMapForConnectedMesh2D::Make(std::vector<Tr
     triangle_indices.push_back(i2);
   }
 
-  // refs containg the neighbour edge (or twin edge, or other half-edge) for each of the 3 edges of each triangle
-  std::vector<std::array<detail::TriangleCompactNeighborRef, 3>> neighbour_refs;
-  neighbour_refs.reserve(n_triangles);
-  //  \_ safery on numerical limits of this computer
-  if (triangle_indices.size() > std::numeric_limits<std::uint32_t>::max()) {
-    throw std::overflow_error("Mesh vertex count exceeds 32-bit limit (4.29B vertices).");
-  }
-  if (n_triangles >= (1ULL << 30)) {
-    throw std::overflow_error("Mesh triangle count exceeds TriangleCompactNeighborRef limit (1.07B triangles).");
-  }
-  //  \_ init to nothing
-  for (auto const& t : triangles) {
-    neighbour_refs.push_back(
-        {detail::TriangleCompactNeighborRef(-1, detail::TriangleCompactNeighborRef::TriangleEdge::FIRST),
-         detail::TriangleCompactNeighborRef(-1, detail::TriangleCompactNeighborRef::TriangleEdge::SECOND),
-         detail::TriangleCompactNeighborRef(-1, detail::TriangleCompactNeighborRef::TriangleEdge::THIRD)});
-  }
-  // \_ get a hashmap to save edges and their twins (based on triangle indices)
-  std::unordered_map<std::uint64_t, detail::TriangleCompactNeighborRef> edge_map;
-  edge_map.reserve(n_triangles * 3);
-  auto make_edge_key = [](std::size_t u, std::size_t v) -> std::uint64_t {
-    // Fail fast in Debug mode if vertex indices overflow 32-bit limits
-    assert(u <= std::numeric_limits<std::uint32_t>::max() && "Vertex index 'u' exceeds 32-bit limits!");
-    assert(v <= std::numeric_limits<std::uint32_t>::max() && "Vertex index 'v' exceeds 32-bit limits!");
-
-    return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(u)) << 32) | static_cast<std::uint32_t>(v);
-  };
-
-  for (std::size_t t = 0; t < n_triangles; ++t) {  // used to pick the specific triangle in the neighbour_refs array
-
-    std::size_t tri_id = t * 3;  // used to pick triangle points, in the triangle_indices array
-
-    for (std::size_t edge_id = 0; edge_id < 3; ++edge_id) {
-      std::size_t p_idx1 = tri_id + edge_id;
-      std::size_t p_idx2 = tri_id + (edge_id + 1) % 3;
-
-      std::uint32_t u = triangle_indices[p_idx1];
-      std::uint32_t v = triangle_indices[p_idx2];
-
-      // TriangleEdge is 0-indexed (FIRST=0, SECOND=1, THIRD=2), matching neighbour_refs' std::array.
-      auto local_edge = static_cast<detail::TriangleCompactNeighborRef::TriangleEdge>(edge_id);
-
-      // Look for the opposite twin edge (v -> u)
-      std::uint64_t twin_key = make_edge_key(v, u);
-      if (auto search = edge_map.find(twin_key); search != edge_map.end()) {
-        //  \_ see if the twice edge exists, and if so set the neighbouring data for both the edge and its twin
-
-        detail::TriangleCompactNeighborRef neighbor_ref = search->second;
-
-        // Wire up both sides of the adjacency link
-        neighbour_refs[t][edge_id] = neighbor_ref;
-        neighbour_refs[neighbor_ref.triangle_id()][static_cast<size_t>(neighbor_ref.edge_id())] =
-            detail::TriangleCompactNeighborRef(t, local_edge);
-
-      } else {
-        //  \_ save the edge, if it doesn't exist
-        std::uint64_t my_key = make_edge_key(u, v);
-        edge_map[my_key] = detail::TriangleCompactNeighborRef(t, local_edge);
-      }
-    }
-  }
+  // Adjacency: per-facet neighbor refs, purely from the already-welded indices above (no re-welding).
+  std::vector<std::array<detail::TriangleCompactNeighborRef, 3>> neighbour_refs =
+      detail::build_neighbor_refs(triangle_indices.data(), n_triangles);
 
   // transform the deque in vector (1 allocation, using move)
   std::vector<Point2D> unique_vertices(std::make_move_iterator(point_deque.begin()),

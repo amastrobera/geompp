@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../point3d.hpp"
+#include "../vector3d.hpp"
 
 #include <optional>
 #include <vector>
@@ -40,6 +41,15 @@ bool is_simple(std::vector<Point3D> const& points, Vector3D const& normal);
 /// the caller doesn't already have one on hand — mirrors triangulate()'s two-overload pattern.
 /// @param points ring vertices, in order (implicitly closed). Must contain at least 3 non-collinear points.
 bool is_simple(std::vector<Point3D> const& points);
+
+class Polygon3D;
+
+/// @brief Whether @p ring is monotone with respect to @p direction — at most one local maximum and
+/// one local minimum projected onto direction.
+/// @param ring  ring vertices (implicitly closed).
+/// @param direction  scan direction (need not be normalized).
+bool is_axis_monotone(std::vector<Point3D> const& ring, Vector3D const& direction);
+bool is_axis_monotone(Polygon3D const& polygon, Vector3D const& direction);
 
 }  // namespace geometry
 

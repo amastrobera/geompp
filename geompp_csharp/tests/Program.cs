@@ -40,6 +40,7 @@ GeometryCollection2DTests.Run(h);
 GeometryCollection3DTests.Run(h);
 ConvexHullTests.Run(h);
 TriangulateTests.Run(h);
+PolygonizeTests.Run(h);
 CurveSmoothingTests.Run(h);
 DecimationTests.Run(h);
 PolylineExpansionTests.Run(h);

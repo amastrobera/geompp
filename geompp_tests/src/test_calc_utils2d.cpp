@@ -1,6 +1,7 @@
 #include "calc_utils2d.hpp"
 
 #include "constants.hpp"
+#include "grid_cell2d.hpp"
 #include "line2d.hpp"
 #include "line_segment2d.hpp"
 #include "point2d.hpp"
@@ -13,12 +14,14 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <iostream>
 #include <optional>
 #include <random>
 #include <set>
+#include <string>
 #include <vector>
 
 namespace g  = geompp;
@@ -1695,17 +1698,576 @@ TEST_F(CalcUtils2DTest, Triangulate_EarClippingBestFitStrategy_IsTheDefaultAndSu
   EXPECT_NEAR(total_area, 1.0, 1e-9);
 }
 
-TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygonStrategy_Throws) {
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Square_ProducesTwoTrianglesCoveringFullArea) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
   g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
-  EXPECT_THROW(g::triangulate(square, settings), std::runtime_error);
+  auto triangles = g::triangulate(square, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 1.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
 }
 
-TEST_F(CalcUtils2DTest, Triangulate_DelaunayStrategy_Throws) {
-  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  g::TriangulationParams settings{g::TriangulationParams::Strategy::Delaunay};
-  EXPECT_THROW(g::triangulate(square, settings), std::runtime_error);
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_ConvexPentagon_ProducesThreeTriangles) {
+  std::vector<g::Point2D> pentagon = {{0, 0}, {4, 0}, {4, 3}, {2, 5}, {0, 3}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  auto triangles = g::triangulate(pentagon, settings);
+
+  ASSERT_EQ(triangles.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
 }
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Diamond_ProducesTwoTriangles) {
+  std::vector<g::Point2D> diamond = {{0, 0}, {1, -1}, {2, 0}, {1, 1}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  auto triangles = g::triangulate(diamond, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 2.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_LShape_ProducesFourTriangles) {
+  std::vector<g::Point2D> lshape = {{0, 0}, {2, 0}, {2, 2}, {1, 2}, {1, 1}, {0, 1}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  auto triangles = g::triangulate(lshape, settings);
+
+  ASSERT_EQ(triangles.size(), 4u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 3.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+#pragma region TriangulationParams::Monotonicity (partition into y-monotone pieces)
+
+TEST_F(CalcUtils2DTest, TriangulationParams_Monotonicity_DefaultsToGuaranteed) {
+  g::TriangulationParams settings{};
+  EXPECT_EQ(settings.monotonicity, g::TriangulationParams::Monotonicity::Guaranteed);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Assert_NonMonotoneStar_Throws) {
+  // Same 5-pointed star as visual_doc_and_sample_code.md §12.2 -- fails is_axis_monotone on every axis.
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::MonotonePolygon};
+  settings.monotonicity = g::TriangulationParams::Monotonicity::Assert;
+  EXPECT_THROW(g::triangulate(star, settings), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_NonMonotoneStar_MatchesEarClippingArea) {
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+  ASSERT_FALSE(g::is_axis_monotone(star, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(star, enforced);
+  ASSERT_EQ(tris.size(), star.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  // Cross-check against a strategy that never required monotonicity at all -- both triangulate the
+  // exact same simple polygon, so the total covered area must match.
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(star, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_AlreadyMonotoneComb_MatchesGuaranteedExactly) {
+  // Same 3-tooth comb as §12.2 -- already y-monotone, so Enforce must take the exact same code path
+  // as Guaranteed (is_y_monotone short-circuits before any partitioning is attempted) and produce a
+  // byte-identical result.
+  std::vector<g::Point2D> comb = {
+      {5, 0}, {5, 10}, {4, 10}, {4, 9}, {3, 9}, {3, 10},
+      {2, 10}, {2, 9}, {1, 9}, {1, 10}, {0, 10}, {0, 0},
+  };
+  ASSERT_TRUE(g::is_axis_monotone(comb, g::Vector2D{0, 1}));
+
+  g::TriangulationParams guaranteed{g::TriangulationParams::Strategy::MonotonePolygon};
+  guaranteed.monotonicity = g::TriangulationParams::Monotonicity::Guaranteed;
+  auto guaranteed_tris = g::triangulate(comb, guaranteed);
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto enforced_tris = g::triangulate(comb, enforced);
+
+  ASSERT_EQ(guaranteed_tris.size(), enforced_tris.size());
+  for (std::size_t i = 0; i < guaranteed_tris.size(); ++i) {
+    EXPECT_EQ(guaranteed_tris[i].ToWkt(), enforced_tris[i].ToWkt());
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_MultipleSplitVertices_ProducesCorrectTriangulation) {
+  // Same "W" shape as IsAxisMonotone_NonMonotone_ReturnsFalse -- 2 reflex local maxima (split
+  // vertices) and 0 merge vertices, decomposing into 3 y-monotone pieces (a quad, a quad, a triangle).
+  std::vector<g::Point2D> w_shape = {{0, 0}, {1, 2}, {2, 0}, {3, 2}, {4, 0}, {4, 4}, {0, 4}};
+  ASSERT_FALSE(g::is_axis_monotone(w_shape, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(w_shape, enforced);
+  ASSERT_EQ(tris.size(), w_shape.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(w_shape, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_XMonotoneNotYMonotone_StillTriangulatesCorrectly) {
+  // A "known limitation" regression case (see TriangulationParams::Monotonicity's own doc): monotone
+  // along X, but not along Y (a zigzag "sawtooth" top chain, monotonically decreasing in X). Enforce
+  // only ever sweeps along Y, so it still decomposes this rather than recognizing the cheaper
+  // single-pass X-sweep a smarter direction choice could have used -- but the result must still be a
+  // correct, full-area, non-degenerate triangulation.
+  std::vector<g::Point2D> shape = {
+      {0, 0}, {10, 0}, {10, 10}, {8, 5}, {6, 10}, {4, 5}, {2, 10}, {0, 10},
+  };
+  ASSERT_TRUE(g::is_axis_monotone(shape, g::Vector2D{1, 0}));
+  ASSERT_FALSE(g::is_axis_monotone(shape, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(shape, enforced);
+  ASSERT_EQ(tris.size(), shape.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(shape, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_MonotonePolygon_Enforce_TwoVerticesAtSameY_HandledByTotalOrderTiebreak) {
+  // Two distinct local maxima sharing the exact same y (a "flat-topped W"): exercises the total-order
+  // event tiebreak (y descending, x ascending) that makes the sweep well-defined even when raw y alone
+  // can't distinguish two events.
+  std::vector<g::Point2D> shape = {{0, 0}, {1, 3}, {2, 0}, {3, 3}, {4, 0}, {4, 4}, {0, 4}};
+  ASSERT_FALSE(g::is_axis_monotone(shape, g::Vector2D{0, 1}));
+
+  g::TriangulationParams enforced{g::TriangulationParams::Strategy::MonotonePolygon};
+  enforced.monotonicity = g::TriangulationParams::Monotonicity::Enforce;
+  auto tris = g::triangulate(shape, enforced);
+  ASSERT_EQ(tris.size(), shape.size() - 2);
+
+  double enforced_area = 0.0;
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    enforced_area += t.Area();
+  }
+
+  g::TriangulationParams reference{g::TriangulationParams::Strategy::EarClippingBestFit};
+  auto ref_tris = g::triangulate(shape, reference);
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(enforced_area, reference_area, 1e-6);
+}
+
+#pragma endregion
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Square_ProducesTwoTrianglesCoveringFullArea) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::ConstrainedDelaunay};
+  auto triangles = g::triangulate(square, settings);
+
+  ASSERT_EQ(triangles.size(), 2u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 1.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Pentagon_ProducesThreeTriangles) {
+  std::vector<g::Point2D> pentagon = {{0, 0}, {4, 0}, {4, 3}, {2, 5}, {0, 3}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::ConstrainedDelaunay};
+  auto triangles = g::triangulate(pentagon, settings);
+
+  ASSERT_EQ(triangles.size(), 3u);
+  double total_area = 0.0;
+  for (auto const& t : triangles) {
+    total_area += t.Area();
+  }
+  EXPECT_NEAR(total_area, 16.0, 1e-6);
+  for (auto const& t : triangles) {
+    EXPECT_GE(t.Area(), 0.0);
+  }
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_AllTrianglesHavePositiveArea) {
+  std::vector<g::Point2D> octagon = {
+      {2, 0}, {4, 0}, {6, 2}, {6, 4}, {4, 6}, {2, 6}, {0, 4}, {0, 2}};
+  g::TriangulationParams settings{g::TriangulationParams::Strategy::ConstrainedDelaunay};
+  auto triangles = g::triangulate(octagon, settings);
+
+  ASSERT_EQ(triangles.size(), 6u);
+  for (auto const& t : triangles) {
+    EXPECT_GT(t.Area(), 0.0);
+  }
+}
+
+#pragma region ConstrainedDelaunay strategy / delaunay() point cloud
+
+namespace {
+
+// Each triangle's 3 vertices, CCW-ordered.
+std::array<g::Point2D, 3> ccw_vertices(g::Triangle2D const& t) {
+  auto [a, b, c] = t.Vertices();
+  if (t.IsCCW()) {
+    return {a, b, c};
+  }
+  return {a, c, b};
+}
+
+// Canonical string key per triangle (sorted vertex coordinates), for order-independent comparison.
+std::set<std::string> triangle_keys(std::vector<g::Triangle2D> const& tris) {
+  std::set<std::string> keys;
+  for (auto const& t : tris) {
+    std::vector<std::pair<double, double>> pts;
+    for (auto const& p : ccw_vertices(t)) {
+      pts.push_back({std::round(p.x() * 1000.0) / 1000.0, std::round(p.y() * 1000.0) / 1000.0});
+    }
+    std::sort(pts.begin(), pts.end());
+    std::string k;
+    for (auto const& [x, y] : pts) {
+      k += std::to_string(x) + "," + std::to_string(y) + ";";
+    }
+    keys.insert(k);
+  }
+  return keys;
+}
+
+// No point of @p points lies strictly inside any triangle's circumcircle (global Delaunay property).
+bool is_globally_delaunay(std::vector<g::Triangle2D> const& tris, std::vector<g::Point2D> const& points) {
+  for (auto const& t : tris) {
+    auto v = ccw_vertices(t);
+    for (auto const& p : points) {
+      if (g::in_circumcircle(v[0], v[1], v[2], p)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// For every pair of triangles sharing an edge, the opposite vertex of one does not lie strictly inside
+// the other's circumcircle (local Delaunay property -- what a CDT guarantees across internal edges).
+bool is_locally_delaunay(std::vector<g::Triangle2D> const& tris) {
+  for (std::size_t i = 0; i < tris.size(); ++i) {
+    auto vi = ccw_vertices(tris[i]);
+    for (std::size_t j = 0; j < tris.size(); ++j) {
+      if (i == j) {
+        continue;
+      }
+      int shared = 0;
+      std::optional<g::Point2D> opposite;
+      for (auto const& p : ccw_vertices(tris[j])) {
+        bool in_i = std::any_of(vi.begin(), vi.end(), [&](g::Point2D const& q) { return q.AlmostEquals(p); });
+        if (in_i) {
+          ++shared;
+        } else {
+          opposite = p;
+        }
+      }
+      if (shared == 2 && g::in_circumcircle(vi[0], vi[1], vi[2], *opposite)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+double total_area(std::vector<g::Triangle2D> const& tris) {
+  double area = 0.0;
+  for (auto const& t : tris) {
+    area += t.Area();
+  }
+  return area;
+}
+
+std::vector<g::Point2D> star_points() {
+  return {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+}
+
+std::vector<g::Point2D> comb_points() {
+  return {
+      {5, 0}, {5, 10}, {4, 10}, {4, 9}, {3, 9}, {3, 10},
+      {2, 10}, {2, 9}, {1, 9}, {1, 10}, {0, 10}, {0, 0},
+  };
+}
+
+g::TriangulationParams cdt_params() {
+  return g::TriangulationParams{g::TriangulationParams::Strategy::ConstrainedDelaunay};
+}
+
+}  // namespace
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Comb_StaysInsidePolygon) {
+  auto comb = comb_points();
+  auto poly = g::Polygon2D::Make(comb);
+  auto tris = g::triangulate(comb, cdt_params());
+
+  ASSERT_EQ(tris.size(), comb.size() - 2);  // 10, not unconstrained Delaunay's 14 hull triangles
+  EXPECT_NEAR(total_area(tris), poly.Area(), 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    EXPECT_TRUE(poly.Contains(t.Centroid())) << t.ToWkt();
+  }
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_Star_StaysInsidePolygon) {
+  auto star = star_points();
+  auto poly = g::Polygon2D::Make(star);
+  auto tris = g::triangulate(star, cdt_params());
+
+  ASSERT_EQ(tris.size(), star.size() - 2);  // 8, not unconstrained Delaunay's 13
+  EXPECT_NEAR(total_area(tris), poly.Area(), 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+    EXPECT_TRUE(poly.Contains(t.Centroid())) << t.ToWkt();
+  }
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ConvexPolygon_EqualsUnconstrainedDelaunay) {
+  // For a convex polygon the boundary constrains nothing, so the CDT must be exactly the point set's
+  // Delaunay triangulation. No 4 vertices are cocircular, so that triangulation is unique.
+  std::vector<g::Point2D> hexagon = {{0, 0}, {5, 0.3}, {7, 2.2}, {6.1, 5}, {2, 6.4}, {-1, 3.3}};
+  auto cdt = g::triangulate(hexagon, cdt_params());
+  auto dt  = g::delaunay(hexagon);
+
+  ASSERT_EQ(cdt.size(), 4u);
+  ASSERT_EQ(dt.size(), 4u);
+  EXPECT_EQ(triangle_keys(cdt), triangle_keys(dt));
+  EXPECT_TRUE(is_globally_delaunay(cdt, hexagon));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ShallowArc_GloballyDelaunay) {
+  // A shallow convex arc: fan-style triangulations produce long slivers here; the CDT of a convex
+  // polygon must be globally Delaunay.
+  std::vector<g::Point2D> arc = {{0, 0}, {10, 0}, {9, 1.5}, {7, 2.4}, {5, 2.7}, {3, 2.4}, {1, 1.5}};
+  auto tris = g::triangulate(arc, cdt_params());
+
+  ASSERT_EQ(tris.size(), arc.size() - 2);
+  EXPECT_TRUE(is_globally_delaunay(tris, arc));
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(arc).Area(), 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ClockwiseInput_EnforcedWinding) {
+  auto star = star_points();
+  std::reverse(star.begin(), star.end());
+  auto tris = g::triangulate(star, cdt_params());
+
+  ASSERT_EQ(tris.size(), star.size() - 2);
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(star_points()).Area(), 1e-6);
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, Triangulate_ConstrainedDelaunay_ManyPointedStar_StressLocallyDelaunay) {
+  // 25-pointed star, 50 vertices, alternating radii with a wobble so no 4 points are cocircular.
+  constexpr int tips = 25;
+  constexpr double pi = 3.14159265358979323846;
+  std::vector<g::Point2D> star;
+  for (int i = 0; i < 2 * tips; ++i) {
+    double angle  = pi * i / tips;
+    double radius = (i % 2 == 0) ? 10.0 + 0.37 * (i % 5) : 4.0 + 0.21 * (i % 3);
+    star.push_back({radius * std::cos(angle), radius * std::sin(angle)});
+  }
+  auto poly = g::Polygon2D::Make(star);
+  auto tris = g::triangulate(star, cdt_params());
+
+  ASSERT_EQ(tris.size(), star.size() - 2);
+  EXPECT_NEAR(total_area(tris), poly.Area(), 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_TRUE(poly.Contains(t.Centroid())) << t.ToWkt();
+  }
+  EXPECT_TRUE(is_locally_delaunay(tris));
+}
+
+TEST_F(CalcUtils2DTest, ConstrainedDelaunayTriangulation_CalledDirectly_KeepsEveryRingEdge) {
+  auto comb = comb_points();
+  auto tris = gd::view::constrained_delaunay_triangulation(comb, g::View2D::XY());
+  ASSERT_EQ(tris.size(), comb.size() - 2);
+
+  // every ring edge (i, i+1) must appear in exactly one triangle
+  for (std::size_t i = 0; i < comb.size(); ++i) {
+    std::size_t a = i;
+    std::size_t b = (i + 1) % comb.size();
+    int owners = 0;
+    for (auto const& t : tris) {
+      bool has_a = std::find(t.begin(), t.end(), a) != t.end();
+      bool has_b = std::find(t.begin(), t.end(), b) != t.end();
+      if (has_a && has_b) {
+        ++owners;
+      }
+    }
+    EXPECT_EQ(owners, 1) << "ring edge " << a << "-" << b;
+  }
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_Square_TwoTrianglesCoveringFullArea) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  auto tris = g::delaunay(square);
+  ASSERT_EQ(tris.size(), 2u);
+  EXPECT_NEAR(total_area(tris), 1.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_StarPoints_CoversConvexHull) {
+  auto star = star_points();
+  auto tris = g::delaunay(star);
+
+  ASSERT_EQ(tris.size(), 13u);  // 2n - h - 2 = 20 - 5 - 2
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(g::convex_hull(star)).Area(), 1e-6);
+  EXPECT_TRUE(is_globally_delaunay(tris, star));
+  for (auto const& t : tris) {
+    EXPECT_TRUE(t.IsCCW());
+  }
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_SquareWithCenter_FourTriangles) {
+  std::vector<g::Point2D> pts = {{0, 0}, {2, 0}, {2, 2}, {0, 2}, {1, 1}};
+  auto tris = g::delaunay(pts);
+  ASSERT_EQ(tris.size(), 4u);
+  EXPECT_NEAR(total_area(tris), 4.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_InputOrderDoesNotChangeCoverage) {
+  auto star     = star_points();
+  auto shuffled = star;
+  std::mt19937 rng(42);
+  std::shuffle(shuffled.begin(), shuffled.end(), rng);
+
+  auto a = g::delaunay(star);
+  auto b = g::delaunay(shuffled);
+  ASSERT_EQ(a.size(), b.size());
+  EXPECT_NEAR(total_area(a), total_area(b), 1e-6);
+  EXPECT_TRUE(is_globally_delaunay(b, star));
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_DuplicatePoints_Ignored) {
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 0}, {1, 1}, {0, 1}, {1, 1}, {0, 0}, {0.0001, 0.0}};
+  auto tris = g::delaunay(pts);
+  ASSERT_EQ(tris.size(), 2u);
+  EXPECT_NEAR(total_area(tris), 1.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_AllCollinear_NoTriangles) {
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 1}, {2, 2}, {3, 3}};
+  EXPECT_TRUE(g::delaunay(pts).empty());
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_CollinearHullEdge_NoDegenerateTriangles) {
+  // 3 points on the bottom hull edge plus an apex: 2 triangles, none zero-area.
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 0}, {2, 0}, {1, 3}};
+  auto tris = g::delaunay(pts);
+  ASSERT_EQ(tris.size(), 2u);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+  }
+  EXPECT_NEAR(total_area(tris), 3.0, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_RandomCloud_GloballyDelaunayAndCoversHull) {
+  std::mt19937 rng(7);
+  std::uniform_real_distribution<double> dist(0.0, 100.0);
+  std::vector<g::Point2D> pts;
+  for (int i = 0; i < 200; ++i) {
+    pts.push_back({dist(rng), dist(rng)});
+  }
+  auto tris = g::delaunay(pts);
+  auto hull = g::convex_hull(pts);
+
+  EXPECT_EQ(tris.size(), 2 * pts.size() - hull.size() - 2);
+  EXPECT_NEAR(total_area(tris), g::Polygon2D::Make(hull).Area(), 1e-3);
+  EXPECT_TRUE(is_globally_delaunay(tris, pts));
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_Grid5x5_CollinearHullAndCocircularQuads) {
+  // Regression: the old finite-super-triangle Bowyer-Watson dropped near-collinear hull triangles.
+  // A grid stresses both degeneracies at once: 16 collinear boundary points, every cell cocircular.
+  std::vector<g::Point2D> pts;
+  for (int i = 0; i < 5; ++i) {
+    for (int j = 0; j < 5; ++j) {
+      pts.push_back({static_cast<double>(i), static_cast<double>(j)});
+    }
+  }
+  auto tris = g::delaunay(pts);
+
+  EXPECT_EQ(tris.size(), 32u);  // 2n - h - 2 = 50 - 16 - 2, h counting collinear boundary points
+  EXPECT_NEAR(total_area(tris), 16.0, 1e-6);
+  for (auto const& t : tris) {
+    EXPECT_GT(t.Area(), 0.0);
+  }
+  EXPECT_TRUE(is_globally_delaunay(tris, pts));
+}
+
+TEST_F(CalcUtils2DTest, Delaunay_FewerThanThreePoints_Throws) {
+  EXPECT_THROW(g::delaunay(std::vector<g::Point2D>{{0, 0}, {1, 0}}), std::invalid_argument);
+}
+
+#pragma endregion
 
 #pragma region validate_adjacency / fix_adjacency / triangulate(vector<Polygon2D>)
 
@@ -1727,7 +2289,7 @@ TEST_F(CalcUtils2DTest, ValidateAdjacency_TJunction_DetectsViolation) {
 
   ASSERT_FALSE(violations.empty());
   for (auto const& v : violations) {
-    EXPECT_FALSE(v.is_non_manifold);
+    EXPECT_LE(v.facet_indices.size(), 1u);
   }
 }
 
@@ -1741,8 +2303,7 @@ TEST_F(CalcUtils2DTest, ValidateAdjacency_NonManifoldEdge_DetectsViolation) {
   auto violations = g::validate_adjacency(std::vector<g::Polygon2D>{a, b, c});
 
   ASSERT_FALSE(violations.empty());
-  EXPECT_TRUE(violations.front().is_non_manifold);
-  EXPECT_EQ(violations.front().facet_indices.size(), 3u);
+  EXPECT_EQ(violations.front().facet_indices.size(), 3u);  // 3+ facets sharing an edge == non-manifold
 }
 
 TEST_F(CalcUtils2DTest, FixAdjacency_TJunction_SplicesVertexAndPreservesTotalArea) {
@@ -1797,8 +2358,11 @@ TEST_F(CalcUtils2DTest, FixAdjacency_MultipleTJunctionsOnOneEdge_SplitsIntoSever
   // diagonal, carving the base into 4 rectangular strips instead of one 7-vertex polygon.
   auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
   auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  // Base is deliberately NOT centered on the middle spliced vertex (1,0) -- a symmetric base (e.g.
+  // -0.5..2.5, center x=1.0) makes that vertex exactly equidistant from both bottom corners, an
+  // undefined tie for split_facets_at_junctions_impl's nearest-valid-diagonal search.
   auto base =
-      g::Polygon2D::Make({g::Point2D(-0.5, -1.2), g::Point2D(2.5, -1.2), g::Point2D(2.5, 0), g::Point2D(-0.5, 0)});
+      g::Polygon2D::Make({g::Point2D(-0.7, -1.2), g::Point2D(2.5, -1.2), g::Point2D(2.5, 0), g::Point2D(-0.7, 0)});
   std::vector<g::Polygon2D> facets{base, p0, p1};
 
   double area_before = 0.0;
@@ -1822,11 +2386,28 @@ TEST_F(CalcUtils2DTest, FixAdjacency_MultipleTJunctionsOnOneEdge_SplitsIntoSever
   EXPECT_NEAR(area_before, area_after, 1e-9);
 }
 
-TEST_F(CalcUtils2DTest, FixAdjacency_NonManifoldEdge_Throws) {
+TEST_F(CalcUtils2DTest, FixAdjacency_NonManifoldEdge_NoLongerThrowsButProducesDegenerateRing) {
+  // AdjacencyViolation::is_non_manifold() was removed (see CHANGELOG [0.18.0] Removed) -- fix_adjacency()
+  // no longer refuses a non-manifold-edge input up front. It now attempts to splice on_vertex (for a
+  // non-manifold violation, just a reused edge endpoint, not a real foreign vertex) into the coarse
+  // facet's ring right next to that same point, producing a ring with a coincident/zero-length-edge
+  // vertex pair instead of throwing. This test documents that actual behavior, not an ideal one.
   auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1)});
   auto b = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1)});
   auto c = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2)});
-  EXPECT_THROW(g::fix_adjacency(std::vector<g::Polygon2D>{a, b, c}), std::invalid_argument);
+
+  std::vector<std::vector<g::Point2D>> fixed;
+  ASSERT_NO_THROW(fixed = g::fix_adjacency(std::vector<g::Polygon2D>{a, b, c}));
+
+  bool found_degenerate_edge = false;
+  for (auto const& ring : fixed) {
+    for (std::size_t i = 0; i < ring.size(); ++i) {
+      if (ring[i].AlmostEquals(ring[(i + 1) % ring.size()])) {
+        found_degenerate_edge = true;
+      }
+    }
+  }
+  EXPECT_TRUE(found_degenerate_edge);
 }
 
 TEST_F(CalcUtils2DTest, FixAdjacency_TriangleConformingSharedEdge_PassesThroughUnchanged) {
@@ -1865,11 +2446,73 @@ TEST_F(CalcUtils2DTest, FixAdjacency_TriangleTJunction_ReTriangulatesAndPreserve
   EXPECT_NEAR(area_before, area_after, 1e-9);
 }
 
-TEST_F(CalcUtils2DTest, FixAdjacency_TriangleNonManifoldEdge_Throws) {
+TEST_F(CalcUtils2DTest, FixAdjacency_TriangleNonManifoldEdge_ThrowsConfusingRuntimeError) {
+  // Unlike the Polygon2D overload above, this one still throws -- but no longer the clear
+  // std::invalid_argument naming the real problem (edge shared by 3+ facets). fix_adjacency_impl's
+  // splice inserts on_vertex (a reused edge endpoint for a non-manifold violation) right next to
+  // itself, and the coincident-point pair then trips LineSegment2D::Make's own degeneracy guard
+  // somewhere downstream in re-triangulation, surfacing as an unrelated-looking std::runtime_error
+  // about two points being too close. Documents the current (confusing but non-silent) behavior.
   auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1));
   auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1));
   auto c = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2));
-  EXPECT_THROW(g::fix_adjacency(std::vector<g::Triangle2D>{a, b, c}), std::invalid_argument);
+  EXPECT_THROW(g::fix_adjacency(std::vector<g::Triangle2D>{a, b, c}), std::runtime_error);
+}
+
+// --- Regression coverage for validate_adjacency_impl's grid-cell vertex dedup (build_unique_vertices),
+// which replaced an O(n^2) pairwise-AlmostEquals scan. See build_unique_vertices' docs in
+// triangulation2d.cpp for the accepted grid-boundary-straddle tradeoff these tests probe.
+
+TEST_F(CalcUtils2DTest, ValidateAdjacency_GridOfNineSquares_ManySharedVerticesNoFalseViolations) {
+  // 3x3 grid of unit squares -- 9 facets, 16 unique corners, each interior corner shared by up to 4
+  // facets. Fully conforming (every shared edge matches exactly), so the grid-cell dedup pass must
+  // still resolve every repeated corner across many rings without manufacturing a spurious T-junction.
+  std::vector<g::Polygon2D> facets;
+  for (int row = 0; row < 3; ++row) {
+    for (int col = 0; col < 3; ++col) {
+      facets.push_back(g::Polygon2D::Make({g::Point2D(col, row), g::Point2D(col + 1, row),
+                                            g::Point2D(col + 1, row + 1), g::Point2D(col, row + 1)}));
+    }
+  }
+  EXPECT_TRUE(g::validate_adjacency(facets).empty());
+}
+
+TEST_F(CalcUtils2DTest, ValidateAdjacency_TJunctionVertexSharedByThreeFacets_StillDetected) {
+  // (1,1) is a ring vertex of p1, p0 AND p2 (three facets, not just two), and also lies in the interior
+  // of roof's base edge -- a T-junction. Detection must still fire even though the grid-cell dedup in
+  // validate_adjacency_impl only keeps one arbitrary representative among the 3 facets sharing (1,1) --
+  // that representative isn't reported (facet_indices intentionally names only the coarse edge's own
+  // facet, roof), it just needs to exist so the Contains() test against roof's edge still runs.
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto p0 = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto p2 = g::Polygon2D::Make({g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2), g::Point2D(1, 2)});
+  auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 3)});
+  std::vector<g::Polygon2D> facets{p1, p0, p2, roof};
+
+  auto violations = g::validate_adjacency(facets);
+
+  ASSERT_FALSE(violations.empty());
+  bool found = false;
+  for (auto const& v : violations) {
+    if (v.facet_indices.size() <= 1 && v.on_vertex.AlmostEquals(g::Point2D(1, 1))) {
+      found = true;
+      ASSERT_EQ(v.facet_indices.size(), 1u);
+      EXPECT_EQ(v.facet_indices[0], 3u);  // roof, the facet owning the coarse edge (1,1) lies on
+    }
+  }
+  EXPECT_TRUE(found);
+}
+
+TEST_F(CalcUtils2DTest, ValidateAdjacency_OrdinaryNearDuplicateVertices_StillWeldedAsSameVertex) {
+  // Two facets whose shared corner is expressed with a tiny (well within DOUBLE_EPSILON, away from any
+  // grid-cell boundary) floating-point discrepancy, as real-world welded input might have. The
+  // grid-cell dedup must still treat both as one vertex for a typical near-duplicate -- this is the
+  // "ordinary" case the accepted straddling tradeoff explicitly carves out, not the impossible-to-fix
+  // boundary case.
+  auto p0 = g::Polygon2D::Make(
+      {g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1.0000001, 1), g::Point2D(0, 1)});
+  auto p1 = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  EXPECT_TRUE(g::validate_adjacency(std::vector<g::Polygon2D>{p0, p1}).empty());
 }
 
 TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_DefaultEnforce_FixesTJunctionAndTriangulates) {
@@ -1892,7 +2535,7 @@ TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_Assert_ThrowsOnTJunction) {
   auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
 
   g::TriangulationParams assert_conformity;
-  assert_conformity.conformity = g::TriangulationParams::AdjacencyConformity::Assert;
+  assert_conformity.conformity = g::AdjacencyConformity::Assert;
   EXPECT_THROW(g::triangulate(std::vector<g::Polygon2D>{p0, p1, roof}, assert_conformity), std::invalid_argument);
 }
 
@@ -1902,7 +2545,7 @@ TEST_F(CalcUtils2DTest, TriangulateVectorOfPolygons_Guaranteed_SkipsCheckAndStil
   auto roof = g::Polygon2D::Make({g::Point2D(0, 1), g::Point2D(2, 1), g::Point2D(1, 2)});
 
   g::TriangulationParams guaranteed_conformity;
-  guaranteed_conformity.conformity = g::TriangulationParams::AdjacencyConformity::Guaranteed;
+  guaranteed_conformity.conformity = g::AdjacencyConformity::Guaranteed;
   auto triangles = g::triangulate(std::vector<g::Polygon2D>{p0, p1, roof}, guaranteed_conformity);
 
   double total_area = 0.0;
@@ -2268,6 +2911,59 @@ TEST_F(CalcUtils2DTest, IsSimple_FreeFunction_SquareTrue_BowtieFalse) {
   EXPECT_FALSE(g::is_simple(bowtie));
 }
 
+TEST_F(CalcUtils2DTest, IsAxisMonotone_ConvexPolygon_YDirection_ReturnsTrue) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(g::is_axis_monotone(square, g::Vector2D{0, 1}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_ConcaveButYMonotone_ReturnsTrue) {
+  std::vector<g::Point2D> pts = {{0, 0}, {4, 0}, {4, 4}, {0, 4}, {1, 2}};
+  EXPECT_TRUE(g::is_axis_monotone(pts, g::Vector2D{0, 1}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_NonMonotone_ReturnsFalse) {
+  std::vector<g::Point2D> w_shape = {{0, 0}, {1, 2}, {2, 0}, {3, 2}, {4, 0}, {4, 4}, {0, 4}};
+  EXPECT_FALSE(g::is_axis_monotone(w_shape, g::Vector2D{0, 1}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_XDirection_OnXMonotoneShape_ReturnsTrue) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  EXPECT_TRUE(g::is_axis_monotone(square, g::Vector2D{1, 0}));
+}
+
+TEST_F(CalcUtils2DTest, IsAxisMonotone_PolygonOverload_SameResultAsVectorOverload) {
+  std::vector<g::Point2D> pts = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  auto polygon = g::Polygon2D::Make(pts);
+  g::Vector2D dir{0, 1};
+  EXPECT_EQ(g::is_axis_monotone(pts, dir), g::is_axis_monotone(polygon, dir));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_PointInsideCircumcircle_ReturnsTrue) {
+  g::Point2D a{0, 0}, b{2, 0}, c{1, 2};
+  g::Point2D p{1, 0.5};
+  EXPECT_TRUE(g::in_circumcircle(a, b, c, p));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_PointOutsideCircumcircle_ReturnsFalse) {
+  g::Point2D a{0, 0}, b{2, 0}, c{1, 2};
+  g::Point2D p{5, 5};
+  EXPECT_FALSE(g::in_circumcircle(a, b, c, p));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_PointOnCircumcircle_ReturnsFalse) {
+  g::Point2D a{0, 0}, b{1, 0}, c{0, 1};
+  g::Point2D on_circle{1, 1};
+  EXPECT_FALSE(g::in_circumcircle(a, b, c, on_circle));
+}
+
+TEST_F(CalcUtils2DTest, InCircumcircle_UnitRightTriangle_CenterIsInside_FarPointIsOutside) {
+  g::Point2D a{0, 0}, b{1, 0}, c{0, 1};
+  g::Point2D center{0.5, 0.5};
+  EXPECT_TRUE(g::in_circumcircle(a, b, c, center));
+  g::Point2D far{2, 2};
+  EXPECT_FALSE(g::in_circumcircle(a, b, c, far));
+}
+
 TEST_F(CalcUtils2DTest, DetailIsConvex_ConvexNoHoles_True) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
   EXPECT_TRUE(gd::is_convex(square, {}));
@@ -2354,15 +3050,93 @@ TEST_F(CalcUtils2DTest, PolyPolyRLTangentTo_ConvexSquares_Direct) {
   EXPECT_EQ(square_b[i2], g::Point2D(10, 5));
 }
 
-TEST_F(CalcUtils2DTest, MonotonePolygonTriangulation_CalledDirectly_Throws) {
+TEST_F(CalcUtils2DTest, MonotonePolygonTriangulation_CalledDirectly_ReturnsTwoTriangles) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  EXPECT_THROW(gd::view::monotone_polygon_triangulation(square, g::View2D::XY()), std::runtime_error);
+  auto tris = gd::view::monotone_polygon_triangulation(square, g::View2D::XY());
+  ASSERT_EQ(tris.size(), 2u);
 }
 
-TEST_F(CalcUtils2DTest, DelaunayTriangulation_CalledDirectly_Throws) {
+TEST_F(CalcUtils2DTest, DelaunayTriangulation_CalledDirectly_ReturnsTwoTriangles) {
   std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  EXPECT_THROW(gd::view::delaunay_triangulation(square, g::View2D::XY()), std::runtime_error);
+  auto tris = gd::view::delaunay_triangulation(square, g::View2D::XY());
+  ASSERT_EQ(tris.size(), 2u);
 }
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_AlreadyMonotoneSquare_ReturnsOnePieceWithAllIndices) {
+  std::vector<g::Point2D> square = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+  auto pieces = gd::view::partition_monotone_polygon(square, g::View2D::XY());
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0], (std::vector<std::size_t>{0, 1, 2, 3}));
+}
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_Star_EveryPieceIsYMonotoneAndCoversFullArea) {
+  std::vector<g::Point2D> star = {
+      {3.0, 6.0}, {2.29, 3.97}, {0.15, 3.93}, {1.86, 2.63}, {1.24, 0.57},
+      {3.0, 1.8}, {4.76, 0.57}, {4.14, 2.63}, {5.85, 3.93}, {3.71, 3.97},
+  };
+  auto pieces = gd::view::partition_monotone_polygon(star, g::View2D::XY());
+  ASSERT_GT(pieces.size(), 1u);
+
+  std::size_t total_vertices = 0;
+  for (auto const& piece : pieces) {
+    ASSERT_GE(piece.size(), 3u);
+    total_vertices += piece.size();
+    std::vector<g::Point2D> piece_pts;
+    for (auto idx : piece) {
+      piece_pts.push_back(star[idx]);
+    }
+    EXPECT_TRUE(gd::view::is_y_monotone(piece_pts, g::View2D::XY()));
+  }
+
+  // Every piece triangulates independently (n-2 triangles), and the sum over all pieces must equal
+  // the star's own EarClippingBestFit total area -- confirms the decomposition covers the polygon
+  // exactly once, with no gaps or overlaps introduced by the diagonals.
+  double pieces_area = 0.0;
+  for (auto const& piece : pieces) {
+    std::vector<g::Point2D> piece_pts;
+    for (auto idx : piece) {
+      piece_pts.push_back(star[idx]);
+    }
+    auto local_tris = gd::view::monotone_polygon_triangulation(piece_pts, g::View2D::XY());
+    ASSERT_EQ(local_tris.size(), piece.size() - 2);
+    for (auto const& lt : local_tris) {
+      auto tri = g::Triangle2D::Make(piece_pts[lt[0]], piece_pts[lt[1]], piece_pts[lt[2]]);
+      pieces_area += tri.Area();
+    }
+  }
+
+  auto ref_tris = g::triangulate(star, g::TriangulationParams{g::TriangulationParams::Strategy::EarClippingBestFit});
+  double reference_area = 0.0;
+  for (auto const& t : ref_tris) {
+    reference_area += t.Area();
+  }
+  EXPECT_NEAR(pieces_area, reference_area, 1e-6);
+}
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_WShape_ReturnsThreePieces) {
+  // 2 split vertices, 0 merge vertices -- 2 diagonals cut the original ring into exactly 3 pieces.
+  std::vector<g::Point2D> w_shape = {{0, 0}, {1, 2}, {2, 0}, {3, 2}, {4, 0}, {4, 4}, {0, 4}};
+  auto pieces = gd::view::partition_monotone_polygon(w_shape, g::View2D::XY());
+  ASSERT_EQ(pieces.size(), 3u);
+
+  std::size_t total_vertices = 0;
+  for (auto const& piece : pieces) {
+    total_vertices += piece.size();
+    std::vector<g::Point2D> piece_pts;
+    for (auto idx : piece) {
+      piece_pts.push_back(w_shape[idx]);
+    }
+    EXPECT_TRUE(gd::view::is_y_monotone(piece_pts, g::View2D::XY()));
+  }
+  // Each of the 2 diagonals adds exactly 2 vertices' worth of duplication (shared by 2 pieces each).
+  EXPECT_EQ(total_vertices, w_shape.size() + 4);
+}
+
+TEST_F(CalcUtils2DTest, PartitionMonotonePolygon_TooFewPoints_Throws) {
+  std::vector<g::Point2D> too_few = {{0, 0}, {1, 1}};
+  EXPECT_THROW(gd::view::partition_monotone_polygon(too_few, g::View2D::XY()), std::invalid_argument);
+}
+
 
 TEST_F(CalcUtils2DTest, AssertAdjacency_EmptyViolations_DoesNotThrow) {
   std::vector<g::AdjacencyViolation<g::Point2D>> none;
@@ -2387,6 +3161,514 @@ TEST_F(CalcUtils2DTest, AssertAdjacency_NonManifoldViolation_Throws) {
   auto violations = g::validate_adjacency(std::vector<g::Polygon2D>{a, b, c});
   ASSERT_FALSE(violations.empty());
   EXPECT_THROW(gd::assert_adjacency(violations), std::invalid_argument);
+}
+
+#pragma endregion
+
+#pragma region polygonization (MeshTriangleFaceView2D, partition_into_coplanar_clusters, cancel_reverse_pairs,
+// boundary_extraction_polygonization, polygonize_impl)
+
+namespace {
+
+// Bundles a MeshTriangleFaceView2D vector together with the shared_ptr buffers it points into, so the whole thing
+// can be kept alive as one RAII object in a test's local scope -- MeshTriangleFaceView2D is a non-owning raw-
+// pointer view (same lifetime contract as ConnectedMesh2D::FaceView2D), so returning `.faces` alone from a
+// helper that let its own shared_ptr locals go out of scope would leave dangling pointers.
+struct FaceViewFixture2D {
+  std::shared_ptr<std::vector<g::Point2D>> vertices;
+  std::shared_ptr<std::vector<std::size_t>> tri_indices;
+  std::shared_ptr<std::vector<std::array<gd::TriangleCompactNeighborRef, 3>>> neighbor_refs;
+  std::vector<gd::MeshTriangleFaceView2D> faces;
+
+  static FaceViewFixture2D Build(std::vector<g::Triangle2D> const& triangles) {
+    auto mesh_maker = gd::GridCellMapForConnectedMesh2D::Make(triangles);
+    FaceViewFixture2D fx;
+    fx.vertices = mesh_maker.GetUniques();
+    fx.tri_indices = mesh_maker.GetTriangles();
+    fx.neighbor_refs = mesh_maker.GetNeighborRefs();
+    std::size_t n = fx.tri_indices->size() / 3;
+    fx.faces.reserve(n);
+    for (std::size_t i = 0; i < n; ++i) {
+      fx.faces.emplace_back(fx.vertices->data(), fx.tri_indices->data(), fx.neighbor_refs->data(), i);
+    }
+    return fx;
+  }
+};
+
+// Axis-aligned unit-square triangles for a `rows` x `cols` grid at the origin, each square split into 2
+// CCW triangles (diagonal from the square's bottom-left to top-right), skipping any cell in `skip_cells`
+// (row, col) -- used to carve a hole out of the grid for the hole-detection test below.
+std::vector<g::Triangle2D> BuildGridTriangles(int rows, int cols,
+                                              std::set<std::pair<int, int>> const& skip_cells = {}) {
+  std::vector<g::Triangle2D> tris;
+  for (int r = 0; r < rows; ++r) {
+    for (int c = 0; c < cols; ++c) {
+      if (skip_cells.count({r, c})) {
+        continue;
+      }
+      g::Point2D p00(c, r), p10(c + 1, r), p11(c + 1, r + 1), p01(c, r + 1);
+      tris.push_back(g::Triangle2D::Make(p00, p10, p11));
+      tris.push_back(g::Triangle2D::Make(p00, p11, p01));
+    }
+  }
+  return tris;
+}
+
+// Asserts @p polys form a clean polygon mesh: no piece has a straight-through (180°) vertex, and no
+// piece's vertex lies strictly inside another piece's edge (a T-junction).
+void ExpectNoStraightVerticesNorTJunctions(std::vector<g::Polygon2D> const& polys) {
+  constexpr double kEps = 1e-9;
+  auto cross = [](g::Point2D const& a, g::Point2D const& b, g::Point2D const& c) {
+    return (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());
+  };
+  for (std::size_t pi = 0; pi < polys.size(); ++pi) {
+    auto const& ring = polys[pi].Perimeter();
+    std::size_t n = ring.size();
+    for (std::size_t i = 0; i < n; ++i) {
+      EXPECT_GT(std::abs(cross(ring[(i + n - 1) % n], ring[i], ring[(i + 1) % n])), kEps)
+          << "piece " << polys[pi].ToWkt() << " has a 180-degree vertex at " << ring[i].ToWkt();
+    }
+    for (std::size_t qi = 0; qi < polys.size(); ++qi) {
+      if (qi == pi) {
+        continue;
+      }
+      auto const& other = polys[qi].Perimeter();
+      std::size_t m = other.size();
+      for (auto const& v : ring) {
+        for (std::size_t j = 0; j < m; ++j) {
+          g::Point2D const& a = other[j];
+          g::Point2D const& b = other[(j + 1) % m];
+          double len2 = (b.x() - a.x()) * (b.x() - a.x()) + (b.y() - a.y()) * (b.y() - a.y());
+          double t = ((v.x() - a.x()) * (b.x() - a.x()) + (v.y() - a.y()) * (b.y() - a.y())) / len2;
+          bool strictly_inside = std::abs(cross(a, b, v)) < kEps && t > kEps && t < 1.0 - kEps;
+          EXPECT_FALSE(strictly_inside) << "T-junction: " << v.ToWkt() << " of " << polys[pi].ToWkt()
+                                        << " lies mid-edge on " << polys[qi].ToWkt();
+        }
+      }
+    }
+  }
+}
+
+}  // namespace
+
+TEST_F(CalcUtils2DTest, MeshTriangleFaceView2D_SharedEdgeSquare_NeighborsAcrossDiagonalOnly) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  ASSERT_EQ(fx.faces.size(), 2u);
+
+  int neighbor_count_0 = 0, neighbor_count_1 = 0;
+  for (auto edge : {gd::TriangleCompactNeighborRef::TriangleEdge::FIRST,
+                    gd::TriangleCompactNeighborRef::TriangleEdge::SECOND,
+                    gd::TriangleCompactNeighborRef::TriangleEdge::THIRD}) {
+    if (fx.faces[0].Neighbor(edge)) {
+      ++neighbor_count_0;
+      EXPECT_EQ(fx.faces[0].Neighbor(edge)->ID(), 1u);
+    }
+    if (fx.faces[1].Neighbor(edge)) {
+      ++neighbor_count_1;
+      EXPECT_EQ(fx.faces[1].Neighbor(edge)->ID(), 0u);
+    }
+  }
+  EXPECT_EQ(neighbor_count_0, 1);  // only the shared diagonal has a twin, the other 2 edges are boundary
+  EXPECT_EQ(neighbor_count_1, 1);
+}
+
+TEST_F(CalcUtils2DTest, PartitionIntoCoplanarClusters_ConnectedTriangles_SingleCluster) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(2, 2));  // 4 squares, 8 triangles, all edge-connected
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  ASSERT_EQ(clusters.size(), 1u);
+  EXPECT_EQ(clusters[0].size(), 8u);
+}
+
+TEST_F(CalcUtils2DTest, PartitionIntoCoplanarClusters_TwoDisjointSquares_TwoClusters) {
+  auto left = BuildGridTriangles(1, 1);
+  auto right = BuildGridTriangles(1, 1);
+  // Shift the second square far away so it shares no vertex (hence no Neighbor() link) with the first.
+  std::vector<g::Triangle2D> shifted;
+  for (auto const& t : right) {
+    auto const& [p0, p1, p2] = t.Vertices();
+    g::Vector2D d(10, 0);
+    shifted.push_back(g::Triangle2D::Make(p0 + d, p1 + d, p2 + d));
+  }
+  auto all = left;
+  all.insert(all.end(), shifted.begin(), shifted.end());
+
+  auto fx = FaceViewFixture2D::Build(all);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  ASSERT_EQ(clusters.size(), 2u);
+  EXPECT_EQ(clusters[0].size(), 2u);
+  EXPECT_EQ(clusters[1].size(), 2u);
+}
+
+TEST_F(CalcUtils2DTest, CancelReversePairs_SharedEdge_CancelsBothDirections) {
+  std::vector<g::LineSegment2D> edges{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 1)),
+                                      g::LineSegment2D::Make(g::Point2D(1, 1), g::Point2D(0, 0))};
+  auto survivors = gd::cancel_reverse_pairs(edges);
+  EXPECT_TRUE(survivors.empty());
+}
+
+TEST_F(CalcUtils2DTest, CancelReversePairs_UnmatchedEdge_Survives) {
+  std::vector<g::LineSegment2D> edges{g::LineSegment2D::Make(g::Point2D(0, 0), g::Point2D(1, 0))};
+  auto survivors = gd::cancel_reverse_pairs(edges);
+  ASSERT_EQ(survivors.size(), 1u);
+  EXPECT_TRUE(survivors[0].First().AlmostEquals(g::Point2D(0, 0)));
+  EXPECT_TRUE(survivors[0].Last().AlmostEquals(g::Point2D(1, 0)));
+}
+
+TEST_F(CalcUtils2DTest, BoundaryExtractionPolygonization_UnitSquareFromTwoTriangles_ReturnsSingleQuadNoHoles) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::boundary_extraction_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  auto const& [outer, holes] = pieces[0];
+  EXPECT_EQ(outer.size(), 4u);
+  EXPECT_TRUE(holes.empty());
+  EXPECT_NEAR(std::abs(g::signed_area(outer)), 1.0, 1e-9);
+  EXPECT_TRUE(g::are_ccw(outer));
+}
+
+TEST_F(CalcUtils2DTest, BoundaryExtractionPolygonization_GridWithCenterHole_ReturnsOuterWithOneHole) {
+  // 3x3 grid of unit squares with the center cell (row 1, col 1) omitted: a 3x3 outer boundary with a
+  // 1x1 hole in the middle.
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(3, 3, {{1, 1}}));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  ASSERT_EQ(clusters.size(), 1u);  // still one edge-connected ring of triangles around the hole
+
+  auto pieces = gd::boundary_extraction_polygonization(fx.faces, clusters);
+  ASSERT_EQ(pieces.size(), 1u);
+  auto const& [outer, holes] = pieces[0];
+
+  // 4, the geometric minimum: cancel_reverse_pairs only removes shared INTERNAL edges, but
+  // trace_face_group_boundary()'s seam-collapse pass then drops every remaining grid vertex along each
+  // side too, since this is the only output piece -- nothing else is traced separately that could need one
+  // of them as a load-bearing shared corner (contrast Polygonize_LShape_HertelMehlhorn_
+  // PreservesSharedTJunctionVertex below, where a second piece DOES need one).
+  EXPECT_EQ(outer.size(), 4u);
+  EXPECT_NEAR(std::abs(g::signed_area(outer)), 9.0, 1e-9);
+  EXPECT_TRUE(g::are_ccw(outer));
+
+  // The 1x1 hole is a single ungridded cell, so its own boundary has no intermediate vertices to keep: 4.
+  ASSERT_EQ(holes.size(), 1u);
+  EXPECT_EQ(holes[0].size(), 4u);
+  EXPECT_NEAR(std::abs(g::signed_area(holes[0])), 1.0, 1e-9);
+  EXPECT_FALSE(g::are_ccw(holes[0]));  // holes are CW
+}
+
+TEST_F(CalcUtils2DTest, PolygonizeImpl_PlanarBoundaryExtraction_MatchesDirectCall) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+
+  auto via_impl = gd::polygonize_impl(fx.faces, params);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto direct = gd::boundary_extraction_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(via_impl.size(), direct.size());
+  ASSERT_EQ(via_impl.size(), 1u);
+  EXPECT_EQ(via_impl[0].first.size(), direct[0].first.size());
+  EXPECT_NEAR(std::abs(g::signed_area(via_impl[0].first)), std::abs(g::signed_area(direct[0].first)), 1e-9);
+}
+
+namespace {
+
+// Two triangles sharing edge (4,0)-(0,4), whose merged quad (0,0),(4,0),(6,-1),(0,4) has a reflex vertex
+// at (4,0) -- see the turn-direction derivation in the M3 design discussion this test backs. Used to
+// verify HertelMehlhorn refuses to merge across a diagonal that would produce a non-convex result, while
+// PlanarQuads (no convexity requirement) merges it anyway.
+std::vector<g::Triangle2D> BuildNonConvexPairTriangles() {
+  return {g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(0, 4)),
+          g::Triangle2D::Make(g::Point2D(0, 4), g::Point2D(4, 0), g::Point2D(6, -1))};
+}
+
+// 3 triangles chained T0-T1-T2 (T0/T1 share an edge, T1/T2 share a different edge, T0/T2 don't touch) --
+// an odd-sized coplanar cluster, used to exercise PlanarQuads' "leftover unpaired facet" case: greedy
+// pairing in face-id order pairs (T0,T1) first, leaving T2 with no unpaired same-cluster neighbor.
+std::vector<g::Triangle2D> BuildThreeTriangleChain() {
+  return {g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0, 1)),
+          g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+          g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(1, 1))};
+}
+
+}  // namespace
+
+TEST_F(CalcUtils2DTest, HertelMehlhorn_TwoTrianglesSharedEdge_MergesIntoSingleConvexQuad) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0].first.size(), 4u);
+  EXPECT_TRUE(pieces[0].second.empty());
+  EXPECT_NEAR(std::abs(g::signed_area(pieces[0].first)), 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, HertelMehlhorn_NonConvexPair_StaysUnmergedAsTwoTriangles) {
+  auto fx = FaceViewFixture2D::Build(BuildNonConvexPairTriangles());
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 2u);
+  for (auto const& [outer, holes] : pieces) {
+    EXPECT_EQ(outer.size(), 3u);
+    EXPECT_TRUE(holes.empty());
+  }
+}
+
+TEST_F(CalcUtils2DTest, HertelMehlhorn_2x2Grid_MergesFullyIntoOneConvexSquare) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(2, 2));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  // 4, the geometric minimum: like boundary_extraction_polygonization, the seam-collapse pass drops every
+  // internal grid vertex along each side once tracing settles, since this is the only output piece and
+  // nothing else needs one of them as a shared corner. Area + convexity are what actually confirm the
+  // whole grid merged into one region.
+  EXPECT_EQ(pieces[0].first.size(), 4u);
+  EXPECT_TRUE(pieces[0].second.empty());
+  EXPECT_NEAR(std::abs(g::signed_area(pieces[0].first)), 4.0, 1e-9);
+  EXPECT_TRUE(gd::is_convex(pieces[0].first, {}));
+}
+
+TEST_F(CalcUtils2DTest, PlanarQuads_TwoTrianglesSharedEdge_ReturnsSingleQuad) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0].first.size(), 4u);
+  EXPECT_TRUE(pieces[0].second.empty());
+}
+
+TEST_F(CalcUtils2DTest, PlanarQuads_NonConvexPair_MergesAnywayNoConvexityRequirement) {
+  auto fx = FaceViewFixture2D::Build(BuildNonConvexPairTriangles());
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 1u);
+  EXPECT_EQ(pieces[0].first.size(), 4u);
+  EXPECT_TRUE(pieces[0].second.empty());
+  EXPECT_FALSE(gd::is_convex(pieces[0].first, {}));  // confirms this quad really is the non-convex one
+}
+
+TEST_F(CalcUtils2DTest, PlanarQuads_OddTriangleChain_LeftoverEmittedAsTriangle) {
+  auto fx = FaceViewFixture2D::Build(BuildThreeTriangleChain());
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto pieces = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(pieces.size(), 2u);
+  std::vector<std::size_t> sizes{pieces[0].first.size(), pieces[1].first.size()};
+  std::sort(sizes.begin(), sizes.end());
+  EXPECT_EQ(sizes[0], 3u);  // the leftover, unpaired triangle
+  EXPECT_EQ(sizes[1], 4u);  // the paired quad
+}
+
+TEST_F(CalcUtils2DTest, PolygonizeImpl_HertelMehlhorn_MatchesDirectCall) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  auto via_impl = gd::polygonize_impl(fx.faces, params);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto direct = gd::hertel_mehlhorn_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(via_impl.size(), direct.size());
+  ASSERT_EQ(via_impl.size(), 1u);
+  EXPECT_EQ(via_impl[0].first.size(), direct[0].first.size());
+}
+
+TEST_F(CalcUtils2DTest, PolygonizeImpl_PlanarQuads_MatchesDirectCall) {
+  auto fx = FaceViewFixture2D::Build(BuildGridTriangles(1, 1));
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarQuads;
+
+  auto via_impl = gd::polygonize_impl(fx.faces, params);
+  auto clusters = gd::partition_into_coplanar_clusters(fx.faces);
+  auto direct = gd::quad_only_polygonization(fx.faces, clusters);
+
+  ASSERT_EQ(via_impl.size(), direct.size());
+  ASSERT_EQ(via_impl.size(), 1u);
+  EXPECT_EQ(via_impl[0].first.size(), direct[0].first.size());
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad) {
+  auto polys = g::polygonize(BuildGridTriangles(1, 1));  // default strategy: HertelMehlhorn
+  ASSERT_EQ(polys.size(), 1u);
+  EXPECT_EQ(polys[0].Size(), 4u);
+  EXPECT_NEAR(polys[0].Area(), 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_GridWithCenterHole_ReturnsOuterWithOneHole) {
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+  auto polys = g::polygonize(BuildGridTriangles(3, 3, {{1, 1}}), params);
+
+  ASSERT_EQ(polys.size(), 1u);
+  EXPECT_NEAR(polys[0].Area(), 8.0, 1e-9);  // 9 (outer) - 1 (hole)
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions) {
+  // 2x2 grid with the top-left cell skipped -- an L-shape with a reflex vertex at (1,1). Plain
+  // HertelMehlhorn would merge the bottom row into a 2x1 rectangle, but the top square's corner (1,1)
+  // then sits mid-way along the rectangle's top edge: dropping it from the rectangle's ring is a
+  // T-junction, keeping it is a 180-degree vertex. Phase 1b of hertel_mehlhorn_polygonization()
+  // dissolves that rectangle and re-merges it with the vertex forbidden: 3 convex pieces (the left
+  // square, a triangle, and the top square fused with the other half of the bottom-right square into a
+  // parallelogram), every shared vertex a real corner on both sides.
+  auto polys = g::polygonize(BuildGridTriangles(2, 2, {{1, 0}}));
+  ASSERT_EQ(polys.size(), 3u);
+
+  double total_area = 0.0;
+  for (auto const& p : polys) {
+    total_area += p.Area();
+    EXPECT_TRUE(p.IsConvex());
+  }
+  EXPECT_NEAR(total_area, 3.0, 1e-9);
+  ExpectNoStraightVerticesNorTJunctions(polys);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_LShapePlusSpikes_HertelMehlhorn_NoStraightVerticesNorTJunctions) {
+  // The visual docs' §13.3 mesh: the L-shape plus a triangular spike below the bottom-right square and
+  // one right of the top square. Plain HertelMehlhorn leaves the bottom 2x1 rectangle with two
+  // load-bearing 180-degree vertices ((1,0) for the spike, (1,1) for the top piece).
+  std::vector<g::Triangle2D> tris = {
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1.5, -0.5), g::Point2D(2, 0)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+      g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
+  };
+  auto polys = g::polygonize(tris);
+
+  double total_area = 0.0;
+  for (auto const& p : polys) {
+    total_area += p.Area();
+    EXPECT_TRUE(p.IsConvex());
+  }
+  EXPECT_NEAR(total_area, 3.5, 1e-9);
+  ExpectNoStraightVerticesNorTJunctions(polys);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_Grid_HertelMehlhorn_StillMergesIntoOnePiece) {
+  // Guard against phase 1b over-splitting: a full 3x3 grid is one convex square, and the half-merged
+  // pieces HertelMehlhorn builds along the way temporarily face several not-yet-merged neighbors.
+  auto polys = g::polygonize(BuildGridTriangles(3, 3));
+  ASSERT_EQ(polys.size(), 1u);
+  EXPECT_EQ(polys[0].Size(), 4u);
+  EXPECT_NEAR(polys[0].Area(), 9.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_GridWithHoles_HertelMehlhorn_NoStraightVerticesNorTJunctions) {
+  // A 4x4 grid with two cells removed: several reflex corners, so plain HertelMehlhorn leaves multiple
+  // rectangles whose edges run straight through neighbors' corners.
+  auto polys = g::polygonize(BuildGridTriangles(4, 4, {{1, 1}, {2, 3}}));
+  double total_area = 0.0;
+  for (auto const& p : polys) {
+    total_area += p.Area();
+    EXPECT_TRUE(p.IsConvex());
+  }
+  EXPECT_NEAR(total_area, 14.0, 1e-9);
+  ExpectNoStraightVerticesNorTJunctions(polys);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_EmptyInput_Throws) {
+  EXPECT_THROW(g::polygonize({}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Polygonize_NonManifoldInput_Throws) {
+  // Same non-manifold fixture shape used by ValidateAdjacency_NonManifoldEdge_DetectsViolation elsewhere
+  // in this file -- polygonize() must Assert adjacency on untrusted raw input, same as *::FromTriangles.
+  auto a = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, 1));
+  auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1));
+  auto c = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -2));
+  EXPECT_THROW(g::polygonize({a, b, c}), std::invalid_argument);
+}
+
+TEST_F(CalcUtils2DTest, Merge_EmptyInput_ReturnsEmpty) { EXPECT_TRUE(g::merge({}).empty()); }
+
+TEST_F(CalcUtils2DTest, Merge_TwoTouchingSquares_ReturnsSingleMergedOuter) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)});
+  auto b = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(2, 2)});
+
+  auto result = g::merge({a, b});
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_FALSE(result[0].HasHoles());
+  EXPECT_NEAR(result[0].Area(), 8.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Merge_ThreeSquares_PreservesSharedTJunctionVertex) {
+  // A and B share a full edge (x=1, y:0-1) and merge into a 2x1 rectangle; C only touches the merged
+  // piece at the single point (1,1) (no full shared edge with A or B, so it never merges with either).
+  // Regression test for the same class of bug as
+  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions, but via merge()'s
+  // own packaging instead of polygonize_impl()'s: the merged AB rectangle's traced boundary must still
+  // carry (1,1) as an explicit vertex (it's collinear on the AB pair alone, but load-bearing for C),
+  // or C's own corner would land mid-edge on a T-junction once both pieces sat in the same PolyMesh2D.
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1), g::Point2D(1, 1)});
+  auto c = g::Polygon2D::Make(
+      {g::Point2D(1, 1), g::Point2D(1.5, 1), g::Point2D(1.5, 1.5), g::Point2D(1, 1.5)});
+
+  auto result = g::merge({a, b, c});
+
+  double total_area = 0.0;
+  bool found_rectangle_with_midpoint = false;
+  for (auto const& p : result) {
+    total_area += p.Area();
+    if (std::abs(p.Area() - 2.0) < 1e-9) {
+      bool has_midpoint = false;
+      for (auto const& v : p.Perimeter()) {
+        if (v.AlmostEquals(g::Point2D(1, 1))) {
+          has_midpoint = true;
+        }
+      }
+      EXPECT_TRUE(has_midpoint);
+      found_rectangle_with_midpoint = true;
+    }
+  }
+  EXPECT_TRUE(found_rectangle_with_midpoint);
+  EXPECT_NEAR(total_area, 2.25, 1e-9);  // 2.0 (rectangle) + 0.25 (c)
+}
+
+TEST_F(CalcUtils2DTest, Merge_TwoDisjointSquares_ReturnsBothUnchanged) {
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1), g::Point2D(0, 1)});
+  auto b = g::Polygon2D::Make({g::Point2D(10, 0), g::Point2D(11, 0), g::Point2D(11, 1), g::Point2D(10, 1)});
+
+  auto result = g::merge({a, b});
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_NEAR(result[0].Area(), 1.0, 1e-9);
+  EXPECT_NEAR(result[1].Area(), 1.0, 1e-9);
+}
+
+TEST_F(CalcUtils2DTest, Merge_PolygonWithUntouchedHole_HolePassesThroughUnchanged) {
+  // Holes must be given in CW order (Polygon2D::Make rejects a CCW hole outright, no auto-normalizing).
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(3, 0), g::Point2D(3, 3), g::Point2D(0, 3)},
+                              {{g::Point2D(1, 1), g::Point2D(1, 2), g::Point2D(2, 2), g::Point2D(2, 1)}});
+
+  auto result = g::merge({a});
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_TRUE(result[0].HasHoles());
+  EXPECT_NEAR(result[0].Area(), 8.0, 1e-9);  // 9 - 1
+}
+
+TEST_F(CalcUtils2DTest, Merge_TwoPolygonsWithTouchingHoles_MergesIntoOneBiggerHole) {
+  // Two 2x2 squares merging along x=2, each with a hole reaching that same shared seam -- the seam is
+  // cancelled from the OUTER boundary the same way a plain touching-squares merge does, and (per this
+  // test) the two holes touching along that same seam get detected and unioned into one.
+  // Holes must be given in CW order (Polygon2D::Make rejects a CCW hole outright, no auto-normalizing).
+  auto a = g::Polygon2D::Make({g::Point2D(0, 0), g::Point2D(2, 0), g::Point2D(2, 2), g::Point2D(0, 2)},
+                              {{g::Point2D(1, 0.5), g::Point2D(1, 1.5), g::Point2D(2, 1.5), g::Point2D(2, 0.5)}});
+  auto b = g::Polygon2D::Make({g::Point2D(2, 0), g::Point2D(4, 0), g::Point2D(4, 2), g::Point2D(2, 2)},
+                              {{g::Point2D(2, 0.5), g::Point2D(2, 1.5), g::Point2D(3, 1.5), g::Point2D(3, 0.5)}});
+
+  auto result = g::merge({a, b});
+  ASSERT_EQ(result.size(), 1u);
+  ASSERT_TRUE(result[0].HasHoles());
+  EXPECT_EQ(result[0].Holes().size(), 1u);
+  EXPECT_NEAR(result[0].Area(), 6.0, 1e-9);  // 8 (outer) - 2 (merged 1x2 hole)
 }
 
 #pragma endregion

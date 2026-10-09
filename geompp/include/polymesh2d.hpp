@@ -7,12 +7,14 @@
 #include <cstddef>
 #include <memory>
 #include <ranges>
+#include <string>
 #include <vector>
 
 namespace geompp {
 
 inline namespace geometry {
 
+class GeometryCollection2D;
 class Mesh2D;
 
 /// @brief A mesh made of adjacent, arbitrary-sided polygonal faces, stored as a flat index buffer for efficiency
@@ -21,18 +23,20 @@ class Mesh2D;
 class PolyMesh2D {
  public:
   /// @brief Builds a mesh from a set of (hole-free) polygons, welding vertices that land in the same
-  /// spatial grid cell (see @ref GridCell2D) into a single shared vertex.
+  ///        spatial grid cell (see @ref GridCell2D) into a single shared vertex.
   /// @param polygons The polygon faces to weld into a mesh. Order is not required to reflect adjacency.
-  /// @return A mesh whose vertex count is ≤ the sum of every polygon's `Size()` (fewer once shared
-  /// vertices are welded).
+  /// @param conformity decides how to handle input that doesn't make a valid adjacency (default to
+  ///       Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via
+  ///       fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
   /// @throws std::invalid_argument if @p polygons is empty, or if any polygon has one or more holes.
   /// @note Vertex welding uses `DOUBLE_EPSILON` (which tracks the same thread-local `DECIMAL_PRECISION`
-  /// as `AlmostEquals`) but compares points via grid-cell floor-bucketing rather than a direct pairwise
-  /// distance check: two points that fall in the same cell are welded even if they're up to
-  /// `sqrt(2) * epsilon` apart, and two points within `epsilon` of each other but on opposite sides of a
-  /// cell boundary are kept distinct. This trades exactness for O(1) average welding per vertex instead
-  /// of an O(n) `AlmostEquals` scan against every prior unique vertex.
-  static PolyMesh2D FromPolygons(std::vector<Polygon2D> const& polygons);
+  ///       as `AlmostEquals`) but compares points via grid-cell floor-bucketing rather than a direct pairwise
+  ///       distance check: two points that fall in the same cell are welded even if they're up to
+  ///       `sqrt(2) * epsilon` apart, and two points within `epsilon` of each other but on opposite sides of a
+  ///       cell boundary are kept distinct. This trades exactness for O(1) average welding per vertex instead
+  ///       of an O(n) `AlmostEquals` scan against every prior unique vertex.
+  static PolyMesh2D FromPolygons(std::vector<Polygon2D> const& polygons,
+                                 AdjacencyConformity conformity = AdjacencyConformity::Assert);
 
   PolyMesh2D(PolyMesh2D const&) = default;
   PolyMesh2D(PolyMesh2D&&) = default;
@@ -69,13 +73,33 @@ class PolyMesh2D {
   ///        - EarClipping: O(n^2) worst case, but simple and robust for small polygons
   ///        - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
   ///                           into monotone pieces)
-  ///        - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum
-  ///                    angle of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+  ///        - ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation
+  ///                    (boundary edges kept, all triangles interior, minimum angle maximized)
   /// @returns A Mesh2D with sum(facet_vertex_count - 2) triangles across every facet.
   /// @throws whatever the chosen @p strategy itself throws (e.g. std::runtime_error for a
   /// not-yet-implemented strategy).
   Mesh2D Triangulate(
       TriangulationParams::Strategy strategy = TriangulationParams::Strategy::EarClippingBestFit) const;
+
+  /// @brief Every facet, as its own standalone Polygon2D, packaged into one GeometryCollection2D.
+  /// @returns A GeometryCollection2D with Size() entries, all Polygon2D, same order as Faces().
+  GeometryCollection2D ToGeometryCollection() const;
+
+  /// @brief WKT-like serialization, specific to this library: "POLYMESH ((x0 y0, ..., x0 y0), ...)" --
+  /// one doubly-parenthesized ring per facet (the same syntax a bare POLYGON's own ring uses), closed by
+  /// repeating its first point, comma-separated, wrapped once more in "POLYMESH ( ... )". Not a standard
+  /// OGC WKT geometry type.
+  /// @returns The serialized mesh, one facet ring per facet, in Faces() order.
+  std::string ToWkt() const;
+  /// @brief Parses a mesh written by ToWkt() (or matching its "POLYMESH (((...)), ...)" grammar) back
+  /// into a PolyMesh2D. Every facet must have at least 3 vertices.
+  /// @throws std::runtime_error if @p wkt doesn't parse, or any facet has fewer than 3 vertices.
+  static PolyMesh2D FromWkt(std::string const& wkt);
+  /// @brief Writes ToWkt()'s output to @p path (plain text, truncates any existing content).
+  void ToFile(std::string const& path) const;
+  /// @brief Reads a file written by ToFile() and parses it via FromWkt().
+  /// @throws std::runtime_error if @p path can't be opened or its content doesn't parse.
+  static PolyMesh2D FromFile(std::string const& path);
 
  private:
   // shared_ptr, not plain vector: copying a PolyMesh2D (or handing its vertex buffer to a future

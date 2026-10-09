@@ -181,7 +181,7 @@ public static class TriangulateTests {
       var violations = GeomUtil.ValidateAdjacency(new[] { p0, p1, roof });
       bool anyFound = false;
       bool allTJunctions = true;
-      foreach (var v in violations) { anyFound = true; if (v.IsNonManifold) allTJunctions = false; }
+      foreach (var v in violations) { anyFound = true; if (CountOf(v.FacetIndices) > 1) allTJunctions = false; }
       IsTrue(anyFound, "expected at least one T-junction violation");
       IsTrue(allTJunctions, "expected every violation to be a T-junction, not non-manifold");
     });
@@ -194,8 +194,7 @@ public static class TriangulateTests {
       AdjacencyViolation2D first = null;
       foreach (var v in violations) { first = v; break; }
       NotNull(first, "expected at least one violation");
-      IsTrue(first.IsNonManifold, "expected a non-manifold-edge violation");
-      Eq(3, CountOf(first.FacetIndices), 0);
+      Eq(3, CountOf(first.FacetIndices), 0);  // 3+ facets sharing an edge == non-manifold
     });
 
     Test("GeomUtil_FixAdjacency_TJunction_SplitsFacetAndPreservesTotalArea", () => {
@@ -226,14 +225,24 @@ public static class TriangulateTests {
       Eq(areaBefore, areaAfter);
     });
 
-    Test("GeomUtil_FixAdjacency_NonManifoldEdge_Throws", () => {
+    Test("GeomUtil_FixAdjacency_NonManifoldEdge_NoLongerThrowsProducesDegenerateRing", () => {
+      // AdjacencyViolation2D.IsNonManifold was removed (see CHANGELOG [0.18.0] Removed) --
+      // FixAdjacency() no longer refuses a non-manifold-edge input up front. It now splices
+      // OnVertex (for a non-manifold violation, just a reused edge endpoint, not a real foreign
+      // vertex) right next to itself, producing a ring with a coincident/zero-length-edge vertex
+      // pair instead of throwing. Documents the current (not ideal) behavior.
       var a = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(0.5, 1) });
       var b = Polygon2D.Make(new Point2D[] { new(1, 0), new(0, 0), new(0.5, -1) });
       var c = Polygon2D.Make(new Point2D[] { new(1, 0), new(0, 0), new(0.5, -2) });
-      bool threw = false;
-      try { GeomUtil.FixAdjacency(new[] { a, b, c }); }
-      catch (Exception) { threw = true; }
-      IsTrue(threw, "expected a non-manifold edge to throw");
+      var fixedRings = GeomUtil.FixAdjacency(new[] { a, b, c });
+      bool foundDegenerateEdge = false;
+      foreach (var ring in fixedRings) {
+        int n = ring.Length;
+        for (int i = 0; i < n; i++) {
+          if (ring[i].AlmostEquals(ring[(i + 1) % n])) foundDegenerateEdge = true;
+        }
+      }
+      IsTrue(foundDegenerateEdge, "expected a coincident-point (zero-length) edge in the output");
     });
 
     Test("GeomUtil_FixAdjacency_MultipleTJunctionsOnOneEdge_SplitsIntoSeveralPieces", () => {
@@ -242,7 +251,10 @@ public static class TriangulateTests {
       // diagonal, carving the base into 4 rectangular strips instead of one 7-vertex polygon.
       var p0 = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
       var p1 = Polygon2D.Make(new Point2D[] { new(1, 0), new(2, 0), new(2, 1), new(1, 1) });
-      var baseFacet = Polygon2D.Make(new Point2D[] { new(-0.5, -1.2), new(2.5, -1.2), new(2.5, 0), new(-0.5, 0) });
+      // Base is deliberately NOT centered on the middle spliced vertex (1,0) -- a symmetric base
+      // (e.g. -0.5..2.5, center x=1.0) makes that vertex exactly equidistant from both bottom
+      // corners, an undefined tie for split_facets_at_junctions_impl's nearest-valid-diagonal search.
+      var baseFacet = Polygon2D.Make(new Point2D[] { new(-0.7, -1.2), new(2.5, -1.2), new(2.5, 0), new(-0.7, 0) });
       var facets = new[] { baseFacet, p0, p1 };
       double areaBefore = baseFacet.Area() + p0.Area() + p1.Area();
 
@@ -283,6 +295,9 @@ public static class TriangulateTests {
     });
 
     Test("GeomUtil_FixAdjacency_TriangleNonManifoldEdge_Throws", () => {
+      // Still throws (unlike the Polygon2D overload above) -- but since is_non_manifold's removal,
+      // it's a confusing exception from a downstream degeneracy guard rather than a clear one naming
+      // the real problem. This test only checks that SOME exception occurs, so it stays valid either way.
       var a = Triangle2D.Make(new(0, 0), new(1, 0), new(0.5, 1));
       var b = Triangle2D.Make(new(1, 0), new(0, 0), new(0.5, -1));
       var c = Triangle2D.Make(new(1, 0), new(0, 0), new(0.5, -2));
@@ -314,6 +329,320 @@ public static class TriangulateTests {
       }
       catch (Exception) { threw = true; }
       IsTrue(threw, "expected Assert to throw on a T-junction");
+    });
+
+    // ── MonotonePolygon and ConstrainedDelaunay strategies ───────────────────────────────────────
+    Console.WriteLine("\nGeomUtil.Triangulate (MonotonePolygon / ConstrainedDelaunay strategies)");
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Square_ReturnsTwoTriangles", () => {
+      var pts = new System.Collections.Generic.List<Point2D> { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
+      var p = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Enforce,
+                                      TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+      var tris = GeomUtil.Triangulate(pts, p);
+      Eq(2, CountOf(tris), 0);
+      Eq(1.0, SumArea2D(tris));
+    });
+
+    Test("GeomUtil_Triangulate_ConstrainedDelaunay_Square_ReturnsTwoTriangles", () => {
+      var pts = new System.Collections.Generic.List<Point2D> { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
+      var p = new TriangulationParams(TriangulationStrategy.ConstrainedDelaunay, TriangulationSimplicity.Enforce,
+                                      TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+      var tris = GeomUtil.Triangulate(pts, p);
+      Eq(2, CountOf(tris), 0);
+      Eq(1.0, SumArea2D(tris));
+    });
+
+    // ── TriangulationParams.Monotonicity (MonotonePolygon y-monotone partition) ──────────────────
+    Console.WriteLine("\nTriangulationParams.Monotonicity");
+
+    Test("TriangulationParams_Monotonicity_DefaultsToGuaranteed", () => {
+      var settings = new TriangulationParams();
+      IsTrue(settings.Monotonicity == TriangulationMonotonicity.Guaranteed,
+             $"expected default monotonicity Guaranteed, got {settings.Monotonicity}");
+    });
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Assert_NonMonotoneStar_Throws", () => {
+      // Same 5-pointed star as visual_doc_and_sample_code.md §12.2 -- fails IsAxisMonotone on every axis.
+      var star = new System.Collections.Generic.List<Point2D> {
+          new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+          new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97) };
+      var settings = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                             TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                             TriangulationMonotonicity.Assert);
+      bool threw = false;
+      try { var _ = GeomUtil.Triangulate(star, settings); }
+      catch (Exception) { threw = true; }
+      IsTrue(threw, "expected non-monotone star to throw under Monotonicity.Assert");
+    });
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Enforce_NonMonotoneStar_MatchesEarClippingArea", () => {
+      var star = new System.Collections.Generic.List<Point2D> {
+          new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+          new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97) };
+      IsFalse(GeomUtil.IsAxisMonotone(star.ToArray(), new Vector2D(0, 1)),
+              "expected the star not to be y-monotone");
+
+      var enforced = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                             TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                             TriangulationMonotonicity.Enforce);
+      var tris = GeomUtil.Triangulate(star, enforced);
+      Eq(star.Count - 2, CountOf(tris), 0);
+
+      var reference = new TriangulationParams(TriangulationStrategy.EarClippingBestFit, TriangulationSimplicity.Guaranteed,
+                                              TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed);
+      var refTris = GeomUtil.Triangulate(star, reference);
+      Eq(SumArea2D(refTris), SumArea2D(tris));
+    });
+
+    Test("GeomUtil_Triangulate_MonotonePolygon_Enforce_AlreadyMonotoneComb_MatchesGuaranteedExactly", () => {
+      // Same 3-tooth comb as visual_doc_and_sample_code.md §12.2 -- already y-monotone, so Enforce must
+      // take the exact same code path as Guaranteed and produce a byte-identical result.
+      var comb = new System.Collections.Generic.List<Point2D> {
+          new(5, 0), new(5, 10), new(4, 10), new(4, 9), new(3, 9), new(3, 10),
+          new(2, 10), new(2, 9), new(1, 9), new(1, 10), new(0, 10), new(0, 0) };
+      IsTrue(GeomUtil.IsAxisMonotone(comb.ToArray(), new Vector2D(0, 1)), "expected the comb to be y-monotone");
+
+      var guaranteed = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                               TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                               TriangulationMonotonicity.Guaranteed);
+      var guaranteedTris = new System.Collections.Generic.List<Triangle2D>(GeomUtil.Triangulate(comb, guaranteed));
+
+      var enforced = new TriangulationParams(TriangulationStrategy.MonotonePolygon, TriangulationSimplicity.Guaranteed,
+                                             TriangulationWinding.Guaranteed, TriangulationCollinearity.Guaranteed,
+                                             TriangulationMonotonicity.Enforce);
+      var enforcedTris = new System.Collections.Generic.List<Triangle2D>(GeomUtil.Triangulate(comb, enforced));
+
+      Eq(guaranteedTris.Count, enforcedTris.Count, 0);
+      for (int i = 0; i < guaranteedTris.Count; i++) {
+        IsTrue(guaranteedTris[i].ToWkt() == enforcedTris[i].ToWkt(),
+               $"expected triangle {i} to match exactly between Guaranteed and Enforce");
+      }
+    });
+
+    // ── IsAxisMonotone ────────────────────────────────────────────────────────────────────────────
+    Console.WriteLine("\nGeomUtil.IsAxisMonotone");
+
+    Test("GeomUtil_IsAxisMonotone_CcwSquare_YDirection_ReturnsTrue", () => {
+      var ring = new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
+      IsTrue(GeomUtil.IsAxisMonotone(ring, new Vector2D(0, 1)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_WShape_YDirection_ReturnsFalse", () => {
+      var ring = new Point2D[] {
+          new(0, 0), new(1, 2), new(2, 0),
+          new(3, 2), new(4, 0), new(4, 4), new(0, 4) };
+      IsFalse(GeomUtil.IsAxisMonotone(ring, new Vector2D(0, 1)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_Polygon2D_CcwSquare_YDirection_ReturnsTrue", () => {
+      var polygon = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      IsTrue(GeomUtil.IsAxisMonotone(polygon, new Vector2D(0, 1)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_Ring3D_CcwSquare_ZDirection_ReturnsTrue", () => {
+      var ring = new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) };
+      IsTrue(GeomUtil.IsAxisMonotone(ring, new Vector3D(0, 1, 0)));
+    });
+
+    Test("GeomUtil_IsAxisMonotone_Polygon3D_CcwSquare_YDirection_ReturnsTrue", () => {
+      var polygon = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+      IsTrue(GeomUtil.IsAxisMonotone(polygon, new Vector3D(0, 1, 0)));
+    });
+
+    // ── InCircumcircle ────────────────────────────────────────────────────────────────────────────
+    Console.WriteLine("\nGeomUtil.InCircumcircle");
+
+    Test("GeomUtil_InCircumcircle_2D_PointInside_ReturnsTrue", () => {
+      IsTrue(GeomUtil.InCircumcircle(
+          new Point2D(0, 0), new Point2D(2, 0), new Point2D(1, 2), new Point2D(1, 0.5)));
+    });
+
+    Test("GeomUtil_InCircumcircle_2D_PointOutside_ReturnsFalse", () => {
+      IsFalse(GeomUtil.InCircumcircle(
+          new Point2D(0, 0), new Point2D(2, 0), new Point2D(1, 2), new Point2D(5, 5)));
+    });
+
+    Test("GeomUtil_InCircumcircle_2D_PointOnCircle_ReturnsFalse", () => {
+      // Right triangle (0,0),(1,0),(0,1): (1,1) lies exactly on the circumcircle.
+      IsFalse(GeomUtil.InCircumcircle(
+          new Point2D(0, 0), new Point2D(1, 0), new Point2D(0, 1), new Point2D(1, 1)));
+    });
+
+    Test("GeomUtil_InCircumcircle_3D_PointInside_ReturnsTrue", () => {
+      IsTrue(GeomUtil.InCircumcircle(
+          new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(1, 2, 0), new Point3D(1, 0.5, 0)));
+    });
+
+    Test("GeomUtil_InCircumcircle_3D_PointOutside_ReturnsFalse", () => {
+      IsFalse(GeomUtil.InCircumcircle(
+          new Point3D(0, 0, 0), new Point3D(2, 0, 0), new Point3D(1, 2, 0), new Point3D(5, 5, 0)));
+    });
+
+    // ── ConstrainedDelaunay strategy / GeomUtil.Delaunay point cloud ───────────────────────────────
+    Console.WriteLine("\nConstrainedDelaunay strategy / GeomUtil.Delaunay (point cloud)");
+
+    Point2D[] StarPoints() => new Point2D[] {
+        new(3.0, 6.0), new(2.29, 3.97), new(0.15, 3.93), new(1.86, 2.63), new(1.24, 0.57),
+        new(3.0, 1.8), new(4.76, 0.57), new(4.14, 2.63), new(5.85, 3.93), new(3.71, 3.97) };
+    Point2D[] CombPoints() => new Point2D[] {
+        new(5, 0), new(5, 10), new(4, 10), new(4, 9), new(3, 9), new(3, 10),
+        new(2, 10), new(2, 9), new(1, 9), new(1, 10), new(0, 10), new(0, 0) };
+    TriangulationParams CdtParams() => new TriangulationParams(TriangulationStrategy.ConstrainedDelaunay,
+        TriangulationSimplicity.Enforce, TriangulationWinding.Enforce, TriangulationCollinearity.Enforce);
+    Point2D[] CcwVertices(Triangle2D t) {
+      var v = t.Vertices();
+      if (t.IsCCW()) {
+        return new[] { v.Item1, v.Item2, v.Item3 };
+      }
+      return new[] { v.Item1, v.Item3, v.Item2 };
+    }
+    bool IsGloballyDelaunay(System.Collections.Generic.IEnumerable<Triangle2D> tris, Point2D[] points) {
+      foreach (var t in tris) {
+        var v = CcwVertices(t);
+        foreach (var p in points) {
+          if (GeomUtil.InCircumcircle(v[0], v[1], v[2], p)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    Test("TriangulationStrategy_ConstrainedDelaunay_HasOrdinalThree", () => {
+      Eq(3, (int)TriangulationStrategy.ConstrainedDelaunay, 0);
+    });
+
+    Test("GeomUtil_Triangulate_ConstrainedDelaunay_Comb_StaysInsidePolygon", () => {
+      var comb = CombPoints();
+      var poly = Polygon2D.Make(comb);
+      var tris = new System.Collections.Generic.List<Triangle2D>(
+          GeomUtil.Triangulate(new System.Collections.Generic.List<Point2D>(comb), CdtParams()));
+      Eq(10, tris.Count, 0);  // n-2, not unconstrained Delaunay's 14 hull triangles
+      Eq(48.0, SumArea2D(tris));
+      foreach (var t in tris) {
+        IsTrue(t.Area() > 0.0, "expected positive-area triangle");
+        IsTrue(poly.Contains(t.Centroid()), $"centroid outside polygon: {t.ToWkt()}");
+      }
+    });
+
+    Test("GeomUtil_Triangulate_ConstrainedDelaunay_Star_StaysInsidePolygon", () => {
+      var star = StarPoints();
+      var poly = Polygon2D.Make(star);
+      var tris = new System.Collections.Generic.List<Triangle2D>(
+          GeomUtil.Triangulate(new System.Collections.Generic.List<Point2D>(star), CdtParams()));
+      Eq(8, tris.Count, 0);  // n-2, not unconstrained Delaunay's 13
+      Eq(poly.Area(), SumArea2D(tris));
+      foreach (var t in tris) {
+        IsTrue(poly.Contains(t.Centroid()), $"centroid outside polygon: {t.ToWkt()}");
+      }
+    });
+
+    Test("GeomUtil_Delaunay_Square_ReturnsTwoTriangles", () => {
+      var tris = GeomUtil.Delaunay(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      Eq(2, tris.Length, 0);
+      Eq(1.0, SumArea2D(tris));
+    });
+
+    Test("GeomUtil_Delaunay_StarPoints_CoversConvexHull", () => {
+      var star = StarPoints();
+      var tris = GeomUtil.Delaunay(star);
+      Eq(13, tris.Length, 0);  // 2n - h - 2 = 20 - 5 - 2
+      var hull = Polygon2D.Make(new System.Collections.Generic.List<Point2D>(
+          GeomUtil.ConvexHull(new System.Collections.Generic.List<Point2D>(star))).ToArray());
+      Eq(hull.Area(), SumArea2D(tris));
+      IsTrue(IsGloballyDelaunay(tris, star), "expected globally Delaunay triangulation");
+      foreach (var t in tris) {
+        IsTrue(t.IsCCW(), "expected CCW triangle");
+      }
+    });
+
+    Test("GeomUtil_Delaunay_SquareWithCenter_ReturnsFourTriangles", () => {
+      var tris = GeomUtil.Delaunay(new Point2D[] { new(0, 0), new(2, 0), new(2, 2), new(0, 2), new(1, 1) });
+      Eq(4, tris.Length, 0);
+      Eq(4.0, SumArea2D(tris));
+    });
+
+    Test("GeomUtil_Delaunay_DuplicatePoints_Ignored", () => {
+      var tris = GeomUtil.Delaunay(new Point2D[] {
+          new(0, 0), new(1, 0), new(1, 1), new(0, 1), new(1, 1), new(0, 0), new(0.0001, 0.0) });
+      Eq(2, tris.Length, 0);
+      Eq(1.0, SumArea2D(tris));
+    });
+
+    Test("GeomUtil_Delaunay_AllCollinear_ReturnsEmpty", () => {
+      var tris = GeomUtil.Delaunay(new Point2D[] { new(0, 0), new(1, 1), new(2, 2), new(3, 3) });
+      Eq(0, tris.Length, 0);
+    });
+
+    Test("GeomUtil_Delaunay_FewerThanThreePoints_ThrowsArgumentException", () => {
+      bool threw = false;
+      try { GeomUtil.Delaunay(new Point2D[] { new(0, 0), new(1, 0) }); }
+      catch (ArgumentException) { threw = true; }
+      IsTrue(threw, "expected ArgumentException for fewer than 3 points");
+    });
+
+    Test("GeomUtil_Delaunay_Grid5x5_ReturnsThirtyTwoTriangles", () => {
+      var pts = new System.Collections.Generic.List<Point2D>();
+      for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+          pts.Add(new Point2D(i, j));
+        }
+      }
+      var tris = GeomUtil.Delaunay(pts.ToArray());
+      Eq(32, tris.Length, 0);  // 2n - h - 2 = 50 - 16 - 2
+      Eq(16.0, SumArea2D(tris));
+      foreach (var t in tris) {
+        IsTrue(t.Area() > 0.0, "expected positive-area triangle");
+      }
+      IsTrue(IsGloballyDelaunay(tris, pts.ToArray()), "expected globally Delaunay triangulation");
+    });
+
+    Test("GeomUtil_Triangulate_ConstrainedDelaunay_TiltedComb3D_ReturnsTenTriangles", () => {
+      var comb = new System.Collections.Generic.List<Point3D> {
+          new(0, 0, 0), new(5, 0, 0), new(5, 0, 10), new(4, 0, 10), new(4, 0, 9), new(3, 0, 9), new(3, 0, 10),
+          new(2, 0, 10), new(2, 0, 9), new(1, 0, 9), new(1, 0, 10), new(0, 0, 10) };
+      var tris = new System.Collections.Generic.List<Triangle3D>(GeomUtil.Triangulate(comb, CdtParams()));
+      Eq(10, tris.Count, 0);
+      Eq(48.0, SumArea3D(tris));
+    });
+
+    Test("GeomUtil_Delaunay_3D_TerrainCloud_WithNormal_KeepsHeights", () => {
+      var pts = new Point3D[] {
+          new(0, 0, 1.0), new(4, 0, 2.0), new(4, 4, 0.5), new(0, 4, 3.0),
+          new(1, 1, 1.7), new(3, 1.2, 0.2), new(2, 3, 2.4), new(1.1, 2.6, 0.9) };
+      var tris = GeomUtil.Delaunay(pts, new Vector3D(0, 0, 1));
+      Eq(10, tris.Length, 0);  // 2n - h - 2 = 16 - 4 - 2
+      foreach (var t in tris) {
+        var v = t.Vertices();
+        foreach (var vert in new[] { v.Item1, v.Item2, v.Item3 }) {
+          bool isInput = false;
+          foreach (var p in pts) {
+            if (p.AlmostEquals(vert)) {
+              isInput = true;
+            }
+          }
+          IsTrue(isInput, "triangle vertex not lifted back to an input point");
+        }
+      }
+    });
+
+    Test("GeomUtil_Delaunay_3D_TiltedSquareWithCenter_PcaOverload", () => {
+      var pts = new Point3D[] { new(0, 0, 0), new(0, 2, 0), new(2, 0, -2), new(2, 2, -2), new(1, 1, -1) };
+      var tris = GeomUtil.Delaunay(pts);
+      Eq(4, tris.Length, 0);
+      Eq(2.0 * 2.0 * Math.Sqrt(2.0), SumArea3D(tris));
+    });
+
+    Test("GeomUtil_Delaunay_3D_FewerThanThreePoints_ThrowsArgumentException", () => {
+      var pts = new Point3D[] { new(0, 0, 0), new(1, 0, 0) };
+      bool threwPca = false;
+      try { GeomUtil.Delaunay(pts); }
+      catch (ArgumentException) { threwPca = true; }
+      IsTrue(threwPca, "expected ArgumentException (PCA overload)");
+      bool threwNormal = false;
+      try { GeomUtil.Delaunay(pts, new Vector3D(0, 0, 1)); }
+      catch (ArgumentException) { threwNormal = true; }
+      IsTrue(threwNormal, "expected ArgumentException (normal overload)");
     });
   }
 }

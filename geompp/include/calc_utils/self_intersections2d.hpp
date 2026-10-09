@@ -4,6 +4,7 @@
 #include "../line_segment2d.hpp"
 #include "../point2d.hpp"
 #include "../sweep_line2d.hpp"
+#include "../vector2d.hpp"
 
 #include <optional>
 #include <vector>
@@ -64,6 +65,15 @@ std::vector<LineSegment2D> to_segments(std::vector<Point2D> const& points);
 /// @param points ring vertices, in order (implicitly closed).
 /// @throws std::invalid_argument if fewer than 2 edges result (mirrors has_intersections()'s own guard).
 bool is_simple(std::vector<Point2D> const& points);
+
+class Polygon2D;
+
+/// @brief Whether @p ring is monotone with respect to @p direction — at most one local maximum and
+/// one local minimum projected onto direction.
+/// @param ring  ring vertices (implicitly closed).
+/// @param direction  scan direction (need not be normalized).
+bool is_axis_monotone(std::vector<Point2D> const& ring, Vector2D const& direction);
+bool is_axis_monotone(Polygon2D const& polygon, Vector2D const& direction);
 
 }  // namespace geometry
 

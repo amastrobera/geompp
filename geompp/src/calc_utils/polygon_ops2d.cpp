@@ -318,6 +318,15 @@ std::vector<LineSegment2D> classify_and_orient(std::vector<LineSegment2D> const&
   return result;
 }
 
+}  // namespace
+
+// Promoted out of the anonymous namespace above (unlike classify_and_orient/select_face/interior_sample_point,
+// which stay boolean_op-only internal-linkage helpers): trace_directed_boundary and package_result_rings
+// below are pure "cancel/trace/group" primitives with no boolean_op-specific dependency, declared in
+// calc_utils/polygon_ops2d.hpp so calc_utils/polygonization2d.cpp can reuse them for the PlanarBoundaryExtraction
+// polygonize() strategy and for merge() -- both need the exact same "chain directed edges into closed loops,
+// group by containment" job this file already implements and tests for boolean_op.
+
 // Half-edge walk over a DIRECTED edge set (unlike simplify_rings' tracer, each surviving edge here
 // contributes only the one direction classify_and_orient chose, so the walk can never backtrack along
 // it). Same angular "next half-edge in this face" rule, restricted to each vertex's outgoing edges.
@@ -534,6 +543,8 @@ std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> 
   }
   return result;
 }
+
+namespace {
 
 // A split fragment tagged with which operand's piece it came from. Meaningful only when every piece of
 // both operands is simple and CCW-outer/CW-hole oriented (RingPieces' contract): under that convention a

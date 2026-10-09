@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.hpp"
 #include "point3d.hpp"
 #include "triangle3d.hpp"
 #include "utils.hpp"
@@ -14,6 +15,9 @@
 namespace geompp {
 
 inline namespace geometry {
+
+class Mesh3D;
+class PolyMesh3D;
 
 /// @brief A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 /// Per-facet edge adjacency is precomputed internally (see `detail::TriangleCompactNeighborRef`) and
@@ -92,6 +96,22 @@ class ConnectedMesh3D {
   auto Faces() const;  // practically read-only faces (built just before returning)
 
 #pragma endregion
+
+  /// @brief Merges coplanar, edge-adjacent facets into polygons, per @p params.strategy -- see
+  /// PolygonizationParams for what each strategy guarantees (planar boundary extraction, quads, or
+  /// Hertel-Mehlhorn convex merging). Reads NEIGHBORS/TRIANGLES/VERTICES directly (already precomputed at
+  /// FromTriangles() time), so this needs no extra adjacency-building work of its own.
+  /// @param params Which polygonization strategy to run -- see PolygonizationParams::Strategy.
+  /// @returns A PolyMesh3D of the merged polygon facets.
+  /// @throws std::invalid_argument if @p params names an unknown strategy enumerator.
+  PolyMesh3D Polygonize(PolygonizationParams const& params = PolygonizationParams{}) const;
+
+  /// @brief Drops this mesh's precomputed adjacency (NEIGHBORS), keeping the same welded vertices and
+  /// facets -- the inverse of Mesh3D::Connect(). VERTICES is reused as-is (O(1) refcount bump); only
+  /// TRIANGLES' flat std::vector<size_t> layout needs repacking into Mesh3D::FACE_INDICES'
+  /// std::vector<array<size_t,3>> one, so this is O(n) with no re-welding or re-validation.
+  /// @returns A Mesh3D over the exact same vertices/facets, with no adjacency structure.
+  Mesh3D Disconnect() const;
 
  private:
   std::shared_ptr<std::vector<Point3D>> VERTICES;

@@ -319,6 +319,34 @@ public static class TransformationsTests {
       IsTrue(snapshot == Matrix4.Translation(new Vector3(1, 0, 0)));
     });
 
+    Test("TransformBuilder3D_Apply_MatchesTransformApplyWithGet", () => {
+      var builder = new TransformBuilder3D();
+      builder.Translate(new Vector3(5, 0, 0)).Rotate(Math.PI / 2.0, new Vector3(0, 0, 1));
+      var p = new Point3D(1, 0, 0);
+      IsTrue(builder.Apply(p) == Transform.Apply(p, builder.Get()));
+    });
+
+    Test("TransformBuilder3D_Apply_WorksOnCompositePrimitive", () => {
+      var builder = new TransformBuilder3D();
+      builder.Translate(new Vector3(0, 0, 5));
+      var poly = Polygon3D.Make(new Point3D[] { new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0) });
+      IsTrue(builder.Apply(poly) == Transform.Apply(poly, builder.Get()));
+    });
+
+    Test("TransformBuilder3D_Apply_DoesNotConsumeShapeOrBuilder", () => {
+      var builder = new TransformBuilder3D();
+      builder.Translate(new Vector3(1, 0, 0));
+      var p = new Point3D(0, 0, 0);
+
+      var first = builder.Apply(p);
+      IsTrue(p == new Point3D(0, 0, 0));
+      IsTrue(first == new Point3D(1, 0, 0));
+
+      builder.Translate(new Vector3(0, 1, 0));
+      var second = builder.Apply(p);
+      IsTrue(second == new Point3D(1, 1, 0));
+    });
+
     // ── TransformBuilder2D ─────────────────────────────────────────────────────────
     Console.WriteLine("\nTransformBuilder2D");
 
@@ -376,6 +404,34 @@ public static class TransformationsTests {
       var snapshot = builder.Build();
       builder.Translate(new Vector2(0, 1));
       IsTrue(snapshot == Matrix3.Translation(new Vector2(1, 0)));
+    });
+
+    Test("TransformBuilder2D_Apply_MatchesTransformApplyWithGet", () => {
+      var builder = new TransformBuilder2D();
+      builder.Translate(new Vector2(5, 0)).Rotate(Math.PI / 2.0);
+      var p = new Point2D(1, 0);
+      IsTrue(builder.Apply(p) == Transform.Apply(p, builder.Get()));
+    });
+
+    Test("TransformBuilder2D_Apply_WorksOnCompositePrimitive", () => {
+      var builder = new TransformBuilder2D();
+      builder.Scale(2.0);
+      var poly = Polygon2D.Make(new Point2D[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) });
+      IsTrue(builder.Apply(poly) == Transform.Apply(poly, builder.Get()));
+    });
+
+    Test("TransformBuilder2D_Apply_DoesNotConsumeShapeOrBuilder", () => {
+      var builder = new TransformBuilder2D();
+      builder.Translate(new Vector2(1, 0));
+      var p = new Point2D(0, 0);
+
+      var first = builder.Apply(p);
+      IsTrue(p == new Point2D(0, 0));
+      IsTrue(first == new Point2D(1, 0));
+
+      builder.Translate(new Vector2(0, 1));
+      var second = builder.Apply(p);
+      IsTrue(second == new Point2D(1, 1));
     });
   }
 }

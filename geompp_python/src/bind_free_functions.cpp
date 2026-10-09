@@ -4,6 +4,10 @@
 #include "point2d.hpp"         // convex_hull
 #include "calc_utils2d.hpp"    // ExtremePoints / find_extreme_points (2D)
 #include "calc_utils3d.hpp"    // principal_axes / principal_normal / principal_direction / find_extreme_points (3D)
+#include "calc_utils/self_intersections2d.hpp"
+#include "calc_utils/self_intersections3d.hpp"
+#include "calc_utils/triangulation2d.hpp"
+#include "calc_utils/triangulation3d.hpp"
 #include "line2d.hpp"
 #include "line3d.hpp"
 #include "polygon2d.hpp"
@@ -416,10 +420,10 @@ void bind_free_functions(py::module_& m) {
         .def_readonly("facet_indices", &geompp::AdjacencyViolation<geompp::Point2D>::facet_indices,
                       "Every facet (index into the input) touching this edge. For a T-junction, "
                       "facet_indices[0] owns the coarse edge — the one fix_adjacency() splices on_vertex into.")
-        .def_readonly("is_non_manifold", &geompp::AdjacencyViolation<geompp::Point2D>::is_non_manifold,
-                      "True: a full edge shared by 3+ facets, not fixable. False: a T-junction, fixable.")
         .def_readonly("on_vertex", &geompp::AdjacencyViolation<geompp::Point2D>::on_vertex,
-                      "Meaningful only when not is_non_manifold: the foreign vertex lying on the edge.");
+                      "Meaningful only for a T-junction (facet_indices has exactly 1 entry): the foreign "
+                      "vertex lying on the edge. For a non-manifold edge (facet_indices has 3+ entries), "
+                      "this is not meaningful.");
 
     py::class_<geompp::AdjacencyViolation<geompp::Point3D>>(m, "AdjacencyViolation3D",
         "3D counterpart of AdjacencyViolation2D — same fields, operating on Point3D. Native 3D "
@@ -430,10 +434,10 @@ void bind_free_functions(py::module_& m) {
         .def_readonly("facet_indices", &geompp::AdjacencyViolation<geompp::Point3D>::facet_indices,
                       "Every facet (index into the input) touching this edge. For a T-junction, "
                       "facet_indices[0] owns the coarse edge — the one fix_adjacency() splices on_vertex into.")
-        .def_readonly("is_non_manifold", &geompp::AdjacencyViolation<geompp::Point3D>::is_non_manifold,
-                      "True: a full edge shared by 3+ facets, not fixable. False: a T-junction, fixable.")
         .def_readonly("on_vertex", &geompp::AdjacencyViolation<geompp::Point3D>::on_vertex,
-                      "Meaningful only when not is_non_manifold: the foreign vertex lying on the edge.");
+                      "Meaningful only for a T-junction (facet_indices has exactly 1 entry): the foreign "
+                      "vertex lying on the edge. For a non-manifold edge (facet_indices has 3+ entries), "
+                      "this is not meaningful.");
 
     m.def("validate_adjacency",
           [](const std::vector<geompp::Polygon2D>& facets) { return geompp::validate_adjacency(facets); },
@@ -488,4 +492,95 @@ void bind_free_functions(py::module_& m) {
           "PolyMesh2D.from_polygons(polygons).triangulate()). Unlike PolyMesh2D.from_polygons (which "
           "always raises on bad adjacency), settings.conformity defaults to Enforce: auto-repairs a "
           "T-junction, still raises on a non-manifold edge. Returns list[Triangle2D].");
+
+    // ── polygonization ("merges coplanar, edge-adjacent triangles into polygons") ────────────────
+    // PolygonizationParams and its Strategy enum are registered separately, earlier -- see
+    // bind_polygonization_params.cpp for why.
+    m.def("polygonize",
+          [](const std::vector<geompp::Triangle2D>& triangles, const geompp::PolygonizationParams& settings) {
+              return geompp::polygonize(triangles, settings);
+          },
+          "triangles"_a, "settings"_a = geompp::PolygonizationParams{},
+          "Merges a set of (not necessarily adjacency-ordered) 2D triangles into polygons, per "
+          "settings.strategy -- the free-function equivalent of Mesh2D.from_triangles(triangles)"
+          ".polygonize(settings). Returns list[Polygon2D].");
+    m.def("polygonize",
+          [](const std::vector<geompp::Triangle3D>& triangles, const geompp::PolygonizationParams& settings) {
+              return geompp::polygonize(triangles, settings);
+          },
+          "triangles"_a, "settings"_a = geompp::PolygonizationParams{},
+          "Same as the Triangle2D overload, for Triangle3D facets -> list[Polygon3D].");
+
+    m.def("merge",
+          [](const std::vector<geompp::Polygon2D>& polygons) { return geompp::merge(polygons); },
+          "polygons"_a,
+          "Welds a set of non-overlapping polygons that tile a plane (2D has one implicit plane) into "
+          "fewer, bigger polygons, by cancelling every outer-ring edge shared between two of them and "
+          "tracing what's left. Holes are merged the same way one level down: touching holes (any point "
+          "of one on the other's perimeter) are unioned into one bigger hole. Returns list[Polygon2D].");
+    m.def("merge",
+          [](const std::vector<geompp::Polygon3D>& polygons) { return geompp::merge(polygons); },
+          "polygons"_a,
+          "Same as the Polygon2D overload, for Polygon3D input -> list[Polygon3D]. Additionally groups "
+          "the input by plane first (coplanar polygons only merge with each other).");
+
+    // ── axis monotonicity ──────────────────────────────────────────────────────────────────────
+    m.def("is_axis_monotone",
+          py::overload_cast<std::vector<geompp::Point2D> const&, geompp::Vector2D const&>(&geompp::is_axis_monotone),
+          py::arg("ring"), py::arg("direction"),
+          "Whether the ring is monotone with respect to direction (at most one local max/min projected onto it).");
+
+    m.def("is_axis_monotone",
+          py::overload_cast<geompp::Polygon2D const&, geompp::Vector2D const&>(&geompp::is_axis_monotone),
+          py::arg("polygon"), py::arg("direction"),
+          "Whether the polygon is monotone with respect to direction.");
+
+    m.def("is_axis_monotone",
+          py::overload_cast<std::vector<geompp::Point3D> const&, geompp::Vector3D const&>(&geompp::is_axis_monotone),
+          py::arg("ring"), py::arg("direction"),
+          "Whether the 3D ring is monotone with respect to direction.");
+
+    m.def("is_axis_monotone",
+          py::overload_cast<geompp::Polygon3D const&, geompp::Vector3D const&>(&geompp::is_axis_monotone),
+          py::arg("polygon"), py::arg("direction"),
+          "Whether the 3D polygon is monotone with respect to direction.");
+
+    // ── circumcircle predicate ─────────────────────────────────────────────────────────────────
+    m.def("in_circumcircle",
+          py::overload_cast<geompp::Point2D const&, geompp::Point2D const&, geompp::Point2D const&, geompp::Point2D const&>(&geompp::in_circumcircle),
+          py::arg("a"), py::arg("b"), py::arg("c"), py::arg("p"),
+          "Whether p is strictly inside the circumcircle of CCW triangle {a,b,c}.");
+
+    m.def("in_circumcircle",
+          py::overload_cast<geompp::Point3D const&, geompp::Point3D const&, geompp::Point3D const&, geompp::Point3D const&>(&geompp::in_circumcircle),
+          py::arg("a"), py::arg("b"), py::arg("c"), py::arg("p"),
+          "Whether p is strictly inside the circumcircle of CCW triangle {a,b,c} in 3D.");
+
+    // ── point-cloud Delaunay (unconstrained) ───────────────────────────────────────────────────
+    // Overload order: pybind11 tries overloads in registration order; list[Point2D] vs list[Point3D]
+    // disambiguates by element type (no implicit Point2D <-> Point3D conversion is registered).
+    m.def("delaunay",
+          py::overload_cast<std::vector<geompp::Point2D> const&>(&geompp::delaunay),
+          "points"_a,
+          "Unconstrained Delaunay triangulation of a 2D point cloud (scan triangulation + Lawson flips). "
+          "Covers the convex hull of points; no input point lies strictly inside any output triangle's "
+          "circumcircle (maximizes the minimum angle). Duplicates (within decimal precision) are ignored. "
+          "Returns list[Triangle2D], CCW, 2n - h - 2 of them (n distinct points, h on the hull); empty if "
+          "every point is collinear. Raises ValueError for fewer than 3 points. O(n^2) worst case. For a "
+          "polygon, use triangulate() with TriangulationStrategy.ConstrainedDelaunay instead.");
+
+    m.def("delaunay",
+          py::overload_cast<std::vector<geompp::Point3D> const&, geompp::Vector3D>(&geompp::delaunay),
+          "points"_a, "normal"_a,
+          "Unconstrained Delaunay triangulation of a 3D point cloud, 2.5D-style: points are projected along "
+          "the dominant axis of normal (XY for a terrain with normal ~ Z), triangulated in that plane, and "
+          "lifted back to the original 3D points. Covers the projected convex hull. Returns "
+          "list[Triangle3D]; empty if every projected point is collinear. Raises ValueError for fewer "
+          "than 3 points. O(n^2) worst case.");
+
+    m.def("delaunay",
+          py::overload_cast<std::vector<geompp::Point3D> const&>(&geompp::delaunay),
+          "points"_a,
+          "Same as delaunay(points, normal), with the normal fitted via PCA (principal_axes) -- for a "
+          "roughly planar 3D cloud whose plane isn't known up front. Returns list[Triangle3D].");
 }

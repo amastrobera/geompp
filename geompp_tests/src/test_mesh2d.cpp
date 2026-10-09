@@ -1,15 +1,27 @@
 #include "mesh2d.hpp"
 
 #include "connected_mesh2d.hpp"
+#include "geometry_collection2d.hpp"
+#include "line2d.hpp"
+#include "line_segment2d.hpp"
 #include "point2d.hpp"
+#include "polyline2d.hpp"
+#include "polymesh2d.hpp"
+#include "ray2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <optional>
+
 namespace g = geompp;
+namespace fs = std::filesystem;
 
 namespace geompp_tests {
+
+extern fs::path test_res_path;
 
 class Mesh2DTest : public ::testing::Test {
  protected:
@@ -27,6 +39,36 @@ TEST_F(Mesh2DTest, FromTriangles_NonManifoldEdge_Throws) {
   auto b = g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(0, 0), g::Point2D(0.5, -1));
   auto c = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(0.5, -2));
   EXPECT_THROW(g::Mesh2D::FromTriangles({a, b, c}), std::invalid_argument);
+}
+
+TEST_F(Mesh2DTest, FromTriangles_TJunction_DefaultAssert_Throws) {
+  // Big triangle A sitting on two small triangles B, C -- B and C's shared vertex (2,0) lies in the
+  // interior of A's base edge (0,0)-(4,0), a T-junction. Default conformity is Assert, unchanged from
+  // today's unconditional hard-throw behavior.
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, -1.5), g::Point2D(2, 0));
+  auto C = g::Triangle2D::Make(g::Point2D(2, 0), g::Point2D(3, -1.5), g::Point2D(4, 0));
+  EXPECT_THROW(g::Mesh2D::FromTriangles({A, B, C}), std::invalid_argument);
+}
+
+TEST_F(Mesh2DTest, FromTriangles_TJunction_Enforce_ReTriangulatesAndWeldsSuccessfully) {
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, -1.5), g::Point2D(2, 0));
+  auto C = g::Triangle2D::Make(g::Point2D(2, 0), g::Point2D(3, -1.5), g::Point2D(4, 0));
+  double area_before = A.Area() + B.Area() + C.Area();
+
+  auto mesh = g::Mesh2D::FromTriangles({A, B, C}, g::AdjacencyConformity::Enforce);
+
+  EXPECT_EQ(4u, mesh.Size());  // A re-triangulates into 2, B and C pass through unchanged
+  EXPECT_NEAR(area_before, mesh.Area(), 1e-9);
+}
+
+TEST_F(Mesh2DTest, FromTriangles_TJunction_Guaranteed_SkipsCheckAndSucceeds) {
+  auto A = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(4, 0), g::Point2D(2, 3));
+  auto B = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, -1.5), g::Point2D(2, 0));
+  auto C = g::Triangle2D::Make(g::Point2D(2, 0), g::Point2D(3, -1.5), g::Point2D(4, 0));
+
+  EXPECT_NO_THROW(g::Mesh2D::FromTriangles({A, B, C}, g::AdjacencyConformity::Guaranteed));
 }
 
 TEST_F(Mesh2DTest, FromTriangles_SingleTriangle) {
@@ -123,6 +165,197 @@ TEST_F(Mesh2DTest, Connect_SharedEdge_ExposesAdjacency) {
   auto neighbor = connected[0].Neighbor(Edge::THIRD);
   ASSERT_TRUE(neighbor.has_value());
   EXPECT_EQ(1u, neighbor->ID());
+}
+
+TEST_F(Mesh2DTest, Polygonize_UnitSquareFromTwoTriangles_ReturnsSingleQuad) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_NEAR(poly_mesh.Area(), 1.0, 1e-9);
+  EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction) {
+  // 2x2 grid, top-left cell skipped: an L-shape. Plain HertelMehlhorn returns 2 convex pieces -- a 2x1
+  // rectangle and a 1x1 square -- whose shared corner sits exactly at the midpoint of the rectangle's
+  // top edge (now split further, see below). Regression test: this used to throw here (though not from the free polygonize() function,
+  // which has no mesh-conformity requirement to violate) because Polygonize() packaged each piece via
+  // Polygon2D::Make(), which silently drops that midpoint as collinear on the rectangle's own ring alone
+  // -- leaving the square's corner touching the middle of a neighbor's edge once PolyMesh2D::FromPolygons()
+  // re-welds and validates adjacency. Fixed by having Polygonize() preserve every traced vertex instead
+  // (see detail::polygons_from_pieces).
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  std::optional<g::PolyMesh2D> poly_mesh;
+  EXPECT_NO_THROW(poly_mesh = mesh.Polygonize(params));
+  ASSERT_TRUE(poly_mesh.has_value());
+  // HertelMehlhorn now returns 3 pieces: the 2x1 bottom rectangle it would otherwise build is dissolved
+  // and re-merged, because the top square's corner (1,1) sits mid-way along its top edge (see
+  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions).
+  EXPECT_EQ(poly_mesh->Size(), 3u);
+  EXPECT_NEAR(poly_mesh->Area(), 3.0, 1e-9);
+}
+
+TEST_F(Mesh2DTest, Polygonize_MatchesConnectThenPolygonize) {
+  // Mesh2D::Polygonize() takes a different (cheaper) internal path than Connect().Polygonize() would --
+  // no ConnectedMesh2D is ever constructed -- but must agree on the actual result.
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(1, 1)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  auto direct = mesh.Polygonize(params);
+  auto via_connect = mesh.Connect().Polygonize(params);
+
+  ASSERT_EQ(direct.Size(), via_connect.Size());
+  EXPECT_NEAR(direct.Area(), via_connect.Area(), 1e-9);
+  for (std::size_t i = 0; i < direct.Size(); ++i) {
+    EXPECT_TRUE(direct[i].AlmostEquals(via_connect[i]))
+        << "piece " << i << " differs between Mesh2D::Polygonize() and Connect().Polygonize()";
+  }
+}
+
+TEST_F(Mesh2DTest, Polygonize_LShape_HertelMehlhorn_OperatorBracketPreservesSharedTJunctionVertex) {
+  // Regression test for a bug found alongside Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction
+  // above: that test only checks Polygonize() doesn't throw at construction time, which is not enough --
+  // PolyMesh2D::FromPolygons() validates and welds correctly, but PolyMesh2D::operator[] used to
+  // reconstruct each returned Polygon2D via Polygon2D::Make(vertices), whose remove_collinear() pass
+  // silently stripped the same load-bearing T-junction vertex right back out on every read (it has no way
+  // to know (1,1) here is a genuine corner of the neighboring square, since it only ever sees one facet's
+  // ring at a time) -- reintroducing, downstream, the exact defect FromPolygons() had just proved absent.
+  // Feeding poly_mesh[i]'s own output back into a fresh PolyMesh2D::FromPolygons() used to throw as a
+  // result. Fixed by having operator[] use FromUniquePoints() (no remove_collinear()) instead of Make().
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+  });
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+  auto poly_mesh = mesh.Polygonize(params);
+  // 3 pieces now (see Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction), with (1,1) a real corner
+  // of every piece touching it; operator[] must still hand each one back unchanged.
+  ASSERT_EQ(poly_mesh.Size(), 3u);
+
+  std::vector<g::Polygon2D> extracted;
+  double total_area = 0.0;
+  for (std::size_t i = 0; i < poly_mesh.Size(); ++i) {
+    g::Polygon2D piece = poly_mesh[i];
+    extracted.push_back(piece);
+    total_area += piece.Area();
+  }
+  EXPECT_NEAR(total_area, 3.0, 1e-9);
+
+  // Round-trips clean: feeding operator[]'s own output back into a fresh PolyMesh2D shouldn't throw.
+  EXPECT_NO_THROW(g::PolyMesh2D::FromPolygons(extracted));
+}
+
+TEST_F(Mesh2DTest, Polygonize_LShapePlusSpikes_HertelMehlhorn_AgreesAcrossEveryConformityMode) {
+  // Matches visual_doc_and_sample_code.md §13.1's own C++ sample verbatim (incl. the
+  // PolygonizationParams{strategy, conformity} aggregate-init form), pinning down that all three
+  // conformity modes produce byte-identical output on this already-conformant mesh.
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(1.5, -0.5), g::Point2D(2, 0)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+      g::Triangle2D::Make(g::Point2D(2, 1), g::Point2D(2.5, 1.5), g::Point2D(2, 2)),
+  });
+
+  g::PolygonizationParams enforce{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Enforce};
+  g::PolygonizationParams guaranteed{g::PolygonizationParams::Strategy::HertelMehlhorn,
+                                     g::AdjacencyConformity::Guaranteed};
+  g::PolygonizationParams assertMode{g::PolygonizationParams::Strategy::HertelMehlhorn, g::AdjacencyConformity::Assert};
+
+  auto he = mesh.Polygonize(enforce);
+  auto hg = mesh.Polygonize(guaranteed);
+  auto ha = mesh.Polygonize(assertMode);
+
+  // 4 pieces: the bottom 2x1 rectangle plain HertelMehlhorn would build carries two load-bearing
+  // 180-degree vertices ((1,0) for the bottom spike, (1,1) for the top piece), so it's split.
+  ASSERT_EQ(he.Size(), 4u);
+  ASSERT_EQ(hg.Size(), 4u);
+  ASSERT_EQ(ha.Size(), 4u);
+  for (std::size_t i = 0; i < he.Size(); ++i) {
+    EXPECT_EQ(he[i].ToWkt(), hg[i].ToWkt());
+    EXPECT_EQ(he[i].ToWkt(), ha[i].ToWkt());
+  }
+}
+
+TEST_F(Mesh2DTest, ToGeometryCollection_MatchesSizeAndArea) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+  auto collection = mesh.ToGeometryCollection();
+  ASSERT_EQ(collection.Size(), mesh.Size());
+  double total_area = 0.0;
+  for (std::size_t i = 0; i < collection.Size(); ++i) {
+    auto shape = collection.Get(i);
+    ASSERT_TRUE(std::holds_alternative<g::Triangle2D>(shape));
+    total_area += std::get<g::Triangle2D>(shape).Area();
+  }
+  EXPECT_NEAR(total_area, mesh.Area(), 1e-9);
+}
+
+TEST_F(Mesh2DTest, ToWkt_FromWkt_RoundTripsExactly) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+  std::string wkt = mesh.ToWkt();
+  EXPECT_EQ(wkt, "MESH (((0 0, 1 0, 1 1, 0 0)), ((0 0, 1 1, 0 1, 0 0)))");
+
+  auto roundtrip = g::Mesh2D::FromWkt(wkt);
+  EXPECT_EQ(roundtrip.Size(), mesh.Size());
+  EXPECT_NEAR(roundtrip.Area(), mesh.Area(), 1e-9);
+  EXPECT_EQ(roundtrip.ToWkt(), wkt);
+}
+
+TEST_F(Mesh2DTest, FromWkt_WrongGeometryName_Throws) { EXPECT_THROW(g::Mesh2D::FromWkt("POLYGON ((0 0))"), std::exception); }
+
+TEST_F(Mesh2DTest, FromWkt_FacetNotATriangle_Throws) {
+  // A facet with 4 vertices -- a mesh facet must always be exactly a triangle.
+  EXPECT_THROW(g::Mesh2D::FromWkt("MESH (((0 0, 1 0, 1 1, 0 1, 0 0)))"), std::exception);
+}
+
+TEST_F(Mesh2DTest, ToFile_FromFile_RoundTrips) {
+  auto mesh = g::Mesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+  });
+  std::string path = (test_res_path / "temp" / "mesh2d_roundtrip.wkt").string();
+  mesh.ToFile(path);
+  auto from_file = g::Mesh2D::FromFile(path);
+  EXPECT_EQ(from_file.Size(), mesh.Size());
+  EXPECT_NEAR(from_file.Area(), mesh.Area(), 1e-9);
+  EXPECT_NO_THROW(fs::remove(path));
 }
 
 }  // namespace geompp_tests

@@ -39,6 +39,9 @@ prints a `WARNING` to stderr if a name in one of these sets isn't found in the D
 (renamed/undocumented/removed), but it can't detect the opposite case (a newly-bound function
 nobody added to the set).
 
+> **v0.18.0 update:** `is_axis_monotone`, `in_circumcircle` and `delaunay` are bound in Python and C#
+> and listed in `GEOMETRY_FREE_FUNCTIONS`; `docs/api/` was regenerated on 2026-10-08.
+
 **Cross-linking**: every occurrence of a known class/struct name in parameter types,
 return descriptions, and `@brief`/`@param`/`@return` prose becomes a Markdown
 link to that class's `.md` file in the same directory. Each class/struct page ends with a

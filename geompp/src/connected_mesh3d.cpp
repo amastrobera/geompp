@@ -1,7 +1,11 @@
 #include "connected_mesh3d.hpp"
 
+#include "calc_utils/polygonization3d.hpp"
 #include "calc_utils2d.hpp"
 #include "grid_cell3d.hpp"
+#include "mesh3d.hpp"
+#include "polygon3d.hpp"
+#include "polymesh3d.hpp"
 #include "triangle3d.hpp"
 
 #include <stdexcept>
@@ -66,6 +70,31 @@ detail::TriangleCompactNeighborRef::TriangleEdge ConnectedMesh3D::FaceView3D::Ne
   }
 
   return neighbor_ref.edge_id();
+}
+
+PolyMesh3D ConnectedMesh3D::Polygonize(PolygonizationParams const& params) const {
+  // Wraps this mesh's own already-stored VERTICES/TRIANGLES/NEIGHBORS directly -- no adjacency-building
+  // work of any kind, unlike Mesh3D::Polygonize() (which has to build a transient NEIGHBORS array first).
+  std::size_t n = TRIANGLES->size() / 3;
+  std::vector<detail::MeshTriangleFaceView3D> faces;
+  faces.reserve(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    faces.emplace_back(VERTICES->data(), TRIANGLES->data(), NEIGHBORS->data(), i);
+  }
+
+  auto pieces = detail::polygonize_impl(faces, params);
+  auto polygons = detail::polygons_from_pieces(std::move(pieces));
+  return PolyMesh3D::FromPolygons(polygons, params.conformity);
+}
+
+Mesh3D ConnectedMesh3D::Disconnect() const {
+  std::size_t n = TRIANGLES->size() / 3;
+  auto face_indices = std::make_shared<std::vector<std::array<std::size_t, 3>>>();
+  face_indices->reserve(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    face_indices->push_back({(*TRIANGLES)[3 * i], (*TRIANGLES)[3 * i + 1], (*TRIANGLES)[3 * i + 2]});
+  }
+  return Mesh3D(VERTICES, face_indices, AREA);
 }
 
 }  // namespace geometry

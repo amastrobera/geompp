@@ -124,6 +124,55 @@ class TestConnectedMesh2D:
         assert back.id() == face0.id()
         assert face1.neighbor_entry_edge(entry_edge) == geompp.TriangleEdge.THIRD
 
+    def test_polygonize_unit_square_from_two_triangles_returns_single_quad(self):
+        t0 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1))
+        t1 = geompp.Triangle2D.make(geompp.Point2D(0, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1))
+        mesh = geompp.ConnectedMesh2D.from_triangles([t0, t1])
+
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.PlanarBoundaryExtraction)
+        poly_mesh = mesh.polygonize(settings)
+
+        assert poly_mesh.size() == 1
+        assert approx(poly_mesh.area(), 1.0)
+        assert poly_mesh[0].size() == 4
+
+    def test_polygonize_2x2_grid_hertel_mehlhorn_merges_into_single_convex_piece(self):
+        triangles = []
+        for r in range(2):
+            for c in range(2):
+                p00 = geompp.Point2D(c, r)
+                p10 = geompp.Point2D(c + 1, r)
+                p11 = geompp.Point2D(c + 1, r + 1)
+                p01 = geompp.Point2D(c, r + 1)
+                triangles.append(geompp.Triangle2D.make(p00, p10, p11))
+                triangles.append(geompp.Triangle2D.make(p00, p11, p01))
+        mesh = geompp.ConnectedMesh2D.from_triangles(triangles)
+
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn)
+        poly_mesh = mesh.polygonize(settings)
+
+        assert poly_mesh.size() == 1
+        assert approx(poly_mesh.area(), 4.0)
+        assert poly_mesh[0].is_convex()
+
+    def test_polygonize_l_shape_hertel_mehlhorn_does_not_throw_t_junction(self):
+        # Mirrors TestMesh2D's own version -- see its comment for the full explanation. ConnectedMesh2D.
+        # polygonize() packages pieces via the same fix, so it must not raise here either.
+        p00, p10, p11, p01 = geompp.Point2D(0, 0), geompp.Point2D(1, 0), geompp.Point2D(1, 1), geompp.Point2D(0, 1)
+        p20, p21, p22, p12 = geompp.Point2D(2, 0), geompp.Point2D(2, 1), geompp.Point2D(2, 2), geompp.Point2D(1, 2)
+        mesh = geompp.ConnectedMesh2D.from_triangles([
+            geompp.Triangle2D.make(p00, p10, p11), geompp.Triangle2D.make(p00, p11, p01),
+            geompp.Triangle2D.make(p10, p20, p21), geompp.Triangle2D.make(p10, p21, p11),
+            geompp.Triangle2D.make(p11, p21, p22), geompp.Triangle2D.make(p11, p22, p12),
+        ])
+
+        poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
+
+        # 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1, 1)
+        # as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+        assert poly_mesh.size() == 3
+        assert approx(poly_mesh.area(), 3.0)
+
 class TestConnectedMesh3D:
     def test_from_triangles_empty_raises(self):
         with pytest.raises(ValueError):
@@ -236,3 +285,36 @@ class TestConnectedMesh3D:
         assert back is not None
         assert back.id() == face0.id()
         assert face1.neighbor_entry_edge(entry_edge) == geompp.TriangleEdge.THIRD
+
+    def test_polygonize_tilted_square_from_two_triangles_returns_single_quad(self):
+        p00 = geompp.Point3D(0, 0, 0)
+        p10 = geompp.Point3D(1, 0, 1)
+        p11 = geompp.Point3D(1, 1, 1)
+        p01 = geompp.Point3D(0, 1, 0)
+        t0 = geompp.Triangle3D.make(p00, p10, p11)
+        t1 = geompp.Triangle3D.make(p00, p11, p01)
+        mesh = geompp.ConnectedMesh3D.from_triangles([t0, t1])
+
+        settings = geompp.PolygonizationParams(geompp.PolygonizationStrategy.PlanarBoundaryExtraction)
+        poly_mesh = mesh.polygonize(settings)
+
+        assert poly_mesh.size() == 1
+        assert poly_mesh[0].size() == 4
+        assert approx(poly_mesh.area(), 2.0 ** 0.5)
+
+    def test_polygonize_l_shape_hertel_mehlhorn_does_not_throw_t_junction(self):
+        # Mirrors TestConnectedMesh2D's own version, flat on z=0 -- see its comment for the explanation.
+        p00, p10, p11, p01 = geompp.Point3D(0, 0, 0), geompp.Point3D(1, 0, 0), geompp.Point3D(1, 1, 0), geompp.Point3D(0, 1, 0)
+        p20, p21, p22, p12 = geompp.Point3D(2, 0, 0), geompp.Point3D(2, 1, 0), geompp.Point3D(2, 2, 0), geompp.Point3D(1, 2, 0)
+        mesh = geompp.ConnectedMesh3D.from_triangles([
+            geompp.Triangle3D.make(p00, p10, p11), geompp.Triangle3D.make(p00, p11, p01),
+            geompp.Triangle3D.make(p10, p20, p21), geompp.Triangle3D.make(p10, p21, p11),
+            geompp.Triangle3D.make(p11, p21, p22), geompp.Triangle3D.make(p11, p22, p12),
+        ])
+
+        poly_mesh = mesh.polygonize(geompp.PolygonizationParams(geompp.PolygonizationStrategy.HertelMehlhorn))
+
+        # 3 pieces: plain HertelMehlhorn's 2x1 bottom rectangle would carry the top square's corner (1, 1)
+        # as a 180-degree vertex, so it's dissolved and re-merged with that vertex forbidden.
+        assert poly_mesh.size() == 3
+        assert approx(poly_mesh.area(), 3.0)

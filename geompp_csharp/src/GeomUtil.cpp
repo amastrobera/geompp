@@ -1,10 +1,16 @@
 #pragma managed(push, off)
 #include <calc_utils3d.hpp>
+#include <calc_utils/self_intersections2d.hpp>
+#include <calc_utils/self_intersections3d.hpp>
+#include <calc_utils/triangulation2d.hpp>
+#include <calc_utils/triangulation3d.hpp>
+#include <stdexcept>
 #pragma managed(pop)
 
 #include "GeomUtil.hpp"
 #include "Point2D.hpp"
 #include "Point3D.hpp"
+#include "Vector2D.hpp"
 #include "Plane.hpp"
 #include "LineSegment2D.hpp"
 #include "LineSegment3D.hpp"
@@ -380,18 +386,30 @@ PolygonTangents3D^ GeomUtil::TangentsTo(Polygon3D^ polygon, Polygon3D^ other) {
 TriangulationParams::TriangulationParams()
     : _strategy(TriangulationStrategy::EarClippingBestFit), _simplicity(TriangulationSimplicity::Enforce),
       _ccwWinding(TriangulationWinding::Enforce), _collinearity(TriangulationCollinearity::Enforce),
-      _conformity(AdjacencyConformity::Enforce) {}
+      _monotonicity(TriangulationMonotonicity::Guaranteed), _conformity(AdjacencyConformity::Enforce) {}
 
 TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                                          TriangulationWinding ccwWinding, TriangulationCollinearity collinearity)
     : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
-      _conformity(AdjacencyConformity::Enforce) {}
+      _monotonicity(TriangulationMonotonicity::Guaranteed), _conformity(AdjacencyConformity::Enforce) {}
 
 TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                                          TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
                                          AdjacencyConformity conformity)
     : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
-      _conformity(conformity) {}
+      _monotonicity(TriangulationMonotonicity::Guaranteed), _conformity(conformity) {}
+
+TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                                         TriangulationMonotonicity monotonicity)
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
+      _monotonicity(monotonicity), _conformity(AdjacencyConformity::Enforce) {}
+
+TriangulationParams::TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                                         TriangulationMonotonicity monotonicity, AdjacencyConformity conformity)
+    : _strategy(strategy), _simplicity(simplicity), _ccwWinding(ccwWinding), _collinearity(collinearity),
+      _monotonicity(monotonicity), _conformity(conformity) {}
 
 geompp::TriangulationParams TriangulationParams::ToNative() {
     geompp::TriangulationParams native;
@@ -399,7 +417,24 @@ geompp::TriangulationParams TriangulationParams::ToNative() {
     native.simplicity = static_cast<geompp::TriangulationParams::Simplicity>(_simplicity);
     native.ccw_winding = static_cast<geompp::TriangulationParams::Winding>(_ccwWinding);
     native.collinearity = static_cast<geompp::TriangulationParams::Collinearity>(_collinearity);
-    native.conformity = static_cast<geompp::TriangulationParams::AdjacencyConformity>(_conformity);
+    native.monotonicity = static_cast<geompp::TriangulationParams::Monotonicity>(_monotonicity);
+    native.conformity = static_cast<geompp::AdjacencyConformity>(_conformity);
+    return native;
+}
+
+PolygonizationParams::PolygonizationParams()
+    : _strategy(PolygonizationStrategy::HertelMehlhorn), _conformity(AdjacencyConformity::Assert) {}
+
+PolygonizationParams::PolygonizationParams(PolygonizationStrategy strategy)
+    : _strategy(strategy), _conformity(AdjacencyConformity::Assert) {}
+
+PolygonizationParams::PolygonizationParams(PolygonizationStrategy strategy, AdjacencyConformity conformity)
+    : _strategy(strategy), _conformity(conformity) {}
+
+geompp::PolygonizationParams PolygonizationParams::ToNative() {
+    geompp::PolygonizationParams native;
+    native.strategy = static_cast<geompp::PolygonizationParams::Strategy>(_strategy);
+    native.conformity = static_cast<geompp::AdjacencyConformity>(_conformity);
     return native;
 }
 
@@ -467,6 +502,44 @@ static std::vector<geompp::Triangle3D> ToNativeTriangles3D(array<Triangle3D^>^ t
     return native;
 }
 
+System::Collections::Generic::IEnumerable<Polygon2D^>^ GeomUtil::Polygonize(
+    array<Triangle2D^>^ triangles, PolygonizationParams^ settings) {
+    auto native = geompp::polygonize(ToNativeTriangles2D(triangles), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Polygon2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon2D(new geompp::Polygon2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Polygon3D^>^ GeomUtil::Polygonize(
+    array<Triangle3D^>^ triangles, PolygonizationParams^ settings) {
+    auto native = geompp::polygonize(ToNativeTriangles3D(triangles), settings->ToNative());
+    auto list = gcnew System::Collections::Generic::List<Polygon3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon3D(new geompp::Polygon3D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Polygon2D^>^ GeomUtil::Merge(array<Polygon2D^>^ polygons) {
+    auto native = geompp::merge(ToNativePolygons2D(polygons));
+    auto list = gcnew System::Collections::Generic::List<Polygon2D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon2D(new geompp::Polygon2D(p)));
+    }
+    return list;
+}
+
+System::Collections::Generic::IEnumerable<Polygon3D^>^ GeomUtil::Merge(array<Polygon3D^>^ polygons) {
+    auto native = geompp::merge(ToNativePolygons3D(polygons));
+    auto list = gcnew System::Collections::Generic::List<Polygon3D^>(static_cast<int>(native.size()));
+    for (auto const& p : native) {
+        list->Add(gcnew Polygon3D(new geompp::Polygon3D(p)));
+    }
+    return list;
+}
+
 static System::Collections::Generic::List<int>^ ToManagedInts(std::vector<std::size_t> const& indices) {
     auto list = gcnew System::Collections::Generic::List<int>(static_cast<int>(indices.size()));
     for (auto i : indices)
@@ -477,13 +550,13 @@ static System::Collections::Generic::List<int>^ ToManagedInts(std::vector<std::s
 static AdjacencyViolation2D^ ToManaged(geompp::AdjacencyViolation<geompp::Point2D> const& v) {
     return gcnew AdjacencyViolation2D(gcnew Point2D(new geompp::Point2D(v.edge_p0)),
                                       gcnew Point2D(new geompp::Point2D(v.edge_p1)), ToManagedInts(v.facet_indices),
-                                      v.is_non_manifold, gcnew Point2D(new geompp::Point2D(v.on_vertex)));
+                                      gcnew Point2D(new geompp::Point2D(v.on_vertex)));
 }
 
 static AdjacencyViolation3D^ ToManaged(geompp::AdjacencyViolation<geompp::Point3D> const& v) {
     return gcnew AdjacencyViolation3D(gcnew Point3D(new geompp::Point3D(v.edge_p0)),
                                       gcnew Point3D(new geompp::Point3D(v.edge_p1)), ToManagedInts(v.facet_indices),
-                                      v.is_non_manifold, gcnew Point3D(new geompp::Point3D(v.on_vertex)));
+                                      gcnew Point3D(new geompp::Point3D(v.on_vertex)));
 }
 
 System::Collections::Generic::IEnumerable<AdjacencyViolation2D^>^ GeomUtil::ValidateAdjacency(array<Polygon2D^>^ facets) {
@@ -565,6 +638,90 @@ System::Collections::Generic::IEnumerable<Triangle2D^>^ GeomUtil::Triangulate(
     for (auto const& t : native)
         list->Add(gcnew Triangle2D(new geompp::Triangle2D(t)));
     return list;
+}
+
+// File-local helpers: managed array<Point2D^>^ / array<Point3D^>^ → native std::vector
+static std::vector<geompp::Point2D> ArrayToVector2D(array<Point2D^>^ pts) {
+    std::vector<geompp::Point2D> native;
+    native.reserve(pts->Length);
+    for each (Point2D^ p in pts)
+        native.push_back(*p->_native);
+    return native;
+}
+
+static std::vector<geompp::Point3D> ArrayToVector3D(array<Point3D^>^ pts) {
+    std::vector<geompp::Point3D> native;
+    native.reserve(pts->Length);
+    for each (Point3D^ p in pts)
+        native.push_back(*p->_native);
+    return native;
+}
+
+bool GeomUtil::IsAxisMonotone(array<Point2D^>^ ring, Vector2D^ direction) {
+    return geompp::is_axis_monotone(ArrayToVector2D(ring), *direction->_native);
+}
+
+bool GeomUtil::IsAxisMonotone(Polygon2D^ polygon, Vector2D^ direction) {
+    return geompp::is_axis_monotone(*polygon->_native, *direction->_native);
+}
+
+bool GeomUtil::IsAxisMonotone(array<Point3D^>^ ring, Vector3D^ direction) {
+    return geompp::is_axis_monotone(ArrayToVector3D(ring), *direction->_native);
+}
+
+bool GeomUtil::IsAxisMonotone(Polygon3D^ polygon, Vector3D^ direction) {
+    return geompp::is_axis_monotone(*polygon->_native, *direction->_native);
+}
+
+bool GeomUtil::InCircumcircle(Point2D^ a, Point2D^ b, Point2D^ c, Point2D^ p) {
+    return geompp::in_circumcircle(*a->_native, *b->_native, *c->_native, *p->_native);
+}
+
+bool GeomUtil::InCircumcircle(Point3D^ a, Point3D^ b, Point3D^ c, Point3D^ p) {
+    return geompp::in_circumcircle(*a->_native, *b->_native, *c->_native, *p->_native);
+}
+
+// std::invalid_argument would otherwise surface in managed code as an opaque SEHException.
+array<Triangle2D^>^ GeomUtil::Delaunay(array<Point2D^>^ points) {
+    std::vector<geompp::Triangle2D> native;
+    try {
+        native = geompp::delaunay(ArrayToVector2D(points));
+    } catch (std::invalid_argument const& e) {
+        throw gcnew System::ArgumentException(gcnew System::String(e.what()));
+    }
+    auto result = gcnew array<Triangle2D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < result->Length; ++i) {
+        result[i] = gcnew Triangle2D(new geompp::Triangle2D(native[i]));
+    }
+    return result;
+}
+
+array<Triangle3D^>^ GeomUtil::Delaunay(array<Point3D^>^ points, Vector3D^ normal) {
+    std::vector<geompp::Triangle3D> native;
+    try {
+        native = geompp::delaunay(ArrayToVector3D(points), *normal->_native);
+    } catch (std::invalid_argument const& e) {
+        throw gcnew System::ArgumentException(gcnew System::String(e.what()));
+    }
+    auto result = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < result->Length; ++i) {
+        result[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
+    }
+    return result;
+}
+
+array<Triangle3D^>^ GeomUtil::Delaunay(array<Point3D^>^ points) {
+    std::vector<geompp::Triangle3D> native;
+    try {
+        native = geompp::delaunay(ArrayToVector3D(points));
+    } catch (std::invalid_argument const& e) {
+        throw gcnew System::ArgumentException(gcnew System::String(e.what()));
+    }
+    auto result = gcnew array<Triangle3D^>(static_cast<int>(native.size()));
+    for (int i = 0; i < result->Length; ++i) {
+        result[i] = gcnew Triangle3D(new geompp::Triangle3D(native[i]));
+    }
+    return result;
 }
 
 }  // namespace GeomPP

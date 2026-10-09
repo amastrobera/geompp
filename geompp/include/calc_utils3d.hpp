@@ -9,6 +9,7 @@
 
 #include "calc_utils/convex_hull3d.hpp"
 #include "calc_utils/polygon_queries3d.hpp"
+#include "calc_utils/polygonization3d.hpp"
 #include "calc_utils/self_intersections3d.hpp"
 #include "calc_utils/triangulation3d.hpp"
 

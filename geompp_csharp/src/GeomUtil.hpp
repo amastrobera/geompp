@@ -13,6 +13,7 @@ ref class Plane;
 ref class LineSegment2D;
 ref class LineSegment3D;
 ref class CoordinateFrame;
+ref class Vector2D;
 ref class Vector3D;
 ref class Polygon2D;
 ref class Polygon3D;
@@ -84,11 +85,12 @@ public enum class TriangulationStrategy {
     // current ring on every single clip, not just worst case. Default.
     EarClippingBestFit = 1,
     // O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone pieces).
-    // Not yet implemented.
     MonotonePolygon = 2,
-    // O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny slivers).
-    // Not yet implemented.
-    Delaunay = 3
+    // Constrained Delaunay triangulation (CDT) of the polygon: EarClippingBestFit, then Lawson edge
+    // flips on internal edges only. Output stays inside the polygon (n-2 triangles, every boundary edge
+    // kept) and is locally Delaunay across every internal edge. O(n^2) worst case. For an unconstrained
+    // Delaunay triangulation of a point cloud (covering its convex hull) use GeomUtil.Delaunay().
+    ConstrainedDelaunay = 3
 };
 
 // How GeomUtil.Triangulate() handles a possibly self-intersecting input ring.
@@ -129,7 +131,7 @@ public enum class TriangulationCollinearity {
 // overload, via TriangulationParams.Conformity -- GeomUtil.ValidateAdjacency() / FixAdjacency() do the
 // actual checking/repair; Mesh2D/3D.FromTriangles, PolyMesh2D/3D.FromPolygons, and
 // ConnectedMesh2D/3D.FromTriangles always Assert this at construction time. Values must stay in the same
-// order as geompp::TriangulationParams::AdjacencyConformity (converted via a raw static_cast by ordinal,
+// order as geompp::AdjacencyConformity (converted via a raw static_cast by ordinal,
 // same reasoning as TriangulationStrategy above).
 public enum class AdjacencyConformity {
     // No check is carried out (runs at your own risk).
@@ -141,10 +143,28 @@ public enum class AdjacencyConformity {
     Enforce = 2
 };
 
+// Only consulted by Strategy::MonotonePolygon. Whether/how to handle a ring that isn't y-monotone
+// before running the monotone-polygon sweep, which silently assumes y-monotonicity and produces an
+// unspecified (not necessarily correct) result otherwise. Values must stay in the same order as
+// geompp::TriangulationParams::Monotonicity: ToNative() converts via a raw static_cast by ordinal, not
+// by name, so inserting or reordering a value here without matching the C++ enum silently corrupts
+// every other value after it.
+public enum class TriangulationMonotonicity {
+    // No check is carried out (the algo runs at your own risk, on a possibly-incorrect result).
+    Guaranteed = 0,
+    // Throws if the ring isn't y-monotone.
+    Assert = 1,
+    // Partitions the ring into y-monotone pieces (a plane-sweep decomposition) and triangulates each
+    // piece, concatenating the results, before triangulating.
+    Enforce = 2
+};
+
 // Bundles the triangulation strategy and how to handle non-simple / non-CCW / collinear input for
 // GeomUtil.Triangulate(), plus (for the batch GeomUtil.Triangulate(array<Polygon2D^>^, ...) overload
 // only) how to handle cross-facet adjacency violations. Defaults to EarClipping, and Enforce for all
-// four input-quality checks — matching the native triangulate()'s own defaults. Polygon2D.Triangulate() /
+// four input-quality checks — matching the native triangulate()'s own defaults. Monotonicity (only
+// consulted by Strategy::MonotonePolygon) defaults to Guaranteed, also matching the native default.
+// Polygon2D.Triangulate() /
 // Polygon3D.Triangulate() / PolyMesh2D.Triangulate() / PolyMesh3D.Triangulate() take just a
 // TriangulationStrategy instead: their input is already guaranteed simple/CCW/collinear-free by
 // construction, so the other checks aren't exposed there.
@@ -156,6 +176,15 @@ public:
     TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
                         TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
                         AdjacencyConformity conformity);
+    // Overloads accepting monotonicity explicitly -- default to TriangulationMonotonicity::Guaranteed
+    // (matching the native TriangulationParams' own default) via the 4-/5-arg overloads above, so
+    // existing call sites keep compiling unchanged.
+    TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                        TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                        TriangulationMonotonicity monotonicity);
+    TriangulationParams(TriangulationStrategy strategy, TriangulationSimplicity simplicity,
+                        TriangulationWinding ccwWinding, TriangulationCollinearity collinearity,
+                        TriangulationMonotonicity monotonicity, AdjacencyConformity conformity);
 
     property TriangulationStrategy Strategy {
         TriangulationStrategy get() { return _strategy; }
@@ -173,6 +202,11 @@ public:
         TriangulationCollinearity get() { return _collinearity; }
         void set(TriangulationCollinearity value) { _collinearity = value; }
     }
+    // Only consulted by Strategy::MonotonePolygon.
+    property TriangulationMonotonicity Monotonicity {
+        TriangulationMonotonicity get() { return _monotonicity; }
+        void set(TriangulationMonotonicity value) { _monotonicity = value; }
+    }
     // Only consulted by the batch GeomUtil.Triangulate(array<Polygon2D^>^, TriangulationParams^) overload.
     property AdjacencyConformity Conformity {
         AdjacencyConformity get() { return _conformity; }
@@ -187,6 +221,50 @@ private:
     TriangulationSimplicity _simplicity;
     TriangulationWinding _ccwWinding;
     TriangulationCollinearity _collinearity;
+    TriangulationMonotonicity _monotonicity;
+    AdjacencyConformity _conformity;
+};
+
+// Which polygonization algorithm to run, and under what constraint -- see PolygonizationParams. Values
+// must stay in the same order as geompp::PolygonizationParams::Strategy: ToNative() converts via a raw
+// static_cast by ordinal, same reasoning as TriangulationStrategy above.
+public enum class PolygonizationStrategy {
+    // Finds the external boundary of a set of triangles in O(N), returning 1+ planar polygon (not
+    // guaranteed convex).
+    PlanarBoundaryExtraction = 0,
+    // Pairs 2 adjacent coplanar triangles into 1 planar quad, in O(N); planar yet not necessarily convex.
+    PlanarQuads = 1,
+    // Merges as many triangles as possible into polygons in O(N); polygons are planar and convex. Default.
+    HertelMehlhorn = 2
+};
+
+// Bundles the polygonization strategy for GeomUtil.Polygonize() / Mesh2D.Polygonize() /
+// Mesh3D.Polygonize() / ConnectedMesh2D.Polygonize() / ConnectedMesh3D.Polygonize(). Defaults to
+// HertelMehlhorn, matching the native PolygonizationParams' own default.
+public ref class PolygonizationParams {
+public:
+    PolygonizationParams();
+    PolygonizationParams(PolygonizationStrategy strategy);
+    // conformity: how the final PolyMesh2D/3D.FromPolygons() call inside Mesh2D/3D.Polygonize() /
+    // ConnectedMesh2D/3D.Polygonize() should handle a mesh-conformity violation -- see AdjacencyConformity.
+    // Defaults to Assert, matching the native PolygonizationParams' own default.
+    PolygonizationParams(PolygonizationStrategy strategy, AdjacencyConformity conformity);
+
+    property PolygonizationStrategy Strategy {
+        PolygonizationStrategy get() { return _strategy; }
+        void set(PolygonizationStrategy value) { _strategy = value; }
+    }
+
+    property AdjacencyConformity Conformity {
+        AdjacencyConformity get() { return _conformity; }
+        void set(AdjacencyConformity value) { _conformity = value; }
+    }
+
+internal:
+    geompp::PolygonizationParams ToNative();
+
+private:
+    PolygonizationStrategy _strategy;
     AdjacencyConformity _conformity;
 };
 
@@ -199,17 +277,15 @@ public:
     property Point2D^ EdgeP0 { Point2D^ get() { return _edgeP0; } }
     property Point2D^ EdgeP1 { Point2D^ get() { return _edgeP1; } }
     property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
-    property bool IsNonManifold { bool get() { return _isNonManifold; } }
     property Point2D^ OnVertex { Point2D^ get() { return _onVertex; } }
 internal:
     AdjacencyViolation2D(Point2D^ edgeP0, Point2D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
-                         bool isNonManifold, Point2D^ onVertex)
-        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+                         Point2D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _onVertex(onVertex) {}
 private:
     Point2D^ _edgeP0;
     Point2D^ _edgeP1;
     System::Collections::Generic::List<int>^ _facetIndices;
-    bool _isNonManifold;
     Point2D^ _onVertex;
 };
 
@@ -221,17 +297,15 @@ public:
     property Point3D^ EdgeP0 { Point3D^ get() { return _edgeP0; } }
     property Point3D^ EdgeP1 { Point3D^ get() { return _edgeP1; } }
     property System::Collections::Generic::IEnumerable<int>^ FacetIndices { System::Collections::Generic::IEnumerable<int>^ get() { return _facetIndices; } }
-    property bool IsNonManifold { bool get() { return _isNonManifold; } }
     property Point3D^ OnVertex { Point3D^ get() { return _onVertex; } }
 internal:
     AdjacencyViolation3D(Point3D^ edgeP0, Point3D^ edgeP1, System::Collections::Generic::List<int>^ facetIndices,
-                         bool isNonManifold, Point3D^ onVertex)
-        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _isNonManifold(isNonManifold), _onVertex(onVertex) {}
+                         Point3D^ onVertex)
+        : _edgeP0(edgeP0), _edgeP1(edgeP1), _facetIndices(facetIndices), _onVertex(onVertex) {}
 private:
     Point3D^ _edgeP0;
     Point3D^ _edgeP1;
     System::Collections::Generic::List<int>^ _facetIndices;
-    bool _isNonManifold;
     Point3D^ _onVertex;
 };
 
@@ -398,6 +472,44 @@ public:
     // T-junction, still throws on a non-manifold edge.
     static System::Collections::Generic::IEnumerable<Triangle2D^>^ Triangulate(
         array<Polygon2D^>^ polygons, TriangulationParams^ settings);
+
+    // Polygonize — merges a set of (not necessarily adjacency-ordered) triangles into polygons, per the
+    // given PolygonizationParams. The free-function equivalent of Mesh2D.FromTriangles(triangles)
+    // .Polygonize(settings) / Mesh3D's 3D counterpart, for callers who just want polygons without
+    // constructing/keeping a full Mesh2D/3D.
+    static System::Collections::Generic::IEnumerable<Polygon2D^>^ Polygonize(
+        array<Triangle2D^>^ triangles, PolygonizationParams^ settings);
+    static System::Collections::Generic::IEnumerable<Polygon3D^>^ Polygonize(
+        array<Triangle3D^>^ triangles, PolygonizationParams^ settings);
+
+    // Merge — welds a set of non-overlapping polygons that tile a plane (2D: one implicit plane; 3D:
+    // grouped by plane first) into fewer, bigger polygons, by cancelling every outer-ring edge shared
+    // between two of them and tracing what's left. Holes are merged the same way one level down:
+    // touching holes (any point of one on the other's perimeter) are unioned into one bigger hole.
+    static System::Collections::Generic::IEnumerable<Polygon2D^>^ Merge(array<Polygon2D^>^ polygons);
+    static System::Collections::Generic::IEnumerable<Polygon3D^>^ Merge(array<Polygon3D^>^ polygons);
+
+    // IsAxisMonotone — true if the ring (or polygon's outer ring) has at most one local maximum and
+    // one local minimum when projected onto direction. Required pre-condition for monotone-polygon
+    // triangulation; direction need not be normalized.
+    static bool IsAxisMonotone(array<Point2D^>^ ring, Vector2D^ direction);
+    static bool IsAxisMonotone(Polygon2D^ polygon, Vector2D^ direction);
+    static bool IsAxisMonotone(array<Point3D^>^ ring, Vector3D^ direction);
+    static bool IsAxisMonotone(Polygon3D^ polygon, Vector3D^ direction);
+
+    // InCircumcircle — true if p is strictly inside the circumcircle of CCW-wound triangle {a, b, c}.
+    // Uses the exact 3×3 determinant predicate; returns false when p is exactly on the circle.
+    static bool InCircumcircle(Point2D^ a, Point2D^ b, Point2D^ c, Point2D^ p);
+    static bool InCircumcircle(Point3D^ a, Point3D^ b, Point3D^ c, Point3D^ p);
+
+    // Delaunay — unconstrained Delaunay triangulation of a point cloud (scan triangulation + Lawson
+    // flips, O(n^2) worst case). Covers the convex hull; triangles are CCW. Duplicates (within the
+    // decimal precision) are ignored; all-collinear input returns an empty array. Throws
+    // ArgumentException for fewer than 3 points. The 3D overloads are 2.5D: points are projected along
+    // the dominant axis of normal (or a PCA-fitted normal when omitted) and lifted back unchanged.
+    static array<Triangle2D^>^ Delaunay(array<Point2D^>^ points);
+    static array<Triangle3D^>^ Delaunay(array<Point3D^>^ points, Vector3D^ normal);
+    static array<Triangle3D^>^ Delaunay(array<Point3D^>^ points);
 };
 
 }  // namespace GeomPP

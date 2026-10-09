@@ -125,8 +125,19 @@ struct PolylineExpansionParams {
   double min_segment_length = DOUBLE_EPSILON;
 };
 
+/// @brief strategy to treat the adjacency requirements 
+///        used by both triangulation and polygonization strategies
+///        it's either to be assumed (no test is carried out)
+///             or to be tested (throwing if not valid)
+///             or to be guaranteed (fixing the invalid cases - when possible - or throwing)
+enum class AdjacencyConformity {
+  Guaranteed,  ///< No check is carried out (algorithms run at your own risk)
+  Assert,      ///< Throws std::invalid_argument on violations
+  Enforce      ///< Auto-repairs every invalid (non adjacent) case - or throw
+};
+
 struct TriangulationParams {
-  enum class Strategy { EarClipping, EarClippingBestFit, MonotonePolygon, Delaunay };
+  enum class Strategy { EarClipping, EarClippingBestFit, MonotonePolygon, ConstrainedDelaunay };
   /// @brief Triangulation algorithm.
   ///        - EarClipping clips the first valid ear it finds in scan order. Most robust and
   ///          general-purpose, and often close to O(n) in practice, but O(n²) worst-case -- and doesn't
@@ -137,8 +148,11 @@ struct TriangulationParams {
   ///          ~O(n²) -- a full rescan of the current ring on every single clip, not just worst-case.
   ///          Default: prefers shape quality over raw speed.
   ///        - MonotonePolygon (which requires a monotone polygon). O(n log n) to O(n²) worst-case
-  ///        - Delaunay (which requires a point set and produces a triangulation of the convex hull, not a polygon).
-  ///          O(n log n) to O(n²) worst-case.
+  ///        - ConstrainedDelaunay: the polygon's constrained Delaunay triangulation (CDT) -- every boundary
+  ///          edge is kept, every triangle is strictly interior, and among all such triangulations it
+  ///          maximizes the minimum angle. Built as EarClippingBestFit followed by Lawson edge flips on
+  ///          internal edges only. O(n²) worst-case. For an unconstrained Delaunay triangulation of a
+  ///          point cloud (covering its convex hull), use the free function delaunay() instead.
   Strategy strategy = Strategy::EarClippingBestFit;
 
   enum class Simplicity { Guaranteed, Assert, Enforce };
@@ -164,25 +178,58 @@ struct TriangulationParams {
   ///        - Enforce attempts to fix it (using remove_collinear) before triangulating.
   Collinearity collinearity = Collinearity::Enforce;
 
-  /// @brief How to handle a batch of facets (Polygon2D/3D outer rings, or Triangle2D/3D) that violate the
-  /// mesh-conformity rule "every edge has at most 1 neighbor" — equivalently, no facet vertex may lie in
-  /// the interior of another facet's edge, only exactly at that edge's own start/end vertex. Known
-  /// elsewhere as: no "hanging nodes" (FEM), no "T-junctions" (graphics), a valid PSLG (mesh generation).
-  /// See validate_adjacency() / fix_adjacency() (calc_utils2d.hpp/calc_utils3d.hpp). Only consulted by the
-  /// batch triangulate(vector<Polygon2D>, settings) overload -- the single-ring triangulate() overload
-  /// has no adjacent facets to check, so this field is ignored there.
-  ///
-  /// Two distinct violation shapes exist, and only one is repairable:
-  ///   - A T-junction (a vertex partially overlapping an edge) — fixable: splice the vertex into the
-  ///     coarse edge.
-  ///   - A non-manifold edge (a full edge shared by 3+ facets) — NOT fixable: there's no principled way
-  ///     to pick which 2 of the 3+ facets are "the real pair", so even Enforce throws on this one.
-  enum class AdjacencyConformity {
-    Guaranteed,  ///< No check is carried out (runs at your own risk).
-    Assert,      ///< Throws std::invalid_argument if any violation (of either kind) is found.
-    Enforce      ///< Auto-repairs every T-junction via fix_adjacency(); still throws on a non-manifold edge.
-  };
+  enum class Monotonicity { Guaranteed, Assert, Enforce };
+  /// @brief Only consulted by Strategy::MonotonePolygon. Whether/how to handle a ring that isn't
+  /// y-monotone before running the monotone-polygon sweep, which silently assumes y-monotonicity and
+  /// produces an unspecified (not necessarily correct) result otherwise.
+  ///        - Guaranteed: no check is carried out (today's behavior: silently assumes the ring is
+  ///          y-monotone; matches every other input-quality field's own Guaranteed semantics).
+  ///        - Assert: checks y-monotonicity first and throws if the ring isn't y-monotone.
+  ///        - Enforce: if the ring isn't y-monotone, partitions it into y-monotone pieces (de Berg,
+  ///          "Computational Geometry" §3.2: a top-to-bottom plane sweep that classifies each vertex
+  ///          as start/end/split/merge/regular, maintains a status structure of the currently active
+  ///          edges plus one helper vertex per edge, and inserts a diagonal at every split/merge
+  ///          vertex), triangulates each piece with the existing monotone-polygon algorithm (§3.3),
+  ///          and concatenates every piece's triangles -- every partition diagonal is a valid,
+  ///          non-crossing chord of the original polygon, so no extra stitching is needed.
+  ///          Only ever sweeps along the Y axis, even if the ring happens to be monotone along some
+  ///          other axis -- a polygon that's x-monotone but not y-monotone still gets decomposed
+  ///          (correctly, just not minimally) rather than triangulated directly.
+  /// @note Guaranteed/Assert default to matching Strategy's own MonotonePolygon doc: "O(n log n) to
+  /// O(n^2) worst-case". Enforce's own partition step uses a linear-scan status structure (like
+  /// EarClipping's own O(n^2) trade-off over a theoretically faster balanced-tree structure), so it is
+  /// O(n^2) worst-case rather than the classical algorithm's O(n log n).
+  Monotonicity monotonicity = Monotonicity::Guaranteed;
+
+  /// @brief How to handle a batch of facets that violate the mesh-conformity rule -- see the standalone
+  /// @ref AdjacencyConformity's own docs. Only consulted by the batch triangulate(vector<Polygon2D>,
+  /// settings) overload -- the single-ring triangulate() overload has no adjacent facets to check, so
+  /// this field is ignored there.
   AdjacencyConformity conformity = AdjacencyConformity::Enforce;
+};
+
+struct PolygonizationParams {
+  /// @brief chooses what algorithm to use, under what contraints
+  ///       - Coplanar Boundary: finds the external boundary of a set of triangles in O(N), under the contraint of
+  ///                            returning 1+ planar polygon (not guaranted convex)
+  ///       - Coplanar Quads: returns only quadrilaterals in O(N), planar yet not necessarily convex
+  ///       - Hertel Mehlhorn: merges as many triangles as possible into polygons in O(N), polygons are planar and
+  ///                          convex, and every vertex two polygons share is a real corner of both (no
+  ///                          T-junctions, no 180° vertices)
+  enum class Strategy {
+    PlanarBoundaryExtraction,  // 1D feature / crease loops
+    PlanarQuads,               // Pair 2 adjacent coplanar tris -> 1 planar quad
+    HertelMehlhorn             // Merge coplanar tris -> convex n-gons
+  };
+  Strategy strategy = Strategy::HertelMehlhorn;
+
+  /// @brief How the final PolyMesh2D/3D::FromPolygons() call inside Mesh2D/3D::Polygonize() /
+  /// ConnectedMesh2D/3D::Polygonize() should handle a mesh-conformity violation -- see the standalone
+  /// @ref AdjacencyConformity's own docs. Defaults to Assert (today's unconditional hard-throw behavior);
+  /// polygonize_impl's own seam-collapse logic already keeps every strategy's output provably conformant
+  /// by construction, so this is a safety net for unexpected input, not something normally expected to
+  /// fire -- Guaranteed skips even that safety net, and Enforce auto-repairs instead of throwing.
+  AdjacencyConformity conformity = AdjacencyConformity::Assert;
 };
 
 }  // namespace geometry

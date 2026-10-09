@@ -120,6 +120,32 @@ using RingPieces = std::vector<std::pair<std::vector<Point2D>, std::vector<std::
 /// @returns each disjoint result component as {outer ring, hole rings}, in no particular order.
 RingPieces boolean_op_multi(RingPieces const& subj_pieces, RingPieces const& clip_pieces, BooleanOp op);
 
+/// @brief Half-edge walk over a DIRECTED edge set: chains surviving edges into closed loops, one "next
+/// edge in this face" step at a time by angle around each vertex. Shared by boolean_op()/boolean_op_multi()
+/// (fed the edges classify_and_orient(_source_tagged) selected) and by calc_utils/polygonization2d.hpp's
+/// PlanarBoundaryExtraction polygonize() strategy and merge() (fed edges that survived plain reverse-pair
+/// cancellation instead — no winding-number classification needed there, since their input is assumed
+/// non-overlapping/edge-tiled rather than possibly-crossing).
+/// @param directed_edges Every surviving directed edge, each already oriented so the kept region is on
+/// its left (unlike a raw ring's edges, an edge here has no guaranteed twin going the other way).
+/// @returns One closed loop per disjoint boundary found (CCW or CW — orientation is whatever the input
+/// edges' own direction implies, not normalized here). A vertex revisited mid-walk (two faces touching at
+/// just one point) is peeled off as its own separate loop rather than merging the two faces into one
+/// self-touching boundary — see the .cpp implementation for why that needs special handling here, unlike
+/// simplify_rings()'s undirected tracer.
+std::vector<std::vector<Point2D>> trace_directed_boundary(std::vector<LineSegment2D> const& directed_edges);
+
+/// @brief Groups raw traced loops (mixed CCW/CW, as trace_directed_boundary() returns them) into
+/// {outer, holes} RingPieces via a containment forest: a loop's immediate parent is the smallest-area
+/// other loop whose interior contains its sample point. Even-depth CCW loops are genuine outer boundaries;
+/// odd-depth CW loops are holes of their immediate (even-depth) parent — a correct grouping regardless of
+/// whether an outer and its hole ever share an edge, since nesting here is a geometric test, not a
+/// graph-connectivity one. Also drops zero-area slivers (raw shoelace area at or below DOUBLE_EPSILON)
+/// rather than letting them reach signed_area()/Polygon2D::Make() and throw downstream.
+/// @param raw_rings Every closed loop found, mixed CCW/CW, as trace_directed_boundary() returns them.
+/// @returns One {outer, holes} piece per disjoint result component.
+RingPieces package_result_rings(std::vector<std::vector<Point2D>> const& raw_rings);
+
 }  // namespace detail
 
 /// @brief Clips @p subject_loop against @p clipper_loop, returning the area both loops share (their set

@@ -23,6 +23,7 @@ set(BINDING_SOURCES
     src/bindings.cpp
     src/bind_precision.cpp
     src/bind_triangulation_params.cpp
+    src/bind_polygonization_params.cpp
     src/bind_point2d.cpp
     src/bind_point3d.cpp
     src/bind_vector2d.cpp
@@ -147,6 +148,7 @@ else()
         ${GEOMPP_ROOT}/src/calc_utils/polygon_ops2d.cpp
         ${GEOMPP_ROOT}/src/calc_utils/polyline_ops2d.cpp
         ${GEOMPP_ROOT}/src/calc_utils/triangulation2d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/polygonization2d.cpp
         ${GEOMPP_ROOT}/src/point3d.cpp
         ${GEOMPP_ROOT}/src/vector3d.cpp
         ${GEOMPP_ROOT}/src/line3d.cpp
@@ -165,6 +167,7 @@ else()
         ${GEOMPP_ROOT}/src/calc_utils/convex_hull3d.cpp
         ${GEOMPP_ROOT}/src/calc_utils/polygon_queries3d.cpp
         ${GEOMPP_ROOT}/src/calc_utils/triangulation3d.cpp
+        ${GEOMPP_ROOT}/src/calc_utils/polygonization3d.cpp
         ${GEOMPP_ROOT}/src/view2d.cpp
         ${GEOMPP_ROOT}/src/grid_cell2d.cpp
         ${GEOMPP_ROOT}/src/grid_cell3d.cpp

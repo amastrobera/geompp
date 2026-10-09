@@ -1,6 +1,8 @@
 #include "Mesh2D.hpp"
-#include "Triangle2D.hpp"
 #include "ConnectedMesh2D.hpp"
+#include "GeomUtil.hpp"
+#include "PolyMesh2D.hpp"
+#include "Triangle2D.hpp"
 
 namespace GeomPP {
 
@@ -17,11 +19,16 @@ Mesh2D::!Mesh2D() {
 }
 
 Mesh2D^ Mesh2D::FromTriangles(array<Triangle2D^>^ triangles) {
+    return FromTriangles(triangles, AdjacencyConformity::Assert);
+}
+
+Mesh2D^ Mesh2D::FromTriangles(array<Triangle2D^>^ triangles, AdjacencyConformity conformity) {
     std::vector<geompp::Triangle2D> nativeTriangles;
     nativeTriangles.reserve(triangles->Length);
     for each (Triangle2D^ t in triangles)
         nativeTriangles.push_back(*t->_native);
-    return gcnew Mesh2D(new geompp::Mesh2D(geompp::Mesh2D::FromTriangles(nativeTriangles)));
+    auto nativeConformity = static_cast<geompp::AdjacencyConformity>(conformity);
+    return gcnew Mesh2D(new geompp::Mesh2D(geompp::Mesh2D::FromTriangles(nativeTriangles, nativeConformity)));
 }
 
 int Mesh2D::Size() {
@@ -38,6 +45,10 @@ Triangle2D^ Mesh2D::default::get(int i) {
 
 ConnectedMesh2D^ Mesh2D::Connect() {
     return gcnew ConnectedMesh2D(new geompp::ConnectedMesh2D(_native->Connect()));
+}
+
+PolyMesh2D^ Mesh2D::Polygonize(PolygonizationParams^ settings) {
+    return gcnew PolyMesh2D(new geompp::PolyMesh2D(_native->Polygonize(settings->ToNative())));
 }
 
 System::String^ Mesh2D::ToString() {

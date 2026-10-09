@@ -6,15 +6,36 @@ Each facet has no holes.
 
 ## `FromPolygons`
 
-**static** `PolyMesh2D^ FromPolygons(std::vector< `[`Polygon2D`](Polygon2D.md)` > polygons)`
+**static** `PolyMesh2D^ FromPolygons(std::vector< `[`Polygon2D`](Polygon2D.md)` > polygons, AdjacencyConformity^ conformity)`
 
 Builds a mesh from a set of (hole-free) polygons, welding vertices that land in the same spatial grid cell (see [GridCell2D](GridCell2D.md) ) into a single shared vertex.
 
 **Parameters**
 
 - `polygons` (std::vector< [`Polygon2D`](Polygon2D.md) >) — The polygon faces to weld into a mesh. Order is not required to reflect adjacency.
+- `conformity` (`AdjacencyConformity^`) — decides how to handle input that doesn't make a valid adjacency (default to Assert, aka "make it fail if not perfect"; can be set to Enforce, aka "fix it if you can" via fix_adjacency(), or to Guaranteed to skip the check entirely and run at your own risk)
 
-**Returns** — A mesh whose vertex count is ≤ the sum of every polygon's Size() (fewer once shared vertices are welded).
+## `FromWkt`
+
+**static** `PolyMesh2D^ FromWkt(System::String^ wkt)`
+
+Parses a mesh written by ToWkt() (or matching its "POLYMESH (((...)), ...)" grammar) back into a PolyMesh2D .
+
+Every facet must have at least 3 vertices.
+
+**Parameters**
+
+- `wkt` (`System::String^`)
+
+## `FromFile`
+
+**static** `PolyMesh2D^ FromFile(System::String^ path)`
+
+Reads a file written by ToFile() and parses it via FromWkt() .
+
+**Parameters**
+
+- `path` (`System::String^`)
 
 ## `Size`
 
@@ -42,11 +63,39 @@ Returns a mesh of triangles instead of n-gons — every facet is triangulated in
 
 **Parameters**
 
-- `strategy` ([`TriangulationParams`](TriangulationParams.md)::Strategy^) — The triangulation strategy to use. Options: EarClipping: O(n^2) worst case, but simple and robust for small polygons MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+- `strategy` ([`TriangulationParams`](TriangulationParams.md)::Strategy^) — The triangulation strategy to use. Options: EarClipping: O(n^2) worst case, but simple and robust for small polygons MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation (boundary edges kept, all triangles interior, minimum angle maximized)
 
 **Returns** — A [Mesh2D](Mesh2D.md) with sum(facet_vertex_count - 2) triangles across every facet.
+
+## `ToGeometryCollection`
+
+[`GeometryCollection2D`](GeometryCollection2D.md)`^ ToGeometryCollection()`
+
+Every facet, as its own standalone [Polygon2D](Polygon2D.md) , packaged into one [GeometryCollection2D](GeometryCollection2D.md) .
+
+**Returns** — A [GeometryCollection2D](GeometryCollection2D.md) with Size() entries, all [Polygon2D](Polygon2D.md) , same order as Faces() .
+
+## `ToWkt`
+
+`System::String^ ToWkt()`
+
+WKT-like serialization, specific to this library: "POLYMESH ((x0 y0, ..., x0 y0), ...)" one doubly-parenthesized ring per facet (the same syntax a bare POLYGON's own ring uses), closed by repeating its first point, comma-separated, wrapped once more in "POLYMESH ( ... )".
+
+Not a standard OGC WKT geometry type.
+
+**Returns** — The serialized mesh, one facet ring per facet, in Faces() order.
+
+## `ToFile`
+
+`void ToFile(System::String^ path)`
+
+Writes ToWkt() 's output to path (plain text, truncates any existing content).
+
+**Parameters**
+
+- `path` (`System::String^`)
 
 
 ---
 
-**See also:** [GridCell2D](GridCell2D.md), [Mesh2D](Mesh2D.md), [Polygon2D](Polygon2D.md), [TriangulationParams](TriangulationParams.md)
+**See also:** [GeometryCollection2D](GeometryCollection2D.md), [GridCell2D](GridCell2D.md), [Mesh2D](Mesh2D.md), [Polygon2D](Polygon2D.md), [TriangulationParams](TriangulationParams.md)

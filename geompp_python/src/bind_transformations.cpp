@@ -53,7 +53,23 @@ void bind_transformations(py::module_& m) {
                  -> geompp::transformations::TransformBuilder3D& { return b.Combine(mat); },
              "matrix"_a, py::return_value_policy::reference_internal)
         .def("get", &geompp::transformations::TransformBuilder3D::Get)
-        .def("build", &geompp::transformations::TransformBuilder3D::Build);
+        .def("build", &geompp::transformations::TransformBuilder3D::Build)
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::Point3D const& p) { return b.Apply(p); },
+             "point"_a, "Shorthand for transform(point, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::Vector3D const& v) { return b.Apply(v); },
+             "vector"_a, "Shorthand for transform(vector, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::LineSegment3D const& s) { return b.Apply(s); },
+             "segment"_a, "Shorthand for transform(segment, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::Polyline3D const& p) { return b.Apply(p); },
+             "polyline"_a, "Shorthand for transform(polyline, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::Triangle3D const& t) { return b.Apply(t); },
+             "triangle"_a, "Shorthand for transform(triangle, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::Polygon3D const& p) { return b.Apply(p); },
+             "polygon"_a, "Shorthand for transform(polygon, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::Mesh3D const& mesh) { return b.Apply(mesh); },
+             "mesh"_a, "Shorthand for transform(mesh, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder3D const& b, geompp::PolyMesh3D const& mesh) { return b.Apply(mesh); },
+             "mesh"_a, "Shorthand for transform(mesh, builder.get()) -- doesn't consume the builder.");
 
     // ── TransformBuilder2D ─────────────────────────────────────────────────────
     py::class_<geompp::transformations::TransformBuilder2D>(tf, "TransformBuilder2D",
@@ -91,7 +107,23 @@ void bind_transformations(py::module_& m) {
                  -> geompp::transformations::TransformBuilder2D& { return b.Combine(mat); },
              "matrix"_a, py::return_value_policy::reference_internal)
         .def("get", &geompp::transformations::TransformBuilder2D::Get)
-        .def("build", &geompp::transformations::TransformBuilder2D::Build);
+        .def("build", &geompp::transformations::TransformBuilder2D::Build)
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::Point2D const& p) { return b.Apply(p); },
+             "point"_a, "Shorthand for transform(point, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::Vector2D const& v) { return b.Apply(v); },
+             "vector"_a, "Shorthand for transform(vector, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::LineSegment2D const& s) { return b.Apply(s); },
+             "segment"_a, "Shorthand for transform(segment, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::Polyline2D const& p) { return b.Apply(p); },
+             "polyline"_a, "Shorthand for transform(polyline, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::Triangle2D const& t) { return b.Apply(t); },
+             "triangle"_a, "Shorthand for transform(triangle, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::Polygon2D const& p) { return b.Apply(p); },
+             "polygon"_a, "Shorthand for transform(polygon, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::Mesh2D const& mesh) { return b.Apply(mesh); },
+             "mesh"_a, "Shorthand for transform(mesh, builder.get()) -- doesn't consume the builder.")
+        .def("apply", [](geompp::transformations::TransformBuilder2D const& b, geompp::PolyMesh2D const& mesh) { return b.Apply(mesh); },
+             "mesh"_a, "Shorthand for transform(mesh, builder.get()) -- doesn't consume the builder.");
 
     // ── 2D fast-path (Point2D translate/rotate/scale, no matrix) ─────────────────
     tf.def("translate", [](geompp::Point2D const& p, geompp::maths::Vector2 const& offset) { return geompp::transformations::translate(p, offset); },

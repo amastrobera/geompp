@@ -5,6 +5,8 @@
 #include "calc_utils/polygon_ops2d.hpp"
 #include "calc_utils/polygon_queries2d.hpp"
 #include "calc_utils/triangulation3d.hpp"
+#include "grid_cell2d.hpp"
+#include "grid_cell3d.hpp"
 #include "line_segment3d.hpp"
 #include "point3d.hpp"
 #include "polygon2d.hpp"
@@ -14,10 +16,14 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <deque>
+#include <limits>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 namespace geompp {
@@ -71,6 +77,51 @@ bool are_collinear(PointT const& a, PointT const& b, PointT const& c, View2D con
 };
 
 }  // namespace helpers
+
+// helper predicates
+
+template <typename PointT>
+bool is_y_monotone(std::vector<PointT> const& input, View2D const& view) {
+  std::size_t n = input.size();
+  if (n < 3) {
+    return true;
+  }
+  int max_count = 0, min_count = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    double y_curr = view.y(input[i]);
+    double y_prev = view.y(input[(i + n - 1) % n]);
+    double y_next = view.y(input[(i + 1) % n]);
+    if (compare(y_curr, y_prev) > 0 && compare(y_curr, y_next) > 0) {
+      ++max_count;
+    }
+    if (compare(y_curr, y_prev) < 0 && compare(y_curr, y_next) < 0) {
+      ++min_count;
+    }
+  }
+  return max_count <= 1 && min_count <= 1;
+}
+
+template bool is_y_monotone(std::vector<Point2D> const& input, View2D const& view);
+template bool is_y_monotone(std::vector<Point3D> const& input, View2D const& view);
+
+template <typename PointT>
+bool in_circumcircle(PointT const& a, PointT const& b, PointT const& c, PointT const& p, View2D const& view) {
+  double ax = view.x(a) - view.x(p);
+  double ay = view.y(a) - view.y(p);
+  double bx = view.x(b) - view.x(p);
+  double by = view.y(b) - view.y(p);
+  double cx = view.x(c) - view.x(p);
+  double cy = view.y(c) - view.y(p);
+  double det = ax * (by * (cx * cx + cy * cy) - cy * (bx * bx + by * by)) -
+               ay * (bx * (cx * cx + cy * cy) - cx * (bx * bx + by * by)) +
+               (ax * ax + ay * ay) * (bx * cy - by * cx);
+  return compare(det, 0.0) > 0;
+}
+
+template bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p,
+                               View2D const& view);
+template bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p,
+                               View2D const& view);
 
 // triangulation functions
 
@@ -347,10 +398,369 @@ template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangula
 template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(std::vector<Point3D> const& input,
                                                                                      View2D const& view);
 
+// Partition a simple, CCW-wound ring into y-monotone pieces (de Berg, "Computational Geometry" §3.2).
+// See this function's own header doc for the algorithm summary, complexity trade-off, and the known
+// horizontal-edge degenerate case.
+template <typename PointT>
+std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<PointT> const& input,
+                                                                  View2D const& view) {
+  std::size_t n = input.size();
+  if (n < 3) {
+    throw std::invalid_argument("partition_monotone_polygon: input must have at least 3 points");
+  }
+
+  // Total sweep order: a is "above" b iff y(a) > y(b), or (tie) x(a) < x(b), or (tie) a's own index <
+  // b's -- the index tiebreak only ever matters for exact-duplicate coordinates, which shouldn't reach
+  // here under any Collinearity setting other than Guaranteed.
+  auto above = [&](std::size_t a, std::size_t b) -> bool {
+    auto cy = compare(view.y(input[a]), view.y(input[b]));
+    if (cy != 0) {
+      return cy > 0;
+    }
+    auto cx = compare(view.x(input[a]), view.x(input[b]));
+    if (cx != 0) {
+      return cx < 0;
+    }
+    return a < b;
+  };
+
+  std::vector<std::size_t> next_id(n), prev_id(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    next_id[i] = (i + 1) % n;
+    prev_id[i] = (i + n - 1) % n;
+  }
+
+  enum class VType { Start, End, Split, Merge, Regular };
+  std::vector<VType> vtype(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    std::size_t p = prev_id[i], q = next_id[i];
+    bool prev_above = above(p, i);
+    bool next_above = above(q, i);
+    // A collinear (exactly 180-degree) split/merge vertex is treated as convex here, same as every
+    // other caller of helpers::is_reflex assumes non-degenerate input; Collinearity::Enforce/Assert
+    // strip these before this code ever runs, so this only matters under Collinearity::Guaranteed.
+    bool reflex = helpers::is_reflex(input[p], input[i], input[q], view);
+    if (!prev_above && !next_above) {
+      vtype[i] = reflex ? VType::Split : VType::Start;
+    } else if (prev_above && next_above) {
+      vtype[i] = reflex ? VType::Merge : VType::End;
+    } else {
+      vtype[i] = VType::Regular;
+    }
+  }
+
+  std::vector<std::size_t> order(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    order[i] = i;
+  }
+  std::sort(order.begin(), order.end(), above);
+
+  // Status structure T: currently active descending edges (edge k := (input[k], input[next_id[k]])),
+  // each with a helper vertex and whether that helper is a merge vertex. Linear-scan based -- see this
+  // function's header doc for the O(n^2)-worst-case trade-off this implies.
+  struct ActiveEdge {
+    std::size_t edge_start;
+    std::size_t helper;
+    bool helper_is_merge;
+  };
+  std::vector<ActiveEdge> status;
+
+  // x-coordinate of edge e at the y-height of vertex v -- used only to rank/search the status
+  // structure. A horizontal edge (top.y == bot.y, which by `above`'s own tiebreak always has
+  // top.x < bot.x) collapses to its top endpoint's x: see this function's header @note.
+  auto edge_x_at = [&](ActiveEdge const& e, std::size_t v) -> double {
+    std::size_t top = e.edge_start, bot = next_id[e.edge_start];
+    double y_top = view.y(input[top]), y_bot = view.y(input[bot]);
+    if (compare(y_top, y_bot) == 0) {
+      return view.x(input[top]);
+    }
+    double t = (view.y(input[v]) - y_bot) / (y_top - y_bot);
+    return view.x(input[bot]) + t * (view.x(input[top]) - view.x(input[bot]));
+  };
+
+  auto find_left_edge = [&](std::size_t v) -> std::size_t {
+    double vx = view.x(input[v]);
+    std::size_t best = status.size();
+    double best_x = -std::numeric_limits<double>::infinity();
+    for (std::size_t k = 0; k < status.size(); ++k) {
+      double ex = edge_x_at(status[k], v);
+      if (compare(ex, vx) < 0 && compare(ex, best_x) > 0) {
+        best_x = ex;
+        best = k;
+      }
+    }
+    if (best == status.size()) {
+      throw std::logic_error("partition_monotone_polygon: no active edge found to the left of a split/merge vertex");
+    }
+    return best;
+  };
+
+  auto find_status_index = [&](std::size_t edge_start) -> std::size_t {
+    for (std::size_t k = 0; k < status.size(); ++k) {
+      if (status[k].edge_start == edge_start) {
+        return k;
+      }
+    }
+    throw std::logic_error("partition_monotone_polygon: expected active edge not found in status structure");
+  };
+
+  std::vector<std::pair<std::size_t, std::size_t>> diagonals;
+
+  for (std::size_t v : order) {
+    switch (vtype[v]) {
+      case VType::Start: {
+        status.push_back({v, v, false});
+        break;
+      }
+      case VType::Split: {
+        std::size_t j = find_left_edge(v);
+        diagonals.push_back({v, status[j].helper});
+        status[j].helper = v;
+        status[j].helper_is_merge = false;
+        status.push_back({v, v, false});
+        break;
+      }
+      case VType::End: {
+        std::size_t idx = find_status_index(prev_id[v]);
+        if (status[idx].helper_is_merge) {
+          diagonals.push_back({v, status[idx].helper});
+        }
+        status.erase(status.begin() + static_cast<std::ptrdiff_t>(idx));
+        break;
+      }
+      case VType::Merge: {
+        std::size_t idx = find_status_index(prev_id[v]);
+        if (status[idx].helper_is_merge) {
+          diagonals.push_back({v, status[idx].helper});
+        }
+        status.erase(status.begin() + static_cast<std::ptrdiff_t>(idx));
+
+        std::size_t j = find_left_edge(v);
+        if (status[j].helper_is_merge) {
+          diagonals.push_back({v, status[j].helper});
+        }
+        status[j].helper = v;
+        status[j].helper_is_merge = true;
+        break;
+      }
+      case VType::Regular: {
+        bool interior_right = !above(next_id[v], v);  // next(v) is below v
+        if (interior_right) {
+          std::size_t idx = find_status_index(prev_id[v]);
+          if (status[idx].helper_is_merge) {
+            diagonals.push_back({v, status[idx].helper});
+          }
+          status.erase(status.begin() + static_cast<std::ptrdiff_t>(idx));
+          status.push_back({v, v, false});
+        } else {
+          std::size_t j = find_left_edge(v);
+          if (status[j].helper_is_merge) {
+            diagonals.push_back({v, status[j].helper});
+          }
+          status[j].helper = v;
+          status[j].helper_is_merge = false;
+        }
+        break;
+      }
+    }
+  }
+
+  // Apply every collected diagonal to a running list of pieces (each a list of ORIGINAL `input`
+  // indices, CCW order). Every diagonal is a non-crossing chord, so incrementally splitting whichever
+  // current piece holds both of its endpoints -- in any order -- always yields a correct result: two
+  // non-crossing chords of a simple polygon can never have their endpoints straddle two different
+  // pieces created by an earlier split (a straight segment connecting across two disjoint pieces would
+  // have to cross the very diagonal that separated them).
+  std::vector<std::vector<std::size_t>> pieces;
+  {
+    std::vector<std::size_t> full(n);
+    for (std::size_t i = 0; i < n; ++i) {
+      full[i] = i;
+    }
+    pieces.push_back(std::move(full));
+  }
+
+  for (auto const& [a, b] : diagonals) {
+    // Index-based loop, NOT range-based: the body below may pieces.push_back() a new piece, which can
+    // reallocate `pieces` and invalidate any reference/iterator taken into it beforehand.
+    for (std::size_t pi = 0; pi < pieces.size(); ++pi) {
+      auto& piece = pieces[pi];
+      auto it_a = std::find(piece.begin(), piece.end(), a);
+      auto it_b = std::find(piece.begin(), piece.end(), b);
+      if (it_a == piece.end() || it_b == piece.end()) {
+        continue;
+      }
+      std::size_t pos_a = static_cast<std::size_t>(std::distance(piece.begin(), it_a));
+      std::size_t pos_b = static_cast<std::size_t>(std::distance(piece.begin(), it_b));
+      std::size_t m = piece.size();
+      std::size_t fwd_diff = (pos_b + m - pos_a) % m;
+      if (fwd_diff == 1 || fwd_diff == m - 1) {
+        // Already adjacent in this piece (can happen when a merge vertex's two helper checks resolve
+        // to the same target vertex) -- a no-op split, nothing further to do for this diagonal.
+        break;
+      }
+
+      std::vector<std::size_t> piece_a, piece_b;
+      for (std::size_t k = pos_a;; k = (k + 1) % m) {
+        piece_a.push_back(piece[k]);
+        if (k == pos_b) {
+          break;
+        }
+      }
+      for (std::size_t k = pos_b;; k = (k + 1) % m) {
+        piece_b.push_back(piece[k]);
+        if (k == pos_a) {
+          break;
+        }
+      }
+      pieces[pi] = std::move(piece_a);
+      pieces.push_back(std::move(piece_b));
+      break;
+    }
+  }
+
+  return pieces;
+}
+
+template std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<Point2D> const& input,
+                                                                          View2D const& view);
+template std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<Point3D> const& input,
+                                                                          View2D const& view);
+
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
                                                                        View2D const& view) {
-  throw std::runtime_error("not yet implemented");
+  std::size_t n = input.size();
+
+  // Step 1: find top (max y, tie-break max x) and bottom (min y, tie-break min x) vertices.
+  std::size_t top_idx = 0, bot_idx = 0;
+  for (std::size_t i = 1; i < n; ++i) {
+    double yi = view.y(input[i]);
+    double yt = view.y(input[top_idx]);
+    double yb = view.y(input[bot_idx]);
+    if (compare(yi, yt) > 0 || (compare(yi, yt) == 0 && compare(view.x(input[i]), view.x(input[top_idx])) > 0)) {
+      top_idx = i;
+    }
+    if (compare(yi, yb) < 0 || (compare(yi, yb) == 0 && compare(view.x(input[i]), view.x(input[bot_idx])) < 0)) {
+      bot_idx = i;
+    }
+  }
+
+  // Step 2: build left and right chains (both start at top_idx, end at bot_idx).
+  // left_chain: walk CCW (forward, next = (i+1)%n)
+  // right_chain: walk CW (backward, prev = (i+n-1)%n)
+  std::vector<std::size_t> left_chain, right_chain;
+  {
+    std::size_t i = top_idx;
+    while (i != bot_idx) {
+      left_chain.push_back(i);
+      i = (i + 1) % n;
+    }
+    left_chain.push_back(bot_idx);
+  }
+  {
+    std::size_t i = top_idx;
+    while (i != bot_idx) {
+      right_chain.push_back(i);
+      i = (i + n - 1) % n;
+    }
+    right_chain.push_back(bot_idx);
+  }
+
+  // Step 3: merge left_chain[1:] and right_chain[1:] into merged, y-descending, tie-break x-ascending.
+  // Tag each entry with which chain it came from.
+  enum class Chain { Left, Right };
+  struct MergedEntry {
+    std::size_t idx;
+    Chain chain;
+  };
+
+  std::vector<MergedEntry> merged;
+  merged.reserve(n);
+  merged.push_back({top_idx, Chain::Left});
+
+  std::size_t li = 1, ri = 1;
+  while (li < left_chain.size() - 1 || ri < right_chain.size() - 1) {
+    bool take_left = false;
+    if (li >= left_chain.size() - 1) {
+      take_left = false;
+    } else if (ri >= right_chain.size() - 1) {
+      take_left = true;
+    } else {
+      double yl = view.y(input[left_chain[li]]);
+      double yr = view.y(input[right_chain[ri]]);
+      if (compare(yl, yr) > 0) {
+        take_left = true;
+      } else if (compare(yl, yr) < 0) {
+        take_left = false;
+      } else {
+        take_left = true;  // tie: left chain first
+      }
+    }
+    if (take_left) {
+      merged.push_back({left_chain[li], Chain::Left});
+      ++li;
+    } else {
+      merged.push_back({right_chain[ri], Chain::Right});
+      ++ri;
+    }
+  }
+  merged.push_back({bot_idx, Chain::Left});
+
+  // Step 4: stack-based triangulation.
+  std::vector<std::array<std::size_t, 3>> result;
+
+  auto emit = [&](std::size_t a, std::size_t b, std::size_t c) {
+    if (compare(helpers::area2(input[a], input[b], input[c], view), 0.0) >= 0) {
+      result.push_back({a, b, c});
+    } else {
+      result.push_back({a, c, b});
+    }
+  };
+
+  std::vector<MergedEntry> stk;
+  stk.push_back(merged[0]);
+  stk.push_back(merged[1]);
+
+  for (std::size_t j = 2; j < merged.size() - 1; ++j) {
+    MergedEntry curr = merged[j];
+    if (curr.chain != stk.back().chain) {
+      while (stk.size() > 1) {
+        MergedEntry top = stk.back();
+        stk.pop_back();
+        emit(curr.idx, top.idx, stk.back().idx);
+      }
+      stk.pop_back();
+      stk.push_back(merged[j - 1]);
+      stk.push_back(curr);
+    } else {
+      MergedEntry last_popped = stk.back();
+      stk.pop_back();
+      while (!stk.empty()) {
+        double a = helpers::area2(input[curr.idx], input[last_popped.idx], input[stk.back().idx], view);
+        bool valid = (curr.chain == Chain::Left) ? compare(a, 0.0) < 0 : compare(a, 0.0) > 0;
+        if (valid) {
+          emit(curr.idx, last_popped.idx, stk.back().idx);
+          last_popped = stk.back();
+          stk.pop_back();
+        } else {
+          break;
+        }
+      }
+      stk.push_back(last_popped);
+      stk.push_back(curr);
+    }
+  }
+
+  // Handle last vertex (bot_idx).
+  MergedEntry last_vert = merged.back();
+  while (stk.size() > 1) {
+    MergedEntry top = stk.back();
+    stk.pop_back();
+    emit(last_vert.idx, top.idx, stk.back().idx);
+  }
+
+  return result;
 }
 
 template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point2D> const& input,
@@ -358,15 +768,246 @@ template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(
 template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<Point3D> const& input,
                                                                                 View2D const& view);
 
+namespace helpers {
+
+// Lawson edge flipping, in place: every edge shared by exactly 2 triangles whose opposite vertex lies
+// strictly inside the neighboring triangle's circumcircle is flipped, until none remains. An edge owned
+// by a single triangle (a polygon ring edge, or a point set's hull edge) is never flipped -- for a CDT
+// that is exactly what keeps the boundary as a constraint. Each flip strictly increases the sorted
+// angle vector, so the loop terminates; O(n²) flips worst case, each O(1).
+// @param tris CCW index triplets into @p input, a valid triangulation (no overlaps, no zero-area).
+template <typename PointT>
+void lawson_flip(std::vector<PointT> const& input, View2D const& view, std::vector<std::array<std::size_t, 3>>& tris) {
+  // undirected edge -> the (at most 2) triangles sharing it.
+  constexpr std::size_t none = std::numeric_limits<std::size_t>::max();
+  auto key = [](std::size_t a, std::size_t b) -> std::uint64_t {
+    if (a > b) {
+      std::swap(a, b);
+    }
+    return (static_cast<std::uint64_t>(a) << 32) | static_cast<std::uint64_t>(b);
+  };
+  std::unordered_map<std::uint64_t, std::array<std::size_t, 2>> owners;
+  owners.reserve(tris.size() * 3);
+  auto add_owner = [&](std::size_t a, std::size_t b, std::size_t t) {
+    auto [it, inserted] = owners.try_emplace(key(a, b), std::array<std::size_t, 2>{t, none});
+    if (!inserted) {
+      it->second[1] = t;
+    }
+  };
+  auto replace_owner = [&](std::size_t a, std::size_t b, std::size_t old_t, std::size_t new_t) {
+    auto& o = owners.at(key(a, b));
+    if (o[0] == old_t) {
+      o[0] = new_t;
+    } else if (o[1] == old_t) {
+      o[1] = new_t;
+    }
+  };
+  for (std::size_t t = 0; t < tris.size(); ++t) {
+    add_owner(tris[t][0], tris[t][1], t);
+    add_owner(tris[t][1], tris[t][2], t);
+    add_owner(tris[t][2], tris[t][0], t);
+  }
+
+  // stack of edges to (re)check, seeded with every shared edge.
+  std::vector<std::array<std::size_t, 2>> stack;
+  stack.reserve(owners.size());
+  for (auto const& [k, o] : owners) {
+    if (o[1] != none) {
+      stack.push_back({static_cast<std::size_t>(k >> 32), static_cast<std::size_t>(k & 0xFFFFFFFFu)});
+    }
+  }
+
+  while (!stack.empty()) {
+    auto [u, v] = stack.back();
+    stack.pop_back();
+
+    auto it = owners.find(key(u, v));
+    if (it == owners.end() || it->second[1] == none) {
+      continue;  // already flipped away, or a single-owner (constraint / hull) edge
+    }
+    std::size_t t1 = it->second[0];
+    std::size_t t2 = it->second[1];
+
+    // Rotate t1 to (a, b, c) so that a->b is the shared edge in t1's own CCW order; t2 then holds b->a,
+    // and d is t2's vertex opposite the shared edge.
+    auto r1 = tris[t1];
+    while (!((r1[0] == u && r1[1] == v) || (r1[0] == v && r1[1] == u))) {
+      std::rotate(r1.begin(), r1.begin() + 1, r1.end());
+    }
+    std::size_t a = r1[0], b = r1[1], c = r1[2];
+    std::size_t d = none;
+    for (auto idx : tris[t2]) {
+      if (idx != a && idx != b) {
+        d = idx;
+      }
+    }
+
+    if (!in_circumcircle(input[a], input[b], input[c], input[d], view)) {
+      continue;  // locally Delaunay
+    }
+    // Only flip when the quad a-d-b-c is strictly convex, i.e. both new triangles are strictly CCW.
+    // Always true for a genuinely illegal edge; guards against tolerance-level near-degenerate cases.
+    if (compare(area2(input[a], input[d], input[c], view), 0.0) <= 0 ||
+        compare(area2(input[d], input[b], input[c], view), 0.0) <= 0) {
+      continue;
+    }
+
+    // Flip a-b into c-d: t1 = (a, b, c) -> (a, d, c), t2 = (b, a, d) -> (d, b, c).
+    tris[t1] = {a, d, c};
+    tris[t2] = {d, b, c};
+    owners.erase(it);
+    owners[key(c, d)] = {t1, t2};
+    replace_owner(a, d, t2, t1);
+    replace_owner(b, c, t1, t2);
+
+    // The 4 outer edges of the quad may have become illegal.
+    stack.push_back({a, d});
+    stack.push_back({d, b});
+    stack.push_back({b, c});
+    stack.push_back({c, a});
+  }
+}
+
+// Scan triangulation of a point set: points are inserted in lexicographic (x, then y) order, so each
+// new point lies outside the current convex hull, and is joined to every hull edge it strictly sees.
+// Only orientation tests -- no super-triangle, so no far-away vertices to bias the result. Points
+// coinciding (within DECIMAL_PRECISION) with an earlier one, or lying on the current hull boundary
+// within tolerance, are skipped. O(n²) worst case (linear hull scan per insertion).
+// @returns CCW index triplets into @p input covering its convex hull; empty if every point is collinear.
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> scan_triangulation(std::vector<PointT> const& input, View2D const& view) {
+  std::vector<std::array<std::size_t, 3>> tris;
+
+  // Lexicographic order on the projected coordinates (exact comparisons: a strict weak ordering).
+  std::vector<std::size_t> order(input.size());
+  for (std::size_t i = 0; i < order.size(); ++i) {
+    order[i] = i;
+  }
+  std::sort(order.begin(), order.end(), [&](std::size_t i, std::size_t j) {
+    auto [xi, yi] = view.xy(input[i]);
+    auto [xj, yj] = view.xy(input[j]);
+    return xi < xj || (xi == xj && yi < yj);
+  });
+
+  // Drop near-duplicates: an earlier point within tolerance always has an x within tolerance too.
+  std::vector<std::size_t> q;
+  q.reserve(order.size());
+  for (auto i : order) {
+    auto [xi, yi] = view.xy(input[i]);
+    bool duplicate = false;
+    for (auto k = q.rbegin(); k != q.rend(); ++k) {
+      auto [xk, yk] = view.xy(input[*k]);
+      if (compare(xk, xi) != 0) {
+        break;
+      }
+      if (compare(yk, yi) == 0) {
+        duplicate = true;
+        break;
+      }
+    }
+    if (!duplicate) {
+      q.push_back(i);
+    }
+  }
+  if (q.size() < 3) {
+    return tris;
+  }
+
+  auto orient = [&](std::size_t a, std::size_t b, std::size_t c) {
+    return compare(area2(input[a], input[b], input[c], view), 0.0);
+  };
+
+  // Seed: q[0..k-1] collinear (and sorted along their line), q[k] the first point off that line.
+  std::size_t k = 2;
+  while (k < q.size() && orient(q[0], q[1], q[k]) == 0) {
+    ++k;
+  }
+  if (k == q.size()) {
+    return tris;  // all collinear
+  }
+  bool left = orient(q[0], q[1], q[k]) > 0;
+  std::vector<std::size_t> hull;  // CCW
+  for (std::size_t j = 0; j + 1 < k; ++j) {
+    if (left) {
+      tris.push_back({q[j], q[j + 1], q[k]});
+    } else {
+      tris.push_back({q[j + 1], q[j], q[k]});
+    }
+  }
+  if (left) {
+    hull.assign(q.begin(), q.begin() + static_cast<std::ptrdiff_t>(k));
+  } else {
+    hull.assign(q.rbegin() + static_cast<std::ptrdiff_t>(q.size() - k), q.rend());
+  }
+  hull.push_back(q[k]);
+
+  std::vector<bool> visible;
+  for (std::size_t s = k + 1; s < q.size(); ++s) {
+    std::size_t p = q[s];
+    std::size_t m = hull.size();
+    visible.assign(m, false);
+    for (std::size_t e = 0; e < m; ++e) {
+      visible[e] = orient(hull[e], hull[(e + 1) % m], p) < 0;
+    }
+    // the visible edges form one contiguous run around the hull: find where it starts.
+    std::size_t start = m;
+    for (std::size_t e = 0; e < m; ++e) {
+      if (visible[e] && !visible[(e + m - 1) % m]) {
+        start = e;
+        break;
+      }
+    }
+    if (start == m) {
+      continue;  // nothing strictly visible: p lies on the hull boundary within tolerance
+    }
+    std::size_t run = 0;
+    while (run < m && visible[(start + run) % m]) {
+      std::size_t u = hull[(start + run) % m];
+      std::size_t w = hull[(start + run + 1) % m];
+      tris.push_back({u, p, w});  // (u, w, p) is CW, so (u, p, w) is CCW
+      ++run;
+    }
+    // hull: ..., hull[start], p, hull[start + run], ... (the run's interior vertices are now inside).
+    std::vector<std::size_t> next;
+    next.reserve(m + 1);
+    next.push_back(hull[start]);
+    next.push_back(p);
+    for (std::size_t j = run; j < m; ++j) {
+      next.push_back(hull[(start + j) % m]);
+    }
+    hull = std::move(next);
+  }
+  return tris;
+}
+
+}  // namespace helpers
+
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view) {
-  throw std::runtime_error("not yet implemented");
+  auto tris = helpers::scan_triangulation(input, view);
+  helpers::lawson_flip(input, view, tris);
+  return tris;
 }
 
 template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point2D> const& input,
                                                                         View2D const& view);
 template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point3D> const& input,
                                                                         View2D const& view);
+
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(std::vector<PointT> const& input,
+                                                                           View2D const& view) {
+  // Any valid triangulation of the ring keeps every ring edge and is strictly interior; ring edges then
+  // have a single owning triangle, so lawson_flip never touches them -- they are the constraints.
+  auto tris = ear_clipping_best_fit_triangulation(input, view);
+  helpers::lawson_flip(input, view, tris);
+  return tris;
+}
+
+template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point2D> const& input, View2D const& view);
+template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point3D> const& input, View2D const& view);
 
 template <typename PointT>
 std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& input, View2D const& view,
@@ -484,14 +1125,55 @@ std::vector<std::array<PointT, 3>> triangulate_impl(std::vector<PointT> const& i
     }
     case TriangulationParams::Strategy::MonotonePolygon: {
       for (auto const& loop : simple_loops) {
-        auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
-        tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+        switch (settings.monotonicity) {
+          case TriangulationParams::Monotonicity::Guaranteed: {
+            auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+            tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+            break;
+          }
+          case TriangulationParams::Monotonicity::Assert: {
+            if (!is_y_monotone(loop, view)) {
+              throw std::invalid_argument("triangulate: input is not y-monotone");
+            }
+            auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+            tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+            break;
+          }
+          case TriangulationParams::Monotonicity::Enforce: {
+            if (is_y_monotone(loop, view)) {
+              auto loop_tri_indices = monotone_polygon_triangulation(loop, view);
+              tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
+            } else {
+              // Decompose into y-monotone pieces (each a list of indices into `loop`), triangulate
+              // each piece independently with the existing monotone-polygon algorithm, then map each
+              // piece-local triangle index back to a `loop`-relative index before concatenating --
+              // `loop`-relative indices are what every other Strategy branch (and the final
+              // `working[tri[k]]` lookup below) expects here.
+              auto pieces = partition_monotone_polygon(loop, view);
+              for (auto const& piece : pieces) {
+                std::vector<PointT> piece_pts;
+                piece_pts.reserve(piece.size());
+                for (auto idx : piece) {
+                  piece_pts.push_back(loop[idx]);
+                }
+                auto local_tris = monotone_polygon_triangulation(piece_pts, view);
+                for (auto const& lt : local_tris) {
+                  tri_indices.push_back({piece[lt[0]], piece[lt[1]], piece[lt[2]]});
+                }
+              }
+            }
+            break;
+          }
+          default: {
+            throw std::invalid_argument("triangulate: unknown monotonicity strategy");
+          }
+        }
       }
       break;
     }
-    case TriangulationParams::Strategy::Delaunay: {
+    case TriangulationParams::Strategy::ConstrainedDelaunay: {
       for (auto const& loop : simple_loops) {
-        auto loop_tri_indices = delaunay_triangulation(loop, view);
+        auto loop_tri_indices = constrained_delaunay_triangulation(loop, view);
         tri_indices.insert(tri_indices.end(), loop_tri_indices.begin(), loop_tri_indices.end());
       }
       break;
@@ -526,6 +1208,31 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input, Triangula
   return result;
 }
 
+std::vector<Triangle2D> delaunay(std::vector<Point2D> const& points) {
+  if (points.size() < 3) {
+    throw std::invalid_argument("delaunay: less than 3 points");
+  }
+  auto tri_indices = detail::view::delaunay_triangulation(points, View2D::XY());
+  std::vector<Triangle2D> result;
+  result.reserve(tri_indices.size());
+  for (auto const& t : tri_indices) {
+    result.push_back(Triangle2D::Make(points[t[0]], points[t[1]], points[t[2]]));
+  }
+  return result;
+}
+
+bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p) {
+  return detail::view::in_circumcircle(a, b, c, p, View2D::XY());
+}
+
+bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p) {
+  std::vector<Point3D> tri_pts{a, b, c};
+  auto frame = principal_axes(tri_pts);
+  Axis dax = frame.Z.DominantAxis();
+  View2D v = (dax == Axis::X) ? View2D::YZ() : (dax == Axis::Y) ? View2D::ZX() : View2D::XY();
+  return detail::view::in_circumcircle(a, b, c, p, v);
+}
+
 namespace {
 
 // PointT-specific segment-containment test, dispatched by overload resolution -- native per dimension,
@@ -537,14 +1244,197 @@ bool segment_contains(Point3D const& a, Point3D const& b, Point3D const& v) {
   return LineSegment3D::Make(a, b).Contains(v);
 }
 
+// Supercover grid-cell traversal for segment a->b: visits every GridCell2D the segment's path touches,
+// including a cell it only clips at a corner -- plain Bresenham can skip such a cell, which would
+// silently reintroduce a missed-T-junction false negative (the exact bug class the grid-bucketed pass
+// exists to catch). Standard incremental (Amanatides-Woo style) grid DDA: track the parametric t at which
+// the line next crosses an x boundary and a y boundary, step whichever is smaller. On a tie -- the
+// segment crosses exactly at a cell corner -- both single-axis neighbor cells are visited in addition to
+// the diagonal cell, not just the diagonal one. Visiting an extra cell here is harmless: segment_contains
+// below will correctly reject any vertex that isn't actually on the segment.
+std::vector<GridCell2D> cells_along_segment(Point2D const& a, Point2D const& b, double epsilon) {
+  std::vector<GridCell2D> result;
+  std::unordered_set<GridCell2D, detail::GridCell2DHash> visited;
+  auto visit = [&](std::int64_t cx, std::int64_t cy) {
+    if (visited.insert({cx, cy}).second) {
+      result.push_back({cx, cy});
+    }
+  };
+
+  double ax = a.x(), ay = a.y();
+  double dx = b.x() - ax, dy = b.y() - ay;
+
+  std::int64_t x = static_cast<std::int64_t>(std::floor(ax / epsilon));
+  std::int64_t y = static_cast<std::int64_t>(std::floor(ay / epsilon));
+  std::int64_t const x_end = static_cast<std::int64_t>(std::floor(b.x() / epsilon));
+  std::int64_t const y_end = static_cast<std::int64_t>(std::floor(b.y() / epsilon));
+
+  visit(x, y);
+
+  int const step_x = (dx > 0.0) ? 1 : (dx < 0.0 ? -1 : 0);
+  int const step_y = (dy > 0.0) ? 1 : (dy < 0.0 ? -1 : 0);
+
+  double const inf = std::numeric_limits<double>::infinity();
+  double t_max_x = inf, t_delta_x = inf;
+  if (step_x != 0) {
+    double boundary_x = (step_x > 0) ? static_cast<double>(x + 1) * epsilon : static_cast<double>(x) * epsilon;
+    t_max_x = (boundary_x - ax) / dx;
+    t_delta_x = epsilon / std::fabs(dx);
+  }
+  double t_max_y = inf, t_delta_y = inf;
+  if (step_y != 0) {
+    double boundary_y = (step_y > 0) ? static_cast<double>(y + 1) * epsilon : static_cast<double>(y) * epsilon;
+    t_max_y = (boundary_y - ay) / dy;
+    t_delta_y = epsilon / std::fabs(dy);
+  }
+
+  // Iteration count is bounded by the Chebyshev-ish cell distance to x_end/y_end; the *2 margin plus hard
+  // cap is a defensive guard against floating-point drift in t_max, not something normal input should hit.
+  std::size_t const max_iterations = static_cast<std::size_t>(std::llabs(x_end - x) + std::llabs(y_end - y)) * 2 + 4;
+  for (std::size_t iter = 0; (x != x_end || y != y_end) && iter < max_iterations; ++iter) {
+    double t_min = std::min(t_max_x, t_max_y);
+    if (t_min == inf) {
+      break;  // no axis has a pending crossing left (degenerate a==b is handled by the loop guard above)
+    }
+    double tie_tol = 1e-9 * std::max({std::fabs(t_max_x), std::fabs(t_max_y), 1.0});
+    bool const tied_x = step_x != 0 && (t_max_x - t_min) <= tie_tol;
+    bool const tied_y = step_y != 0 && (t_max_y - t_min) <= tie_tol;
+
+    std::int64_t const new_x = tied_x ? x + step_x : x;
+    std::int64_t const new_y = tied_y ? y + step_y : y;
+
+    // Visit every {old, new} combination across the tied axes: collapses to just the one stepped cell
+    // for a plain single-axis crossing, and covers both axis-neighbors plus the diagonal on a corner tie.
+    for (std::int64_t cx : {x, new_x}) {
+      for (std::int64_t cy : {y, new_y}) {
+        visit(cx, cy);
+      }
+    }
+
+    if (tied_x) {
+      t_max_x += t_delta_x;
+    }
+    if (tied_y) {
+      t_max_y += t_delta_y;
+    }
+    x = new_x;
+    y = new_y;
+  }
+  visit(x_end, y_end);  // safety net in case the iteration guard above ever trips early
+  return result;
+}
+
+// 3D counterpart of cells_along_segment above -- the standard 3D-DDA / Amanatides-Woo voxel traversal,
+// with the same both-neighbors-on-a-tie handling generalized: a tie between 2 axes (segment crosses
+// exactly on a cell edge) visits the 2 axis-neighbors plus the diagonal; a tie between all 3 axes
+// (segment passes exactly through a cell corner) visits all 7 neighbors sharing that corner plus the
+// diagonal, not just the corner-diagonal cell.
+std::vector<GridCell3D> cells_along_segment(Point3D const& a, Point3D const& b, double epsilon) {
+  std::vector<GridCell3D> result;
+  std::unordered_set<GridCell3D, detail::GridCell3DHash> visited;
+  auto visit = [&](std::int64_t cx, std::int64_t cy, std::int64_t cz) {
+    if (visited.insert({cx, cy, cz}).second) {
+      result.push_back({cx, cy, cz});
+    }
+  };
+
+  double ax = a.x(), ay = a.y(), az = a.z();
+  double dx = b.x() - ax, dy = b.y() - ay, dz = b.z() - az;
+
+  std::int64_t x = static_cast<std::int64_t>(std::floor(ax / epsilon));
+  std::int64_t y = static_cast<std::int64_t>(std::floor(ay / epsilon));
+  std::int64_t z = static_cast<std::int64_t>(std::floor(az / epsilon));
+  std::int64_t const x_end = static_cast<std::int64_t>(std::floor(b.x() / epsilon));
+  std::int64_t const y_end = static_cast<std::int64_t>(std::floor(b.y() / epsilon));
+  std::int64_t const z_end = static_cast<std::int64_t>(std::floor(b.z() / epsilon));
+
+  visit(x, y, z);
+
+  int const step_x = (dx > 0.0) ? 1 : (dx < 0.0 ? -1 : 0);
+  int const step_y = (dy > 0.0) ? 1 : (dy < 0.0 ? -1 : 0);
+  int const step_z = (dz > 0.0) ? 1 : (dz < 0.0 ? -1 : 0);
+
+  double const inf = std::numeric_limits<double>::infinity();
+  auto axis_setup = [inf](std::int64_t c, int step, double a_coord, double d, double eps, double& t_max,
+                          double& t_delta) {
+    if (step != 0) {
+      double boundary = (step > 0) ? static_cast<double>(c + 1) * eps : static_cast<double>(c) * eps;
+      t_max = (boundary - a_coord) / d;
+      t_delta = eps / std::fabs(d);
+    } else {
+      t_max = inf;
+      t_delta = inf;
+    }
+  };
+
+  double t_max_x, t_delta_x, t_max_y, t_delta_y, t_max_z, t_delta_z;
+  axis_setup(x, step_x, ax, dx, epsilon, t_max_x, t_delta_x);
+  axis_setup(y, step_y, ay, dy, epsilon, t_max_y, t_delta_y);
+  axis_setup(z, step_z, az, dz, epsilon, t_max_z, t_delta_z);
+
+  std::size_t const max_iterations =
+      static_cast<std::size_t>(std::llabs(x_end - x) + std::llabs(y_end - y) + std::llabs(z_end - z)) * 2 + 6;
+  for (std::size_t iter = 0; (x != x_end || y != y_end || z != z_end) && iter < max_iterations; ++iter) {
+    double t_min = std::min({t_max_x, t_max_y, t_max_z});
+    if (t_min == inf) {
+      break;  // no axis has a pending crossing left
+    }
+    double tie_tol = 1e-9 * std::max({std::fabs(t_max_x), std::fabs(t_max_y), std::fabs(t_max_z), 1.0});
+    bool const tied_x = step_x != 0 && (t_max_x - t_min) <= tie_tol;
+    bool const tied_y = step_y != 0 && (t_max_y - t_min) <= tie_tol;
+    bool const tied_z = step_z != 0 && (t_max_z - t_min) <= tie_tol;
+
+    std::int64_t const new_x = tied_x ? x + step_x : x;
+    std::int64_t const new_y = tied_y ? y + step_y : y;
+    std::int64_t const new_z = tied_z ? z + step_z : z;
+
+    // Visit every {old, new} combination across the tied axes: 2 cells for a plain single-axis crossing,
+    // 4 for a 2-axis edge tie, 8 for a 3-axis corner tie -- the full supercover set sharing that
+    // boundary, not just the diagonal landing cell.
+    for (std::int64_t cx : {x, new_x}) {
+      for (std::int64_t cy : {y, new_y}) {
+        for (std::int64_t cz : {z, new_z}) {
+          visit(cx, cy, cz);
+        }
+      }
+    }
+
+    if (tied_x) {
+      t_max_x += t_delta_x;
+    }
+    if (tied_y) {
+      t_max_y += t_delta_y;
+    }
+    if (tied_z) {
+      t_max_z += t_delta_z;
+    }
+    x = new_x;
+    y = new_y;
+    z = new_z;
+  }
+  visit(x_end, y_end, z_end);  // safety net in case the iteration guard above ever trips early
+  return result;
+}
+
 template <typename PointT>
 std::vector<AdjacencyViolation<PointT>> validate_adjacency_impl(std::vector<std::vector<PointT>> const& facet_rings) {
+  // return type
   std::vector<AdjacencyViolation<PointT>> violations;
 
+  // helper functions and structures
   struct Edge {
     std::size_t facet;
     PointT a, b;
+    auto to_segment() const {  // Make()'s AlmostEquals check now runs once per edge
+      if constexpr (std::is_same_v<PointT, Point2D>) {
+        return LineSegment2D::Make(a, b);
+      } else {
+        return LineSegment3D::Make(a, b);
+      }
+    };
   };
+
+  // build edges
   std::vector<Edge> edges;
   for (std::size_t f = 0; f < facet_rings.size(); ++f) {
     auto const& ring = facet_rings[f];
@@ -581,38 +1471,40 @@ std::vector<AdjacencyViolation<PointT>> validate_adjacency_impl(std::vector<std:
       for (auto gi : group) {
         facet_indices.push_back(edges[gi].facet);
       }
-      violations.push_back({edges[group[0]].a, edges[group[0]].b, facet_indices, true, edges[group[0]].a});
+      violations.push_back({edges[group[0]].a, edges[group[0]].b, facet_indices, edges[group[0]].a});
     }
   }
 
-  // Pass 2: T-junctions -- a vertex from some facet lying in the interior of another facet's edge
-  // (excluding that edge's own two endpoints).
-  std::vector<PointT> unique_vertices;
-  std::vector<std::size_t> vertex_owner;
+  // Pass 2: T-junctions - find vertices that lie in the middle of other facets' edges
+  //                       those will imply a re-formatting of that containing facet
+  // --- helper functions ----
+  // the aim is to avoid passing 2+ time the same vertex in "violations" vector
+  using GridCellT = std::conditional_t<std::is_same_v<PointT, Point2D>, GridCell2D, GridCell3D>;
+  using GridCellTHash =
+      std::conditional_t<std::is_same_v<PointT, Point2D>, detail::GridCell2DHash, detail::GridCell3DHash>;
+  struct ViolatingPoint {
+    std::size_t face_index;   // index of the facet containing it
+    std::size_t point_index;  // index of the point in that facet
+  };
+  std::unordered_map<GridCellT, ViolatingPoint, GridCellTHash> point_grid_map;
   for (std::size_t f = 0; f < facet_rings.size(); ++f) {
-    for (auto const& p : facet_rings[f]) {
-      bool found = false;
-      for (auto const& q : unique_vertices) {
-        if (p.AlmostEquals(q)) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        unique_vertices.push_back(p);
-        vertex_owner.push_back(f);
+    for (std::size_t p = 0; p < facet_rings[f].size(); ++p) {
+      auto gc = GridCellT::FromPoint(facet_rings[f][p]);
+      if (point_grid_map.find(gc) == point_grid_map.end()) {
+        point_grid_map.insert({gc, ViolatingPoint{f, p}});
       }
     }
   }
+  for (auto const& edge : edges) {
+    auto seg = edge.to_segment();
 
-  for (auto const& e : edges) {
-    for (std::size_t vi = 0; vi < unique_vertices.size(); ++vi) {
-      auto const& v = unique_vertices[vi];
-      if (v.AlmostEquals(e.a) || v.AlmostEquals(e.b)) {
+    for (auto const& [gc, vp] : point_grid_map) {
+      auto const& v = facet_rings[vp.face_index][vp.point_index];
+      if (v.AlmostEquals(edge.a) || v.AlmostEquals(edge.b)) {
         continue;
       }
-      if (segment_contains(e.a, e.b, v)) {
-        violations.push_back({e.a, e.b, {e.facet, vertex_owner[vi]}, false, v});
+      if (seg.Contains(v)) {
+        violations.push_back({edge.a, edge.b, {edge.facet}, v});
       }
     }
   }
@@ -623,14 +1515,6 @@ std::vector<AdjacencyViolation<PointT>> validate_adjacency_impl(std::vector<std:
 template <typename PointT>
 std::vector<std::vector<PointT>> fix_adjacency_impl(std::vector<std::vector<PointT>> const& facet_rings) {
   auto violations = validate_adjacency_impl(facet_rings);
-
-  for (auto const& v : violations) {
-    if (v.is_non_manifold) {
-      throw std::invalid_argument("fix_adjacency: edge (" + v.edge_p0.ToWkt() + " -> " + v.edge_p1.ToWkt() +
-                                  ") is shared by " + std::to_string(v.facet_indices.size()) +
-                                  " facets (max 2 allowed) -- not automatically fixable");
-    }
-  }
 
   struct SpliceKey {
     std::size_t facet;
@@ -661,9 +1545,8 @@ std::vector<std::vector<PointT>> fix_adjacency_impl(std::vector<std::vector<Poin
     for (std::size_t i = 0; i < perim.size(); ++i) {
       if (perim[i].AlmostEquals(key.a)) {
         std::vector<PointT> sorted_pts = pts;
-        std::sort(sorted_pts.begin(), sorted_pts.end(), [&](PointT const& x, PointT const& y) {
-          return key.a.DistanceTo(x) < key.a.DistanceTo(y);
-        });
+        std::sort(sorted_pts.begin(), sorted_pts.end(),
+                  [&](PointT const& x, PointT const& y) { return key.a.DistanceTo(x) < key.a.DistanceTo(y); });
         perim.insert(perim.begin() + static_cast<std::ptrdiff_t>(i) + 1, sorted_pts.begin(), sorted_pts.end());
         break;
       }
@@ -696,8 +1579,10 @@ bool segments_properly_intersect(PointT const& p1, PointT const& q1, PointT cons
   double d2 = detail::view::helpers::area2(p2, q2, q1, view);
   double d3 = detail::view::helpers::area2(p1, q1, p2, view);
   double d4 = detail::view::helpers::area2(p1, q1, q2, view);
-  bool straddles_p2q2 = (compare(d1, 0.0) > 0 && compare(d2, 0.0) < 0) || (compare(d1, 0.0) < 0 && compare(d2, 0.0) > 0);
-  bool straddles_p1q1 = (compare(d3, 0.0) > 0 && compare(d4, 0.0) < 0) || (compare(d3, 0.0) < 0 && compare(d4, 0.0) > 0);
+  bool straddles_p2q2 =
+      (compare(d1, 0.0) > 0 && compare(d2, 0.0) < 0) || (compare(d1, 0.0) < 0 && compare(d2, 0.0) > 0);
+  bool straddles_p1q1 =
+      (compare(d3, 0.0) > 0 && compare(d4, 0.0) < 0) || (compare(d3, 0.0) < 0 && compare(d4, 0.0) > 0);
   return straddles_p2q2 && straddles_p1q1;
 }
 
@@ -742,7 +1627,7 @@ bool is_valid_diagonal(std::vector<PointT> const& ring, std::size_t i, std::size
 // Splits a simple ring into two simple rings sharing the diagonal (ring[i], ring[j]) as an edge.
 template <typename PointT>
 std::pair<std::vector<PointT>, std::vector<PointT>> split_ring_at(std::vector<PointT> const& ring, std::size_t i,
-                                                                   std::size_t j) {
+                                                                  std::size_t j) {
   std::size_t n = ring.size();
   std::vector<PointT> ring_a, ring_b;
   for (std::size_t k = i;; k = (k + 1) % n) {
@@ -770,14 +1655,6 @@ std::pair<std::vector<PointT>, std::vector<PointT>> split_ring_at(std::vector<Po
 template <typename PointT>
 std::vector<std::vector<PointT>> split_facets_at_junctions_impl(std::vector<std::vector<PointT>> const& facet_rings) {
   auto violations = validate_adjacency_impl(facet_rings);
-
-  for (auto const& v : violations) {
-    if (v.is_non_manifold) {
-      throw std::invalid_argument("fix_adjacency: edge (" + v.edge_p0.ToWkt() + " -> " + v.edge_p1.ToWkt() +
-                                  ") is shared by " + std::to_string(v.facet_indices.size()) +
-                                  " facets (max 2 allowed) -- not automatically fixable");
-    }
-  }
 
   struct SpliceKey {
     std::size_t facet;
@@ -814,9 +1691,8 @@ std::vector<std::vector<PointT>> split_facets_at_junctions_impl(std::vector<std:
       for (std::size_t i = 0; i < ring.size(); ++i) {
         if (ring[i].AlmostEquals(key.a)) {
           std::vector<PointT> sorted_pts = pts;
-          std::sort(sorted_pts.begin(), sorted_pts.end(), [&](PointT const& x, PointT const& y) {
-            return key.a.DistanceTo(x) < key.a.DistanceTo(y);
-          });
+          std::sort(sorted_pts.begin(), sorted_pts.end(),
+                    [&](PointT const& x, PointT const& y) { return key.a.DistanceTo(x) < key.a.DistanceTo(y); });
           ring.insert(ring.begin() + static_cast<std::ptrdiff_t>(i) + 1, sorted_pts.begin(), sorted_pts.end());
           spliced_points.insert(spliced_points.end(), sorted_pts.begin(), sorted_pts.end());
           break;
@@ -853,20 +1729,33 @@ std::vector<std::vector<PointT>> split_facets_at_junctions_impl(std::vector<std:
             candidates.push_back(k);
           }
         }
-        std::sort(candidates.begin(), candidates.end(), [&](std::size_t ca, std::size_t cb) {
-          return v.DistanceTo(piece[ca]) < v.DistanceTo(piece[cb]);
-        });
+        std::sort(candidates.begin(), candidates.end(),
+                  [&](std::size_t ca, std::size_t cb) { return v.DistanceTo(piece[ca]) < v.DistanceTo(piece[cb]); });
 
         std::size_t chosen = piece.size();
+        double chosen_dist = 0.0;
         for (auto c : candidates) {
           if (is_valid_diagonal(piece, vi, c, view)) {
             chosen = c;
+            chosen_dist = v.DistanceTo(piece[c]);
             break;
           }
         }
         if (chosen == piece.size()) {
-          throw std::logic_error("fix_adjacency: found no valid diagonal from a spliced T-junction vertex -- "
-                                 "every simple polygon with >= 4 vertices has one, so this indicates a bug");
+          throw std::logic_error(
+              "fix_adjacency: found no valid diagonal from a spliced T-junction vertex -- "
+              "every simple polygon with >= 4 vertices has one, so this indicates a bug");
+        }
+
+        // TODO: tie-break policy not decided yet (see conversation) -- disabled for now rather than
+        // silently committing to whichever candidate std::sort's unstable ordering happens to put
+        // first. Refuse loudly instead of producing a non-reproducible split.
+        for (auto c : candidates) {
+          if (c != chosen && compare(v.DistanceTo(piece[c]), chosen_dist) == 0 && is_valid_diagonal(piece, vi, c, view)) {
+            throw std::logic_error(
+                "fix_adjacency: found multiple equally-near valid diagonals from a spliced T-junction "
+                "vertex -- tie-breaking is not yet defined, refusing to pick one arbitrarily");
+          }
         }
 
         auto [ring_a, ring_b] = split_ring_at(piece, vi, chosen);
@@ -968,7 +1857,8 @@ std::vector<Triangle2D> fix_adjacency(std::vector<Triangle2D> const& facets) {
       continue;
     }
     auto sub_triangles = triangulate(ring, guaranteed_collinearity);
-    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()), std::make_move_iterator(sub_triangles.end()));
+    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()),
+                  std::make_move_iterator(sub_triangles.end()));
   }
   return result;
 }
@@ -994,14 +1884,15 @@ std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets) {
     // The ring may now span more than 3 points (still planar -- the splice only added collinear
     // points), so fit its normal via PCA rather than assuming a caller-supplied one.
     auto sub_triangles = triangulate(ring, guaranteed_collinearity);
-    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()), std::make_move_iterator(sub_triangles.end()));
+    result.insert(result.end(), std::make_move_iterator(sub_triangles.begin()),
+                  std::make_move_iterator(sub_triangles.end()));
   }
   return result;
 }
 
 std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, TriangulationParams const& settings) {
   switch (settings.conformity) {
-    case TriangulationParams::AdjacencyConformity::Guaranteed: {
+    case AdjacencyConformity::Guaranteed: {
       std::vector<Triangle2D> result;
       for (auto const& poly : polygons) {
         auto tris = triangulate(poly.Perimeter(), settings);
@@ -1009,15 +1900,13 @@ std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, Tria
       }
       return result;
     }
-    case TriangulationParams::AdjacencyConformity::Assert: {
+    case AdjacencyConformity::Assert: {
       auto violations = validate_adjacency(polygons);
       if (!violations.empty()) {
         auto const& v = violations.front();
         throw std::invalid_argument(
             "triangulate: facets violate adjacency conformity at edge (" + v.edge_p0.ToWkt() + " -> " +
-            v.edge_p1.ToWkt() + ") -- " +
-            (v.is_non_manifold ? "shared by " + std::to_string(v.facet_indices.size()) + " facets (max 2 allowed)"
-                                : "vertex " + v.on_vertex.ToWkt() + " lies on this edge (a T-junction)"));
+            v.edge_p1.ToWkt() + "), touched by " + std::to_string(v.facet_indices.size()) + " facet(s)");
       }
       std::vector<Triangle2D> result;
       for (auto const& poly : polygons) {
@@ -1026,7 +1915,7 @@ std::vector<Triangle2D> triangulate(std::vector<Polygon2D> const& polygons, Tria
       }
       return result;
     }
-    case TriangulationParams::AdjacencyConformity::Enforce: {
+    case AdjacencyConformity::Enforce: {
       // fix_adjacency() now actually splits a coarse facet via a diagonal cut per T-junction vertex
       // (§10.5), rather than just splicing a flat vertex into its ring, so every returned ring is
       // already a simple polygon with no leftover collinear points -- no need to force
@@ -1062,14 +1951,8 @@ void assert_adjacency(std::vector<AdjacencyViolation<PointT>> const& violations)
     }
   }
 
-  if (v.is_non_manifold) {
-    throw std::invalid_argument("facet(s) " + facets_str + " have an edge in common (" + v.edge_p0.ToWkt() + " -> " +
-                                v.edge_p1.ToWkt() + ") -- we only allow max 2 facets to share an edge");
-  }
-  throw std::invalid_argument("facet " + std::to_string(v.facet_indices[0]) + "'s edge (" + v.edge_p0.ToWkt() +
-                              " -> " + v.edge_p1.ToWkt() + ") has facet " + std::to_string(v.facet_indices[1]) +
-                              "'s vertex " + v.on_vertex.ToWkt() + " lying on it (a T-junction) -- a vertex may "
-                              "only touch a neighbor's edge at that edge's own start/end");
+  throw std::invalid_argument("facet(s) " + facets_str + " violate adjacency conformity at edge (" +
+                              v.edge_p0.ToWkt() + " -> " + v.edge_p1.ToWkt() + ")");
 }
 
 template void assert_adjacency(std::vector<AdjacencyViolation<Point2D>> const&);

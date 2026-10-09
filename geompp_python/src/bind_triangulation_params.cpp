@@ -20,10 +20,13 @@ void bind_triangulation_params(py::module_& m) {
                "full rescan of the current ring on every single clip, not just worst case. Default.")
         .value("MonotonePolygon", geompp::TriangulationParams::Strategy::MonotonePolygon,
                "O(n log n) worst case; requires a monotone polygon (or a decomposition into monotone "
-               "pieces). Not yet implemented.")
-        .value("Delaunay", geompp::TriangulationParams::Strategy::Delaunay,
-               "O(n log n) worst case; maximizes the minimum angle across all triangles (avoids skinny "
-               "slivers). Not yet implemented.")
+               "pieces).")
+        .value("ConstrainedDelaunay", geompp::TriangulationParams::Strategy::ConstrainedDelaunay,
+               "Constrained Delaunay triangulation (CDT) of the polygon: EarClippingBestFit, then Lawson "
+               "edge flips on internal edges only. Output always stays inside the polygon (n-2 triangles, "
+               "every boundary edge kept) and is locally Delaunay across every internal edge, which "
+               "avoids skinny slivers where the boundary allows. O(n^2) worst case. For an unconstrained "
+               "point cloud (covering the convex hull), use geompp.delaunay() instead.")
         .export_values();
 
     py::enum_<geompp::TriangulationParams::Simplicity>(m, "TriangulationSimplicity",
@@ -56,7 +59,23 @@ void bind_triangulation_params(py::module_& m) {
                "Removes collinear/duplicate points before triangulating.")
         .export_values();
 
-    py::enum_<geompp::TriangulationParams::AdjacencyConformity>(m, "AdjacencyConformity",
+    py::enum_<geompp::TriangulationParams::Monotonicity>(m, "TriangulationMonotonicity",
+        "Only consulted by Strategy.MonotonePolygon. Whether/how to handle a ring that isn't "
+        "y-monotone before running the monotone-polygon sweep, which silently assumes y-monotonicity "
+        "and produces an unspecified (not necessarily correct) result otherwise.")
+        .value("Guaranteed", geompp::TriangulationParams::Monotonicity::Guaranteed,
+               "No check is carried out (today's behavior: silently assumes the ring is y-monotone; "
+               "matches every other input-quality field's own Guaranteed semantics). Default.")
+        .value("Assert", geompp::TriangulationParams::Monotonicity::Assert,
+               "Checks y-monotonicity first and raises if the ring isn't y-monotone.")
+        .value("Enforce", geompp::TriangulationParams::Monotonicity::Enforce,
+               "If the ring isn't y-monotone, partitions it into y-monotone pieces via a top-to-bottom "
+               "plane sweep (sweeping along Y only) that classifies vertices as start/end/split/merge/"
+               "regular and adds diagonals to remove split/merge vertices, then triangulates each "
+               "resulting monotone piece and concatenates the results.")
+        .export_values();
+
+    py::enum_<geompp::AdjacencyConformity>(m, "AdjacencyConformity",
         "How TriangulationParams.conformity handles a batch of facets that violate \"every edge has at "
         "most 1 neighbor\" -- no facet vertex may lie in the interior of another facet's edge, only "
         "exactly at that edge's own start/end vertex. Known elsewhere as: no \"hanging nodes\" (FEM), no "
@@ -64,11 +83,11 @@ void bind_triangulation_params(py::module_& m) {
         "fix_adjacency() (below) do the actual checking/repair; Mesh2D/3D.from_triangles, "
         "PolyMesh2D/3D.from_polygons, and ConnectedMesh2D/3D.from_triangles always Assert this at "
         "construction time.")
-        .value("Guaranteed", geompp::TriangulationParams::AdjacencyConformity::Guaranteed,
+        .value("Guaranteed", geompp::AdjacencyConformity::Guaranteed,
                "No check is carried out (runs at your own risk).")
-        .value("Assert", geompp::TriangulationParams::AdjacencyConformity::Assert,
+        .value("Assert", geompp::AdjacencyConformity::Assert,
                "Raises if any violation (T-junction or non-manifold edge) is found.")
-        .value("Enforce", geompp::TriangulationParams::AdjacencyConformity::Enforce,
+        .value("Enforce", geompp::AdjacencyConformity::Enforce,
                "Auto-repairs every T-junction via fix_adjacency(); still raises on a non-manifold edge "
                "(a full edge shared by 3+ facets) -- there's no principled automatic fix for that one.")
         .export_values();
@@ -78,17 +97,21 @@ void bind_triangulation_params(py::module_& m) {
         "triangulate() / Polygon2D.triangulate() / Polygon3D.triangulate() / PolyMesh2D.triangulate() / "
         "PolyMesh3D.triangulate(), plus (for the batch triangulate(list[Polygon2D], settings) overload "
         "only) how to handle cross-facet adjacency violations. Defaults match triangulate()'s own "
-        "defaults: EarClippingBestFit, and Enforce for all four input-quality checks.")
+        "defaults: EarClippingBestFit, and Enforce for all four input-quality checks -- except "
+        "monotonicity, which defaults to Guaranteed (only consulted by Strategy.MonotonePolygon) "
+        "unlike the other three.")
         .def(py::init([](geompp::TriangulationParams::Strategy strategy,
                           geompp::TriangulationParams::Simplicity simplicity,
                           geompp::TriangulationParams::Winding ccw_winding,
                           geompp::TriangulationParams::Collinearity collinearity,
-                          geompp::TriangulationParams::AdjacencyConformity conformity) {
+                          geompp::TriangulationParams::Monotonicity monotonicity,
+                          geompp::AdjacencyConformity conformity) {
                  geompp::TriangulationParams p;
                  p.strategy = strategy;
                  p.simplicity = simplicity;
                  p.ccw_winding = ccw_winding;
                  p.collinearity = collinearity;
+                 p.monotonicity = monotonicity;
                  p.conformity = conformity;
                  return p;
              }),
@@ -96,10 +119,12 @@ void bind_triangulation_params(py::module_& m) {
              "simplicity"_a = geompp::TriangulationParams::Simplicity::Enforce,
              "ccw_winding"_a = geompp::TriangulationParams::Winding::Enforce,
              "collinearity"_a = geompp::TriangulationParams::Collinearity::Enforce,
-             "conformity"_a = geompp::TriangulationParams::AdjacencyConformity::Enforce)
+             "monotonicity"_a = geompp::TriangulationParams::Monotonicity::Guaranteed,
+             "conformity"_a = geompp::AdjacencyConformity::Enforce)
         .def_readwrite("strategy", &geompp::TriangulationParams::strategy)
         .def_readwrite("simplicity", &geompp::TriangulationParams::simplicity)
         .def_readwrite("ccw_winding", &geompp::TriangulationParams::ccw_winding)
         .def_readwrite("collinearity", &geompp::TriangulationParams::collinearity)
+        .def_readwrite("monotonicity", &geompp::TriangulationParams::monotonicity)
         .def_readwrite("conformity", &geompp::TriangulationParams::conformity);
 }

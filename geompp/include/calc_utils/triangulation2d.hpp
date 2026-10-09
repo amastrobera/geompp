@@ -24,6 +24,29 @@ namespace view {
 
 // all triangulation functions
 
+/// @brief Whether @p input is y-monotone: at most one local y-maximum and one local y-minimum when
+/// projected through @p view. A polygon must be y-monotone before monotone_polygon_triangulation() can
+/// operate on it correctly. Local max: y_curr > y_prev && y_curr > y_next. Local min: the reverse.
+/// @param input ring vertices (Point2D or Point3D), implicitly closed.
+/// @param view projects each vertex to 2D x/y coordinates.
+template <typename PointT>
+bool is_y_monotone(std::vector<PointT> const& input, View2D const& view);
+
+extern template bool is_y_monotone(std::vector<Point2D> const& input, View2D const& view);
+extern template bool is_y_monotone(std::vector<Point3D> const& input, View2D const& view);
+
+/// @brief Whether @p p is strictly inside the circumcircle of CCW-wound triangle {a, b, c}, using the
+/// 3×3 determinant predicate. For a CCW triangle, det > 0 means @p p is strictly inside; det == 0
+/// means on the circle; det < 0 means outside. Building block for delaunay_triangulation().
+/// @param view projects each vertex to 2D x/y coordinates.
+template <typename PointT>
+bool in_circumcircle(PointT const& a, PointT const& b, PointT const& c, PointT const& p, View2D const& view);
+
+extern template bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p,
+                                     View2D const& view);
+extern template bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p,
+                                     View2D const& view);
+
 /// @brief O(n^2)-worst-case ear-clipping triangulation of a single simple, CCW-wound ring, projected
 /// through @p view. Repeatedly clips a convex "ear" vertex (one whose candidate triangle contains no
 /// other, currently-reflex vertex) until 3 vertices remain, then emits that last triangle. Robust for
@@ -65,11 +88,41 @@ extern template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_tr
 extern template std::vector<std::array<std::size_t, 3>> ear_clipping_best_fit_triangulation(
     std::vector<Point3D> const& input, View2D const& view);
 
+/// @brief Partitions a simple, CCW-wound ring into one or more y-monotone pieces via the classical
+/// plane-sweep algorithm (de Berg et al., "Computational Geometry" §3.2): sweeps top-to-bottom,
+/// classifies each vertex (start/end/split/merge/regular), maintains a status structure of the
+/// polygon's currently active "descending" edges plus one helper vertex per edge, and inserts a
+/// diagonal whenever a split or merge vertex is encountered. Every inserted diagonal is a valid,
+/// non-crossing chord of @p ring, so splitting along all of them (in any order) always yields a
+/// well-defined set of simple, CCW, pairwise-non-overlapping pieces whose union recovers @p ring
+/// exactly (a shared diagonal becomes a shared edge between two adjacent pieces).
+/// @param ring simple, CCW-wound ring, no holes, at least 3 points.
+/// @param view projects each vertex to 2D x/y coordinates; the sweep always proceeds along -Y (see
+/// TriangulationParams::Monotonicity's own doc for why no other direction is attempted).
+/// @returns 1+ pieces, each a list of indices into @p ring (>= 3 entries, CCW order) such that
+/// realizing each piece's indices as points forms a simple, y-monotone polygon. Exactly 1 piece
+/// (containing every index 0..ring.size()-1 in order) when @p ring is already y-monotone -- the
+/// split/merge classification then never fires.
+/// @throws std::invalid_argument if @p ring has fewer than 3 points.
+/// @note Status-structure lookups ("find the edge directly left of vertex v") are a linear scan over
+/// the currently active edges here, rather than a balanced-BST keyed by a dynamic comparator -- the
+/// same O(n^2)-worst-case trade-off ear_clipping_triangulation makes over a theoretically faster but
+/// far more intricate data structure. A genuinely horizontal polygon edge queried by a third vertex
+/// exactly on its scanline, strictly nested inside its x-span, is a known-unhandled degenerate case
+/// (collapsed to the edge's own top-endpoint x rather than solved in general).
+template <typename PointT>
+std::vector<std::vector<std::size_t>> partition_monotone_polygon(std::vector<PointT> const& input,
+                                                                  View2D const& view);
+
+extern template std::vector<std::vector<std::size_t>> partition_monotone_polygon(
+    std::vector<Point2D> const& input, View2D const& view);
+extern template std::vector<std::vector<std::size_t>> partition_monotone_polygon(
+    std::vector<Point3D> const& input, View2D const& view);
+
 /// @brief O(n log n)-worst-case triangulation of a monotone ring, projected through @p view.
 /// @param input ring vertices (Point2D or Point3D), simple, CCW, monotone with respect to some direction.
 /// @param view projects each vertex to 2D x/y coordinates.
 /// @returns one `{i, j, k}` index triplet per triangle, indices into @p input.
-/// @throws std::runtime_error not yet implemented.
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(std::vector<PointT> const& input,
                                                                        View2D const& view);
@@ -79,13 +132,16 @@ extern template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangu
 extern template std::vector<std::array<std::size_t, 3>> monotone_polygon_triangulation(
     std::vector<Point3D> const& input, View2D const& view);
 
-/// @brief O(n log n)-worst-case Delaunay triangulation of a point set's convex hull, projected through
-/// @p view — maximizes the minimum angle across all triangles (avoids skinny slivers), unlike EarClipping
-/// or MonotonePolygon which triangulate the given polygon's own boundary.
-/// @param input point set (Point2D or Point3D).
+/// @brief Unconstrained Delaunay triangulation of a point set's convex hull (scan triangulation + Lawson flips),
+/// projected through @p view — maximizes the minimum angle across all triangles. Ignores any polygon
+/// boundary: backs the public point-cloud delaunay(), never a polygon triangulation. Points are inserted
+/// in lexicographic order, each joined to the hull edges it sees (orientation tests only, no
+/// super-triangle), then every non-hull edge is Lawson-flipped until locally Delaunay. O(n²) worst case.
+/// @param input point set (Point2D or Point3D), any order. A point coinciding (within DECIMAL_PRECISION)
+/// with an already-inserted one is skipped and appears in no triangle. All-collinear input yields no
+/// triangles.
 /// @param view projects each vertex to 2D x/y coordinates.
-/// @returns one `{i, j, k}` index triplet per triangle, indices into @p input.
-/// @throws std::runtime_error not yet implemented.
+/// @returns one CCW `{i, j, k}` index triplet per triangle, indices into @p input.
 template <typename PointT>
 std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<PointT> const& input, View2D const& view);
 
@@ -93,6 +149,26 @@ extern template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(s
                                                                                View2D const& view);
 extern template std::vector<std::array<std::size_t, 3>> delaunay_triangulation(std::vector<Point3D> const& input,
                                                                                View2D const& view);
+
+/// @brief Constrained Delaunay triangulation (CDT) of a single simple, CCW-wound ring, projected through
+/// @p view. Starts from ear_clipping_best_fit_triangulation (all triangles interior, every ring edge
+/// present), then applies Lawson flips: an internal edge whose opposite vertex lies strictly inside the
+/// neighboring triangle's circumcircle is flipped, until no such edge remains. Ring edges belong to a
+/// single triangle and are therefore never flipped — they act as the constraints. The result is the
+/// unique (up to cocircular ties) triangulation of the ring that keeps its boundary and maximizes the
+/// minimum angle.
+/// @param input ring vertices (Point2D or Point3D), same preconditions as ear_clipping_triangulation.
+/// @param view projects each vertex to 2D x/y coordinates.
+/// @returns one CCW `{i, j, k}` index triplet per triangle, indices into @p input, n - 2 triangles total.
+/// @note O(n²) worst case: O(n²) ear clipping, then O(n²) flips in the worst case, each O(1).
+template <typename PointT>
+std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(std::vector<PointT> const& input,
+                                                                           View2D const& view);
+
+extern template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point2D> const& input, View2D const& view);
+extern template std::vector<std::array<std::size_t, 3>> constrained_delaunay_triangulation(
+    std::vector<Point3D> const& input, View2D const& view);
 
 /// @brief Shared implementation behind every geompp::triangulate() overload: validates/fixes @p input
 /// per @p settings (Collinearity, then Winding, then Simplicity — in that order, since Simplicity's
@@ -120,6 +196,22 @@ extern template std::vector<std::array<Point3D, 3>> triangulate_impl(std::vector
 
 }  // namespace detail
 
+/// @brief Whether @p p is strictly inside the circumcircle of CCW-wound triangle {a, b, c}.
+/// Uses the exact 3×3 determinant predicate. For a CW triangle the result is negated.
+bool in_circumcircle(Point2D const& a, Point2D const& b, Point2D const& c, Point2D const& p);
+bool in_circumcircle(Point3D const& a, Point3D const& b, Point3D const& c, Point3D const& p);
+
+/// @brief Unconstrained Delaunay triangulation of a 2D point cloud (scan triangulation + Lawson flips). Covers
+/// the convex hull of @p points; no point lies strictly inside any output triangle's circumcircle, which
+/// maximizes the minimum angle over all triangulations of the set. For a polygon, use triangulate() with
+/// Strategy::ConstrainedDelaunay instead — this function knows nothing about boundaries.
+/// @param points point cloud, any order. Duplicates (within DECIMAL_PRECISION) are ignored.
+/// @returns CCW triangles; 2n - h - 2 of them for n distinct points with h on the hull, none if every
+/// point is collinear.
+/// @throws std::invalid_argument if @p points has fewer than 3 points.
+/// @note O(n²) worst case.
+std::vector<Triangle2D> delaunay(std::vector<Point2D> const& points);
+
 /// @brief Breaks down a simple polygon into triangles
 /// @param input polygon's outer loop of points (assumed CCW) and no holes allowed
 /// @param settings options for functions inner workings
@@ -135,8 +227,8 @@ extern template std::vector<std::array<Point3D, 3>> triangulate_impl(std::vector
 ///                                   [Default: prefers shape quality over raw speed.]
 ///                     - MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition
 ///                                        into monotone pieces)
-///                     - Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle
-///                                 of all the angles of the triangles in the triangulation (avoiding skinny triangles)
+///                     - ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation
+///                                 (boundary edges kept, all triangles interior, minimum angle maximized)
 ///                 (2) simplicity: the input for the algo should be a simple polygon (no self-intersections)
 ///                     - Guaranteed: the input is assumed to be a good at the users's own risk
 ///                     - Assert: will throw if the user's input is not good
@@ -157,8 +249,11 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input,
                                     TriangulationParams const& settings = TriangulationParams{});
 
 /// @brief One "more than 1 neighbor" violation of the mesh-conformity rule found by validate_adjacency()
-/// across a batch of facets — see TriangulationParams::AdjacencyConformity's own docs for what the rule
-/// means and why a T-junction is fixable but a non-manifold edge isn't.
+/// across a batch of facets — see AdjacencyConformity's own docs for what the rule means. Covers two
+/// distinct cases, distinguishable by facet_indices.size() (1 vs. 3+, never 2) if a caller needs to:
+/// a T-junction (facet_indices has exactly 1 entry, on_vertex is the foreign vertex lying on the edge),
+/// or a non-manifold edge (facet_indices lists 3+ facets that all share this exact edge; on_vertex is
+/// not meaningful there -- just a reused edge endpoint, not a real foreign vertex).
 /// @tparam PointT Point2D or Point3D. Not View2D-projected: unlike triangulation/convexity/winding,
 /// "does this vertex lie on this edge" is a well-defined, exact question in native space for either
 /// dimension. For a general 3D mesh (facets in many different planes -- a building's walls and roof,
@@ -168,14 +263,17 @@ std::vector<Triangle2D> triangulate(std::vector<Point2D> const& input,
 template <typename PointT>
 struct AdjacencyViolation {
   PointT edge_p0, edge_p1;                 ///< the shared/coarse edge the violation is on.
-  std::vector<std::size_t> facet_indices;  ///< every facet (index into the input) touching this edge.
-                                            ///< For a T-junction: facet_indices[0] owns the coarse edge
-                                            ///< (edge_p0, edge_p1) -- that's the one fix_adjacency()
-                                            ///< splices @ref on_vertex into.
-  bool is_non_manifold = false;            ///< true: a full edge shared by 3+ facets, not fixable.
-                                            ///< false: a T-junction, fixable -- see @ref on_vertex.
-  PointT on_vertex;                        ///< meaningful only when !is_non_manifold: the foreign vertex
-                                            ///< lying in the interior of (edge_p0, edge_p1).
+  std::vector<std::size_t> facet_indices;  ///< For a T-junction: always exactly 1 entry, facet_indices[0],
+                                           ///< the facet owning the coarse edge (edge_p0, edge_p1) -- the
+                                           ///< one fix_adjacency() splices @ref on_vertex into. The foreign
+                                           ///< facet @ref on_vertex itself belongs to is deliberately NOT
+                                           ///< reported: when 3+ facets share that exact vertex,
+                                           ///< validate_adjacency_impl's grid-cell dedup only keeps one
+                                           ///< arbitrary representative, so naming "the" owner would be
+                                           ///< misleading. For a non-manifold edge: every facet (3+, always)
+                                           ///< that shares this exact edge, exhaustively.
+  PointT on_vertex;                        ///< only meaningful for a T-junction (facet_indices.size() == 1):
+                                           ///< the foreign vertex lying in the interior of (edge_p0, edge_p1).
 };
 
 /// @brief Checks a batch of facets for the mesh-conformity rule "every edge has at most 1 neighbor" --
@@ -223,13 +321,15 @@ std::vector<Triangle3D> fix_adjacency(std::vector<Triangle3D> const& facets);
 
 /// @brief Batch-triangulates a set of polygon facets together. The free-function equivalent of
 /// `PolyMesh2D::FromPolygons(polygons).Triangulate()` for callers who just want triangles without
-/// constructing/keeping a full PolyMesh2D. Unlike PolyMesh2D::FromPolygons (which always Asserts, since
-/// bad input there is a straightforward construction error), this defaults to fixing what it can.
+/// constructing/keeping a full PolyMesh2D. Unlike PolyMesh2D::FromPolygons (whose own conformity
+/// parameter defaults to Assert, since bad input there is a straightforward construction error), this
+/// defaults to fixing what it can.
 /// @param polygons each facet's outer ring (no holes).
 /// @param settings per-facet TriangulationParams (Strategy/Simplicity/Winding/Collinearity), same as the
-/// single-ring triangulate() overload above, plus @ref TriangulationParams::conformity: how to handle
-/// cross-facet adjacency violations (T-junctions / non-manifold edges) before triangulating. Defaults to
-/// Enforce. Under Enforce, a facet that needed a conformity splice is always triangulated with
+/// single-ring triangulate() overload above, plus `TriangulationParams::conformity` (see the standalone
+/// @ref AdjacencyConformity): how to handle cross-facet adjacency violations (T-junctions /
+/// non-manifold edges) before triangulating. Defaults to Enforce. Under Enforce, a facet that needed a
+/// conformity splice is always triangulated with
 /// Collinearity::Guaranteed regardless of the rest of @p settings -- otherwise the caller's own
 /// Collinearity::Enforce (the TriangulationParams default) would strip the just-spliced vertex right back
 /// out, silently undoing the repair and reintroducing the T-junction in the triangulated output.

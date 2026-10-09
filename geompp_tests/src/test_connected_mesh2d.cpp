@@ -1,10 +1,14 @@
 #include "connected_mesh2d.hpp"
 
+#include "mesh2d.hpp"
 #include "point2d.hpp"
+#include "polymesh2d.hpp"
 #include "triangle2d.hpp"
 #include "utils.hpp"
 
 #include <gtest/gtest.h>
+
+#include <optional>
 
 namespace g = geompp;
 
@@ -174,6 +178,97 @@ TEST_F(ConnectedMesh2DTest, FaceView_Neighbor_CrossingBackViaEntryEdge_ReturnsTo
   ASSERT_TRUE(back.has_value());
   EXPECT_EQ(face0.ID(), back->ID());
   EXPECT_EQ(Edge::THIRD, face1->NeighborEntryEdge(entry_edge));
+}
+
+TEST_F(ConnectedMesh2DTest, Polygonize_UnitSquareFromTwoTriangles_PlanarBoundaryExtraction_ReturnsSingleQuad) {
+  auto t0 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1));
+  auto t1 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::ConnectedMesh2D::FromTriangles({t0, t1});
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarBoundaryExtraction;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_NEAR(poly_mesh.Area(), 1.0, 1e-9);
+  EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(ConnectedMesh2DTest, Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction) {
+  // Mirrors Mesh2DTest.Polygonize_LShape_HertelMehlhorn_DoesNotThrowTJunction -- see its own comment for
+  // the full explanation. ConnectedMesh2D::Polygonize() packages pieces via the same detail::
+  // polygons_from_pieces() helper, so it must not throw here either.
+  auto mesh = g::ConnectedMesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 0), g::Point2D(2, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 0), g::Point2D(2, 1), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 1), g::Point2D(2, 2)),
+      g::Triangle2D::Make(g::Point2D(1, 1), g::Point2D(2, 2), g::Point2D(1, 2)),
+  });
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+
+  std::optional<g::PolyMesh2D> poly_mesh;
+  EXPECT_NO_THROW(poly_mesh = mesh.Polygonize(params));
+  ASSERT_TRUE(poly_mesh.has_value());
+  // HertelMehlhorn now returns 3 pieces: the 2x1 bottom rectangle it would otherwise build is dissolved
+  // and re-merged, because the top square's corner (1,1) sits mid-way along its top edge (see
+  // CalcUtils2DTest.Polygonize_LShape_HertelMehlhorn_NoStraightVerticesNorTJunctions).
+  EXPECT_EQ(poly_mesh->Size(), 3u);
+  EXPECT_NEAR(poly_mesh->Area(), 3.0, 1e-9);
+}
+
+TEST_F(ConnectedMesh2DTest, Polygonize_2x2Grid_HertelMehlhorn_MergesIntoSingleConvexPiece) {
+  std::vector<g::Triangle2D> tris;
+  for (int r = 0; r < 2; ++r) {
+    for (int c = 0; c < 2; ++c) {
+      g::Point2D p00(c, r), p10(c + 1, r), p11(c + 1, r + 1), p01(c, r + 1);
+      tris.push_back(g::Triangle2D::Make(p00, p10, p11));
+      tris.push_back(g::Triangle2D::Make(p00, p11, p01));
+    }
+  }
+  auto mesh = g::ConnectedMesh2D::FromTriangles(tris);
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::HertelMehlhorn;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_NEAR(poly_mesh.Area(), 4.0, 1e-9);
+  EXPECT_TRUE(poly_mesh[0].IsConvex());
+}
+
+TEST_F(ConnectedMesh2DTest, Polygonize_UnitSquareFromTwoTriangles_PlanarQuads_ReturnsSingleQuad) {
+  auto t0 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1));
+  auto t1 = g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1));
+  auto mesh = g::ConnectedMesh2D::FromTriangles({t0, t1});
+
+  g::PolygonizationParams params;
+  params.strategy = g::PolygonizationParams::Strategy::PlanarQuads;
+  auto poly_mesh = mesh.Polygonize(params);
+
+  ASSERT_EQ(poly_mesh.Size(), 1u);
+  EXPECT_EQ(poly_mesh[0].Size(), 4u);
+}
+
+TEST_F(ConnectedMesh2DTest, Disconnect_PreservesFacesAndArea) {
+  auto mesh = g::ConnectedMesh2D::FromTriangles({
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 0), g::Point2D(1, 1)),
+      g::Triangle2D::Make(g::Point2D(0, 0), g::Point2D(1, 1), g::Point2D(0, 1)),
+  });
+
+  auto disconnected = mesh.Disconnect();
+  EXPECT_EQ(disconnected.Size(), mesh.Size());
+  EXPECT_NEAR(disconnected.Area(), mesh.Area(), 1e-9);
+  for (std::size_t i = 0; i < mesh.Size(); ++i) {
+    EXPECT_TRUE(disconnected[i].AlmostEquals(mesh[i].Geometry()))
+        << "facet " << i << " differs between ConnectedMesh2D and its Disconnect()ed Mesh2D";
+  }
+
+  // The disconnected mesh is still fully usable -- no adjacency info needed for this.
+  EXPECT_NO_THROW(disconnected.Polygonize());
 }
 
 }  // namespace geompp_tests

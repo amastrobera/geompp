@@ -21,6 +21,7 @@ class LineSegment3D;
 class Polyline3D;
 class Triangle3D;
 class Polygon3D;
+class PolyMesh3D;
 
 }  // namespace geometry
 
@@ -29,6 +30,16 @@ namespace transformations {
 // allowed to reach the private FromUniqueCoplanarCCWPoints() fast constructor (see its own doc comment).
 geometry::Polygon3D transform(geometry::Polygon3D const& poly, maths::Matrix4 const& m);
 }  // namespace transformations
+
+inline namespace geometry {
+namespace detail {
+// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshTriangleFaceView3D> alias -- see
+// polygon2d.hpp's identical forward declaration for why) so Polygon3D can friend this exact overload
+// below. 3D counterpart of Polygon2D's own polygons_from_pieces() -- see that one's doc comment.
+std::vector<Polygon3D> polygons_from_pieces(
+    std::vector<std::pair<std::vector<Point3D>, std::vector<std::vector<Point3D>>>> pieces);
+}  // namespace detail
+}  // namespace geometry
 
 inline namespace geometry {
 
@@ -219,13 +230,24 @@ class Polygon3D {
   // source polygon's own IsConvex() carries over unchanged. The outer_plane itself still has to be
   // recomputed fresh via newell_normal() -- that's not redundant, it's the thing that makes the result
   // correct regardless of the transform's determinant sign (see transformations3d.cpp). Private and
-  // friended to transform() specifically -- NOT exposed publicly, for the same reason as
-  // Polygon2D::FromUniqueCCWPoints (see its doc comment).
+  // friended to transform() and polygons_from_pieces() specifically -- NOT exposed publicly, for the same
+  // reason as Polygon2D::FromUniqueCCWPoints (see its doc comment).
   static Polygon3D FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points, bool is_convex);
   static Polygon3D FromUniqueCoplanarCCWPoints(std::vector<Point3D> unique_points,
                                                std::vector<std::vector<Point3D>> holes, bool is_convex);
 
   friend Polygon3D geompp::transformations::transform(Polygon3D const& poly, maths::Matrix4 const& m);
+
+  // Same trust as transform()'s own friend grant above -- see Polygon2D::polygons_from_pieces' doc
+  // comment for the full rationale (winding already proven, is_convex explicitly computed by the caller).
+  friend std::vector<Polygon3D> geompp::geometry::detail::polygons_from_pieces(
+      std::vector<std::pair<std::vector<Point3D>, std::vector<std::vector<Point3D>>>> pieces);
+
+  // Same reason as Polygon2D::PolyMesh2D's own friend grant -- see its doc comment. PolyMesh3D::operator[]
+  // must reconstruct from its stored VERTICES/FACE_INDICES via FromUniquePoints(), not Make(), or every
+  // read silently re-strips whatever load-bearing collinear vertex FromPolygons() just validated needed
+  // to stay in place.
+  friend class PolyMesh3D;
 
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter, bool is_convex);
   Polygon3D(std::vector<Point3D> const& points, Plane const& plane, double perimeter,

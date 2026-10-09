@@ -251,6 +251,10 @@
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\calc_utils\polygonization2d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\calc_utils\self_intersections3d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
@@ -264,6 +268,10 @@
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>
     <ClCompile Include="$(ProjectDir)..\geompp\src\calc_utils\triangulation3d.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(ProjectDir)..\geompp\src\calc_utils\polygonization3d.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ObjectFileName>$(IntDir)geompp_core\</ObjectFileName>
     </ClCompile>

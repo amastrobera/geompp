@@ -34,7 +34,31 @@ A lazy view of every facet, each rebuilt as a [Triangle2D](Triangle2D.md) on dem
 
 **Returns** — A std::ranges::view of [Triangle2D](Triangle2D.md) , one per facet, in the same order as the input.
 
+## `polygonize`
+
+`polygonize(params: `[`PolygonizationParams`](PolygonizationParams.md)`) -> `[`PolyMesh2D`](PolyMesh2D.md)
+
+Merges coplanar, edge-adjacent facets into polygons, per params.strategy see [PolygonizationParams](PolygonizationParams.md) for what each strategy guarantees (planar boundary extraction, quads, or Hertel-Mehlhorn convex merging).
+
+Reads NEIGHBORS/TRIANGLES/VERTICES directly (already precomputed at FromTriangles() time), so this needs no extra adjacency-building work of its own.
+
+**Parameters**
+
+- `params` ([`PolygonizationParams`](PolygonizationParams.md)) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — A [PolyMesh2D](PolyMesh2D.md) of the merged polygon facets.
+
+## `disconnect`
+
+`disconnect() -> `[`Mesh2D`](Mesh2D.md)
+
+Drops this mesh's precomputed adjacency (NEIGHBORS), keeping the same welded vertices and facets the inverse of [Mesh2D](Mesh2D.md)::Connect().
+
+VERTICES is reused as-is (O(1) refcount bump); only TRIANGLES' flat std::vector<size_t> layout needs repacking into [Mesh2D](Mesh2D.md)::FACE_INDICES' std::vector<array<size_t,3>> one, so this is O(n) with no re-welding or re-validation.
+
+**Returns** — A [Mesh2D](Mesh2D.md) over the exact same vertices/facets, with no adjacency structure.
+
 
 ---
 
-**See also:** [GridCell2D](GridCell2D.md), [Triangle2D](Triangle2D.md)
+**See also:** [GridCell2D](GridCell2D.md), [Mesh2D](Mesh2D.md), [PolyMesh2D](PolyMesh2D.md), [PolygonizationParams](PolygonizationParams.md), [Triangle2D](Triangle2D.md)

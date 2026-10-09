@@ -53,6 +53,9 @@ Free functions
     vw_decimation(points, threshold)
     bezier_smoothing_2(p0, p1, p2, smoothness, min_distance_or_num_segments, min_segment_length=DOUBLE_EPSILON)
         (a float dispatches to the min_distance behavior, an int to the num_segments behavior)
+    is_axis_monotone(ring_or_polygon, direction) -> bool
+    in_circumcircle(a, b, c, p) -> bool
+    delaunay(points[, normal]) -> list[Triangle2D|Triangle3D]   # unconstrained point-cloud Delaunay
 
 Polyline decimation:
     PolylineDecimationStrategy (RadialDistance, RamerDouglasPeucker, VisvalingamWhyatt)
@@ -65,11 +68,15 @@ Polyline expansion (corner rounding — the inverse of decimation):
     polyline_expansion(points, settings)
 
 Triangulation (2D or 3D, 3D input is assumed flat/planar):
-    TriangulationStrategy (EarClipping; MonotonePolygon and Delaunay not yet implemented)
+    TriangulationStrategy (EarClipping, EarClippingBestFit, MonotonePolygon, ConstrainedDelaunay)
+        (ConstrainedDelaunay stays inside the polygon; for a point cloud use delaunay())
     TriangulationSimplicity, TriangulationWinding, TriangulationCollinearity
         (each Guaranteed/Assert/Enforce — how to handle non-simple/non-CCW/collinear input)
+    TriangulationMonotonicity (Guaranteed/Assert/Enforce — only consulted by Strategy.MonotonePolygon;
+        whether/how to handle a ring that isn't y-monotone; defaults to Guaranteed, unlike the other
+        input-quality fields)
     TriangulationParams(strategy=EarClipping, simplicity=Enforce, ccw_winding=Enforce,
-                         collinearity=Enforce)
+                         collinearity=Enforce, monotonicity=Guaranteed)
     triangulate(points, settings) -> list[Triangle2D]
     triangulate(points, normal, settings) -> list[Triangle3D]
     triangulate(points, settings) -> list[Triangle3D]              # normal fitted via PCA
@@ -227,14 +234,25 @@ from ._geompp import (  # noqa: F401
     TriangulationSimplicity,
     TriangulationWinding,
     TriangulationCollinearity,
+    TriangulationMonotonicity,
     TriangulationParams,
     triangulate,
+    # polygonization
+    PolygonizationStrategy,
+    PolygonizationParams,
+    polygonize,
+    merge,
     # mesh-conformity checking ("every edge has at most 1 neighbor")
     AdjacencyConformity,
     AdjacencyViolation2D,
     AdjacencyViolation3D,
     validate_adjacency,
     fix_adjacency,
+    # axis monotonicity / circumcircle
+    is_axis_monotone,
+    in_circumcircle,
+    # point-cloud Delaunay
+    delaunay,
 )
 
 __version__ = "1.0.0"
@@ -263,7 +281,10 @@ __all__ = [
     "bezier_smoothing_2",
     "PolylineExpansionMode", "PolylineExpansionParams", "polyline_expansion",
     "TriangulationStrategy", "TriangulationSimplicity", "TriangulationWinding", "TriangulationCollinearity",
+    "TriangulationMonotonicity",
     "TriangulationParams", "triangulate",
+    "PolygonizationStrategy", "PolygonizationParams", "polygonize", "merge",
     "AdjacencyConformity", "AdjacencyViolation2D", "AdjacencyViolation3D", "validate_adjacency", "fix_adjacency",
+    "is_axis_monotone", "in_circumcircle", "delaunay",
     "maths", "transformations",
 ]

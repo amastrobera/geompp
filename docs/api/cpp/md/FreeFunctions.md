@@ -151,6 +151,58 @@ Like the point overload, this requires both polygons to lie in the same plane �
 - `polygon` ([`Polygon3D`](Polygon3D.md) const &)
 - `other` ([`Polygon3D`](Polygon3D.md) const &)
 
+## `polygonize`
+
+`std::vector< `[`Polygon2D`](Polygon2D.md)` > polygonize(std::vector< `[`Triangle2D`](Triangle2D.md)` > const & triangles, `[`PolygonizationParams`](PolygonizationParams.md)` const & params)`
+
+Merges a set of (not necessarily adjacency-ordered) triangles into polygons, per params.strategy see [PolygonizationParams](PolygonizationParams.md) for what each strategy guarantees.
+
+The free-function equivalent of [Mesh2D](Mesh2D.md)::FromTriangles(triangles).Polygonize(params) for callers who just want polygons without constructing/keeping a full [Mesh2D](Mesh2D.md) welds vertices ( detail::GridCellMapForMesh2D , same welding [Mesh2D](Mesh2D.md)::FromTriangles itself uses) and validates adjacency once (every edge has at most 1 neighbor untrusted raw input gets this checked here, same as every other *::FromTriangles/batch- triangulate() entry point), then builds adjacency ( detail::build_neighbor_refs ) and dispatches through detail::polygonize_impl .
+
+**Parameters**
+
+- `triangles` (std::vector< [`Triangle2D`](Triangle2D.md) > const &) — The triangles to polygonize. Order is not required to reflect adjacency.
+- `params` ([`PolygonizationParams`](PolygonizationParams.md) const &) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — One [Polygon2D](Polygon2D.md) per output piece (see each Strategy's own doc for how many, and whether holes are possible).
+
+`std::vector< `[`Polygon3D`](Polygon3D.md)` > polygonize(std::vector< `[`Triangle3D`](Triangle3D.md)` > const & triangles, `[`PolygonizationParams`](PolygonizationParams.md)` const & params)`
+
+3D counterpart of the [Triangle2D](Triangle2D.md) overload ( calc_utils/polygonization2d.hpp ) see its own docs for the shared machinery (welding, adjacency, detail::polygonize_impl<detail::MeshTriangleFaceView3D> , already extern-template-instantiated alongside the 2D version in polygonization2d.cpp/.hpp).
+
+**Parameters**
+
+- `triangles` (std::vector< [`Triangle3D`](Triangle3D.md) > const &) — The triangles to polygonize. Order is not required to reflect adjacency.
+- `params` ([`PolygonizationParams`](PolygonizationParams.md) const &) — Which polygonization strategy to run see [PolygonizationParams](PolygonizationParams.md)::Strategy .
+
+**Returns** — One [Polygon3D](Polygon3D.md) per output piece.
+
+## `merge`
+
+`std::vector< `[`Polygon2D`](Polygon2D.md)` > merge(std::vector< `[`Polygon2D`](Polygon2D.md)` > const & polygons)`
+
+Welds a set of (not necessarily adjacent) polygons that tile a plane without overlapping into fewer, bigger polygons, by cancelling every edge shared between two of them and tracing what's left.
+
+A 2D-native operation (2D has one implicit "plane") see the [Polygon3D](Polygon3D.md) overload for the 3D version, which additionally groups input by plane first. Two input polygons touching along a shared OUTER-ring edge merge into one bigger outer boundary. Holes are handled the same way, one level down: every input hole ring is checked against every other for touching (does any of one ring's points lie on the other's perimeter an O(h^2) pass, h = total hole count, matching validate_adjacency's own "not a hot loop" complexity acceptance elsewhere in this codebase), and touching holes are unioned into one bigger hole via reverse-winding + [Polygon2D](Polygon2D.md)::Union() reverse-winding-back (reusing Union()'s already-correct, already-tested set-union logic rather than reimplementing a second cancel-and-trace pass for holes specifically Union() also transparently handles the case of 3+ mutually-touching holes chaining into one, or holes that overlap rather than just touch). A hole untouched by any other hole passes through unchanged. The resulting outer boundaries and (merged or untouched) holes are then grouped into {outer, holes} polygons by containment, exactly like boolean_op()'s own result packaging.
+
+**Parameters**
+
+- `polygons` (std::vector< [`Polygon2D`](Polygon2D.md) > const &) — The polygons to merge. Order doesn't matter; polygons that don't touch anything simply pass through as their own separate output piece.
+
+**Returns** — One [Polygon2D](Polygon2D.md) per disjoint merged region.
+
+`std::vector< `[`Polygon3D`](Polygon3D.md)` > merge(std::vector< `[`Polygon3D`](Polygon3D.md)` > const & polygons)`
+
+3D counterpart of the [Polygon2D](Polygon2D.md) overload ( calc_utils/polygonization2d.hpp ) see its own docs for the shared "cancel outer edges, merge touching holes via reverse+Union+reverse" machinery.
+
+The one genuinely 3D-specific step, absent from the 2D version, is grouping the input by plane first: two-phase, a coarse hash bucket keyed by each polygon's plane Normal (rounded via floor(v/epsilon) into 3 int64 components, same idiom [GridCell2D](GridCell2D.md)/3DHash use for vertex welding), then verified within a normal-bucket against each existing sub-group's representative via [Plane](Plane.md)::AlmostEquals() correctly keeps two same-normal-but-different-offset planes (e.g. two parallel floors) in separate groups. Cancellation and hole-touch-detection then run per plane group, each projected through that group's own [View2D](View2D.md)::OnPlane, with results unprojected back to [Point3D](Point3D.md) via [View2D](View2D.md)::xyz() before assembly same round-trip [Polygon3D](Polygon3D.md)::Union() /Simplify() already use.
+
+**Parameters**
+
+- `polygons` (std::vector< [`Polygon3D`](Polygon3D.md) > const &) — The polygons to merge. Order doesn't matter.
+
+**Returns** — One [Polygon3D](Polygon3D.md) per disjoint merged region.
+
 ## `dist_decimation`
 
 `template <typename Points> Points dist_decimation(Points const & points, double threshold)`
@@ -338,6 +390,102 @@ The true first/last points of input are always preserved unsmoothed. p0/p1/p2 fo
 - `input` (std::vector< [`Point3D`](Point3D.md) > const &)
 - `settings` ([`PolylineExpansionParams`](PolylineExpansionParams.md) const &)
 
+## `is_axis_monotone`
+
+`bool is_axis_monotone(std::vector< `[`Point2D`](Point2D.md)` > const & ring, `[`Vector2D`](Vector2D.md)` const & direction)`
+
+Whether ring is monotone with respect to direction — at most one local maximum and one local minimum projected onto direction.
+
+**Parameters**
+
+- `ring` (std::vector< [`Point2D`](Point2D.md) > const &) — ring vertices (implicitly closed).
+- `direction` ([`Vector2D`](Vector2D.md) const &) — scan direction (need not be normalized).
+
+`bool is_axis_monotone(`[`Polygon2D`](Polygon2D.md)` const & polygon, `[`Vector2D`](Vector2D.md)` const & direction)`
+
+
+**Parameters**
+
+- `polygon` ([`Polygon2D`](Polygon2D.md) const &)
+- `direction` ([`Vector2D`](Vector2D.md) const &)
+
+`bool is_axis_monotone(std::vector< `[`Point3D`](Point3D.md)` > const & ring, `[`Vector3D`](Vector3D.md)` const & direction)`
+
+Whether ring is monotone with respect to direction — at most one local maximum and one local minimum projected onto direction.
+
+**Parameters**
+
+- `ring` (std::vector< [`Point3D`](Point3D.md) > const &) — ring vertices (implicitly closed).
+- `direction` ([`Vector3D`](Vector3D.md) const &) — scan direction (need not be normalized).
+
+`bool is_axis_monotone(`[`Polygon3D`](Polygon3D.md)` const & polygon, `[`Vector3D`](Vector3D.md)` const & direction)`
+
+
+**Parameters**
+
+- `polygon` ([`Polygon3D`](Polygon3D.md) const &)
+- `direction` ([`Vector3D`](Vector3D.md) const &)
+
+## `in_circumcircle`
+
+`bool in_circumcircle(`[`Point2D`](Point2D.md)` const & a, `[`Point2D`](Point2D.md)` const & b, `[`Point2D`](Point2D.md)` const & c, `[`Point2D`](Point2D.md)` const & p)`
+
+Whether p is strictly inside the circumcircle of CCW-wound triangle {a, b, c}.
+
+Uses the exact 3×3 determinant predicate. For a CW triangle the result is negated.
+
+**Parameters**
+
+- `a` ([`Point2D`](Point2D.md) const &)
+- `b` ([`Point2D`](Point2D.md) const &)
+- `c` ([`Point2D`](Point2D.md) const &)
+- `p` ([`Point2D`](Point2D.md) const &)
+
+`bool in_circumcircle(`[`Point3D`](Point3D.md)` const & a, `[`Point3D`](Point3D.md)` const & b, `[`Point3D`](Point3D.md)` const & c, `[`Point3D`](Point3D.md)` const & p)`
+
+
+**Parameters**
+
+- `a` ([`Point3D`](Point3D.md) const &)
+- `b` ([`Point3D`](Point3D.md) const &)
+- `c` ([`Point3D`](Point3D.md) const &)
+- `p` ([`Point3D`](Point3D.md) const &)
+
+## `delaunay`
+
+`std::vector< `[`Triangle2D`](Triangle2D.md)` > delaunay(std::vector< `[`Point2D`](Point2D.md)` > const & points)`
+
+Unconstrained Delaunay triangulation of a 2D point cloud (scan triangulation + Lawson flips).
+
+Covers the convex hull of points ; no point lies strictly inside any output triangle's circumcircle, which maximizes the minimum angle over all triangulations of the set. For a polygon, use triangulate() with Strategy::ConstrainedDelaunay instead — this function knows nothing about boundaries.
+
+**Parameters**
+
+- `points` (std::vector< [`Point2D`](Point2D.md) > const &) — point cloud, any order. Duplicates (within DECIMAL_PRECISION) are ignored.
+
+**Returns** — CCW triangles; 2n - h - 2 of them for n distinct points with h on the hull, none if every point is collinear.
+
+`std::vector< `[`Triangle3D`](Triangle3D.md)` > delaunay(std::vector< `[`Point3D`](Point3D.md)` > const & points, `[`Vector3D`](Vector3D.md)` normal)`
+
+Unconstrained Delaunay triangulation of a 3D point cloud, 2.5D-style: every point is projected through the dominant-axis view of normal (XY for a terrain-like cloud with normal ≈ Z), triangulated in that plane, and the triangles are lifted back to the original 3D points.
+
+Covers the projected convex hull. For a polygon, use triangulate() with Strategy::ConstrainedDelaunay instead.
+
+**Parameters**
+
+- `points` (std::vector< [`Point3D`](Point3D.md) > const &) — point cloud, any order. Points whose projections coincide are triangulated once.
+- `normal` ([`Vector3D`](Vector3D.md)) — direction to project along; only its dominant axis is used.
+
+**Returns** — triangles over the original 3D points; none if every projected point is collinear.
+
+`std::vector< `[`Triangle3D`](Triangle3D.md)` > delaunay(std::vector< `[`Point3D`](Point3D.md)` > const & points)`
+
+Same as delaunay(points, normal), with the normal fitted via PCA (principal_axes) — suitable for a roughly planar cloud whose plane isn't known up front.
+
+**Parameters**
+
+- `points` (std::vector< [`Point3D`](Point3D.md) > const &)
+
 ## `triangulate`
 
 `std::vector< `[`Triangle2D`](Triangle2D.md)` > triangulate(std::vector< `[`Point2D`](Point2D.md)` > const & input, `[`TriangulationParams`](TriangulationParams.md)` const & settings)`
@@ -347,7 +495,7 @@ Breaks down a simple polygon into triangles.
 **Parameters**
 
 - `input` (std::vector< [`Point2D`](Point2D.md) > const &) — polygon's outer loop of points (assumed CCW) and no holes allowed
-- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — options for functions inner workings (1) triangulation strategy options: user decides what algorithm to run EarClipping clips the first valid ear it finds in scan order. Most robust and general-purpose, and often close to O(n) in practice, but O(n²) worst-case and doesn't optimize triangle shape, so it can produce a visually thin sliver purely from scan order, even on ordinary input. EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step instead of the first one. Same termination guarantee as EarClipping, but unconditionally ~O(n²) a full rescan of the current ring on every single clip, not just worst-case. [Default: prefers shape quality over raw speed.] MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle of all the angles of the triangles in the triangulation (avoiding skinny triangles) (2) simplicity: the input for the algo should be a simple polygon (no self-intersections) Guaranteed: the input is assumed to be a good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be simplified in O(n log n) time (3) winding: the input points should be in counter clockwise order (CCW) Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be reversed in O(n) time (4) collinearity: the input points should not contain any collinear (including consecutive duplicates) points Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's bad vertices will be removed in O(n) time
+- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — options for functions inner workings (1) triangulation strategy options: user decides what algorithm to run EarClipping clips the first valid ear it finds in scan order. Most robust and general-purpose, and often close to O(n) in practice, but O(n²) worst-case and doesn't optimize triangle shape, so it can produce a visually thin sliver purely from scan order, even on ordinary input. EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step instead of the first one. Same termination guarantee as EarClipping, but unconditionally ~O(n²) a full rescan of the current ring on every single clip, not just worst-case. [Default: prefers shape quality over raw speed.] MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation (boundary edges kept, all triangles interior, minimum angle maximized) (2) simplicity: the input for the algo should be a simple polygon (no self-intersections) Guaranteed: the input is assumed to be a good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be simplified in O(n log n) time (3) winding: the input points should be in counter clockwise order (CCW) Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be reversed in O(n) time (4) collinearity: the input points should not contain any collinear (including consecutive duplicates) points Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's bad vertices will be removed in O(n) time
 
 **Returns** — one [Triangle2D](Triangle2D.md) per triangle; input.size() - 2 triangles for a simple polygon.
 
@@ -355,12 +503,12 @@ Breaks down a simple polygon into triangles.
 
 Batch-triangulates a set of polygon facets together.
 
-The free-function equivalent of [PolyMesh2D](PolyMesh2D.md)::FromPolygons(polygons).Triangulate() for callers who just want triangles without constructing/keeping a full [PolyMesh2D](PolyMesh2D.md) . Unlike [PolyMesh2D](PolyMesh2D.md)::FromPolygons (which always Asserts, since bad input there is a straightforward construction error), this defaults to fixing what it can.
+The free-function equivalent of [PolyMesh2D](PolyMesh2D.md)::FromPolygons(polygons).Triangulate() for callers who just want triangles without constructing/keeping a full [PolyMesh2D](PolyMesh2D.md) . Unlike [PolyMesh2D](PolyMesh2D.md)::FromPolygons (whose own conformity parameter defaults to Assert, since bad input there is a straightforward construction error), this defaults to fixing what it can.
 
 **Parameters**
 
 - `polygons` (std::vector< [`Polygon2D`](Polygon2D.md) > const &) — each facet's outer ring (no holes).
-- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — per-facet [TriangulationParams](TriangulationParams.md) (Strategy/Simplicity/Winding/Collinearity), same as the single-ring triangulate() overload above, plus [TriangulationParams](TriangulationParams.md)::conformity: how to handle cross-facet adjacency violations (T-junctions / non-manifold edges) before triangulating. Defaults to Enforce. Under Enforce, a facet that needed a conformity splice is always triangulated with Collinearity::Guaranteed regardless of the rest of settings otherwise the caller's own Collinearity::Enforce (the [TriangulationParams](TriangulationParams.md) default) would strip the just-spliced vertex right back out, silently undoing the repair and reintroducing the T-junction in the triangulated output.
+- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — per-facet [TriangulationParams](TriangulationParams.md) (Strategy/Simplicity/Winding/Collinearity), same as the single-ring triangulate() overload above, plus [TriangulationParams](TriangulationParams.md)::conformity (see the standalone AdjacencyConformity): how to handle cross-facet adjacency violations (T-junctions / non-manifold edges) before triangulating. Defaults to Enforce. Under Enforce, a facet that needed a conformity splice is always triangulated with Collinearity::Guaranteed regardless of the rest of settings otherwise the caller's own Collinearity::Enforce (the [TriangulationParams](TriangulationParams.md) default) would strip the just-spliced vertex right back out, silently undoing the repair and reintroducing the T-junction in the triangulated output.
 
 **Returns** — every triangle from every facet, combined into one flat list.
 
@@ -374,7 +522,7 @@ input is assumed flat/coplanar — every vertex is projected through the dominan
 
 - `input` (std::vector< [`Point3D`](Point3D.md) > const &) — polygon's outer loop of points (assumed CCW against the normal) and no holes allowed
 - `normal` ([`Vector3D`](Vector3D.md)) — the normal vector of the polygon's plane
-- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — options for functions inner workings (1) triangulation strategy options: user decides what algorithm to run EarClipping clips the first valid ear it finds in scan order. Most robust and general-purpose, and often close to O(n) in practice, but O(n²) worst-case and doesn't optimize triangle shape, so it can produce a visually thin sliver purely from scan order, even on ordinary input. EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step instead of the first one. Same termination guarantee as EarClipping, but unconditionally ~O(n²) a full rescan of the current ring on every single clip, not just worst-case. [Default: prefers shape quality over raw speed.] MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle of all the angles of the triangles in the triangulation (avoiding skinny triangles) (2) simplicity: the input for the algo should be a simple polygon (no self-intersections) Guaranteed: the input is assumed to be a good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be simplified in O(n log n) time (3) winding: the input points should be in counter clockwise order (CCW) Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be reversed in O(n) time (4) collinearity: the input points should not contain any collinear (including consecutive duplicates) points Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's bad vertices will be removed in O(n) time
+- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — options for functions inner workings (1) triangulation strategy options: user decides what algorithm to run EarClipping clips the first valid ear it finds in scan order. Most robust and general-purpose, and often close to O(n) in practice, but O(n²) worst-case and doesn't optimize triangle shape, so it can produce a visually thin sliver purely from scan order, even on ordinary input. EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step instead of the first one. Same termination guarantee as EarClipping, but unconditionally ~O(n²) a full rescan of the current ring on every single clip, not just worst-case. [Default: prefers shape quality over raw speed.] MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation (boundary edges kept, all triangles interior, minimum angle maximized) (2) simplicity: the input for the algo should be a simple polygon (no self-intersections) Guaranteed: the input is assumed to be a good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be simplified in O(n log n) time (3) winding: the input points should be in counter clockwise order (CCW) Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be reversed in O(n) time (4) collinearity: the input points should not contain any collinear (including consecutive duplicates) points Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's bad vertices will be removed in O(n) time
 
 **Returns** — one [Triangle3D](Triangle3D.md) per triangle; input.size() - 2 triangles for a simple polygon.
 
@@ -387,7 +535,7 @@ input is assumed flat/coplanar — see that overload.
 **Parameters**
 
 - `input` (std::vector< [`Point3D`](Point3D.md) > const &) — polygon's outer loop of points (assumed CCW against their own normal) and no holes allowed
-- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — options for functions inner workings (1) triangulation strategy options: user decides what algorithm to run EarClipping clips the first valid ear it finds in scan order. Most robust and general-purpose, and often close to O(n) in practice, but O(n²) worst-case and doesn't optimize triangle shape, so it can produce a visually thin sliver purely from scan order, even on ordinary input. EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step instead of the first one. Same termination guarantee as EarClipping, but unconditionally ~O(n²) a full rescan of the current ring on every single clip, not just worst-case. [Default: prefers shape quality over raw speed.] MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) Delaunay: O(n log n) worst case, but produces a triangulation that maximizes the minimum angle of all the angles of the triangles in the triangulation (avoiding skinny triangles) (2) simplicity: the input for the algo should be a simple polygon (no self-intersections) Guaranteed: the input is assumed to be a good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be simplified in O(n log n) time (3) winding: the input points should be in counter clockwise order (CCW) Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be reversed in O(n) time (4) collinearity: the input points should not contain any collinear (including consecutive duplicates) points Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's bad vertices will be removed in O(n) time
+- `settings` ([`TriangulationParams`](TriangulationParams.md) const &) — options for functions inner workings (1) triangulation strategy options: user decides what algorithm to run EarClipping clips the first valid ear it finds in scan order. Most robust and general-purpose, and often close to O(n) in practice, but O(n²) worst-case and doesn't optimize triangle shape, so it can produce a visually thin sliver purely from scan order, even on ordinary input. EarClippingBestFit clips the best-scoring (least sliver-prone) valid ear every step instead of the first one. Same termination guarantee as EarClipping, but unconditionally ~O(n²) a full rescan of the current ring on every single clip, not just worst-case. [Default: prefers shape quality over raw speed.] MonotonePolygon: O(n log n) worst case, but requires a monotone polygon (or a decomposition into monotone pieces) ConstrainedDelaunay: O(n²) worst case; the polygon's constrained Delaunay triangulation (boundary edges kept, all triangles interior, minimum angle maximized) (2) simplicity: the input for the algo should be a simple polygon (no self-intersections) Guaranteed: the input is assumed to be a good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be simplified in O(n log n) time (3) winding: the input points should be in counter clockwise order (CCW) Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's input will be reversed in O(n) time (4) collinearity: the input points should not contain any collinear (including consecutive duplicates) points Guaranteed: the input is assumed to be good at the users's own risk Assert: will throw if the user's input is not good Enforce: will check, and if not good, the user's bad vertices will be removed in O(n) time
 
 **Returns** — one [Triangle3D](Triangle3D.md) per triangle; input.size() - 2 triangles for a simple polygon.
 
@@ -769,4 +917,4 @@ Linear interpolation: P0 + t * (P1 - P0). Not clamped — t outside [0, 1] extra
 
 ---
 
-**See also:** [AdjacencyViolation](AdjacencyViolation.md), [ConnectedMesh2D](ConnectedMesh2D.md), [CoordinateFrame](CoordinateFrame.md), [ExtremePoints](ExtremePoints.md), [Line2D](Line2D.md), [Line3D](Line3D.md), [LineSegment2D](LineSegment2D.md), [LineSegment3D](LineSegment3D.md), [Mesh2D](Mesh2D.md), [Plane](Plane.md), [Point2D](Point2D.md), [Point3D](Point3D.md), [PolyMesh2D](PolyMesh2D.md), [Polygon2D](Polygon2D.md), [Polygon3D](Polygon3D.md), [PolygonTangents](PolygonTangents.md), [Polyline2D](Polyline2D.md), [Polyline3D](Polyline3D.md), [PolylineExpansionParams](PolylineExpansionParams.md), [Triangle2D](Triangle2D.md), [Triangle3D](Triangle3D.md), [TriangulationParams](TriangulationParams.md), [Vector3D](Vector3D.md)
+**See also:** [AdjacencyViolation](AdjacencyViolation.md), [ConnectedMesh2D](ConnectedMesh2D.md), [CoordinateFrame](CoordinateFrame.md), [ExtremePoints](ExtremePoints.md), [GridCell2D](GridCell2D.md), [Line2D](Line2D.md), [Line3D](Line3D.md), [LineSegment2D](LineSegment2D.md), [LineSegment3D](LineSegment3D.md), [Mesh2D](Mesh2D.md), [Plane](Plane.md), [Point2D](Point2D.md), [Point3D](Point3D.md), [PolyMesh2D](PolyMesh2D.md), [Polygon2D](Polygon2D.md), [Polygon3D](Polygon3D.md), [PolygonTangents](PolygonTangents.md), [PolygonizationParams](PolygonizationParams.md), [Polyline2D](Polyline2D.md), [Polyline3D](Polyline3D.md), [PolylineExpansionParams](PolylineExpansionParams.md), [Triangle2D](Triangle2D.md), [Triangle3D](Triangle3D.md), [TriangulationParams](TriangulationParams.md), [Vector2D](Vector2D.md), [Vector3D](Vector3D.md), [View2D](View2D.md)

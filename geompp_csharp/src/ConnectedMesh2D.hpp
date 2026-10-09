@@ -9,6 +9,8 @@ namespace GeomPP {
 
 ref class Triangle2D;
 ref class FaceView2D;
+ref class PolyMesh2D;
+ref class PolygonizationParams;
 
 // A mesh made of adjacent triangles, stored as unique vertices plus a per-face index triple.
 // Per-facet edge adjacency is precomputed internally and exposed via the FaceView2D returned by
@@ -25,6 +27,9 @@ public:
     int Size();
     double Area();
     property FaceView2D^ default[int] { FaceView2D^ get(int i); }
+
+    // Merges coplanar, edge-adjacent facets into polygons, per settings.Strategy.
+    PolyMesh2D^ Polygonize(PolygonizationParams^ settings);
 
     virtual System::String^ ToString() override;
 

@@ -20,6 +20,7 @@ class Ray2D;
 class Polyline2D;
 class Triangle2D;
 class Polygon2D;
+class PolyMesh2D;
 
 }  // namespace geometry
 
@@ -28,6 +29,22 @@ namespace transformations {
 // allowed to reach the private FromUniqueCCWPoints() fast constructor (see its own doc comment for why).
 geometry::Polygon2D transform(geometry::Polygon2D const& poly, maths::Matrix3 const& m);
 }  // namespace transformations
+
+inline namespace geometry {
+namespace detail {
+// Forward-declared (concrete pair/vector spelling, not the RingPiecesOf<MeshTriangleFaceView2D> alias -- that
+// alias needs MeshTriangleFaceView2D's full definition to resolve, which would pull calc_utils/polygonization2d.hpp
+// in here and cycle straight back to this header) so Polygon2D can friend this exact overload below.
+// Packages polygonize()/merge()/Mesh2D::Polygonize()/ConnectedMesh2D::Polygonize()'s traced {outer, holes}
+// pieces into Polygon2D, WITHOUT running remove_collinear() on them first -- see this function's own doc
+// comment (calc_utils/polygonization2d.cpp) for why that's a correctness requirement here, not just an
+// optimization: a collinear point dropped from one piece's boundary can still be a genuine, load-bearing
+// corner of a NEIGHBORING piece, and silently dropping it produces a T-junction between the two once
+// they're welded into a PolyMesh2D.
+std::vector<Polygon2D> polygons_from_pieces(
+    std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> pieces);
+}  // namespace detail
+}  // namespace geometry
 
 inline namespace geometry {
 
@@ -73,6 +90,7 @@ class Polygon2D {
   bool HasHoles() const;
   /// @brief The polygon's holes, each an ordered (CW) ring of vertices. Empty when the polygon has no holes.
   std::vector<std::vector<Point2D>> const& Holes() const;
+
   /// @brief Breaks down the polygon (outer ring ONLY, holes are ignored) into a set of triangles.
   /// Make() already guarantees the outer ring is simple, CCW-wound, and free of collinear/duplicate
   /// points, so this always calls the free triangulate() with every TriangulationParams check set to
@@ -199,14 +217,30 @@ class Polygon2D {
   // transform()'s own use: it reverses the ring itself first whenever the transform's determinant is
   // negative (see transformations2d.cpp), so winding is already right by the time this runs, and
   // convexity is affine-invariant so the source polygon's own IsConvex() carries over unchanged. Private
-  // and friended to transform() specifically -- NOT exposed publicly, since calling this with points that
-  // aren't actually CCW, or a wrong is_convex, would silently corrupt the winding/convexity invariants
-  // every other method on this class relies on.
+  // and friended to transform() and polygons_from_pieces() specifically -- NOT exposed publicly, since
+  // calling this with points that aren't actually CCW, or a wrong is_convex, would silently corrupt the
+  // winding/convexity invariants every other method on this class relies on.
   static Polygon2D FromUniqueCCWPoints(std::vector<Point2D> unique_points, bool is_convex);
   static Polygon2D FromUniqueCCWPoints(std::vector<Point2D> unique_points, std::vector<std::vector<Point2D>> holes,
                                        bool is_convex);
 
   friend Polygon2D geompp::transformations::transform(Polygon2D const& poly, maths::Matrix3 const& m);
+
+  // Same trust as transform()'s own friend grant above: polygons_from_pieces() only ever calls this with
+  // pieces already proven CCW-outer/CW-hole (package_result_rings/the boundary trace both classify a ring
+  // into outer-vs-hole BY testing are_ccw/are_cw, so the fact is already computed before this ctor would
+  // redo it) and an explicitly-computed is_convex -- see polygons_from_pieces' own doc comment.
+  friend std::vector<Polygon2D> geompp::geometry::detail::polygons_from_pieces(
+      std::vector<std::pair<std::vector<Point2D>, std::vector<std::vector<Point2D>>>> pieces);
+
+  // PolyMesh2D::operator[]() reconstructs a Polygon2D from its own stored VERTICES/FACE_INDICES buffers --
+  // vertices FromPolygons() already welded and validated (assert_adjacency) at construction time, in the
+  // exact order they were given. It must use FromUniquePoints() here, NOT the public Make(), for the same
+  // load-bearing-collinear-vertex reason as polygons_from_pieces() above: Make()'s remove_collinear() pass
+  // has no visibility into a neighboring facet's needs, so it would happily strip a vertex that's collinear
+  // on THIS facet's own ring but is another facet's genuine corner touching this edge -- silently
+  // reintroducing, on every read, the exact T-junction FromPolygons() just finished proving doesn't exist.
+  friend class PolyMesh2D;
 
   Polygon2D(std::vector<Point2D> const& points, double perimeter, bool is_convex);
   Polygon2D(std::vector<Point2D> const& points, double perimeter, std::vector<std::vector<Point2D>> const& holes,

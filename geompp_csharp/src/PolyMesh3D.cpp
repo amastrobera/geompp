@@ -17,11 +17,16 @@ PolyMesh3D::!PolyMesh3D() {
 }
 
 PolyMesh3D^ PolyMesh3D::FromPolygons(array<Polygon3D^>^ polygons) {
+    return FromPolygons(polygons, AdjacencyConformity::Assert);
+}
+
+PolyMesh3D^ PolyMesh3D::FromPolygons(array<Polygon3D^>^ polygons, AdjacencyConformity conformity) {
     std::vector<geompp::Polygon3D> nativePolygons;
     nativePolygons.reserve(polygons->Length);
     for each (Polygon3D^ p in polygons)
         nativePolygons.push_back(*p->_native);
-    return gcnew PolyMesh3D(new geompp::PolyMesh3D(geompp::PolyMesh3D::FromPolygons(nativePolygons)));
+    auto nativeConformity = static_cast<geompp::AdjacencyConformity>(conformity);
+    return gcnew PolyMesh3D(new geompp::PolyMesh3D(geompp::PolyMesh3D::FromPolygons(nativePolygons, nativeConformity)));
 }
 
 int PolyMesh3D::Size() {
