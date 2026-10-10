@@ -11,7 +11,7 @@ Each release covers all three packages at the same version:
 
 ---
 
-## [0.18.0] - 2026-09-15
+## [0.18.0] - 2026-10-09
 
 > New polygonization feature family: `polygonize(vector<Triangle2D/3D>, PolygonizationParams)` (triangles → polygons, the reverse of triangulation, 3 strategies: `PlanarBoundaryExtraction`, `PlanarQuads`, `HertelMehlhorn`) and `merge(vector<Polygon2D/3D>)` (coalesce touching/adjacent polygons, including their holes, into fewer polygons), plus `Mesh2D/3D::Polygonize()` and `ConnectedMesh2D/3D::Polygonize()` convenience methods, bound in Python and C#. Also: `AdjacencyConformity` is now a standalone enum shared by `PolygonizationParams` (new `conformity` field) and `TriangulationParams` (unchanged behavior), with `Mesh2D/3D::FromTriangles()`/`PolyMesh2D/3D::FromPolygons()` each gaining their own `conformity` parameter — `Enforce` auto-repairs a T-junction via `fix_adjacency()` instead of throwing, `Guaranteed` skips the check — and `TransformBuilder2D`/`TransformBuilder3D` gain `Apply(shape)`, a one-step shorthand for `transform(shape, builder.Get())`.
 
